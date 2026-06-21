@@ -22,6 +22,21 @@ viewed in Netscape Navigator 3.0+ (or, fine, anything modern).
   and can suggest cards, build decks around a theme, critique, or recommend
   swaps from your collection. If the AI returns a fenced ` ```decklist ` block,
   you can apply it in one click.
+- **Browse public decks** — 🃄 Decks button opens a deck browser that proxies
+  `https://dreamborn.ink/api/v2/decks` (Popular / Trending / Video / Latest),
+  with color and format filters, name/creator search, and pagination. One
+  click imports any deck into the builder (decoded from dreamborn's `pbCode`).
+- **Profile + themes** — 👤 Profile button opens a panel with account info,
+  statistics, and a theme picker. Six themes:
+  * **HTML 1996** — the default silver chrome look.
+  * **Modern Dark** — slate + neon blue, soft shadows.
+  * **Modern Light** — clean white cards, blue title bar.
+  * **Lorcana Ink** — deep purple + gold, serif, glowing borders.
+  * **Terminal** — phosphor green CRT with scanlines, monospace.
+  * **Geocities '99** — rainbow chrome, Comic Sans, peak Web 1.0.
+
+  Themes live in `public/css/themes.css` as CSS custom-property overrides
+  on `[data-theme="..."]`; persisted in `localStorage` as `ink.theme`.
 
 ## How auth works
 
@@ -83,15 +98,33 @@ network calls.
 ## File map
 
 ```
-server.js              Express: auth proxy, AI proxy, db cache, static
-public/index.html      Win95-style chrome shell
-public/css/style.css   The 1996 theme (silver/navy/Times) + Win95 primitives
+server.js              Express: auth, AI, db cache, decks proxy, static
+public/index.html      Win95-style chrome shell + modals
+public/css/style.css   Base layout + Win95 primitives, themed via CSS vars
+public/css/themes.css  Alternate themes (modern-dark/light, lorcana, terminal, geocities)
 public/js/db.js        sql.js wiring, ink bitmask decoding
 public/js/auth.js      /api/login, /api/me, /api/collection
 public/js/deck.js      Deck model, import/export, legality
 public/js/ai.js        Server proxy or BYO key (OpenAI/Anthropic)
+public/js/search.js    Scryfall-style query parser + predicate compiler
+public/js/themes.js    Theme registry; applies persisted theme before render
+public/js/decks.js     Deck-browser modal (proxies dreamborn.ink/decks)
 public/js/app.js       Everything wired together: UI, grid, deck, AI chat
+public/dreamborn-sniffer.js  Console-paste fetch/XHR/WebSocket recorder
 ```
+
+## Endpoints we proxy
+
+| Path                      | Source                                              | Notes                          |
+| ------------------------- | --------------------------------------------------- | ------------------------------ |
+| `/api/cards.db`           | `dreamborn.ink/cache/en/cards.db`                   | 1h cache                       |
+| `/api/prices.db`          | `dreamborn.ink/cache/prices/{cur}/prices.db`        | 1h cache                       |
+| `/api/login`              | Firebase Identity Toolkit → dreamborn `/api/auth/login` | issues `ink_sid` cookie    |
+| `/api/me`                 | (session lookup)                                    | who am I                       |
+| `/api/collection`         | `dreamborn.ink/api/users/{uid}/owned-cards`         | needs sign-in                  |
+| `/api/decks`              | `dreamborn.ink/api/v2/decks`                        | page 2+ needs sign-in          |
+| `/api/decks/:id`          | scrapes the Nuxt SSR payload from `/decks/{id}`     | decodes `pbCode` into cards    |
+| `/api/ai/chat`            | OpenAI or Anthropic                                 | server keys optional           |
 
 ## Disclaimer
 

@@ -27,6 +27,8 @@ const FIREBASE_SIGNIN = `https://identitytoolkit.googleapis.com/v1/accounts:sign
 const DREAMBORN_LOGIN = 'https://dreamborn.ink/api/auth/login';
 const DREAMBORN_USER  = 'https://dreamborn.ink/api/user';
 const DREAMBORN_OWNED = (uid) => `https://dreamborn.ink/api/users/${encodeURIComponent(uid)}/owned-cards`;
+const DREAMBORN_DECKS = 'https://dreamborn.ink/api/v2/decks';
+const DREAMBORN_DECK_PAGE = (id) => `https://dreamborn.ink/decks/${encodeURIComponent(id)}`;
 const CARDS_DB_URL    = 'https://dreamborn.ink/cache/en/cards.db';
 const PRICES_DB_URL   = (currency = 'USD') => `https://dreamborn.ink/cache/prices/${currency}/prices.db`;
 
@@ -221,6 +223,206 @@ app.get('/api/collection', async (req, res) => {
     res.status(502).json({ error: e.message });
   }
 });
+
+// ----- Deck browser: proxy dreamborn's public deck index + scrape individual decks. -----
+//
+// /api/decks   -> list of decks with filters (sort, format, archetype, color, q, page).
+// /api/decks/:id -> single deck with cards + decoded pbCode (Name_Subtitle$qty|...).
+
+app.get('/api/decks', async (req, res) => {
+  try {
+    const params = new URLSearchParams();
+    params.set('currency', (req.query.currency || 'USD').toString());
+    params.set('sort',     (req.query.sort     || 'popular').toString());
+    params.set('archetype',(req.query.archetype|| '').toString());
+    params.set('format',   (req.query.format   || '').toString());
+    params.set('page',     (req.query.page     || '1').toString());
+    // Note: dreamborn's /api/v2/decks does NOT accept ?q= or ?color= and 400s when
+    // they're present.  We filter those client-side on our side after the fetch.
+
+    const url = `${DREAMBORN_DECKS}?${params}`;
+    // If the user is signed in, forward their dreamborn session cookie so
+    // paginated / source=following / favorites lookups work.
+    const sid = parseSid(req);
+    const sess = sid && sessions.get(sid);
+    const r = await fetch(url, {
+      headers: {
+        'accept': 'application/json',
+        'user-agent': COMMON_HEADERS['user-agent'],
+        'referer': 'https://dreamborn.ink/decks',
+        ...(sess?.cookie ? { 'cookie': sess.cookie } : {}),
+      },
+    });
+    const j = await r.json().catch(() => ({ error: 'non-json' }));
+    if (!r.ok) return res.status(r.status).json({ error: 'dreamborn decks failed', detail: j });
+
+    // dreamborn returns an array. Client-side filter for color/q if asked,
+    // since their v2 endpoint may ignore them.
+    let decks = Array.isArray(j) ? j : (j.data || j.items || []);
+    const colors = (req.query.color || '').toString().toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+    const qstr   = (req.query.q || '').toString().toLowerCase().trim();
+    if (colors.length) {
+      decks = decks.filter((d) => {
+        const dc = (d.colors || []).map((x) => x.toLowerCase());
+        return colors.every((c) => dc.includes(c));
+      });
+    }
+    if (qstr) {
+      decks = decks.filter((d) =>
+        (d.name || '').toLowerCase().includes(qstr) ||
+        (d.creatorName || '').toLowerCase().includes(qstr) ||
+        (d.description || '').toLowerCase().includes(qstr));
+    }
+    res.set('Cache-Control', 'public, max-age=120');
+    res.json({ ok: true, page: Number(params.get('page')), count: decks.length, decks });
+  } catch (e) {
+    console.error('[decks]', e);
+    res.status(502).json({ error: e.message });
+  }
+});
+
+app.get('/api/decks/:id', async (req, res) => {
+  const id = (req.params.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+  if (!id) return res.status(400).json({ error: 'bad deck id' });
+  try {
+    const r = await fetch(DREAMBORN_DECK_PAGE(id), {
+      headers: {
+        'accept': 'text/html',
+        'user-agent': COMMON_HEADERS['user-agent'],
+        'referer': 'https://dreamborn.ink/decks',
+      },
+    });
+    if (!r.ok) return res.status(r.status).json({ error: 'dreamborn deck page failed', status: r.status });
+    const html = await r.text();
+    const parsed = parseDreambornDeckHTML(html, id);
+    if (!parsed) return res.status(502).json({ error: 'could not parse deck payload' });
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ ok: true, deck: parsed });
+  } catch (e) {
+    console.error('[deck-detail]', e);
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// Pull the Nuxt 3 SSR payload out of dreamborn's HTML and resolve the dedup'd
+// references back into a plain deck object. The Nuxt payload is a JSON array
+// where compound values reference each other by integer index.
+function parseDreambornDeckHTML(html, id) {
+  const arr = extractNuxtPayloadArray(html);
+  if (!arr) return null;
+  const deckObj = findDeckObject(arr, id);
+  if (!deckObj) return null;
+
+  // Nuxt 3 SSR payload stores every value at an integer index; an integer
+  // field value means "look up arr[idx]".  Resolve exactly one step.
+  const ref = (v) => {
+    if (typeof v !== 'number' || v < 0 || v >= arr.length) return v;
+    return arr[v];
+  };
+  // Resolve array of refs (e.g. colors list).
+  const refArr = (idx) => {
+    const a = ref(idx);
+    if (!Array.isArray(a)) return [];
+    return a.map((x) => ref(x));
+  };
+  // Resolve key/value object whose values are refs.
+  const refObj = (idx) => {
+    const o = ref(idx);
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {};
+    const out = {};
+    for (const [k, v] of Object.entries(o)) out[k] = ref(v);
+    return out;
+  };
+
+  const name        = ref(deckObj.name);
+  const creator     = ref(deckObj.creator);
+  const creatorName = ref(deckObj.creatorName);
+  const colors      = refArr(deckObj.colors);
+  const size        = ref(deckObj.size);
+  const lastUpdated = ref(deckObj.lastUpdated);
+  const likeCount   = ref(deckObj.likeCount);
+  const views       = ref(deckObj.views);
+  const totalPrice  = ref(deckObj.totalPrice);
+  const description = ref(deckObj.description);
+  const formats     = refArr(deckObj.formats);
+  const pbCode      = ref(deckObj.pbCode);
+  const tags        = refObj(deckObj.tags);
+  const cardsMap    = refObj(deckObj.cards);  // { dreambornCardId: qty }
+
+  // Decode the deck list from pbCode (Name_Subtitle$Qty|...).
+  const cards = [];
+  if (typeof pbCode === 'string') {
+    try {
+      const decoded = Buffer.from(pbCode, 'base64').toString('utf8');
+      for (const entry of decoded.split('|')) {
+        if (!entry) continue;
+        const m = entry.match(/^(.+?)\$(\d+)$/);
+        if (!m) continue;
+        const left = m[1];
+        const qty  = Number(m[2]);
+        const us   = left.indexOf('_');
+        const cardName  = us >= 0 ? left.slice(0, us) : left;
+        const cardTitle = us >= 0 ? left.slice(us + 1) : '';
+        cards.push({ name: cardName, title: cardTitle, qty });
+      }
+    } catch (e) {
+      console.warn('[deck] pbCode decode failed:', e.message);
+    }
+  }
+
+  return {
+    id,
+    name: typeof name === 'string' ? name : null,
+    creator: typeof creator === 'string' ? creator : null,
+    creatorName: typeof creatorName === 'string' ? creatorName : null,
+    description: typeof description === 'string' ? description : '',
+    colors: colors.filter((c) => typeof c === 'string'),
+    size: Number(size) || cards.reduce((a, c) => a + c.qty, 0),
+    lastUpdated: typeof lastUpdated === 'string' ? lastUpdated : null,
+    likeCount: Number(likeCount) || 0,
+    views:     Number(views)     || 0,
+    totalPrice: Number(totalPrice) || 0,
+    formats: formats.filter((f) => typeof f === 'number' || typeof f === 'string'),
+    cardIds: Object.entries(cardsMap).map(([cid, qty]) => ({ id: cid, qty: Number(qty) || 0 })),
+    cards,
+    pbCode: typeof pbCode === 'string' ? pbCode : null,
+    sourceUrl: `https://dreamborn.ink/decks/${id}`,
+  };
+}
+
+function extractNuxtPayloadArray(html) {
+  // The Nuxt 3 serialized payload is embedded in a <script>[...]</script> block.
+  // We look for one that starts with `[["ShallowReactive"` which is the marker
+  // for the reactive store payload.
+  const re = /<script[^>]*>(\[\s*\[\s*"ShallowReactive"[\s\S]*?\])<\/script>/g;
+  let m;
+  while ((m = re.exec(html))) {
+    try {
+      const arr = JSON.parse(m[1]);
+      if (Array.isArray(arr)) return arr;
+    } catch { /* skip */ }
+  }
+  return null;
+}
+
+function findDeckObject(arr, expectedId) {
+  // The deck record is an object whose keys include name, creator, cards, pbCode.
+  for (const v of arr) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && 'pbCode' in v && 'cards' in v && 'creator' in v) {
+      return v;
+    }
+  }
+  // Fallback: find by id reference
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] === expectedId) {
+      // walk for an object that references this index as `id`
+      for (const v of arr) {
+        if (v && typeof v === 'object' && !Array.isArray(v) && v.id === i) return v;
+      }
+    }
+  }
+  return null;
+}
 
 // ----- AI proxy (optional). Supports OpenAI & Anthropic. -----
 app.get('/api/ai/config', (req, res) => {
