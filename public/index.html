@@ -58,37 +58,155 @@
         <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
       </div>
 
+      <!-- Visual filter builder. Clicking these widgets writes syntax
+           into the search bar, so users learn the query language by example. -->
+      <div id="builder" class="builder builder-collapsed">
+        <div class="builder-row">
+
+          <fieldset class="builder-group">
+            <legend>Color</legend>
+            <button class="ink-btn" data-color="amber"    title="Amber"></button>
+            <button class="ink-btn" data-color="amethyst" title="Amethyst"></button>
+            <button class="ink-btn" data-color="emerald"  title="Emerald"></button>
+            <button class="ink-btn" data-color="ruby"     title="Ruby"></button>
+            <button class="ink-btn" data-color="sapphire" title="Sapphire"></button>
+            <button class="ink-btn" data-color="steel"    title="Steel"></button>
+          </fieldset>
+
+          <fieldset class="builder-group">
+            <legend>Type</legend>
+            <button class="tog-btn" data-type="character">Character</button>
+            <button class="tog-btn" data-type="action">Action</button>
+            <button class="tog-btn" data-type="song">Song</button>
+            <button class="tog-btn" data-type="item">Item</button>
+            <button class="tog-btn" data-type="location">Location</button>
+          </fieldset>
+
+          <fieldset class="builder-group">
+            <legend>Cost</legend>
+            <span class="num-pair">
+              <input type="number" min="0" max="20" id="bCostMin" placeholder="min">
+              <span class="dash">–</span>
+              <input type="number" min="0" max="20" id="bCostMax" placeholder="max">
+            </span>
+          </fieldset>
+
+          <fieldset class="builder-group">
+            <legend>Inkable</legend>
+            <button class="tog-btn" data-inkable="">Any</button>
+            <button class="tog-btn" data-inkable="yes">Yes</button>
+            <button class="tog-btn" data-inkable="no">No</button>
+          </fieldset>
+
+          <span class="spacer" style="flex:1"></span>
+          <button id="builderToggleBtn" class="builder-toggle">More filters ▾</button>
+        </div>
+
+        <div class="builder-more">
+          <div class="builder-row">
+
+            <fieldset class="builder-group">
+              <legend>Rarity</legend>
+              <span class="multi-select" data-multi="rarity">
+                <button class="tog-btn" data-rarity="common">common</button>
+                <button class="tog-btn" data-rarity="uncommon">uncommon</button>
+                <button class="tog-btn" data-rarity="rare">rare</button>
+                <button class="tog-btn" data-rarity="super rare">super</button>
+                <button class="tog-btn" data-rarity="legendary">legendary</button>
+                <button class="tog-btn" data-rarity="enchanted">enchanted</button>
+                <button class="tog-btn" data-rarity="epic">epic</button>
+                <button class="tog-btn" data-rarity="iconic">iconic</button>
+                <button class="tog-btn" data-rarity="promo">promo</button>
+              </span>
+            </fieldset>
+
+            <fieldset class="builder-group">
+              <legend>Keyword</legend>
+              <span class="multi-select" data-multi="keyword">
+                <button class="tog-btn" data-kw="singer">singer</button>
+                <button class="tog-btn" data-kw="support">support</button>
+                <button class="tog-btn" data-kw="ward">ward</button>
+                <button class="tog-btn" data-kw="evasive">evasive</button>
+                <button class="tog-btn" data-kw="rush">rush</button>
+                <button class="tog-btn" data-kw="bodyguard">bodyguard</button>
+                <button class="tog-btn" data-kw="challenger">challenger</button>
+                <button class="tog-btn" data-kw="reckless">reckless</button>
+                <button class="tog-btn" data-kw="resist">resist</button>
+                <button class="tog-btn" data-kw="shift">shift</button>
+                <button class="tog-btn" data-kw="vanish">vanish</button>
+                <button class="tog-btn" data-kw="alert">alert</button>
+                <button class="tog-btn" data-kw="boost">boost</button>
+              </span>
+            </fieldset>
+
+            <fieldset class="builder-group">
+              <legend>Set</legend>
+              <span class="multi-select" data-multi="set" id="bSets"></span>
+            </fieldset>
+
+          </div>
+
+          <div class="builder-row">
+            <fieldset class="builder-group">
+              <legend>Strength</legend>
+              <span class="num-pair">
+                <input type="number" min="0" id="bStrMin" placeholder="min">
+                <span class="dash">–</span>
+                <input type="number" min="0" id="bStrMax" placeholder="max">
+              </span>
+            </fieldset>
+            <fieldset class="builder-group">
+              <legend>Willpower</legend>
+              <span class="num-pair">
+                <input type="number" min="0" id="bWpMin" placeholder="min">
+                <span class="dash">–</span>
+                <input type="number" min="0" id="bWpMax" placeholder="max">
+              </span>
+            </fieldset>
+            <fieldset class="builder-group">
+              <legend>Lore</legend>
+              <span class="num-pair">
+                <input type="number" min="0" id="bLoreMin" placeholder="min">
+                <span class="dash">–</span>
+                <input type="number" min="0" id="bLoreMax" placeholder="max">
+              </span>
+            </fieldset>
+            <fieldset class="builder-group">
+              <legend>Property</legend>
+              <input type="text" id="bProperty" placeholder="e.g. villain, princess, toy" style="width:180px;">
+            </fieldset>
+            <fieldset class="builder-group">
+              <legend>Franchise</legend>
+              <input type="text" id="bFranchise" placeholder="e.g. Toy Story" style="width:140px;">
+            </fieldset>
+          </div>
+
+          <div class="builder-row">
+            <fieldset class="builder-group">
+              <legend>Name contains</legend>
+              <input type="text" id="bName" placeholder="e.g. mickey" style="width:140px;">
+            </fieldset>
+            <fieldset class="builder-group">
+              <legend>Subtitle contains</legend>
+              <input type="text" id="bTitle" placeholder="e.g. tailor" style="width:140px;">
+            </fieldset>
+            <fieldset class="builder-group">
+              <legend>Text contains</legend>
+              <input type="text" id="bText" placeholder='e.g. "draw a card"' style="width:240px;">
+            </fieldset>
+          </div>
+        </div>
+      </div>
+
+      <!-- Power-user search bar.  Anything typed here works too. -->
       <div class="toolbar" style="flex-direction: column; align-items: stretch; gap: 4px;">
         <div class="row" style="gap:4px;">
           <input id="search" type="search"
-                 placeholder='Search:  c:amber t:character cost>=3 kw:singer  (try the ? button for syntax)'
+                 placeholder='Click filters above or type:  c:amber t:character cost>=3 kw:singer'
                  style="flex:1; font-family: var(--font-ui); font-size: 12px;"
                  spellcheck="false" autocapitalize="off" autocomplete="off">
           <button id="searchHelpBtn" title="Query syntax help">?</button>
-          <button id="searchClearBtn" title="Clear">✕</button>
-        </div>
-        <div class="row wrap" id="searchChips" style="gap:3px; font-size:11px;">
-          <span class="small muted" style="margin-right:4px;">Quick:</span>
-          <button class="chip" data-q="t:character">t:character</button>
-          <button class="chip" data-q="t:action">t:action</button>
-          <button class="chip" data-q="t:song">t:song</button>
-          <button class="chip" data-q="t:item">t:item</button>
-          <button class="chip" data-q="t:location">t:location</button>
-          <span class="small muted" style="margin:0 4px;">·</span>
-          <button class="chip" data-q="c:amber"   style="border-left: 4px solid #f4b400;">amber</button>
-          <button class="chip" data-q="c:amethyst" style="border-left: 4px solid #8a3ffc;">amethyst</button>
-          <button class="chip" data-q="c:emerald" style="border-left: 4px solid #00a26a;">emerald</button>
-          <button class="chip" data-q="c:ruby"    style="border-left: 4px solid #d6204e;">ruby</button>
-          <button class="chip" data-q="c:sapphire" style="border-left: 4px solid #1a86d6;">sapphire</button>
-          <button class="chip" data-q="c:steel"   style="border-left: 4px solid #94a3b8;">steel</button>
-          <span class="small muted" style="margin:0 4px;">·</span>
-          <button class="chip" data-q="i:yes">inkable</button>
-          <button class="chip" data-q="i:no">uninkable</button>
-          <button class="chip" data-q="kw:singer">kw:singer</button>
-          <button class="chip" data-q="kw:ward">kw:ward</button>
-          <button class="chip" data-q="kw:evasive">kw:evasive</button>
-          <button class="chip" data-q="r:legendary">legendary</button>
-          <button class="chip" data-q="lore>=2">lore>=2</button>
+          <button id="searchClearBtn" title="Clear all filters">✕</button>
         </div>
         <div class="row" style="font-size: 11px;">
           <label class="small" title="Filter to cards you own (after Sync Collection)">
@@ -100,8 +218,17 @@
         </div>
       </div>
 
+      <!-- Active-filter chip strip, parsed back from the bar.  Click X to remove. -->
+      <div id="activeChips" class="active-chips">
+        <span class="empty">No filters — click a color, type, or filter above to start.</span>
+      </div>
+
       <div id="cardGrid" class="card-grid bevel-in">
         <div class="muted small" style="padding:20px; font-family:var(--font-ui)">Loading database… please wait.</div>
+      </div>
+      <div class="statusbar" style="font-size:11px; padding:2px 6px;">
+        <span class="muted">Tip:</span>
+        <span>Left-click a card to add, right-click to remove. Hover for full art. Combine multiple colors/types/keywords — they all OR within a group.</span>
       </div>
     </div>
 

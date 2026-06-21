@@ -265,6 +265,12 @@ function compileFilter(raw) {
   return { fn: (c) => abilityText(c).includes(needle), src: raw };
 }
 
+// Split a value on commas (or slashes / plus signs) for ANY-match. Treats
+// the whole string as one term if there are no separators.
+function splitMulti(v) {
+  return String(v).split(/[,/+]/).map((s) => s.trim()).filter(Boolean);
+}
+
 function buildFieldPred(key, op, val) {
   const sval = (typeof val === 'string') ? val.toLowerCase() : val;
   switch (key) {
@@ -275,47 +281,50 @@ function buildFieldPred(key, op, val) {
         if (sval === 'multi' || sval === 'm' || sval === '2+') return (c) => (c.inks?.length || 0) >= 2;
         if (sval === 'mono' || sval === 'single' || sval === '1') return (c) => (c.inks?.length || 0) === 1;
       }
-      const list = String(sval).split(/[,/+]/).map((s) => COLOR_ALIASES[s.trim()] || s.trim()).filter(Boolean);
+      const list = splitMulti(sval).map((s) => COLOR_ALIASES[s] || s);
       if (!list.length) return null;
       return (c) => list.some((ink) => c.inks?.includes(ink));
     }
     case 't': case 'type': {
-      return (c) => String(c.type || '').toLowerCase() === String(sval).toLowerCase();
+      const list = splitMulti(sval);
+      return (c) => list.includes(String(c.type || '').toLowerCase());
     }
     case 'n': case 'name': {
-      const n = String(sval);
-      return (c) => String(c.name || '').toLowerCase().includes(n);
+      const list = splitMulti(sval);
+      return (c) => list.some((n) => String(c.name || '').toLowerCase().includes(n));
     }
     case 'tt': case 'title': case 'st': case 'subtitle': {
-      const n = String(sval);
-      return (c) => String(c.title || '').toLowerCase().includes(n);
+      const list = splitMulti(sval);
+      return (c) => list.some((n) => String(c.title || '').toLowerCase().includes(n));
     }
     case 'o': case 'oracle': case 'text': {
+      // Single phrase only (commas can legitimately appear in oracle text).
       const needle = expandSymbols(String(sval));
       return (c) => abilityText(c).includes(needle);
     }
     case 'kw': case 'keyword': {
-      const n = String(sval);
+      const list = splitMulti(sval);
       return (c) => {
         const k = keywordsObj(c);
-        return Object.keys(k).some((kk) => kk.toLowerCase().includes(n));
+        const kk = Object.keys(k).map((x) => x.toLowerCase());
+        return list.some((n) => kk.some((x) => x.includes(n)));
       };
     }
     case 'p': case 'prop': case 'char': case 'characteristic': case 'characteristics': {
-      const n = String(sval);
-      return (c) => characteristicsText(c).includes(n);
+      const list = splitMulti(sval);
+      return (c) => { const t = characteristicsText(c); return list.some((n) => t.includes(n)); };
     }
     case 'f': case 'franchise': {
-      const n = String(sval);
-      return (c) => String(c.franchise || '').toLowerCase().includes(n);
+      const list = splitMulti(sval);
+      return (c) => { const f = String(c.franchise || '').toLowerCase(); return list.some((n) => f.includes(n)); };
     }
     case 'r': case 'rarity': {
-      const n = String(sval);
-      return (c) => String(c.rarity || '').toLowerCase() === n;
+      const list = splitMulti(sval);
+      return (c) => list.includes(String(c.rarity || '').toLowerCase());
     }
     case 'set': case 's': {
-      const n = String(sval).padStart(3, '0');
-      return (c) => String(c.setId || '') === n;
+      const list = splitMulti(sval).map((x) => x.padStart(3, '0'));
+      return (c) => list.includes(String(c.setId || ''));
     }
     case 'i': case 'inkable': case 'inkwell': {
       const truthy = /^(yes|y|true|t|1)$/i.test(String(sval));
