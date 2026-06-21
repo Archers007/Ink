@@ -16,6 +16,7 @@
     <div class="titlebar">
       <span>📜 Ink — Disney Lorcana Deck Builder &amp; A.I. Assistant</span>
       <span class="ctrls">
+        <button id="openSnifferBtn" title="Get the dreamborn.ink API sniffer">🕵</button>
         <button title="Minimize">_</button>
         <button title="Maximize">▢</button>
         <button title="Close">✕</button>
@@ -57,25 +58,46 @@
         <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
       </div>
 
-      <div class="toolbar">
-        <input id="search" type="search" placeholder="Search name or title…" style="min-width: 180px;">
-        <select id="filterSet"><option value="">All sets</option></select>
-        <select id="filterType">
-          <option value="">All types</option>
-          <option>character</option><option>action</option><option>item</option>
-          <option>location</option><option>song</option>
-        </select>
-        <select id="filterCost"><option value="">Any cost</option></select>
-        <select id="filterInk"><option value="">Any ink</option></select>
-        <select id="filterRarity">
-          <option value="">Any rarity</option>
-          <option>common</option><option>uncommon</option><option>rare</option>
-          <option>super rare</option><option>legendary</option><option>enchanted</option>
-          <option>epic</option><option>iconic</option><option>promo</option>
-        </select>
-        <label class="row small"><input type="checkbox" id="ownedOnly"> Owned only</label>
-        <span class="spacer"></span>
-        <span id="resultCount" class="small muted">—</span>
+      <div class="toolbar" style="flex-direction: column; align-items: stretch; gap: 4px;">
+        <div class="row" style="gap:4px;">
+          <input id="search" type="search"
+                 placeholder='Search:  c:amber t:character cost>=3 kw:singer  (try the ? button for syntax)'
+                 style="flex:1; font-family: var(--font-ui); font-size: 12px;"
+                 spellcheck="false" autocapitalize="off" autocomplete="off">
+          <button id="searchHelpBtn" title="Query syntax help">?</button>
+          <button id="searchClearBtn" title="Clear">✕</button>
+        </div>
+        <div class="row wrap" id="searchChips" style="gap:3px; font-size:11px;">
+          <span class="small muted" style="margin-right:4px;">Quick:</span>
+          <button class="chip" data-q="t:character">t:character</button>
+          <button class="chip" data-q="t:action">t:action</button>
+          <button class="chip" data-q="t:song">t:song</button>
+          <button class="chip" data-q="t:item">t:item</button>
+          <button class="chip" data-q="t:location">t:location</button>
+          <span class="small muted" style="margin:0 4px;">·</span>
+          <button class="chip" data-q="c:amber"   style="border-left: 4px solid #f4b400;">amber</button>
+          <button class="chip" data-q="c:amethyst" style="border-left: 4px solid #8a3ffc;">amethyst</button>
+          <button class="chip" data-q="c:emerald" style="border-left: 4px solid #00a26a;">emerald</button>
+          <button class="chip" data-q="c:ruby"    style="border-left: 4px solid #d6204e;">ruby</button>
+          <button class="chip" data-q="c:sapphire" style="border-left: 4px solid #1a86d6;">sapphire</button>
+          <button class="chip" data-q="c:steel"   style="border-left: 4px solid #94a3b8;">steel</button>
+          <span class="small muted" style="margin:0 4px;">·</span>
+          <button class="chip" data-q="i:yes">inkable</button>
+          <button class="chip" data-q="i:no">uninkable</button>
+          <button class="chip" data-q="kw:singer">kw:singer</button>
+          <button class="chip" data-q="kw:ward">kw:ward</button>
+          <button class="chip" data-q="kw:evasive">kw:evasive</button>
+          <button class="chip" data-q="r:legendary">legendary</button>
+          <button class="chip" data-q="lore>=2">lore>=2</button>
+        </div>
+        <div class="row" style="font-size: 11px;">
+          <label class="small" title="Filter to cards you own (after Sync Collection)">
+            <input type="checkbox" id="ownedOnly"> Owned only
+          </label>
+          <span class="spacer"></span>
+          <span id="searchError" class="warn small"></span>
+          <span id="resultCount" class="small muted">—</span>
+        </div>
       </div>
 
       <div id="cardGrid" class="card-grid bevel-in">
@@ -213,6 +235,41 @@
     <div class="actions">
       <button id="importSubmit">Import</button>
       <button data-close-modal>Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== Search Help Modal ============== -->
+<div id="helpModal" class="modal-backdrop">
+  <div class="modal window bevel-out" style="max-width: 720px;">
+    <div class="titlebar">
+      <span>📖 Search Syntax</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body" id="helpBody" style="max-height: 70vh; overflow:auto;"></div>
+    <div class="actions">
+      <button id="helpExampleBtn">Insert example</button>
+      <button data-close-modal>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== Dreamborn Sniffer Modal ============== -->
+<div id="snifferModal" class="modal-backdrop">
+  <div class="modal window bevel-out" style="max-width: 720px;">
+    <div class="titlebar">
+      <span>🕵 dreamborn.ink API sniffer</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body" style="font-family: var(--font-ui); font-size: 12px;">
+      <p>Paste this script into the DevTools console on <a href="https://dreamborn.ink" target="_blank" rel="noopener">dreamborn.ink</a>, then click around the site. The script records every fetch/XHR/WebSocket call.</p>
+      <p>Then run <code>_ink.show()</code>, <code>_ink.curls()</code>, or <code>_ink.download()</code> in the console.</p>
+      <textarea id="snifferText" rows="10" style="width:100%; font-family:Menlo,monospace; font-size:11px;" spellcheck="false" readonly></textarea>
+    </div>
+    <div class="actions">
+      <button id="snifferCopyBtn">Copy to clipboard</button>
+      <a class="btn" id="snifferDownloadBtn" href="/dreamborn-sniffer.js" download="dreamborn-sniffer.js" style="text-decoration:none;">Download .js</a>
+      <button data-close-modal>Close</button>
     </div>
   </div>
 </div>
