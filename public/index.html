@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ink :: Lorcana Deck Builder of the Future (1996)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23c0c0c0'/><text x='8' y='12' text-anchor='middle' font-family='Times New Roman' font-size='12' fill='%23000080'>I</text></svg>">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ============== HEADER WINDOW ============== -->
+  <div class="window bevel-out header">
+    <div class="titlebar">
+      <span>📜 Ink — Disney Lorcana Deck Builder &amp; A.I. Assistant</span>
+      <span class="ctrls">
+        <button title="Minimize">_</button>
+        <button title="Maximize">▢</button>
+        <button title="Close">✕</button>
+      </span>
+    </div>
+    <div class="menubar">
+      <span><u>F</u>ile</span>
+      <span><u>E</u>dit</span>
+      <span><u>V</u>iew</span>
+      <span><u>D</u>eck</span>
+      <span><u>H</u>elp</span>
+    </div>
+    <div class="title">Ink <span class="blink">▌</span> <span class="muted small" style="font-family:var(--font-ui)">Best viewed in Netscape Navigator 3.0+</span></div>
+    <div class="subtitle">A Lorcana deck builder with a Pentium-class A.I. helper. Free to use. No popups. <a href="#" id="aboutLink">About this site</a>.</div>
+    <div class="marquee"><span>★ Welcome to Ink! ★ Build legal 60-card Lorcana decks with help from our A.I. ✦ Sign in with your Dreamborn account to sync your collection ✦ Best viewed at 800×600 ★ Updated daily ★ Hits since 1996: <b id="hitCounter">000001</b> ★</span></div>
+  </div>
+
+  <!-- ============== STATUS / SIGN-IN STRIP ============== -->
+  <div class="window bevel-out" style="margin-top: 8px;">
+    <div class="statusbar">
+      <div class="cell" id="dbStatus">DB: loading…</div>
+      <div class="cell" id="cardCount">Cards: —</div>
+      <div class="cell" id="setCount">Sets: —</div>
+      <div class="spacer" style="flex:1"></div>
+      <div class="cell" id="userCell">Guest</div>
+      <button id="signInBtn">Sign In</button>
+      <button id="signOutBtn" class="hidden">Sign Out</button>
+      <button id="syncCollectionBtn" class="hidden" title="Pull your Dreamborn collection">Sync Collection</button>
+    </div>
+  </div>
+
+  <!-- ============== MAIN LAYOUT ============== -->
+  <div class="layout">
+
+    <!-- LEFT: card browser -->
+    <div class="window bevel-out">
+      <div class="titlebar">
+        <span>🔎 Card Catalog</span>
+        <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
+      </div>
+
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search name or title…" style="min-width: 180px;">
+        <select id="filterSet"><option value="">All sets</option></select>
+        <select id="filterType">
+          <option value="">All types</option>
+          <option>character</option><option>action</option><option>item</option>
+          <option>location</option><option>song</option>
+        </select>
+        <select id="filterCost"><option value="">Any cost</option></select>
+        <select id="filterInk"><option value="">Any ink</option></select>
+        <select id="filterRarity">
+          <option value="">Any rarity</option>
+          <option>common</option><option>uncommon</option><option>rare</option>
+          <option>super rare</option><option>legendary</option><option>enchanted</option>
+          <option>epic</option><option>iconic</option><option>promo</option>
+        </select>
+        <label class="row small"><input type="checkbox" id="ownedOnly"> Owned only</label>
+        <span class="spacer"></span>
+        <span id="resultCount" class="small muted">—</span>
+      </div>
+
+      <div id="cardGrid" class="card-grid bevel-in">
+        <div class="muted small" style="padding:20px; font-family:var(--font-ui)">Loading database… please wait.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: deck panel & AI -->
+    <div>
+      <div class="window bevel-out">
+        <div class="titlebar">
+          <span>🃏 <span id="deckTitle">Untitled Deck</span></span>
+          <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
+        </div>
+        <div class="toolbar">
+          <button id="newDeckBtn" title="New deck">📄 New</button>
+          <button id="saveDeckBtn" title="Save to browser">💾 Save</button>
+          <button id="loadDeckBtn" title="Load from browser">📂 Load</button>
+          <button id="exportDeckBtn" title="Export decklist">📤 Export</button>
+          <button id="importDeckBtn" title="Import decklist">📥 Import</button>
+        </div>
+        <div class="summary">
+          <div class="stat bevel-in"><b id="statCount">0</b>Cards</div>
+          <div class="stat bevel-in"><b id="statInkable">0</b>Inkable</div>
+          <div class="stat bevel-in"><b id="statAvgCost">0.0</b>Avg cost</div>
+        </div>
+        <div class="row" style="padding: 0 8px 8px; font-family: var(--font-ui); font-size: 12px;">
+          <span class="muted">Inks:</span><span id="deckInks">—</span>
+          <span class="spacer"></span>
+          <span id="deckLegality" class="small">—</span>
+        </div>
+        <div id="deckList" class="deck-list bevel-in"></div>
+      </div>
+
+      <div class="window bevel-out" style="margin-top: 8px;">
+        <div class="titlebar">
+          <span>🤖 A.I. Deck Helper</span>
+          <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
+        </div>
+        <div class="ai-panel">
+          <div id="aiProviderRow" class="small muted" style="font-family: var(--font-ui); margin-bottom:6px;">Provider: <span id="aiProvider">none</span> · <a href="#" id="aiSettingsLink">settings</a></div>
+          <div id="aiLog" class="ai-log bevel-in">
+            <div class="msg role-system">Hi! I can recommend cards, build decks around a theme, and critique what you've got. Try a suggestion below or just ask.</div>
+          </div>
+          <div class="ai-suggest">
+            <button data-prompt="Suggest a fun 2-ink combination I haven't tried.">🎲 Suggest inks</button>
+            <button data-prompt="Build a 60-card Amber/Steel aggro deck legal in Core constructed.">⚔️ Amber/Steel aggro</button>
+            <button data-prompt="Critique my current deck and call out the 5 weakest cards.">🔍 Critique deck</button>
+            <button data-prompt="Recommend 6 cards from my owned collection to swap in.">📦 Improve from collection</button>
+            <button data-prompt="What's a good curve for a midrange Sapphire/Amethyst deck?">📈 Curve advice</button>
+          </div>
+          <form id="aiForm" class="ai-input">
+            <input id="aiInput" type="text" placeholder="Ask the A.I. anything about your deck…">
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== FOOTER STATUS BAR ============== -->
+  <div class="window bevel-out" style="margin-top: 8px;">
+    <div class="statusbar">
+      <div class="cell">Ready.</div>
+      <div class="cell"><span id="aiStatus">A.I. idle</span></div>
+      <div class="spacer" style="flex:1"></div>
+      <div class="cell">© 1996–2026 Ink. Disney Lorcana © Disney/Ravensburger. Not affiliated with Dreamborn.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============== Sign-In Modal ============== -->
+<div id="signInModal" class="modal-backdrop">
+  <div class="modal window bevel-out">
+    <div class="titlebar">
+      <span>🔐 Sign in with your Dreamborn account</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body">
+      <div class="muted small" style="margin-bottom:8px;">Credentials are forwarded to <b>identitytoolkit.googleapis.com</b> and <b>dreamborn.ink</b> only. We keep a session cookie server-side so the browser doesn't fight CORS.</div>
+      <div style="display:grid; grid-template-columns:80px 1fr; gap:6px; align-items:center;">
+        <label>E-mail:</label>   <input id="signInEmail" type="email" autocomplete="username">
+        <label>Password:</label> <input id="signInPassword" type="password" autocomplete="current-password">
+      </div>
+      <div id="signInError" class="warn small" style="margin-top:6px; min-height: 14px;"></div>
+    </div>
+    <div class="actions">
+      <button id="signInSubmit">OK</button>
+      <button data-close-modal>Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== AI Settings Modal ============== -->
+<div id="aiModal" class="modal-backdrop">
+  <div class="modal window bevel-out">
+    <div class="titlebar">
+      <span>🤖 A.I. Settings</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body" style="min-width: 380px;">
+      <div class="small muted" style="margin-bottom:6px;">If the server has <code>OPENAI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> set, we use that. Otherwise paste a key here (stored in this browser only).</div>
+      <fieldset>
+        <legend>Bring-Your-Own-Key</legend>
+        <label>Provider:
+          <select id="aiByokProvider">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+        </label>
+        <label style="display:block; margin-top:6px;">API key: <input id="aiByokKey" type="password" style="width:260px;"></label>
+        <label style="display:block; margin-top:6px;">Model: <input id="aiByokModel" type="text" style="width:260px;" placeholder="e.g. gpt-4o-mini or claude-3-5-sonnet-latest"></label>
+      </fieldset>
+    </div>
+    <div class="actions">
+      <button id="aiSaveBtn">Save</button>
+      <button data-close-modal>Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== Import Modal ============== -->
+<div id="importModal" class="modal-backdrop">
+  <div class="modal window bevel-out">
+    <div class="titlebar">
+      <span>📥 Import Decklist</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body">
+      <div class="small muted" style="margin-bottom: 6px;">Paste a decklist. One card per line: <code>4 Mickey Mouse - Brave Little Tailor</code></div>
+      <textarea id="importText" rows="12" style="width: 480px;"></textarea>
+      <div id="importError" class="warn small" style="margin-top:4px; min-height:14px;"></div>
+    </div>
+    <div class="actions">
+      <button id="importSubmit">Import</button>
+      <button data-close-modal>Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- card preview tooltip -->
+<div id="preview" class="preview"><img alt=""></div>
+
+<!-- sql.js for in-browser SQLite -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
