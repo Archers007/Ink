@@ -5,6 +5,9 @@
 <title>Ink :: Lorcana Deck Builder of the Future (1996)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/themes.css">
+<!-- Apply the persisted theme before render to avoid a flash of default theme. -->
+<script>(function(){try{var t=localStorage.getItem('ink.theme')||'1996';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23c0c0c0'/><text x='8' y='12' text-anchor='middle' font-family='Times New Roman' font-size='12' fill='%23000080'>I</text></svg>">
 </head>
 <body>
@@ -16,6 +19,8 @@
     <div class="titlebar">
       <span>📜 Ink — Disney Lorcana Deck Builder &amp; A.I. Assistant</span>
       <span class="ctrls">
+        <button id="openDecksBtn" title="Browse public decks from dreamborn.ink">🃄 Decks</button>
+        <button id="openProfileBtn" title="Profile &amp; theme">👤 Profile</button>
         <button id="openSnifferBtn" title="Get the dreamborn.ink API sniffer">🕵</button>
         <button title="Minimize">_</button>
         <button title="Maximize">▢</button>
@@ -377,6 +382,87 @@
     <div class="actions">
       <button id="helpExampleBtn">Insert example</button>
       <button data-close-modal>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== Deck Browser Modal ============== -->
+<div id="decksModal" class="modal-backdrop">
+  <div class="modal window bevel-out" style="max-width: 920px; width: 95vw;">
+    <div class="titlebar">
+      <span>🃄 Browse public decks (dreamborn.ink)</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body" style="padding: 8px 10px 4px;">
+      <div class="deck-filters">
+        <div class="row" style="gap:4px; flex-wrap: wrap;">
+          <span id="deckSortBtns" class="row" style="gap:2px;">
+            <button data-sort="popular" class="tog-btn">Popular</button>
+            <button data-sort="trending" class="tog-btn">Trending</button>
+            <button data-sort="video" class="tog-btn">Video</button>
+            <button data-sort="latest" class="tog-btn">Latest</button>
+          </span>
+          <span class="spacer" style="flex:1; min-width: 8px;"></span>
+          <label class="small" style="font-family:var(--font-ui)">Format:
+            <select id="deckFormatSel">
+              <option value="">Any</option>
+              <option value="1">Infinity</option>
+              <option value="2">Core</option>
+            </select>
+          </label>
+          <input id="deckSearch" type="search" placeholder="Search names, creators…" style="min-width: 200px;">
+        </div>
+        <div class="row" style="margin-top:4px;">
+          <span class="small muted" style="font-family:var(--font-ui); margin-right:4px;">Colors (AND):</span>
+          <span id="deckColorBtns" class="row" style="gap:2px;">
+            <button class="ink-btn" data-color="amber"    title="Amber"></button>
+            <button class="ink-btn" data-color="amethyst" title="Amethyst"></button>
+            <button class="ink-btn" data-color="emerald"  title="Emerald"></button>
+            <button class="ink-btn" data-color="ruby"     title="Ruby"></button>
+            <button class="ink-btn" data-color="sapphire" title="Sapphire"></button>
+            <button class="ink-btn" data-color="steel"    title="Steel"></button>
+          </span>
+          <span class="spacer" style="flex:1"></span>
+          <button id="deckPagePrevBtn" class="chip">◀ Prev</button>
+          <span id="deckPageInfo" class="small muted" style="font-family:var(--font-ui); min-width: 70px; text-align:center;">Page 1</span>
+          <button id="deckPageNextBtn" class="chip">Next ▶</button>
+        </div>
+      </div>
+      <div id="deckResults" class="deck-results bevel-in"></div>
+      <div class="small muted" style="font-family:var(--font-ui); padding: 4px 2px 0;">
+        Tip: page 2+ requires a Dreamborn sign-in (uses your session cookie). Clicking <b>Import</b> replaces your current deck.
+      </div>
+    </div>
+    <div class="actions">
+      <button data-close-modal>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== Profile / Theme Modal ============== -->
+<div id="profileModal" class="modal-backdrop">
+  <div class="modal window bevel-out" style="max-width: 760px;">
+    <div class="titlebar">
+      <span>👤 Profile &amp; Theme</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body" style="min-width: 520px;">
+      <fieldset>
+        <legend>Account</legend>
+        <div id="profileAccount" class="small" style="font-family:var(--font-ui);">—</div>
+      </fieldset>
+      <fieldset style="margin-top:8px;">
+        <legend>Theme</legend>
+        <div class="small muted" style="font-family:var(--font-ui); margin-bottom:6px;">Pick how Ink looks. Stored in this browser.</div>
+        <div id="themePicker" class="theme-picker"></div>
+      </fieldset>
+      <fieldset style="margin-top:8px;">
+        <legend>Statistics</legend>
+        <div id="profileStats" class="small" style="font-family:var(--font-ui);">—</div>
+      </fieldset>
+    </div>
+    <div class="actions">
+      <button data-close-modal>Done</button>
     </div>
   </div>
 </div>

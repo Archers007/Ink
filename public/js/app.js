@@ -1,10 +1,13 @@
 // Glue: boot DB, render catalog, render deck, wire UI, talk to AI/auth.
 
+import './themes.js';                 // applies persisted theme before render
 import { DB, loadDB, INK_ORDER, inkSymbol, canonicalPrintings } from './db.js';
 import * as Deck from './deck.js';
 import * as Auth from './auth.js';
 import * as AI from './ai.js';
 import { compileQuery, HELP_HTML } from './search.js';
+import { THEMES, currentTheme, applyTheme } from './themes.js';
+import * as Decks from './decks.js';
 
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -581,6 +584,27 @@ function wireUI() {
 
   $('#ownedOnly').addEventListener('change',  (e) => { state.ownedOnly = e.target.checked; applyFilters(); });
 
+  // deck browser
+  Decks.wire();
+  $('#openDecksBtn').addEventListener('click', () => {
+    Decks.open({
+      onImport: ({ deck, errs }) => {
+        Deck.Deck.name = deck.name || 'Imported deck';
+        $('#deckTitle').textContent = Deck.Deck.name;
+        renderGrid(); renderDeck();
+        if (errs && errs.length) {
+          alert(`Imported "${deck.name}" but ${errs.length} cards couldn't be matched in our DB:\n\n${errs.slice(0, 10).join('\n')}`);
+        }
+      },
+    });
+  });
+
+  // profile / theme
+  $('#openProfileBtn').addEventListener('click', () => {
+    renderProfileModal();
+    openModal('#profileModal');
+  });
+
   // dreamborn sniffer modal
   $('#openSnifferBtn').addEventListener('click', async () => {
     const r = await fetch('/dreamborn-sniffer.js');
@@ -842,6 +866,71 @@ function previewHide() { $('#preview').classList.remove('show'); }
 // ---------- misc ----------
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- profile / theme modal ----------
+function renderProfileModal() {
+  // Account block
+  const acc = $('#profileAccount');
+  if (Auth.Session && Auth.Session.displayName) {
+    const ownedCount = Auth.Session.collection ? Object.keys(Auth.Session.collection).length : 0;
+    acc.innerHTML = `
+      Signed in as <b>${escapeHtml(Auth.Session.displayName)}</b>
+      ${ownedCount ? `· ${ownedCount} owned printings synced` : '· collection not yet synced'}
+      · <a href="#" id="profileSignOut">Sign out</a>
+    `;
+    const so = $('#profileSignOut');
+    so?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await Auth.logout();
+      onSignedOut();
+      renderProfileModal();
+    });
+  } else {
+    acc.innerHTML = `Not signed in. <a href="#" id="profileSignIn">Sign in</a> to sync your dreamborn.ink collection.`;
+    $('#profileSignIn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeModal('#profileModal');
+      openModal('#signInModal');
+    });
+  }
+
+  // Theme picker
+  const picker = $('#themePicker');
+  const active = currentTheme();
+  picker.innerHTML = '';
+  for (const t of THEMES) {
+    const el = document.createElement('div');
+    el.className = 'theme-swatch' + (t.id === active ? ' active' : '');
+    el.dataset.theme = t.id;
+    el.innerHTML = `
+      <div class="swatch-preview" style="background:${t.swatch.surface};">
+        <div class="tb" style="background:${t.swatch.titlebar};"></div>
+        <div class="body">
+          <div class="pill" style="background:${t.swatch.primary};"></div>
+          <div class="pill short" style="background:${t.swatch.accent};"></div>
+        </div>
+      </div>
+      <div class="name">${escapeHtml(t.name)}</div>
+      <div class="blurb">${escapeHtml(t.blurb)}</div>
+    `;
+    el.addEventListener('click', () => {
+      applyTheme(t.id);
+      renderProfileModal();
+    });
+    picker.appendChild(el);
+  }
+
+  // Statistics
+  const savedDecks = Deck.listSaved();
+  const totalCards = DB.allCards.length;
+  const hits = Number(localStorage.getItem('ink.hits') || 0);
+  $('#profileStats').innerHTML = `
+    Saved decks: <b>${savedDecks.length}</b>${savedDecks.length ? ' (' + escapeHtml(savedDecks.slice(0, 4).join(', ')) + (savedDecks.length > 4 ? '…' : '') + ')' : ''}
+    · Cards in DB: <b>${totalCards.toLocaleString()}</b>
+    · Sessions: <b>${hits}</b>
+    · Current theme: <b>${escapeHtml(THEMES.find((x) => x.id === currentTheme())?.name || '?')}</b>
+  `;
 }
 
 function flash(el, msg) {

@@ -1,0 +1,299 @@
+/* ---------- Alternate themes ----------
+ *
+ * Each theme rewrites the CSS custom properties defined in style.css.
+ * Activate with <html data-theme="..."> ; defaults to "1996".
+ *
+ * To add a theme: pick a name, override the variables below.
+ * Themes can also override a few selectors directly if they need to
+ * disable visual gimmicks like the marquee or scanlines.
+ */
+
+/* ============================== Modern Dark ============================== */
+[data-theme="modern-dark"] {
+  --bg:          #0f172a;             /* slate-900 */
+  --bg-stripe:   #0f172a;
+  --bg-pattern:  radial-gradient(circle at 20% 0%, #1e293b 0%, #0f172a 60%);
+  --surface:     #1e293b;             /* slate-800 */
+  --surface-alt: #283447;
+  --primary:     #60a5fa;             /* blue-400 */
+  --secondary:   #c084fc;             /* purple-400 */
+  --accent:      #f87171;             /* red-400 */
+  --text:        #e2e8f0;             /* slate-200 */
+  --muted:       #94a3b8;             /* slate-400 */
+  --good:        #34d399;
+  --warn:        #fbbf24;
+
+  --titlebar-fg:   #f8fafc;
+  --titlebar-from: #1e293b;
+  --titlebar-to:   #334155;
+  --titlebar-gradient: linear-gradient(135deg, var(--titlebar-from), var(--titlebar-to));
+
+  --input-bg:   #0b1220;
+  --input-text: #e2e8f0;
+
+  --highlight-bg: #1e40af;
+  --highlight-fg: #f8fafc;
+  --negated-bg:   #7f1d1d;
+
+  --marquee-bg: #1e3a8a;
+  --marquee-fg: #fde68a;
+
+  /* Flat shadows instead of Win9x bevels */
+  --bevel-out:    0 1px 2px rgba(0,0,0,.4), 0 0 0 1px #334155 inset;
+  --bevel-in:     0 0 0 1px #334155 inset;
+  --bevel-deep:   0 4px 12px rgba(0,0,0,.45), 0 0 0 1px #475569 inset;
+  --bevel-button: 0 1px 0 rgba(255,255,255,.04) inset, 0 0 0 1px #475569 inset, 0 1px 2px rgba(0,0,0,.5);
+  --bevel-button-pressed: 0 0 0 1px #475569 inset, 0 1px 2px rgba(0,0,0,.6) inset;
+  --bevel-input:  0 0 0 1px #475569 inset, 0 1px 2px rgba(0,0,0,.35) inset;
+  --bevel-thin-out: 0 0 0 1px #334155 inset;
+  --bevel-thin-in:  0 0 0 1px #475569 inset;
+
+  --radius:        6px;
+  --radius-large:  10px;
+  --outline-color: #60a5fa;
+
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-ui:   "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-display: "Inter", system-ui, sans-serif;
+  --display-decoration: none;
+  --button-press-offset: 0;
+}
+[data-theme="modern-dark"] .marquee { display: none; }
+[data-theme="modern-dark"] .header .title .blink { display: none; }
+[data-theme="modern-dark"] .titlebar { letter-spacing: .02em; }
+[data-theme="modern-dark"] button:hover, [data-theme="modern-dark"] .btn:hover { filter: brightness(1.15); }
+
+
+/* ============================== Modern Light ============================== */
+[data-theme="modern-light"] {
+  --bg:          #f8fafc;
+  --bg-stripe:   #f1f5f9;
+  --bg-pattern:  linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  --surface:     #ffffff;
+  --surface-alt: #f1f5f9;
+  --primary:     #2563eb;
+  --secondary:   #7c3aed;
+  --accent:      #dc2626;
+  --text:        #0f172a;
+  --muted:       #64748b;
+  --good:        #16a34a;
+  --warn:        #ca8a04;
+
+  --titlebar-fg:   #ffffff;
+  --titlebar-from: #2563eb;
+  --titlebar-to:   #1d4ed8;
+  --titlebar-gradient: linear-gradient(135deg, var(--titlebar-from), var(--titlebar-to));
+
+  --input-bg:   #ffffff;
+  --input-text: #0f172a;
+
+  --highlight-bg: #fef08a;
+  --highlight-fg: #422006;
+  --negated-bg:   #fecaca;
+
+  --marquee-bg: #2563eb;
+  --marquee-fg: #ffffff;
+
+  --bevel-out:    0 1px 2px rgba(15,23,42,.08), 0 0 0 1px #e2e8f0 inset;
+  --bevel-in:     0 0 0 1px #e2e8f0 inset;
+  --bevel-deep:   0 6px 20px rgba(15,23,42,.10), 0 0 0 1px #e2e8f0 inset;
+  --bevel-button: 0 1px 0 rgba(255,255,255,.6) inset, 0 0 0 1px #cbd5e1 inset, 0 1px 1px rgba(15,23,42,.05);
+  --bevel-button-pressed: 0 0 0 1px #94a3b8 inset, 0 1px 2px rgba(15,23,42,.1) inset;
+  --bevel-input:  0 0 0 1px #cbd5e1 inset;
+  --bevel-thin-out: 0 0 0 1px #e2e8f0 inset;
+  --bevel-thin-in:  0 0 0 1px #cbd5e1 inset;
+
+  --radius:        6px;
+  --radius-large:  10px;
+  --outline-color: #2563eb;
+
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-ui:   -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --display-decoration: none;
+  --button-press-offset: 0;
+}
+[data-theme="modern-light"] .marquee { display: none; }
+[data-theme="modern-light"] .header .title .blink { display: none; }
+[data-theme="modern-light"] button:hover { background: #f8fafc; }
+
+
+/* ============================== Lorcana Ink ============================== */
+/* Deep magical purple, with gold/amber highlights. */
+[data-theme="lorcana"] {
+  --bg:          #14081f;
+  --bg-stripe:   #1c0e2a;
+  --bg-pattern:  radial-gradient(ellipse at top, #2a1547 0%, #14081f 70%);
+  --surface:     #241338;
+  --surface-alt: #2e1948;
+  --primary:     #d4af37;             /* gold */
+  --secondary:   #c084fc;             /* lighter purple */
+  --accent:      #f0abfc;             /* pink/magenta */
+  --text:        #f3e8ff;
+  --muted:       #a78bca;
+  --good:        #84cc16;
+  --warn:        #fbbf24;
+
+  --titlebar-fg:   #fef9c3;
+  --titlebar-from: #4c1d95;
+  --titlebar-to:   #7c3aed;
+  --titlebar-gradient: linear-gradient(90deg, #2e1065, #6d28d9 50%, #2e1065);
+
+  --input-bg:   #0e0518;
+  --input-text: #f3e8ff;
+
+  --highlight-bg: #d4af37;
+  --highlight-fg: #1a0f2e;
+  --negated-bg:   #831843;
+
+  --marquee-bg: #2e1065;
+  --marquee-fg: #d4af37;
+
+  --bevel-out:    0 0 0 1px #6d28d9 inset, 0 0 12px rgba(124,58,237,.25);
+  --bevel-in:     0 0 0 1px #4c1d95 inset, 0 0 8px rgba(124,58,237,.15) inset;
+  --bevel-deep:   0 8px 30px rgba(0,0,0,.55), 0 0 0 1px #6d28d9 inset;
+  --bevel-button: 0 0 0 1px #6d28d9 inset, 0 1px 0 rgba(212,175,55,.2) inset, 0 1px 6px rgba(124,58,237,.3);
+  --bevel-button-pressed: 0 0 0 1px #d4af37 inset, 0 0 6px rgba(212,175,55,.4) inset;
+  --bevel-input:  0 0 0 1px #4c1d95 inset, 0 1px 2px rgba(0,0,0,.5) inset;
+  --bevel-thin-out: 0 0 0 1px #6d28d9 inset;
+  --bevel-thin-in:  0 0 0 1px #4c1d95 inset;
+
+  --radius:        4px;
+  --radius-large:  8px;
+  --outline-color: #d4af37;
+
+  --font-body: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+  --font-ui:   "Cinzel", "Trajan Pro", Georgia, serif;
+  --font-display: "Cinzel", "Trajan Pro", serif;
+  --display-decoration: none;
+  --button-press-offset: 0;
+}
+[data-theme="lorcana"] .header .title { letter-spacing: .04em; text-shadow: 0 0 12px rgba(212,175,55,.5); }
+[data-theme="lorcana"] .header .title .blink { color: #d4af37; }
+[data-theme="lorcana"] .titlebar { letter-spacing: .08em; text-transform: uppercase; font-size: 11px; }
+[data-theme="lorcana"] .marquee { letter-spacing: .12em; }
+
+
+/* ============================== Terminal ============================== */
+/* Phosphor green CRT. */
+[data-theme="terminal"] {
+  --bg:          #000000;
+  --bg-stripe:   #000000;
+  --bg-pattern:
+    repeating-linear-gradient(0deg, rgba(0,255,0,.04) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, #021a02 0%, #000 80%);
+  --surface:     #001a00;
+  --surface-alt: #002a00;
+  --primary:     #00ff88;
+  --secondary:   #00ffaa;
+  --accent:      #ff5555;
+  --text:        #00ff66;
+  --muted:       #008844;
+  --good:        #00ff66;
+  --warn:        #ffff66;
+
+  --titlebar-fg:   #00ff66;
+  --titlebar-from: #003300;
+  --titlebar-to:   #003300;
+  --titlebar-gradient: #003300;
+
+  --input-bg:   #000;
+  --input-text: #00ff66;
+
+  --highlight-bg: #00ff66;
+  --highlight-fg: #000;
+  --negated-bg:   #660000;
+
+  --marquee-bg: #001a00;
+  --marquee-fg: #00ff88;
+
+  --bevel-out:    0 0 0 1px #00ff66 inset, 0 0 8px rgba(0,255,102,.3);
+  --bevel-in:     0 0 0 1px #00aa44 inset;
+  --bevel-deep:   0 0 0 2px #00ff66 inset, 0 0 16px rgba(0,255,102,.4);
+  --bevel-button: 0 0 0 1px #00ff66 inset, 0 0 4px rgba(0,255,102,.4);
+  --bevel-button-pressed: 0 0 0 2px #00ff66 inset, 0 0 8px rgba(0,255,102,.6) inset;
+  --bevel-input:  0 0 0 1px #00aa44 inset;
+  --bevel-thin-out: 0 0 0 1px #00ff66 inset;
+  --bevel-thin-in:  0 0 0 1px #00aa44 inset;
+
+  --radius:        0;
+  --radius-large:  0;
+  --outline-color: #00ff66;
+
+  --font-body: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  --font-ui:   "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  --font-display: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  --display-decoration: none;
+  --button-press-offset: 0;
+}
+[data-theme="terminal"] body::before {
+  content: "";
+  position: fixed; inset: 0; z-index: 100;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px);
+}
+[data-theme="terminal"] .header .title { text-shadow: 0 0 6px var(--primary); }
+[data-theme="terminal"] .header .title .blink { color: var(--primary); }
+[data-theme="terminal"] .titlebar { text-transform: uppercase; letter-spacing: .1em; }
+[data-theme="terminal"] button:hover { background: var(--surface-alt); }
+
+
+/* ============================== Geocities '99 ============================== */
+/* High-saturation bright background, Comic Sans, rainbows. */
+[data-theme="geocities"] {
+  --bg:          #ff00ff;
+  --bg-stripe:   #ffff00;
+  --bg-pattern:
+    repeating-linear-gradient(0deg,  rgba(255,0,255,.12) 0 8px, transparent 8px 16px),
+    repeating-linear-gradient(90deg, rgba(0,255,255,.10) 0 8px, transparent 8px 16px),
+    linear-gradient(45deg, #ffff00, #00ffff);
+  --surface:     #ffe4ff;
+  --surface-alt: #fffacd;
+  --primary:     #0000ff;
+  --secondary:   #800080;
+  --accent:      #ff0000;
+  --text:        #000000;
+  --muted:       #333333;
+  --good:        #008000;
+  --warn:        #ff6600;
+
+  --titlebar-fg:   #ffffff;
+  --titlebar-from: #ff00ff;
+  --titlebar-to:   #0000ff;
+  --titlebar-gradient: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+
+  --input-bg:   #ffffff;
+  --input-text: #000000;
+
+  --highlight-bg: #ffff00;
+  --highlight-fg: #ff00ff;
+  --negated-bg:   #ffcccc;
+
+  --marquee-bg: #ff00ff;
+  --marquee-fg: #ffff00;
+
+  --bevel-out:    0 0 0 2px #ff00ff inset, 0 0 0 4px #ffff00 inset, 0 0 12px rgba(255,0,255,.5);
+  --bevel-in:     0 0 0 2px #ff00ff inset;
+  --bevel-deep:   0 0 0 3px #00ffff inset, 0 0 0 6px #ff00ff inset;
+  --bevel-button: 0 0 0 1px #000 inset, 0 2px 0 #ff00ff, 0 4px 0 #0000ff;
+  --bevel-button-pressed: 0 0 0 1px #000 inset, 0 0 0 #ff00ff;
+  --bevel-input:  0 0 0 2px #ff00ff inset;
+  --bevel-thin-out: 0 0 0 1px #ff00ff inset;
+  --bevel-thin-in:  0 0 0 1px #0000ff inset;
+
+  --radius:        0;
+  --radius-large:  0;
+  --outline-color: #ff00ff;
+
+  --font-body: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive;
+  --font-ui:   "Comic Sans MS", "Comic Sans", cursive;
+  --font-display: "Impact", "Comic Sans MS", cursive;
+  --display-decoration: underline;
+  --button-press-offset: 2px;
+}
+[data-theme="geocities"] body { background-attachment: fixed; }
+[data-theme="geocities"] .header .title { color: #ff00ff; text-shadow: 2px 2px 0 #ffff00, 4px 4px 0 #0000ff; }
+[data-theme="geocities"] .titlebar { background-size: 300% 100%; animation: gc-rainbow 4s linear infinite; }
+[data-theme="geocities"] .marquee span { animation-duration: 18s; }
+@keyframes gc-rainbow { 0% { background-position: 0% 0; } 100% { background-position: 300% 0; } }
+[data-theme="geocities"] button:hover { transform: scale(1.05); }
