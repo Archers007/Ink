@@ -211,6 +211,16 @@ hr { border: none; border-top: 1px solid #808080; border-bottom: 1px solid #fff;
 }
 .toolbar .grow { flex: 1; }
 
+/* search chips: tiny buttons that insert into the query bar */
+.chip {
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  height: 20px;
+  font-family: var(--font-ui);
+}
+#searchError:not(:empty)::before { content: '⚠ '; }
+
 .tabs { display: flex; gap: 0; padding: 6px 6px 0; border-bottom: 1px solid #808080; }
 .tabs button {
   border-bottom: none;

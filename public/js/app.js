@@ -4,6 +4,7 @@ import { DB, loadDB, INK_ORDER, inkSymbol, canonicalPrintings } from './db.js';
 import * as Deck from './deck.js';
 import * as Auth from './auth.js';
 import * as AI from './ai.js';
+import { compileQuery, HELP_HTML } from './search.js';
 
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -12,9 +13,8 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const state = {
   catalog: [],          // canonical printings, used in the grid
   filtered: [],
-  filters: {
-    q: '', set: '', type: '', cost: '', ink: '', rarity: '', ownedOnly: false,
-  },
+  query: '',
+  ownedOnly: false,
 };
 
 // ---------- boot ----------
@@ -28,7 +28,6 @@ async function boot() {
   await loadDB((stage, msg) => setStatus('DB: ' + msg));
 
   state.catalog = canonicalPrintings(DB.allCards);
-  populateFilters();
   applyFilters();
 
   setStatus('DB: ready');
@@ -64,52 +63,26 @@ async function boot() {
 
 function setStatus(s) { $('#dbStatus').textContent = s; }
 
-// ---------- filter UI ----------
-function populateFilters() {
-  const sets = [...new Set(DB.allCards.map((c) => c.setId))].sort();
-  const selSet = $('#filterSet');
-  for (const s of sets) {
-    const opt = document.createElement('option');
-    opt.value = s; opt.textContent = `Set ${s}`;
-    selSet.appendChild(opt);
-  }
-  const costs = [...new Set(DB.allCards.map((c) => c.cost))].sort((a, b) => a - b);
-  const selCost = $('#filterCost');
-  for (const c of costs) {
-    const opt = document.createElement('option');
-    opt.value = c; opt.textContent = `${c} ink`;
-    selCost.appendChild(opt);
-  }
-  const selInk = $('#filterInk');
-  for (const ink of INK_ORDER) {
-    const opt = document.createElement('option');
-    opt.value = ink; opt.textContent = ink[0].toUpperCase() + ink.slice(1);
-    selInk.appendChild(opt);
-  }
+// ---------- filter UI (Scryfall-style query bar) ----------
+function applyFilters() {
+  const { predicate, errors } = compileQuery(state.query);
+  $('#searchError').textContent = errors.length ? errors.join(' · ') : '';
+  let arr = state.catalog.filter(predicate);
+  if (state.ownedOnly) arr = arr.filter((c) => Auth.ownedQty(c.id));
+  // sort: cost asc, then name
+  arr.sort((a, b) => (a.cost - b.cost) || a.name.localeCompare(b.name));
+  state.filtered = arr;
+  renderGrid();
 }
 
-function applyFilters() {
-  const f = state.filters;
-  const q = f.q.trim().toLowerCase();
-  state.filtered = state.catalog.filter((c) => {
-    if (q) {
-      const hay = (c.name + ' ' + (c.title || '') + ' ' + (c.characteristics || '')).toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (f.set && c.setId !== f.set) return false;
-    if (f.type && c.type !== f.type) return false;
-    if (f.cost !== '' && String(c.cost) !== String(f.cost)) return false;
-    if (f.ink && !c.inks.includes(f.ink)) return false;
-    if (f.rarity && c.rarity !== f.rarity) return false;
-    if (f.ownedOnly) {
-      const q = Auth.ownedQty(c.id);
-      if (!q) return false;
-    }
-    return true;
-  });
-  // sort: cost asc, then name
-  state.filtered.sort((a, b) => (a.cost - b.cost) || a.name.localeCompare(b.name));
-  renderGrid();
+// Append a fragment to the current query bar (so chips compose).
+function appendQuery(snippet) {
+  const inp = $('#search');
+  const cur = inp.value.trim();
+  inp.value = cur ? cur + ' ' + snippet : snippet;
+  state.query = inp.value;
+  applyFilters();
+  inp.focus();
 }
 
 // ---------- card grid ----------
@@ -196,14 +169,51 @@ function renderDeck() {
 
 // ---------- UI wiring ----------
 function wireUI() {
-  // filters
-  $('#search').addEventListener('input', (e) => { state.filters.q = e.target.value; applyFilters(); });
-  $('#filterSet').addEventListener('change',  (e) => { state.filters.set    = e.target.value; applyFilters(); });
-  $('#filterType').addEventListener('change', (e) => { state.filters.type   = e.target.value; applyFilters(); });
-  $('#filterCost').addEventListener('change', (e) => { state.filters.cost   = e.target.value; applyFilters(); });
-  $('#filterInk').addEventListener('change',  (e) => { state.filters.ink    = e.target.value; applyFilters(); });
-  $('#filterRarity').addEventListener('change', (e) => { state.filters.rarity = e.target.value; applyFilters(); });
-  $('#ownedOnly').addEventListener('change',  (e) => { state.filters.ownedOnly = e.target.checked; applyFilters(); });
+  // search bar
+  let qTimer = 0;
+  $('#search').addEventListener('input', (e) => {
+    state.query = e.target.value;
+    clearTimeout(qTimer);
+    qTimer = setTimeout(applyFilters, 80);
+  });
+  $('#searchClearBtn').addEventListener('click', () => {
+    $('#search').value = '';
+    state.query = '';
+    applyFilters();
+    $('#search').focus();
+  });
+  $('#searchHelpBtn').addEventListener('click', () => {
+    $('#helpBody').innerHTML = HELP_HTML;
+    openModal('#helpModal');
+  });
+  $('#helpExampleBtn').addEventListener('click', () => {
+    $('#search').value = '(c:ruby or c:amber) t:character cost<=3 i:yes';
+    state.query = $('#search').value;
+    applyFilters();
+    closeModal('#helpModal');
+  });
+
+  // chips append into the query
+  $('#searchChips').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    appendQuery(b.dataset.q);
+  });
+
+  $('#ownedOnly').addEventListener('change',  (e) => { state.ownedOnly = e.target.checked; applyFilters(); });
+
+  // dreamborn sniffer modal
+  $('#openSnifferBtn').addEventListener('click', async () => {
+    const r = await fetch('/dreamborn-sniffer.js');
+    const txt = await r.text();
+    $('#snifferText').value = txt;
+    openModal('#snifferModal');
+  });
+  $('#snifferCopyBtn').addEventListener('click', async () => {
+    const ta = $('#snifferText');
+    ta.select();
+    try { await navigator.clipboard.writeText(ta.value); flash($('#snifferCopyBtn'), 'Copied!'); }
+    catch { document.execCommand('copy'); flash($('#snifferCopyBtn'), 'Copied!'); }
+  });
 
   // grid: left-click adds, right-click removes; hover preview
   const grid = $('#cardGrid');
