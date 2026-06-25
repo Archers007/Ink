@@ -83,7 +83,7 @@ docker compose up --build           # http://localhost:3000
 
 # …or plain Docker
 docker build -t ink .
-docker run -p 3000:3000 -v ink-cache:/app/cache ink
+docker run -p 5060:5060 -v ink-cache:/app/cache ink
 ```
 
 Notes:
@@ -94,7 +94,7 @@ Notes:
   from dreamborn.ink into `/app/cache` on first boot, so the container needs
   outbound internet. The `ink-cache` volume persists them across restarts.
 - Set the published host port with `INK_PORT` (the app always listens on
-  `3000` inside the container), e.g. `INK_PORT=8080 docker compose up`.
+  `5060` inside the container), e.g. `INK_PORT=8080 docker compose up`.
 - AI keys are read from the environment / a local `.env` file — see the table
   above. Compose interpolates them automatically when a `.env` is present.
 
@@ -110,7 +110,7 @@ docker compose up --build          # starts ink + cloudflared
 ```
 
 - In the Cloudflare **Zero Trust → Networks → Tunnels** dashboard, point the
-  tunnel's public hostname at the origin service **`http://ink:3000`**
+  tunnel's public hostname at the origin service **`http://ink:5060`**
   (cloudflared reaches the app by its compose service name over the shared
   network).
 - The token is read from `CLOUDFLARED_TOKEN` in your local, git-ignored `.env`.

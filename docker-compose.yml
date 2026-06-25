@@ -4,11 +4,11 @@ services:
     image: ink:latest
     container_name: ink
     # Publish on the host. Change the published port with INK_PORT (the app
-    # always listens on 3000 inside the container).
+    # always listens on 5060 inside the container).
     ports:
-      - "${INK_PORT:-3000}:3000"
+      - "${INK_PORT:-5060}:5060"
     environment:
-      PORT: "3000"
+      PORT: "5060"
       # Optional AI proxy. Leave blank to let the UI fall back to "bring your
       # own key". Values are interpolated from a local .env file if present.
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   # Cloudflare Tunnel — exposes the app publicly without opening a port.
-  # Configure the tunnel's public hostname to point at http://ink:3000 in the
+  # Configure the tunnel's public hostname to point at http://ink:5060 in the
   # Cloudflare Zero Trust dashboard (cloudflared reaches the app over the shared
   # compose network by its service name).
   #
