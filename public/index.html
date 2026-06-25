@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <title>Ink :: Lorcana Deck Builder of the Future (1996)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;600;800&family=Major+Mono+Display&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
 <link rel="stylesheet" href="/css/themes.css">
 <!-- Apply the persisted theme before render to avoid a flash of default theme. -->
@@ -17,7 +20,7 @@
   <!-- ============== HEADER WINDOW ============== -->
   <div class="window bevel-out header">
     <div class="titlebar">
-      <span class="titlebar-title">📜 Ink — Disney Lorcana Deck Builder &amp; A.I. Assistant</span>
+      <span class="titlebar-title">📜 Ink — Disney Lorcana Deck Builder</span>
       <span class="titlebar-actions">
         <button id="openDecksBtn" class="tb-action" title="Browse public decks from dreamborn.ink">🃄 Decks</button>
         <button id="openProfileBtn" class="tb-action" title="Profile &amp; theme">👤 Profile</button>
@@ -37,8 +40,8 @@
       <span><u>H</u>elp</span>
     </div>
     <div class="title">Ink <span class="blink">▌</span> <span class="muted small" style="font-family:var(--font-ui)">Best viewed in Netscape Navigator 3.0+</span></div>
-    <div class="subtitle">A Lorcana deck builder with a Pentium-class A.I. helper. Free to use. No popups. <a href="#" id="aboutLink">About this site</a>.</div>
-    <div class="marquee"><span>★ Welcome to Ink! ★ Build legal 60-card Lorcana decks with help from our A.I. ✦ Sign in with your Dreamborn account to sync your collection ✦ Best viewed at 800×600 ★ Updated daily ★ Hits since 1996: <b id="hitCounter">000001</b> ★</span></div>
+    <div class="subtitle">A Lorcana deck builder &amp; collection browser. Free to use. No popups. <a href="#" id="aboutLink">About this site</a>.</div>
+    <div class="marquee"><span>★ Welcome to Ink! ★ Build legal 60-card Lorcana decks ✦ Sign in with your Dreamborn account to sync your collection ✦ Best viewed at 800×600 ★ Updated daily ★ Hits since 1996: <b id="hitCounter">000001</b> ★</span></div>
   </div>
 
   <!-- ============== STATUS / SIGN-IN STRIP ============== -->
@@ -239,7 +242,7 @@
       </div>
     </div>
 
-    <!-- RIGHT: deck panel & AI -->
+    <!-- RIGHT: deck panel -->
     <div>
       <div class="window bevel-out">
         <div class="titlebar">
@@ -265,30 +268,6 @@
         </div>
         <div id="deckList" class="deck-list bevel-in"></div>
       </div>
-
-      <div class="window bevel-out" style="margin-top: 8px;">
-        <div class="titlebar">
-          <span>🤖 A.I. Deck Helper</span>
-          <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
-        </div>
-        <div class="ai-panel">
-          <div id="aiProviderRow" class="small muted" style="font-family: var(--font-ui); margin-bottom:6px;">Provider: <span id="aiProvider">none</span> · <a href="#" id="aiSettingsLink">settings</a></div>
-          <div id="aiLog" class="ai-log bevel-in">
-            <div class="msg role-system">Hi! I can recommend cards, build decks around a theme, and critique what you've got. Try a suggestion below or just ask.</div>
-          </div>
-          <div class="ai-suggest">
-            <button data-prompt="Suggest a fun 2-ink combination I haven't tried.">🎲 Suggest inks</button>
-            <button data-prompt="Build a 60-card Amber/Steel aggro deck legal in Core constructed.">⚔️ Amber/Steel aggro</button>
-            <button data-prompt="Critique my current deck and call out the 5 weakest cards.">🔍 Critique deck</button>
-            <button data-prompt="Recommend 6 cards from my owned collection to swap in.">📦 Improve from collection</button>
-            <button data-prompt="What's a good curve for a midrange Sapphire/Amethyst deck?">📈 Curve advice</button>
-          </div>
-          <form id="aiForm" class="ai-input">
-            <input id="aiInput" type="text" placeholder="Ask the A.I. anything about your deck…">
-            <button type="submit">Send</button>
-          </form>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -296,7 +275,6 @@
   <div class="window bevel-out" style="margin-top: 8px;">
     <div class="statusbar">
       <div class="cell">Ready.</div>
-      <div class="cell"><span id="aiStatus">A.I. idle</span></div>
       <div class="spacer" style="flex:1"></div>
       <div class="cell">© 1996–2026 Ink. Disney Lorcana © Disney/Ravensburger. Not affiliated with Dreamborn.</div>
     </div>
@@ -321,34 +299,6 @@
     </div>
     <div class="actions">
       <button id="signInSubmit">OK</button>
-      <button data-close-modal>Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- ============== AI Settings Modal ============== -->
-<div id="aiModal" class="modal-backdrop">
-  <div class="modal window bevel-out">
-    <div class="titlebar">
-      <span>🤖 A.I. Settings</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
-    <div class="body" style="min-width: 380px;">
-      <div class="small muted" style="margin-bottom:6px;">If the server has <code>OPENAI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> set, we use that. Otherwise paste a key here (stored in this browser only).</div>
-      <fieldset>
-        <legend>Bring-Your-Own-Key</legend>
-        <label>Provider:
-          <select id="aiByokProvider">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-          </select>
-        </label>
-        <label style="display:block; margin-top:6px;">API key: <input id="aiByokKey" type="password" style="width:260px;"></label>
-        <label style="display:block; margin-top:6px;">Model: <input id="aiByokModel" type="text" style="width:260px;" placeholder="e.g. gpt-4o-mini or claude-3-5-sonnet-latest"></label>
-      </fieldset>
-    </div>
-    <div class="actions">
-      <button id="aiSaveBtn">Save</button>
       <button data-close-modal>Cancel</button>
     </div>
   </div>

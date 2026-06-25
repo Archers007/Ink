@@ -1,10 +1,9 @@
-// Glue: boot DB, render catalog, render deck, wire UI, talk to AI/auth.
+// Glue: boot DB, render catalog, render deck, wire UI, talk to auth.
 
 import './themes.js';                 // applies persisted theme before render
 import { DB, loadDB, INK_ORDER, inkSymbol, canonicalPrintings } from './db.js';
 import * as Deck from './deck.js';
 import * as Auth from './auth.js';
-import * as AI from './ai.js';
 import { compileQuery, HELP_HTML } from './search.js';
 import { THEMES, currentTheme, applyTheme } from './themes.js';
 import * as Decks from './decks.js';
@@ -54,12 +53,6 @@ async function boot() {
   if (m.ok) {
     onSignedIn(m.displayName);
   }
-
-  // ai
-  const cfg = await AI.serverConfig();
-  $('#aiProvider').textContent = cfg.provider
-    ? `${cfg.provider} (${cfg.model})`
-    : (AI.loadByok().key ? `${AI.loadByok().provider} (BYO key)` : 'none');
 
   // silly hit counter
   const hits = Number(localStorage.getItem('ink.hits') || 0) + 1;
@@ -471,7 +464,7 @@ function renderDeck() {
     }
   }
   if (Deck.Deck.cards.size === 0) {
-    list.innerHTML = `<div class="muted small center" style="padding:20px; font-family:var(--font-ui)">Empty deck. Click a card on the left, or ask the A.I. helper.</div>`;
+    list.innerHTML = `<div class="muted small center" style="padding:20px; font-family:var(--font-ui)">Empty deck. Click a card on the left to start building.</div>`;
   }
 
   // summary
@@ -769,37 +762,6 @@ function wireUI() {
     }
   });
 
-  // AI
-  $('#aiForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const v = $('#aiInput').value.trim();
-    if (v) sendToAI(v);
-    $('#aiInput').value = '';
-  });
-  $$('.ai-suggest button').forEach((b) => {
-    b.addEventListener('click', () => sendToAI(b.dataset.prompt));
-  });
-  $('#aiSettingsLink').addEventListener('click', (e) => {
-    e.preventDefault();
-    const v = AI.loadByok();
-    $('#aiByokProvider').value = v.provider || 'openai';
-    $('#aiByokKey').value = v.key || '';
-    $('#aiByokModel').value = v.model || '';
-    openModal('#aiModal');
-  });
-  $('#aiSaveBtn').addEventListener('click', async () => {
-    AI.saveByok({
-      provider: $('#aiByokProvider').value,
-      key: $('#aiByokKey').value.trim(),
-      model: $('#aiByokModel').value.trim(),
-    });
-    const cfg = await AI.serverConfig();
-    $('#aiProvider').textContent = cfg.provider
-      ? `${cfg.provider} (${cfg.model})`
-      : (AI.loadByok().key ? `${AI.loadByok().provider} (BYO key)` : 'none');
-    closeModal('#aiModal');
-  });
-
   // about link
   $('#aboutLink').addEventListener('click', (e) => {
     e.preventDefault();
@@ -807,8 +769,7 @@ function wireUI() {
       'Ink — Lorcana deck builder\n\n' +
       '· Card data fetched from dreamborn.ink (cards.db / prices.db)\n' +
       '· Queried locally via sql.js\n' +
-      '· Optional sign-in syncs your Dreamborn collection\n' +
-      '· A.I. helper uses OpenAI or Anthropic\n\n' +
+      '· Optional sign-in syncs your Dreamborn collection\n\n' +
       'Not affiliated with Disney, Ravensburger, or Dreamborn.'
     );
   });
@@ -827,53 +788,6 @@ function onSignedOut() {
   $('#syncCollectionBtn').classList.add('hidden');
   Auth.Session.collection = null;
   renderGrid();
-}
-
-// ---------- AI ----------
-const aiHistory = [];
-async function sendToAI(text) {
-  appendAI('user', text);
-  aiHistory.push({ role: 'user', content: text });
-  $('#aiStatus').textContent = 'A.I. thinking…';
-  try {
-    const reply = await AI.chat(aiHistory);
-    aiHistory.push({ role: 'assistant', content: reply });
-    appendAI('assistant', reply);
-    $('#aiStatus').textContent = 'A.I. idle';
-
-    // if AI proposed a decklist, offer to apply
-    const list = AI.extractDecklist(reply);
-    if (list && list.length) {
-      const apply = confirm(`The A.I. suggested a ${list.reduce((s, e) => s + e.qty, 0)}-card decklist. Replace your current deck with it?`);
-      if (apply) {
-        const errs = Deck.fromText(list.map((e) => `${e.qty} ${e.rest}`).join('\n'));
-        renderGrid(); renderDeck();
-        if (errs.length) appendAI('system', `Couldn't match ${errs.length} line(s): ${errs.slice(0,5).join(' · ')}`);
-      }
-    }
-  } catch (e) {
-    appendAI('system', '⚠ ' + e.message);
-    $('#aiStatus').textContent = 'A.I. error';
-  }
-}
-
-function appendAI(role, text) {
-  const log = $('#aiLog');
-  const div = document.createElement('div');
-  div.className = 'msg role-' + role;
-  div.innerHTML = `<b>${role === 'user' ? 'You' : role === 'assistant' ? 'Inkwell' : 'System'}:</b> ${renderMarkdownLite(text)}`;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-
-// minimal markdown: code blocks, bold, lists, line breaks
-function renderMarkdownLite(text) {
-  let html = escapeHtml(text);
-  html = html.replace(/```([\s\S]*?)```/g, (_, code) => `<pre style="background:#fff; padding:6px; outline:1px solid #808080; white-space:pre-wrap;">${code}</pre>`);
-  html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  html = html.replace(/\n/g, '<br>');
-  return html;
 }
 
 // ---------- modal helpers ----------

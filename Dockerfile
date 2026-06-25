@@ -34,10 +34,10 @@ VOLUME ["/app/cache"]
 USER node
 EXPOSE 5060
 
-# Liveness probe — /api/ai/config responds without any external network calls.
+# Liveness probe — the static index responds without any external network calls.
 # NB: uses the http module, not fetch(): port 5060 (SIP) is on the WHATWG Fetch
 # "bad ports" blocklist, so fetch() would reject it even though the app is up.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||5060)+'/api/ai/config',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))"
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||5060)+'/',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))"
 
 CMD ["node", "server.js"]

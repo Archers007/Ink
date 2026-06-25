@@ -1,299 +1,369 @@
-/* ---------- Alternate themes ----------
+/* ============================================================================
+ *  Ink — Alternate themes
+ *  ---------------------------------------------------------------------------
+ *  The default look ("HTML 1996") lives in style.css :root. Each theme below
+ *  doesn't just recolor — it re-skins the whole layout: backgrounds, panels,
+ *  cards, buttons, chrome and motion, so switching themes genuinely changes
+ *  the feel. Activate with <html data-theme="...">.
  *
- * Each theme rewrites the CSS custom properties defined in style.css.
- * Activate with <html data-theme="..."> ; defaults to "1996".
- *
- * To add a theme: pick a name, override the variables below.
- * Themes can also override a few selectors directly if they need to
- * disable visual gimmicks like the marquee or scanlines.
- */
+ *  Aesthetics adapted from shopify-playground/CssSwatch
+ *  (deep-sea-lab, vaporwave, brutalist-concrete, liquid-glass).
+ * ========================================================================== */
 
-/* ============================== Modern Dark ============================== */
-[data-theme="modern-dark"] {
-  --bg:          #0f172a;             /* slate-900 */
-  --bg-stripe:   #0f172a;
-  --bg-pattern:  radial-gradient(circle at 20% 0%, #1e293b 0%, #0f172a 60%);
-  --surface:     #1e293b;             /* slate-800 */
-  --surface-alt: #283447;
-  --primary:     #60a5fa;             /* blue-400 */
-  --secondary:   #c084fc;             /* purple-400 */
-  --accent:      #f87171;             /* red-400 */
-  --text:        #e2e8f0;             /* slate-200 */
-  --muted:       #94a3b8;             /* slate-400 */
-  --good:        #34d399;
-  --warn:        #fbbf24;
+/* --- Shared: the non-1996 themes drop the Win9x gimmicks for a modern feel.
+       (Brutalist keeps the marquee off too; each theme re-styles its titlebar.) */
+[data-theme="deep-sea-lab"] .menubar,
+[data-theme="brutalist-concrete"] .menubar,
+[data-theme="liquid-glass"] .menubar,
+[data-theme="deep-sea-lab"] .marquee,
+[data-theme="brutalist-concrete"] .marquee,
+[data-theme="liquid-glass"] .marquee,
+[data-theme="deep-sea-lab"] .titlebar .ctrls,
+[data-theme="vaporwave"] .titlebar .ctrls,
+[data-theme="brutalist-concrete"] .titlebar .ctrls,
+[data-theme="liquid-glass"] .titlebar .ctrls,
+[data-theme="deep-sea-lab"] .header .title .blink,
+[data-theme="vaporwave"] .header .title .blink,
+[data-theme="brutalist-concrete"] .header .title .blink,
+[data-theme="liquid-glass"] .header .title .blink {
+  display: none;
+}
 
-  --titlebar-fg:   #f8fafc;
-  --titlebar-from: #1e293b;
-  --titlebar-to:   #334155;
-  --titlebar-gradient: linear-gradient(135deg, var(--titlebar-from), var(--titlebar-to));
+/* Rounded themes: clip each window/modal to its radius so the square-cornered
+   titlebar + content don't poke past the rounded outline. */
+[data-theme="deep-sea-lab"] .window,
+[data-theme="vaporwave"] .window,
+[data-theme="liquid-glass"] .window,
+[data-theme="deep-sea-lab"] .modal,
+[data-theme="vaporwave"] .modal,
+[data-theme="liquid-glass"] .modal {
+  overflow: hidden;
+}
 
-  --input-bg:   #0b1220;
-  --input-text: #e2e8f0;
+/* The non-1996 themes get breathing room + a roomier card grid. */
+[data-theme="deep-sea-lab"] .layout,
+[data-theme="vaporwave"] .layout,
+[data-theme="liquid-glass"] .layout { gap: 18px; }
+[data-theme="deep-sea-lab"] .card-grid,
+[data-theme="vaporwave"] .card-grid,
+[data-theme="liquid-glass"] .card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
 
-  --highlight-bg: #1e40af;
-  --highlight-fg: #f8fafc;
-  --negated-bg:   #7f1d1d;
 
-  --marquee-bg: #1e3a8a;
-  --marquee-fg: #fde68a;
+/* ============================================================================
+ *  1.  DEEP SEA LAB — abyssal navy, bioluminescent teal, rounded glass slabs.
+ * ========================================================================== */
+[data-theme="deep-sea-lab"] {
+  --bg:          #021128;
+  --bg-stripe:   #03081a;
+  --bg-pattern:  linear-gradient(180deg, #021128 0%, #03081a 100%);
+  --surface:     #0a2540;
+  --surface-alt: #0d2e50;
+  --primary:     #00f5d4;
+  --secondary:   #5b8bff;
+  --accent:      #9b5de5;
+  --text:        #d2e8ff;
+  --muted:       #7a96bb;
+  --good:        #3ce0a0;
+  --warn:        #ffcf6b;
 
-  /* Flat shadows instead of Win9x bevels */
-  --bevel-out:    0 1px 2px rgba(0,0,0,.4), 0 0 0 1px #334155 inset;
-  --bevel-in:     0 0 0 1px #334155 inset;
-  --bevel-deep:   0 4px 12px rgba(0,0,0,.45), 0 0 0 1px #475569 inset;
-  --bevel-button: 0 1px 0 rgba(255,255,255,.04) inset, 0 0 0 1px #475569 inset, 0 1px 2px rgba(0,0,0,.5);
-  --bevel-button-pressed: 0 0 0 1px #475569 inset, 0 1px 2px rgba(0,0,0,.6) inset;
-  --bevel-input:  0 0 0 1px #475569 inset, 0 1px 2px rgba(0,0,0,.35) inset;
-  --bevel-thin-out: 0 0 0 1px #334155 inset;
-  --bevel-thin-in:  0 0 0 1px #475569 inset;
+  --titlebar-fg:   #00f5d4;
+  --titlebar-from: #06223f;
+  --titlebar-to:   #0a2540;
+  --titlebar-gradient: linear-gradient(90deg, #06223f, #0a2540);
 
-  --radius:        6px;
+  --input-bg:   #04182f;
+  --input-text: #d2e8ff;
+
+  --highlight-bg: #00f5d4;
+  --highlight-fg: #021128;
+  --negated-bg:   #3a1a4f;
+
+  --marquee-bg: #06223f;
+  --marquee-fg: #00f5d4;
+
+  --bevel-out:    0 0 0 1px #00f5d455, 0 0 28px rgba(0,245,212,.12), inset 0 1px 0 rgba(255,255,255,.05);
+  --bevel-in:     inset 0 0 0 1px #00f5d433, inset 0 2px 10px rgba(0,0,0,.5);
+  --bevel-deep:   0 16px 44px rgba(0,0,0,.55), 0 0 0 1px #00f5d455;
+  --bevel-button: 0 0 0 1px #00f5d4aa, 0 0 14px rgba(0,245,212,.35);
+  --bevel-button-pressed: inset 0 0 0 1px #00f5d4, inset 0 0 10px rgba(0,245,212,.4);
+  --bevel-input:  inset 0 0 0 1px #2b5a7a;
+  --bevel-thin-out: 0 0 0 1px #2b5a7a;
+  --bevel-thin-in:  inset 0 0 0 1px #2b5a7a;
+
+  --radius:        14px;
+  --radius-large:  18px;
+  --outline-color: #00f5d4;
+
+  --font-body: "Space Grotesk", system-ui, sans-serif;
+  --font-ui:   "Space Grotesk", system-ui, sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --display-decoration: none;
+  --button-press-offset: 0;
+}
+[data-theme="deep-sea-lab"] body {
+  background:
+    radial-gradient(ellipse at 50% 0%, #00f5d422, transparent 50%),
+    radial-gradient(ellipse at 30% 100%, #9b5de522, transparent 50%),
+    linear-gradient(180deg, #021128 0%, #03081a 100%) fixed;
+  animation: ink-sea-caustic 7s ease-in-out infinite;
+}
+@keyframes ink-sea-caustic {
+  0%,100% { background-position: 50% 0%, 30% 100%, 0 0; filter: brightness(1); }
+  50%     { background-position: 52% 2%, 28% 98%, 0 0; filter: brightness(1.08); }
+}
+[data-theme="deep-sea-lab"] .titlebar { letter-spacing: .1em; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid #00f5d433; }
+[data-theme="deep-sea-lab"] .header .title { color: var(--primary); text-shadow: 0 0 20px rgba(0,245,212,.6); font-weight: 700; letter-spacing: .02em; }
+[data-theme="deep-sea-lab"] button, [data-theme="deep-sea-lab"] .btn { background: rgba(0,245,212,.06); color: var(--primary); }
+[data-theme="deep-sea-lab"] button:hover { background: rgba(0,245,212,.16); }
+[data-theme="deep-sea-lab"] .card-tile { outline: 1px solid #00f5d433; }
+[data-theme="deep-sea-lab"] .card-tile:hover { outline-color: var(--primary); box-shadow: 0 0 22px rgba(0,245,212,.45); }
+[data-theme="deep-sea-lab"] .card-tile .label { background: #06223f; border-top-color: #00f5d433; box-shadow: none; }
+[data-theme="deep-sea-lab"] .deck-section h4 { background: linear-gradient(90deg, #0a2540, #06223f); color: var(--primary); }
+[data-theme="deep-sea-lab"] .deck-row:hover { background: rgba(0,245,212,.14); color: var(--text); }
+
+
+/* ============================================================================
+ *  2.  VAPORWAVE — retro grid horizon, neon pink/cyan, mono caps.
+ * ========================================================================== */
+[data-theme="vaporwave"] {
+  --bg:          #1a0635;
+  --bg-stripe:   #350844;
+  --bg-pattern:  linear-gradient(180deg, #1a0635 0%, #350844 100%);
+  --surface:     rgba(255,255,255,.06);
+  --surface-alt: rgba(255,255,255,.12);
+  --primary:     #ff71ce;
+  --secondary:   #01cdfe;
+  --accent:      #05ffa1;
+  --text:        #fff7fb;
+  --muted:       #bda4d6;
+  --good:        #05ffa1;
+  --warn:        #ffe66d;
+
+  --titlebar-fg:   #1a0635;
+  --titlebar-from: #ff71ce;
+  --titlebar-to:   #01cdfe;
+  --titlebar-gradient: linear-gradient(90deg, #ff71ce, #01cdfe);
+
+  --input-bg:   rgba(10,2,30,.55);
+  --input-text: #fff7fb;
+
+  --highlight-bg: #ff71ce;
+  --highlight-fg: #1a0635;
+  --negated-bg:   #5a1a4f;
+
+  --marquee-bg: #2a0a4f;
+  --marquee-fg: #05ffa1;
+
+  --bevel-out:    0 0 30px #ff71ce33, inset 0 0 30px #01cdfe22, 0 0 0 1px #ff71ce66;
+  --bevel-in:     inset 0 0 0 1px #ff71ce44, inset 0 0 18px rgba(1,205,254,.15);
+  --bevel-deep:   0 0 50px #ff71ce44, 0 0 0 1px #01cdfe66;
+  --bevel-button: 0 0 10px #ff71ce88, inset 0 0 0 1px #ff71ce;
+  --bevel-button-pressed: inset 0 0 0 1px #01cdfe, 0 0 12px #01cdfeaa;
+  --bevel-input:  inset 0 0 0 1px #ff71ce55;
+  --bevel-thin-out: 0 0 0 1px #ff71ce44;
+  --bevel-thin-in:  inset 0 0 0 1px #ff71ce44;
+
+  --radius:        8px;
   --radius-large:  10px;
-  --outline-color: #60a5fa;
+  --outline-color: #ff71ce;
 
-  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-ui:   "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Mono", monospace;
+  --font-ui:   "IBM Plex Mono", monospace;
+  --font-display: "Major Mono Display", "IBM Plex Mono", monospace;
+  --display-decoration: none;
+  --button-press-offset: 0;
+}
+[data-theme="vaporwave"] body {
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 60%, #ff71ce22 60%, #01cdfe22 100%),
+    repeating-linear-gradient(0deg,  transparent 0 60px, #ff71ce33 60px 61px),
+    repeating-linear-gradient(90deg, transparent 0 60px, #01cdfe33 60px 61px),
+    linear-gradient(180deg, #1a0635 0%, #350844 60%, #ff71ce44 100%) fixed;
+  animation: ink-vapor-grid 2s linear infinite;
+}
+@keyframes ink-vapor-grid {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to   { background-position: 0 0, 0 60px, 60px 0, 0 0; }
+}
+[data-theme="vaporwave"] .window, [data-theme="vaporwave"] .bevel-out,
+[data-theme="vaporwave"] .modal { backdrop-filter: blur(8px); }
+[data-theme="vaporwave"] .titlebar { text-transform: uppercase; letter-spacing: .22em; font-weight: 700; }
+[data-theme="vaporwave"] .header .title {
+  font-family: var(--font-display);
+  color: var(--primary);
+  text-shadow: 0 0 8px #ff71ce, 0 0 18px #01cdfe;
+  letter-spacing: .04em;
+}
+[data-theme="vaporwave"] .header .subtitle { color: var(--secondary); }
+[data-theme="vaporwave"] .marquee { letter-spacing: .2em; text-transform: uppercase; }
+[data-theme="vaporwave"] button, [data-theme="vaporwave"] .btn {
+  background: transparent; color: var(--primary);
+  text-transform: uppercase; letter-spacing: .16em;
+}
+[data-theme="vaporwave"] button:hover { color: var(--secondary); box-shadow: 0 0 14px #01cdfe88, inset 0 0 0 1px #01cdfe; }
+[data-theme="vaporwave"] .card-tile { outline: 1px solid #ff71ce55; }
+[data-theme="vaporwave"] .card-tile:hover { outline-color: var(--secondary); box-shadow: 0 0 24px #ff71ce66; }
+[data-theme="vaporwave"] .card-tile .label { background: rgba(26,6,53,.85); border-top-color: #ff71ce55; box-shadow: none; backdrop-filter: blur(4px); }
+[data-theme="vaporwave"] .deck-section h4 { background: linear-gradient(90deg, #ff71ce, #01cdfe); color: #1a0635; text-transform: uppercase; letter-spacing: .12em; }
+
+
+/* ============================================================================
+ *  3.  BRUTALIST CONCRETE — raw grey slab, hard black shadows, heavy mono.
+ * ========================================================================== */
+[data-theme="brutalist-concrete"] {
+  --bg:          #9a9a9a;
+  --bg-stripe:   #7d7d7d;
+  --bg-pattern:  linear-gradient(180deg, #b0b0b0, #7d7d7d);
+  --surface:     #bababa;
+  --surface-alt: #a6a6a6;
+  --primary:     #1a1a1a;
+  --secondary:   #e63946;
+  --accent:      #f5b400;
+  --text:        #0d0d0d;
+  --muted:       #3a3a3a;
+  --good:        #1a6e1a;
+  --warn:        #8a5a00;
+
+  --titlebar-fg:   #ffffff;
+  --titlebar-from: #000000;
+  --titlebar-to:   #000000;
+  --titlebar-gradient: #000000;
+
+  --input-bg:   #d0d0d0;
+  --input-text: #0d0d0d;
+
+  --highlight-bg: #f5b400;
+  --highlight-fg: #000000;
+  --negated-bg:   #e6394644;
+
+  --marquee-bg: #000000;
+  --marquee-fg: #f5b400;
+
+  --bevel-out:    8px 8px 0 #5a5a5a, 8px 8px 0 1px #000, inset 0 0 0 2px #000;
+  --bevel-in:     inset 0 0 0 2px #000;
+  --bevel-deep:   12px 12px 0 #000, inset 0 0 0 2px #000;
+  --bevel-button: inset 0 0 0 2px #000;
+  --bevel-button-pressed: inset 0 0 0 2px #000, 3px 3px 0 #000;
+  --bevel-input:  inset 0 0 0 2px #000;
+  --bevel-thin-out: inset 0 0 0 2px #000;
+  --bevel-thin-in:  inset 0 0 0 2px #000;
+
+  --radius:        0;
+  --radius-large:  0;
+  --outline-color: #000000;
+
+  --font-body: "IBM Plex Mono", monospace;
+  --font-ui:   "IBM Plex Mono", monospace;
+  --font-display: "IBM Plex Mono", monospace;
+  --display-decoration: none;
+  --button-press-offset: 0;
+}
+[data-theme="brutalist-concrete"] body {
+  background:
+    radial-gradient(circle, #6f6f6f 0 1px, transparent 2px) 0 0 / 4px 4px,
+    linear-gradient(180deg, #b0b0b0, #7d7d7d) fixed;
+}
+[data-theme="brutalist-concrete"] .titlebar { text-transform: uppercase; letter-spacing: .2em; font-weight: 700; border-bottom: 2px solid #000; }
+[data-theme="brutalist-concrete"] .header .title { font-weight: 700; text-transform: uppercase; letter-spacing: -.01em; color: #000; }
+[data-theme="brutalist-concrete"] .header .subtitle { text-transform: uppercase; letter-spacing: .1em; }
+[data-theme="brutalist-concrete"] button, [data-theme="brutalist-concrete"] .btn {
+  background: #000; color: #fff; text-transform: uppercase; letter-spacing: .14em; box-shadow: none;
+}
+[data-theme="brutalist-concrete"] button:hover { background: var(--secondary); color: #fff; }
+[data-theme="brutalist-concrete"] button:active, [data-theme="brutalist-concrete"] .btn:active { transform: translate(2px, 2px); box-shadow: none; }
+[data-theme="brutalist-concrete"] .tog-btn { background: #bababa; color: #000; box-shadow: inset 0 0 0 2px #000; }
+[data-theme="brutalist-concrete"] .tog-btn.active { background: var(--accent); color: #000; }
+[data-theme="brutalist-concrete"] .card-tile { outline: 2px solid #000; box-shadow: 6px 6px 0 #000; }
+[data-theme="brutalist-concrete"] .card-tile:hover { transform: translate(-2px, -2px); box-shadow: 10px 10px 0 #000; outline-color: #000; }
+[data-theme="brutalist-concrete"] .card-tile .label { background: #bababa; border-top: 2px solid #000; box-shadow: none; }
+[data-theme="brutalist-concrete"] .card-tile .label .name { color: #000; }
+[data-theme="brutalist-concrete"] .deck-section h4 { background: #000; color: #f5b400; text-transform: uppercase; letter-spacing: .12em; }
+[data-theme="brutalist-concrete"] .deck-row:hover { background: var(--accent); color: #000; }
+
+
+/* ============================================================================
+ *  4.  LIQUID GLASS — frosted glass panels over drifting color blobs.
+ * ========================================================================== */
+[data-theme="liquid-glass"] {
+  --bg:          #0a1226;
+  --bg-stripe:   #1b0a40;
+  --bg-pattern:  linear-gradient(135deg, #0a1226, #1b0a40);
+  --surface:     rgba(255,255,255,.12);
+  --surface-alt: rgba(255,255,255,.18);
+  --primary:     #7afcff;
+  --secondary:   #ff7af3;
+  --accent:      #ffe66d;
+  --text:        #f5f7ff;
+  --muted:       #a8b0c7;
+  --good:        #7afcff;
+  --warn:        #ffe66d;
+
+  --titlebar-fg:   #f5f7ff;
+  --titlebar-from: rgba(122,252,255,.25);
+  --titlebar-to:   rgba(255,122,243,.25);
+  --titlebar-gradient: linear-gradient(135deg, rgba(122,252,255,.28), rgba(255,122,243,.28));
+
+  --input-bg:   rgba(255,255,255,.10);
+  --input-text: #f5f7ff;
+
+  --highlight-bg: rgba(122,252,255,.85);
+  --highlight-fg: #0a1226;
+  --negated-bg:   rgba(255,122,243,.30);
+
+  --marquee-bg: rgba(255,255,255,.10);
+  --marquee-fg: #f5f7ff;
+
+  --bevel-out:    inset 0 1px 0 rgba(255,255,255,.4), inset 0 -1px 0 rgba(0,0,0,.2), 0 30px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.18);
+  --bevel-in:     inset 0 0 0 1px rgba(255,255,255,.2), inset 0 2px 8px rgba(0,0,0,.25);
+  --bevel-deep:   0 40px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.4), 0 0 0 1px rgba(255,255,255,.2);
+  --bevel-button: inset 0 1px 0 rgba(255,255,255,.4), 0 4px 16px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.25);
+  --bevel-button-pressed: inset 0 0 0 1px rgba(255,255,255,.4), inset 0 2px 6px rgba(0,0,0,.3);
+  --bevel-input:  inset 0 0 0 1px rgba(255,255,255,.2);
+  --bevel-thin-out: 0 0 0 1px rgba(255,255,255,.18);
+  --bevel-thin-in:  inset 0 0 0 1px rgba(255,255,255,.18);
+
+  --radius:        16px;
+  --radius-large:  24px;
+  --outline-color: rgba(255,255,255,.35);
+
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-ui:   "Inter", system-ui, sans-serif;
   --font-display: "Inter", system-ui, sans-serif;
   --display-decoration: none;
   --button-press-offset: 0;
 }
-[data-theme="modern-dark"] .marquee { display: none; }
-[data-theme="modern-dark"] .header .title .blink { display: none; }
-[data-theme="modern-dark"] .titlebar { letter-spacing: .02em; }
-[data-theme="modern-dark"] button:hover, [data-theme="modern-dark"] .btn:hover { filter: brightness(1.15); }
-
-
-/* ============================== Modern Light ============================== */
-[data-theme="modern-light"] {
-  --bg:          #f8fafc;
-  --bg-stripe:   #f1f5f9;
-  --bg-pattern:  linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-  --surface:     #ffffff;
-  --surface-alt: #f1f5f9;
-  --primary:     #2563eb;
-  --secondary:   #7c3aed;
-  --accent:      #dc2626;
-  --text:        #0f172a;
-  --muted:       #64748b;
-  --good:        #16a34a;
-  --warn:        #ca8a04;
-
-  --titlebar-fg:   #ffffff;
-  --titlebar-from: #2563eb;
-  --titlebar-to:   #1d4ed8;
-  --titlebar-gradient: linear-gradient(135deg, var(--titlebar-from), var(--titlebar-to));
-
-  --input-bg:   #ffffff;
-  --input-text: #0f172a;
-
-  --highlight-bg: #fef08a;
-  --highlight-fg: #422006;
-  --negated-bg:   #fecaca;
-
-  --marquee-bg: #2563eb;
-  --marquee-fg: #ffffff;
-
-  --bevel-out:    0 1px 2px rgba(15,23,42,.08), 0 0 0 1px #e2e8f0 inset;
-  --bevel-in:     0 0 0 1px #e2e8f0 inset;
-  --bevel-deep:   0 6px 20px rgba(15,23,42,.10), 0 0 0 1px #e2e8f0 inset;
-  --bevel-button: 0 1px 0 rgba(255,255,255,.6) inset, 0 0 0 1px #cbd5e1 inset, 0 1px 1px rgba(15,23,42,.05);
-  --bevel-button-pressed: 0 0 0 1px #94a3b8 inset, 0 1px 2px rgba(15,23,42,.1) inset;
-  --bevel-input:  0 0 0 1px #cbd5e1 inset;
-  --bevel-thin-out: 0 0 0 1px #e2e8f0 inset;
-  --bevel-thin-in:  0 0 0 1px #cbd5e1 inset;
-
-  --radius:        6px;
-  --radius-large:  10px;
-  --outline-color: #2563eb;
-
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-ui:   -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --display-decoration: none;
-  --button-press-offset: 0;
+[data-theme="liquid-glass"] body {
+  background:
+    radial-gradient(ellipse at 20% 30%, #7afcff66, transparent 40%),
+    radial-gradient(ellipse at 80% 70%, #ff7af366, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, #ffe66d44, transparent 40%),
+    linear-gradient(135deg, #0a1226, #1b0a40) fixed;
+  animation: ink-glass-drift 18s ease-in-out infinite;
 }
-[data-theme="modern-light"] .marquee { display: none; }
-[data-theme="modern-light"] .header .title .blink { display: none; }
-[data-theme="modern-light"] button:hover { background: #f8fafc; }
-
-
-/* ============================== Lorcana Ink ============================== */
-/* Deep magical purple, with gold/amber highlights. */
-[data-theme="lorcana"] {
-  --bg:          #14081f;
-  --bg-stripe:   #1c0e2a;
-  --bg-pattern:  radial-gradient(ellipse at top, #2a1547 0%, #14081f 70%);
-  --surface:     #241338;
-  --surface-alt: #2e1948;
-  --primary:     #d4af37;             /* gold */
-  --secondary:   #c084fc;             /* lighter purple */
-  --accent:      #f0abfc;             /* pink/magenta */
-  --text:        #f3e8ff;
-  --muted:       #a78bca;
-  --good:        #84cc16;
-  --warn:        #fbbf24;
-
-  --titlebar-fg:   #fef9c3;
-  --titlebar-from: #4c1d95;
-  --titlebar-to:   #7c3aed;
-  --titlebar-gradient: linear-gradient(90deg, #2e1065, #6d28d9 50%, #2e1065);
-
-  --input-bg:   #0e0518;
-  --input-text: #f3e8ff;
-
-  --highlight-bg: #d4af37;
-  --highlight-fg: #1a0f2e;
-  --negated-bg:   #831843;
-
-  --marquee-bg: #2e1065;
-  --marquee-fg: #d4af37;
-
-  --bevel-out:    0 0 0 1px #6d28d9 inset, 0 0 12px rgba(124,58,237,.25);
-  --bevel-in:     0 0 0 1px #4c1d95 inset, 0 0 8px rgba(124,58,237,.15) inset;
-  --bevel-deep:   0 8px 30px rgba(0,0,0,.55), 0 0 0 1px #6d28d9 inset;
-  --bevel-button: 0 0 0 1px #6d28d9 inset, 0 1px 0 rgba(212,175,55,.2) inset, 0 1px 6px rgba(124,58,237,.3);
-  --bevel-button-pressed: 0 0 0 1px #d4af37 inset, 0 0 6px rgba(212,175,55,.4) inset;
-  --bevel-input:  0 0 0 1px #4c1d95 inset, 0 1px 2px rgba(0,0,0,.5) inset;
-  --bevel-thin-out: 0 0 0 1px #6d28d9 inset;
-  --bevel-thin-in:  0 0 0 1px #4c1d95 inset;
-
-  --radius:        4px;
-  --radius-large:  8px;
-  --outline-color: #d4af37;
-
-  --font-body: "Cinzel", "Trajan Pro", "Times New Roman", serif;
-  --font-ui:   "Cinzel", "Trajan Pro", Georgia, serif;
-  --font-display: "Cinzel", "Trajan Pro", serif;
-  --display-decoration: none;
-  --button-press-offset: 0;
+@keyframes ink-glass-drift {
+  0%,100% { background-position: 20% 30%, 80% 70%, 50% 50%, 0 0; }
+  50%     { background-position: 25% 25%, 75% 75%, 55% 55%, 0 0; }
 }
-[data-theme="lorcana"] .header .title { letter-spacing: .04em; text-shadow: 0 0 12px rgba(212,175,55,.5); }
-[data-theme="lorcana"] .header .title .blink { color: #d4af37; }
-[data-theme="lorcana"] .titlebar { letter-spacing: .08em; text-transform: uppercase; font-size: 11px; }
-[data-theme="lorcana"] .marquee { letter-spacing: .12em; }
-
-
-/* ============================== Terminal ============================== */
-/* Phosphor green CRT. */
-[data-theme="terminal"] {
-  --bg:          #000000;
-  --bg-stripe:   #000000;
-  --bg-pattern:
-    repeating-linear-gradient(0deg, rgba(0,255,0,.04) 0 1px, transparent 1px 3px),
-    radial-gradient(ellipse at center, #021a02 0%, #000 80%);
-  --surface:     #001a00;
-  --surface-alt: #002a00;
-  --primary:     #00ff88;
-  --secondary:   #00ffaa;
-  --accent:      #ff5555;
-  --text:        #00ff66;
-  --muted:       #008844;
-  --good:        #00ff66;
-  --warn:        #ffff66;
-
-  --titlebar-fg:   #00ff66;
-  --titlebar-from: #003300;
-  --titlebar-to:   #003300;
-  --titlebar-gradient: #003300;
-
-  --input-bg:   #000;
-  --input-text: #00ff66;
-
-  --highlight-bg: #00ff66;
-  --highlight-fg: #000;
-  --negated-bg:   #660000;
-
-  --marquee-bg: #001a00;
-  --marquee-fg: #00ff88;
-
-  --bevel-out:    0 0 0 1px #00ff66 inset, 0 0 8px rgba(0,255,102,.3);
-  --bevel-in:     0 0 0 1px #00aa44 inset;
-  --bevel-deep:   0 0 0 2px #00ff66 inset, 0 0 16px rgba(0,255,102,.4);
-  --bevel-button: 0 0 0 1px #00ff66 inset, 0 0 4px rgba(0,255,102,.4);
-  --bevel-button-pressed: 0 0 0 2px #00ff66 inset, 0 0 8px rgba(0,255,102,.6) inset;
-  --bevel-input:  0 0 0 1px #00aa44 inset;
-  --bevel-thin-out: 0 0 0 1px #00ff66 inset;
-  --bevel-thin-in:  0 0 0 1px #00aa44 inset;
-
-  --radius:        0;
-  --radius-large:  0;
-  --outline-color: #00ff66;
-
-  --font-body: "JetBrains Mono", "Fira Code", "Courier New", monospace;
-  --font-ui:   "JetBrains Mono", "Fira Code", "Courier New", monospace;
-  --font-display: "JetBrains Mono", "Fira Code", "Courier New", monospace;
-  --display-decoration: none;
-  --button-press-offset: 0;
+/* Frost the panels, inputs and buttons so the color blobs bleed through. */
+[data-theme="liquid-glass"] .window,
+[data-theme="liquid-glass"] .bevel-out,
+[data-theme="liquid-glass"] .bevel-in,
+[data-theme="liquid-glass"] .modal,
+[data-theme="liquid-glass"] .card-grid,
+[data-theme="liquid-glass"] button, [data-theme="liquid-glass"] .btn,
+[data-theme="liquid-glass"] input, [data-theme="liquid-glass"] select, [data-theme="liquid-glass"] textarea {
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
-[data-theme="terminal"] body::before {
-  content: "";
-  position: fixed; inset: 0; z-index: 100;
-  pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px);
-}
-[data-theme="terminal"] .header .title { text-shadow: 0 0 6px var(--primary); }
-[data-theme="terminal"] .header .title .blink { color: var(--primary); }
-[data-theme="terminal"] .titlebar { text-transform: uppercase; letter-spacing: .1em; }
-[data-theme="terminal"] button:hover { background: var(--surface-alt); }
-
-
-/* ============================== Geocities '99 ============================== */
-/* High-saturation bright background, Comic Sans, rainbows. */
-[data-theme="geocities"] {
-  --bg:          #ff00ff;
-  --bg-stripe:   #ffff00;
-  --bg-pattern:
-    repeating-linear-gradient(0deg,  rgba(255,0,255,.12) 0 8px, transparent 8px 16px),
-    repeating-linear-gradient(90deg, rgba(0,255,255,.10) 0 8px, transparent 8px 16px),
-    linear-gradient(45deg, #ffff00, #00ffff);
-  --surface:     #ffe4ff;
-  --surface-alt: #fffacd;
-  --primary:     #0000ff;
-  --secondary:   #800080;
-  --accent:      #ff0000;
-  --text:        #000000;
-  --muted:       #333333;
-  --good:        #008000;
-  --warn:        #ff6600;
-
-  --titlebar-fg:   #ffffff;
-  --titlebar-from: #ff00ff;
-  --titlebar-to:   #0000ff;
-  --titlebar-gradient: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
-
-  --input-bg:   #ffffff;
-  --input-text: #000000;
-
-  --highlight-bg: #ffff00;
-  --highlight-fg: #ff00ff;
-  --negated-bg:   #ffcccc;
-
-  --marquee-bg: #ff00ff;
-  --marquee-fg: #ffff00;
-
-  --bevel-out:    0 0 0 2px #ff00ff inset, 0 0 0 4px #ffff00 inset, 0 0 12px rgba(255,0,255,.5);
-  --bevel-in:     0 0 0 2px #ff00ff inset;
-  --bevel-deep:   0 0 0 3px #00ffff inset, 0 0 0 6px #ff00ff inset;
-  --bevel-button: 0 0 0 1px #000 inset, 0 2px 0 #ff00ff, 0 4px 0 #0000ff;
-  --bevel-button-pressed: 0 0 0 1px #000 inset, 0 0 0 #ff00ff;
-  --bevel-input:  0 0 0 2px #ff00ff inset;
-  --bevel-thin-out: 0 0 0 1px #ff00ff inset;
-  --bevel-thin-in:  0 0 0 1px #0000ff inset;
-
-  --radius:        0;
-  --radius-large:  0;
-  --outline-color: #ff00ff;
-
-  --font-body: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive;
-  --font-ui:   "Comic Sans MS", "Comic Sans", cursive;
-  --font-display: "Impact", "Comic Sans MS", cursive;
-  --display-decoration: underline;
-  --button-press-offset: 2px;
-}
-[data-theme="geocities"] body { background-attachment: fixed; }
-[data-theme="geocities"] .header .title { color: #ff00ff; text-shadow: 2px 2px 0 #ffff00, 4px 4px 0 #0000ff; }
-[data-theme="geocities"] .titlebar { background-size: 300% 100%; animation: gc-rainbow 4s linear infinite; }
-[data-theme="geocities"] .marquee span { animation-duration: 18s; }
-@keyframes gc-rainbow { 0% { background-position: 0% 0; } 100% { background-position: 300% 0; } }
-[data-theme="geocities"] button:hover { transform: scale(1.05); }
+[data-theme="liquid-glass"] .titlebar { letter-spacing: .04em; backdrop-filter: blur(10px); }
+[data-theme="liquid-glass"] .header .title { color: var(--primary); text-shadow: 0 2px 20px rgba(122,252,255,.5); font-weight: 800; }
+[data-theme="liquid-glass"] button, [data-theme="liquid-glass"] .btn { border-radius: 999px; color: #fff; }
+[data-theme="liquid-glass"] button:hover { background: rgba(255,255,255,.22); }
+[data-theme="liquid-glass"] .card-tile { outline: 1px solid rgba(255,255,255,.25); box-shadow: 0 18px 40px rgba(0,0,0,.35); }
+[data-theme="liquid-glass"] .card-tile:hover { outline-color: var(--primary); box-shadow: 0 24px 50px rgba(0,0,0,.45), 0 0 24px rgba(122,252,255,.35); }
+[data-theme="liquid-glass"] .card-tile .label { background: rgba(10,18,38,.55); border-top-color: rgba(255,255,255,.18); box-shadow: none; backdrop-filter: blur(10px); }
+[data-theme="liquid-glass"] .deck-section h4 { background: linear-gradient(135deg, rgba(122,252,255,.3), rgba(255,122,243,.3)); color: #fff; }
+[data-theme="liquid-glass"] .deck-row:hover { background: rgba(122,252,255,.18); color: var(--text); }
