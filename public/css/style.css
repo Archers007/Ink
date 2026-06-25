@@ -123,13 +123,37 @@ body {
   padding: 3px 6px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
 }
-.titlebar .ctrls { display:flex; gap:2px; }
+/* Title text takes the slack so action + window-control clusters stay
+   right-aligned regardless of how much space the title needs. */
+.titlebar .titlebar-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Window controls: the tiny _ ▢ ✕ icons in the far corner. */
+.titlebar .ctrls { display:flex; gap:2px; flex: 0 0 auto; }
 .titlebar .ctrls button {
   width: 16px; height: 14px; line-height: 8px;
   font-family: var(--font-ui); font-size: 9px;
   padding: 0;
+}
+
+/* Action buttons (Decks, Profile, Sniffer) get real legible labels. */
+.titlebar .titlebar-actions { display:flex; gap:4px; flex: 0 0 auto; }
+.titlebar .tb-action {
+  height: 18px;
+  padding: 0 8px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.titlebar .tb-action-icon {
+  padding: 0 6px;
+  font-size: 12px;
 }
 .menubar {
   font-family: var(--font-ui);
