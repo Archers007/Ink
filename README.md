@@ -75,6 +75,47 @@ If no server-side key is set, click **A.I. settings** in the UI to paste a
 "bring your own key" — stored in your browser's `localStorage`, never sent to
 our server.
 
+## Run it with Docker
+
+```bash
+# Build + run with compose (recommended)
+docker compose up --build           # http://localhost:3000
+
+# …or plain Docker
+docker build -t ink .
+docker run -p 5060:5060 -v ink-cache:/app/cache ink
+```
+
+Notes:
+
+- The image is a small `node:22-alpine` build, runs as the non-root `node`
+  user, and ships a `HEALTHCHECK`.
+- `cards.db` / `prices.db` are **not** baked in — the server downloads them
+  from dreamborn.ink into `/app/cache` on first boot, so the container needs
+  outbound internet. The `ink-cache` volume persists them across restarts.
+- Set the published host port with `INK_PORT` (the app always listens on
+  `5060` inside the container), e.g. `INK_PORT=8080 docker compose up`.
+- AI keys are read from the environment / a local `.env` file — see the table
+  above. Compose interpolates them automatically when a `.env` is present.
+
+### Public access via Cloudflare Tunnel
+
+The compose stack includes a `cloudflared` service that exposes the app
+publicly with no inbound ports opened:
+
+```bash
+# put your tunnel token in .env (NEVER commit it):
+#   CLOUDFLARED_TOKEN=eyJ...
+docker compose up --build          # starts ink + cloudflared
+```
+
+- In the Cloudflare **Zero Trust → Networks → Tunnels** dashboard, point the
+  tunnel's public hostname at the origin service **`http://ink:5060`**
+  (cloudflared reaches the app by its compose service name over the shared
+  network).
+- The token is read from `CLOUDFLARED_TOKEN` in your local, git-ignored `.env`.
+- To run Ink **without** the tunnel: `docker compose up ink`.
+
 ## Architecture
 
 ```
