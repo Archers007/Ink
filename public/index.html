@@ -371,6 +371,26 @@
   </div>
 </div>
 
+<!-- ============== Export Decklist Modal ============== -->
+<div id="exportModal" class="modal-backdrop">
+  <div class="modal window bevel-out">
+    <div class="titlebar">
+      <span>📤 Export Decklist</span>
+      <span class="ctrls"><button data-close-modal>✕</button></span>
+    </div>
+    <div class="body">
+      <div class="small muted" style="margin-bottom: 6px;">How would you like to export <b id="exportDeckName">your deck</b>? Copy the list to your clipboard, or download it as a <code>.txt</code> file.</div>
+      <textarea id="exportText" rows="12" readonly style="width: 480px;"></textarea>
+      <div id="exportStatus" class="small" style="margin-top:4px; min-height:14px; color: var(--good);"></div>
+    </div>
+    <div class="actions">
+      <button id="exportCopyBtn">📋 Copy to clipboard</button>
+      <button id="exportDownloadBtn">💾 Download .txt</button>
+      <button data-close-modal>Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============== Search Help Modal ============== -->
 <div id="helpModal" class="modal-backdrop">
   <div class="modal window bevel-out" style="max-width: 720px;">
