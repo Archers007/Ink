@@ -679,15 +679,49 @@ function wireUI() {
       renderGrid(); renderDeck();
     } else alert('Not found.');
   });
+  // Export: ask the user how they'd like the decklist (clipboard or .txt file).
   $('#exportDeckBtn').addEventListener('click', () => {
-    const txt = Deck.toText();
-    navigator.clipboard?.writeText(txt).catch(() => {});
-    const blob = new Blob([txt], { type: 'text/plain' });
+    if (Deck.Deck.cards.size === 0) return alert('Your deck is empty — nothing to export.');
+    $('#exportText').value = Deck.toText();
+    $('#exportDeckName').textContent = Deck.Deck.name || 'your deck';
+    $('#exportStatus').textContent = '';
+    openModal('#exportModal');
+  });
+  $('#exportCopyBtn').addEventListener('click', async () => {
+    const ta = $('#exportText');
+    let ok = false;
+    if (navigator.clipboard?.writeText) {
+      // Race a timeout: a backgrounded/unfocused tab can leave writeText pending
+      // forever, so fall back rather than hang.
+      ok = await Promise.race([
+        navigator.clipboard.writeText(ta.value).then(() => true, () => false),
+        new Promise((res) => setTimeout(() => res(false), 600)),
+      ]);
+    }
+    if (!ok) {
+      // Fallback for browsers without (or denied) the async clipboard API.
+      ta.removeAttribute('readonly'); ta.select();
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      ta.setAttribute('readonly', '');
+    }
+    $('#exportStatus').textContent = ok
+      ? '✓ Copied to clipboard'
+      : '⚠ Couldn’t copy automatically — the text is selected, press ⌘/Ctrl+C.';
+    flash($('#exportCopyBtn'), ok ? 'Copied!' : 'Select+copy');
+  });
+  $('#exportDownloadBtn').addEventListener('click', () => {
+    const filename = (Deck.Deck.name || 'deck') + '.txt';
+    const blob = new Blob([$('#exportText').value], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = (Deck.Deck.name || 'deck') + '.txt';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
     a.click();
-    flash($('#exportDeckBtn'), 'Copied!');
+    a.remove();
+    URL.revokeObjectURL(url);
+    $('#exportStatus').textContent = '✓ Downloaded ' + filename;
+    flash($('#exportDownloadBtn'), 'Saved!');
   });
   $('#importDeckBtn').addEventListener('click', () => openModal('#importModal'));
   $('#importSubmit').addEventListener('click', () => {
