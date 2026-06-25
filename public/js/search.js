@@ -46,7 +46,8 @@
 //  In-text symbols (case insensitive): {exert},{ink},{lore},{strength},{willpower}
 //  Shorthand inside o:: {t}→{exert}, {i}→{ink}, {l}→{lore}, {s}→{strength}, {w}→{willpower}
 //
-//  Bare words (no field) match oracle text (same as o:WORD).
+//  Bare words (no field) match the card NAME or subtitle (like a normal
+//  search bar). Use o:/text: to search the rules text instead.
 // =====================================================================
 
 const COLOR_ALIASES = {
@@ -271,9 +272,15 @@ function compileFilter(raw) {
     if (negated) return { fn: (c) => !pred(c), src: raw };
     return { fn: pred, src: raw };
   }
-  // bare term: oracle substring (with quote stripping + symbol expansion)
-  const needle = collapseWhitespace(expandSymbols(unquote(raw).toLowerCase()));
-  return { fn: (c) => abilityText(c).includes(needle), src: raw };
+  // bare term: default to a card NAME / subtitle search. Most search bars work
+  // this way, so plain text should behave the same here; use o:/text: to search
+  // the rules text instead. (See #4.)
+  const needle = unquote(raw).toLowerCase();
+  return {
+    fn: (c) => String(c.name || '').toLowerCase().includes(needle)
+            || String(c.title || '').toLowerCase().includes(needle),
+    src: raw,
+  };
 }
 
 // Split a value on commas (or slashes / plus signs) for ANY-match. Treats
@@ -407,6 +414,7 @@ Prefix with <code>-</code> to negate. Use <code>"quoted phrases"</code> for mult
 <table style="border-collapse:collapse;">
   <tr><td><code>c:</code> <code>color:</code> <code>ink:</code></td><td>amber·amethyst·emerald·ruby·sapphire·steel (or 1-letter a/m/e/r/s/t). Multi-color: <code>c:multi</code></td></tr>
   <tr><td><code>t:</code> <code>type:</code></td><td>character · action · item · location · song</td></tr>
+  <tr><td><i>(no prefix)</i></td><td><b>card name or subtitle</b> — plain text searches names by default; use <code>o:</code> for rules text</td></tr>
   <tr><td><code>n:</code> <code>name:</code></td><td>substring of card name</td></tr>
   <tr><td><code>tt:</code> <code>title:</code></td><td>substring of subtitle (e.g. "Brave Little Tailor")</td></tr>
   <tr><td><code>o:</code> <code>text:</code></td><td>oracle text + keywords substring</td></tr>

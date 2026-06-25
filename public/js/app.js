@@ -165,9 +165,9 @@ function friendlyChip(raw) {
   }
   const m = t.match(/^([a-z]+)([:=]|>=|<=|>|<|!=|!)(.+)$/i);
   if (!m) {
-    // bare-word oracle search
+    // bare-word search → defaults to card name / subtitle (see search.js #4)
     return {
-      html: `<span class="label-text">Text: <i>${escapeHtml(t.replace(/^"|"$/g, ''))}</i></span>`,
+      html: `<span class="label-text">Name: <i>${escapeHtml(t.replace(/^"|"$/g, ''))}</i></span>`,
       negated: neg,
     };
   }
