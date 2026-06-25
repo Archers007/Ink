@@ -20,5 +20,22 @@ services:
       - ink-cache:/app/cache
     restart: unless-stopped
 
+  # Cloudflare Tunnel — exposes the app publicly without opening a port.
+  # Configure the tunnel's public hostname to point at http://ink:3000 in the
+  # Cloudflare Zero Trust dashboard (cloudflared reaches the app over the shared
+  # compose network by its service name).
+  #
+  # The token is read from CLOUDFLARED_TOKEN in your local .env (never commit it).
+  # To run Ink WITHOUT the tunnel:  docker compose up ink
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ink-cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${CLOUDFLARED_TOKEN:?set CLOUDFLARED_TOKEN in your .env}"
+    depends_on:
+      - ink
+    restart: unless-stopped
+
 volumes:
   ink-cache:

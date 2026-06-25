@@ -98,6 +98,24 @@ Notes:
 - AI keys are read from the environment / a local `.env` file — see the table
   above. Compose interpolates them automatically when a `.env` is present.
 
+### Public access via Cloudflare Tunnel
+
+The compose stack includes a `cloudflared` service that exposes the app
+publicly with no inbound ports opened:
+
+```bash
+# put your tunnel token in .env (NEVER commit it):
+#   CLOUDFLARED_TOKEN=eyJ...
+docker compose up --build          # starts ink + cloudflared
+```
+
+- In the Cloudflare **Zero Trust → Networks → Tunnels** dashboard, point the
+  tunnel's public hostname at the origin service **`http://ink:3000`**
+  (cloudflared reaches the app by its compose service name over the shared
+  network).
+- The token is read from `CLOUDFLARED_TOKEN` in your local, git-ignored `.env`.
+- To run Ink **without** the tunnel: `docker compose up ink`.
+
 ## Architecture
 
 ```
