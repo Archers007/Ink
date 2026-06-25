@@ -6,8 +6,6 @@
 //      to the browser, which queries them in-place via sql.js.
 //   3. Proxy dreamborn's auth flow (Firebase identitytoolkit -> dreamborn session
 //      cookie -> user collection) so the browser doesn't fight CORS / cookies.
-//   4. Optionally proxy an AI provider (OpenAI or Anthropic) so users don't have
-//      to paste an API key into the browser.
 
 import express from 'express';
 import fs from 'node:fs/promises';
@@ -423,74 +421,6 @@ function findDeckObject(arr, expectedId) {
   }
   return null;
 }
-
-// ----- AI proxy (optional). Supports OpenAI & Anthropic. -----
-app.get('/api/ai/config', (req, res) => {
-  res.json({
-    provider: process.env.OPENAI_API_KEY ? 'openai'
-            : process.env.ANTHROPIC_API_KEY ? 'anthropic'
-            : null,
-    model: process.env.OPENAI_API_KEY ? (process.env.OPENAI_MODEL || 'gpt-4o-mini')
-         : process.env.ANTHROPIC_API_KEY ? (process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest')
-         : null,
-  });
-});
-
-app.post('/api/ai/chat', async (req, res) => {
-  const { messages, system, max_tokens = 1200, temperature = 0.7 } = req.body || {};
-  if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages[] required' });
-
-  try {
-    if (process.env.OPENAI_API_KEY) {
-      const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-      const oa = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          temperature,
-          max_tokens,
-          messages: [
-            ...(system ? [{ role: 'system', content: system }] : []),
-            ...messages,
-          ],
-        }),
-      });
-      const j = await oa.json();
-      if (!oa.ok) return res.status(oa.status).json({ error: j?.error?.message || 'openai error', detail: j });
-      return res.json({ ok: true, text: j.choices?.[0]?.message?.content ?? '', raw: j });
-    }
-    if (process.env.ANTHROPIC_API_KEY) {
-      const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest';
-      const an = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens,
-          temperature,
-          system,
-          messages: messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
-        }),
-      });
-      const j = await an.json();
-      if (!an.ok) return res.status(an.status).json({ error: j?.error?.message || 'anthropic error', detail: j });
-      const text = (j.content || []).map((b) => b.text || '').join('');
-      return res.json({ ok: true, text, raw: j });
-    }
-    res.status(501).json({ error: 'no AI provider configured on server; set OPENAI_API_KEY or ANTHROPIC_API_KEY' });
-  } catch (e) {
-    console.error('[ai]', e);
-    res.status(500).json({ error: e.message });
-  }
-});
 
 // ----- static -----
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
