@@ -542,23 +542,6 @@ hr { border: none; border-top: 1px solid var(--muted); border-bottom: 1px solid 
 }
 .summary .stat b { display:block; font-size: 18px; color: var(--primary); }
 
-/* ---------- AI panel ---------- */
-.ai-panel { padding: 10px; }
-.ai-log {
-  height: 240px; overflow:auto;
-  padding: 6px;
-  background: var(--input-bg);
-  font-family: var(--font-ui); font-size: 12px;
-}
-.ai-log .msg { margin-bottom: 6px; }
-.ai-log .role-user { color: var(--text); }
-.ai-log .role-assistant { color: var(--primary); }
-.ai-log .role-system { color: var(--muted); font-style: italic; }
-.ai-input { display:flex; gap: 6px; margin-top: 6px; }
-.ai-input input { flex: 1; }
-.ai-suggest { display:flex; flex-wrap: wrap; gap:4px; margin-top: 6px; }
-.ai-suggest button { font-size: 11px; padding: 2px 6px; }
-
 /* ---------- ink color chips ---------- */
 .ink {
   display: inline-block;
