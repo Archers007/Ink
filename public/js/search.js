@@ -186,7 +186,11 @@ function abilityText(card) {
   } else if (card.keywords && typeof card.keywords === 'object') {
     kw = Object.keys(card.keywords).join(' ');
   }
-  return (s + ' ' + kw).toLowerCase();
+  // Normalise in-text symbols so the short ({L}) and long ({lore}) forms both
+  // collapse to one canonical token. The card data mixes the two spellings, so
+  // the haystack must be expanded the same way as the search needle for a query
+  // like o:{l} to match every card (and not just the {lore}-spelled ones).
+  return expandSymbols((s + ' ' + kw).toLowerCase());
 }
 function characteristicsText(card) {
   if (typeof card.characteristics === 'string') {
