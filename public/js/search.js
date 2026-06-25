@@ -186,11 +186,18 @@ function abilityText(card) {
   } else if (card.keywords && typeof card.keywords === 'object') {
     kw = Object.keys(card.keywords).join(' ');
   }
-  // Normalise in-text symbols so the short ({L}) and long ({lore}) forms both
-  // collapse to one canonical token. The card data mixes the two spellings, so
-  // the haystack must be expanded the same way as the search needle for a query
-  // like o:{l} to match every card (and not just the {lore}-spelled ones).
-  return expandSymbols((s + ' ' + kw).toLowerCase());
+  // Collapse the newlines/extra spaces that separate a card's abilities so a
+  // quoted phrase matches as one continuous string regardless of wrapping.
+  // (Symbol normalisation from #2 is applied first by expandSymbols.)
+  return collapseWhitespace(expandSymbols((s + ' ' + kw).toLowerCase()));
+}
+
+// Collapse runs of whitespace (spaces, tabs, and the newlines between a card's
+// abilities) into a single space. Applied to both the oracle haystack and the
+// search needle so an exact "quoted phrase" lines up regardless of how the
+// source text happens to wrap. (See #3.)
+function collapseWhitespace(s) {
+  return String(s).replace(/\s+/g, ' ').trim();
 }
 function characteristicsText(card) {
   if (typeof card.characteristics === 'string') {
@@ -265,7 +272,7 @@ function compileFilter(raw) {
     return { fn: pred, src: raw };
   }
   // bare term: oracle substring (with quote stripping + symbol expansion)
-  const needle = expandSymbols(unquote(raw).toLowerCase());
+  const needle = collapseWhitespace(expandSymbols(unquote(raw).toLowerCase()));
   return { fn: (c) => abilityText(c).includes(needle), src: raw };
 }
 
@@ -303,7 +310,9 @@ function buildFieldPred(key, op, val) {
     }
     case 'o': case 'oracle': case 'text': {
       // Single phrase only (commas can legitimately appear in oracle text).
-      const needle = expandSymbols(String(sval));
+      // Whitespace is collapsed on both sides so the quoted text is matched as
+      // one continuous string even when it spans the card's line breaks.
+      const needle = collapseWhitespace(expandSymbols(String(sval)));
       return (c) => abilityText(c).includes(needle);
     }
     case 'kw': case 'keyword': {
