@@ -636,7 +636,7 @@ function wireUI() {
     const tile = e.target.closest('.card-tile'); if (!tile) return previewHide();
     const id = tile.dataset.id;
     const card = state.catalog.find((c) => c.id === id);
-    if (card) previewShow(card.image, e.clientX, e.clientY);
+    if (card) previewShow(card.image, e.clientX, e.clientY, card.type === 'location');
   });
   grid.addEventListener('mouseleave', previewHide);
 
@@ -650,7 +650,7 @@ function wireUI() {
   $('#deckList').addEventListener('mousemove', (e) => {
     const row = e.target.closest('.deck-row'); if (!row) return previewHide();
     const card = DB.allCards.find((c) => c.id === row.dataset.id);
-    if (card) previewShow(card.image, e.clientX, e.clientY);
+    if (card) previewShow(card.image, e.clientX, e.clientY, card.type === 'location');
   });
   $('#deckList').addEventListener('mouseleave', previewHide);
 
@@ -847,13 +847,18 @@ function openModal(sel)  { $(sel).classList.add('show'); }
 function closeModal(sel) { $(sel).classList.remove('show'); }
 
 // ---------- preview popover ----------
-function previewShow(src, x, y) {
+// Location cards are landscape but their art ships portrait, so the popout is
+// rotated 90° clockwise (see .preview.location in style.css). When rotated the
+// popover's footprint is landscape, so swap the collision-detection extents.
+function previewShow(src, x, y, isLocation = false) {
   const p = $('#preview');
   const img = p.querySelector('img');
   if (img.src !== src) img.src = src;
+  p.classList.toggle('location', !!isLocation);
   p.classList.add('show');
   // Position: prefer right side, fall back to left
-  const W = 268, H = 380;
+  const W = isLocation ? 372 : 268;
+  const H = isLocation ? 276 : 380;
   let px = x + 20, py = y - H / 2;
   if (px + W > window.innerWidth) px = x - W - 20;
   if (py < 8) py = 8;

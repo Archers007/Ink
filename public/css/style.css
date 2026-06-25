@@ -668,6 +668,19 @@ hr { border: none; border-top: 1px solid var(--muted); border-bottom: 1px solid 
 .preview.show { display:block; }
 .preview img { width: 260px; height: auto; display:block; outline: 1px solid var(--outline-color); }
 
+/* Location cards are landscape, but dreamborn ships their art as a portrait
+   image (rotated 90° counter-clockwise). Rotate the popout 90° clockwise so it
+   reads as a normal landscape card. The rotated image's footprint is landscape,
+   so reserve a landscape box and centre the (still-portrait) <img> inside it. */
+.preview.location { width: 372px; height: 276px; }
+.preview.location img {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 260px; height: auto;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+}
+
 /* ---------- misc ---------- */
 .row { display:flex; gap: 6px; align-items: center; }
 .row.wrap { flex-wrap: wrap; }
