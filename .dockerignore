@@ -1,0 +1,22 @@
+# Keep the build context small and the image clean.
+node_modules
+cache
+captures
+scripts
+.git
+.gitignore
+.github
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Docker / compose files aren't needed inside the image
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Docs
+README.md
+*.md
