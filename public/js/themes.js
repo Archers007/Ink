@@ -1,42 +1,40 @@
 // Theme registry + apply/persist. Read by app.js on boot, before the catalog
 // renders, so the user never sees the wrong colors flash.
+//
+// Each theme is more than a recolor — see public/css/themes.css, where every
+// entry restyles the layout & chrome (panels, cards, buttons, background,
+// animation) so switching themes genuinely changes the feel of the app.
 
 export const THEMES = [
   {
     id: '1996',
     name: 'HTML 1996',
-    blurb: 'Silver chrome, Win95 bevels, Times New Roman.',
+    blurb: 'Silver chrome, Win95 bevels, Times New Roman, a marquee.',
     swatch: { surface: '#c0c0c0', primary: '#000080', accent: '#ff0000', titlebar: 'linear-gradient(90deg,#000080,#1084d0)' },
   },
   {
-    id: 'modern-dark',
-    name: 'Modern Dark',
-    blurb: 'Slate + neon blue. Soft shadows, no bevels.',
-    swatch: { surface: '#1e293b', primary: '#60a5fa', accent: '#f87171', titlebar: 'linear-gradient(135deg,#1e293b,#334155)' },
+    id: 'deep-sea-lab',
+    name: 'Deep Sea Lab',
+    blurb: 'Abyssal navy, neon-teal glow, rounded glass panels, Space Grotesk.',
+    swatch: { surface: '#0a2540', primary: '#00f5d4', accent: '#9b5de5', titlebar: 'linear-gradient(90deg,#06223f,#0a2540)' },
   },
   {
-    id: 'modern-light',
-    name: 'Modern Light',
-    blurb: 'Clean light cards with a blue title bar.',
-    swatch: { surface: '#ffffff', primary: '#2563eb', accent: '#dc2626', titlebar: 'linear-gradient(135deg,#2563eb,#1d4ed8)' },
+    id: 'vaporwave',
+    name: 'Vaporwave',
+    blurb: 'Retro grid horizon, neon pink/cyan, mono caps, scrolling sun.',
+    swatch: { surface: '#2a0a44', primary: '#ff71ce', accent: '#05ffa1', titlebar: 'linear-gradient(90deg,#ff71ce,#01cdfe)' },
   },
   {
-    id: 'lorcana',
-    name: 'Lorcana Ink',
-    blurb: 'Deep magical purple, gold accents, serif.',
-    swatch: { surface: '#241338', primary: '#d4af37', accent: '#f0abfc', titlebar: 'linear-gradient(90deg,#2e1065,#6d28d9,#2e1065)' },
+    id: 'brutalist-concrete',
+    name: 'Brutalist Concrete',
+    blurb: 'Raw grey slab, hard black drop-shadows, heavy mono, zero gloss.',
+    swatch: { surface: '#bababa', primary: '#1a1a1a', accent: '#f5b400', titlebar: '#000000' },
   },
   {
-    id: 'terminal',
-    name: 'Terminal',
-    blurb: 'Phosphor green CRT with scanlines.',
-    swatch: { surface: '#001a00', primary: '#00ff88', accent: '#ff5555', titlebar: '#003300' },
-  },
-  {
-    id: 'geocities',
-    name: 'Geocities \'99',
-    blurb: 'Rainbow chrome, Comic Sans, peak Web 1.0.',
-    swatch: { surface: '#ffe4ff', primary: '#0000ff', accent: '#ff0000', titlebar: 'linear-gradient(90deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)' },
+    id: 'liquid-glass',
+    name: 'Liquid Glass',
+    blurb: 'Frosted glass panels, drifting color blobs, pill buttons, Inter.',
+    swatch: { surface: '#16203f', primary: '#7afcff', accent: '#ffe66d', titlebar: 'linear-gradient(135deg,#7afcff,#ff7af3)' },
   },
 ];
 
