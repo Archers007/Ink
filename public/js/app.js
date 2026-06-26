@@ -54,10 +54,26 @@ async function boot() {
     onSignedIn(m.displayName);
   }
 
-  // silly hit counter
+  // hit counter — real, server-tracked visit total (persisted in SQLite). The
+  // visit itself is recorded server-side when this page is served; here we just
+  // read the running total. Fall back to a local count if the API is offline.
+  refreshHitCounter();
+}
+
+async function refreshHitCounter() {
+  const el = $('#hitCounter');
+  try {
+    const r = await fetch('/api/stats', { headers: { accept: 'application/json' } });
+    const j = await r.json();
+    if (j && j.ok && Number.isFinite(j.total)) {
+      el.textContent = String(j.total).padStart(6, '0');
+      el.title = `${j.total.toLocaleString()} total visits · ${Number(j.today || 0).toLocaleString()} today`;
+      return;
+    }
+  } catch { /* offline / older server — fall through */ }
   const hits = Number(localStorage.getItem('ink.hits') || 0) + 1;
   localStorage.setItem('ink.hits', hits);
-  $('#hitCounter').textContent = String(hits).padStart(6, '0');
+  el.textContent = String(hits).padStart(6, '0');
 }
 
 function setStatus(s) { $('#dbStatus').textContent = s; }
@@ -770,6 +786,8 @@ function wireUI() {
       '· Card data fetched from dreamborn.ink (cards.db / prices.db)\n' +
       '· Queried locally via sql.js\n' +
       '· Optional sign-in syncs your Dreamborn collection\n\n' +
+      'Found a bug or have an idea? Open an issue:\n' +
+      'https://github.com/Archers007/Ink/issues\n\n' +
       'Not affiliated with Disney, Ravensburger, or Dreamborn.'
     );
   });

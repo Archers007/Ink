@@ -1,6 +1,7 @@
 # Keep the build context small and the image clean.
 node_modules
 cache
+data
 captures
 scripts
 .git

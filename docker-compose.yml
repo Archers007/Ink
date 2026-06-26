@@ -9,9 +9,11 @@ services:
       - "${INK_PORT:-5060}:5060"
     environment:
       PORT: "5060"
-    # Persist the downloaded cards.db / prices.db between restarts.
+    # Persist the downloaded cards.db / prices.db (cache) and the visit-stats DB
+    # (data) between restarts.
     volumes:
       - ink-cache:/app/cache
+      - ink-data:/app/data
     restart: unless-stopped
 
   # Cloudflare Tunnel — exposes the app publicly without opening a port.
@@ -33,3 +35,4 @@ services:
 
 volumes:
   ink-cache:
+  ink-data:
