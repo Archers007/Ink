@@ -2,7 +2,10 @@
 
 # Ink — Lorcana deck builder. Tiny Express app: static frontend + a few proxy
 # endpoints. No build step, so a single lean stage is plenty.
-FROM node:22-alpine
+#
+# Node 24: the persistent visit DB uses the built-in node:sqlite module, which is
+# available without an experimental flag from Node 23.4 onward.
+FROM node:24-alpine
 
 ENV NODE_ENV=production \
     PORT=5060 \
@@ -20,16 +23,18 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
-# Application source (cache/ is intentionally NOT copied — the server fetches
-# cards.db / prices.db from dreamborn.ink into it on boot; see .dockerignore).
+# Application source (cache/ and data/ are intentionally NOT copied — the server
+# fetches cards.db / prices.db into cache/ on boot and creates data/ink.db for
+# visit stats at runtime; see .dockerignore).
 COPY server.js ./
 COPY public ./public
 
-# The runtime cache directory must be writable by the unprivileged "node" user
-# (shipped in the official image). Expose it as a volume so the downloaded
-# SQLite DBs survive container restarts.
-RUN mkdir -p /app/cache && chown -R node:node /app
-VOLUME ["/app/cache"]
+# The runtime cache/ and data/ directories must be writable by the unprivileged
+# "node" user (shipped in the official image). Expose them as volumes so the
+# downloaded SQLite DBs (cache/) and the persistent visit DB (data/) survive
+# container restarts.
+RUN mkdir -p /app/cache /app/data && chown -R node:node /app
+VOLUME ["/app/cache", "/app/data"]
 
 USER node
 EXPOSE 5060
