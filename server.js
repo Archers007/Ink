@@ -1,4 +1,4 @@
-// Ink — Lorcana deck builder w/ AI, themed like the web in 1996.
+// Ink — Lorcana deck builder, themed like the web in 1996.
 //
 // Responsibilities:
 //   1. Static-serve the frontend (public/).
@@ -6,6 +6,8 @@
 //      to the browser, which queries them in-place via sql.js.
 //   3. Proxy dreamborn's auth flow (Firebase identitytoolkit -> dreamborn session
 //      cookie -> user collection) so the browser doesn't fight CORS / cookies.
+//   4. Keep a small persistent SQLite DB (data/ink.db) that survives restarts and
+//      records site visits — exposed read-only at /api/stats.
 
 import express from 'express';
 import fs from 'node:fs/promises';
@@ -17,6 +19,9 @@ import 'dotenv/config';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const CACHE_DIR = path.join(__dirname, 'cache');
+// data/ holds app-owned state we never want wiped (unlike cache/, which is just
+// re-downloadable copies of dreamborn's DBs).
+const DATA_DIR = path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // dreamborn endpoints
@@ -41,6 +46,60 @@ const COMMON_HEADERS = {
 };
 
 await fs.mkdir(CACHE_DIR, { recursive: true });
+await fs.mkdir(DATA_DIR, { recursive: true });
+
+// ---------- persistent stats DB (node:sqlite) ----------
+// node:sqlite is a built-in (Node 22.5+). We import it lazily and degrade
+// gracefully: if it's unavailable, visit tracking is simply a no-op so the rest
+// of the app keeps working.
+let statsDb = null;
+try {
+  const { DatabaseSync } = await import('node:sqlite');
+  statsDb = new DatabaseSync(path.join(DATA_DIR, 'ink.db'));
+  statsDb.exec('PRAGMA journal_mode = WAL');
+  statsDb.exec(`
+    CREATE TABLE IF NOT EXISTS visits (
+      id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts      INTEGER NOT NULL,          -- unix epoch (ms)
+      day     TEXT    NOT NULL,          -- YYYY-MM-DD (UTC), for fast per-day rollups
+      path    TEXT,
+      referer TEXT,
+      ua      TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_visits_day ON visits(day);
+  `);
+  console.log('[stats] visit DB ready at', path.join(DATA_DIR, 'ink.db'));
+} catch (e) {
+  console.warn('[stats] visit tracking disabled (node:sqlite unavailable):', e.message);
+}
+
+function recordVisit(req) {
+  if (!statsDb) return;
+  try {
+    const now = Date.now();
+    const day = new Date(now).toISOString().slice(0, 10);
+    statsDb
+      .prepare('INSERT INTO visits (ts, day, path, referer, ua) VALUES (?, ?, ?, ?, ?)')
+      .run(now, day, String(req.path || '').slice(0, 256),
+           String(req.get('referer') || '').slice(0, 256),
+           String(req.get('user-agent') || '').slice(0, 256));
+  } catch (e) {
+    // Never let analytics break a page load.
+    console.warn('[stats] recordVisit failed:', e.message);
+  }
+}
+
+function readStats() {
+  if (!statsDb) return { ok: false, total: 0, today: 0 };
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const total = statsDb.prepare('SELECT COUNT(*) AS n FROM visits').get().n;
+    const todayN = statsDb.prepare('SELECT COUNT(*) AS n FROM visits WHERE day = ?').get(today).n;
+    return { ok: true, total: Number(total) || 0, today: Number(todayN) || 0 };
+  } catch (e) {
+    return { ok: false, total: 0, today: 0, error: e.message };
+  }
+}
 
 // ---------- DB cache ----------
 async function ensureCached(filename, url, maxAgeMs = 60 * 60 * 1000) {
@@ -76,6 +135,24 @@ async function ensureCached(filename, url, maxAgeMs = 60 * 60 * 1000) {
 // ---------- app ----------
 const app = express();
 app.use(express.json({ limit: '512kb' }));
+
+// Count one visit per top-level HTML page load (real navigations only — not API
+// calls, the .db downloads, or static assets like /css, /js, the favicon).
+app.use((req, res, next) => {
+  if (req.method === 'GET' &&
+      !req.path.startsWith('/api/') &&
+      (req.get('accept') || '').includes('text/html') &&
+      !/\.[a-z0-9]+$/i.test(req.path)) {
+    recordVisit(req);
+  }
+  next();
+});
+
+// Site visit stats, backed by the persistent SQLite DB.
+app.get('/api/stats', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(readStats());
+});
 
 // Simple in-memory session store: sessionId -> { uid, displayName, cookie, idToken, refreshToken, exp }
 const sessions = new Map();

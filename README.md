@@ -67,20 +67,22 @@ Environment (all optional):
 
 ```bash
 # Build + run with compose (recommended)
-docker compose up --build           # http://localhost:3000
+docker compose up --build           # http://localhost:5060
 
 # …or plain Docker
 docker build -t ink .
-docker run -p 5060:5060 -v ink-cache:/app/cache ink
+docker run -p 5060:5060 -v ink-cache:/app/cache -v ink-data:/app/data ink
 ```
 
 Notes:
 
-- The image is a small `node:22-alpine` build, runs as the non-root `node`
+- The image is a small `node:24-alpine` build, runs as the non-root `node`
   user, and ships a `HEALTHCHECK`.
 - `cards.db` / `prices.db` are **not** baked in — the server downloads them
   from dreamborn.ink into `/app/cache` on first boot, so the container needs
   outbound internet. The `ink-cache` volume persists them across restarts.
+- The persistent visit-stats DB lives in `/app/data/ink.db`; the `ink-data`
+  volume keeps it (and the running hit count) across restarts.
 - Set the published host port with `INK_PORT` (the app always listens on
   `5060` inside the container), e.g. `INK_PORT=8080 docker compose up`.
 
@@ -115,6 +117,7 @@ docker compose up --build          # starts ink + cloudflared
 │  cards.db queried in-mem   │        │  /api/collection ─▶ dreamborn│
 │                            │        │  /api/decks     ─▶ dreamborn │
 │                            │        │  /api/decks/:id ─▶ dreamborn │
+│  hit counter           ◀───┼─stats──│  /api/stats     ─▶ data/ink.db│
 └────────────────────────────┘        └──────────────────────────────┘
 ```
 
@@ -122,10 +125,16 @@ docker compose up --build          # starts ink + cloudflared
 browser loads them via `sql.js` and runs queries client-side — no per-card
 network calls.
 
+Site visits are recorded server-side into a small persistent SQLite DB
+(`data/ink.db`, via Node's built-in `node:sqlite`). It survives restarts and
+feeds the “Hits since 1996” counter in the header. To report bugs or request
+features, use the **🐛 Issues** link in the header (or the footer).
+
 ## File map
 
 ```
-server.js              Express: auth, db cache, decks proxy, static
+server.js              Express: auth, db cache, decks proxy, visit stats, static
+data/ink.db            Persistent SQLite visit log (created at runtime, git-ignored)
 public/index.html      Win95-style chrome shell + modals
 public/css/style.css   Base layout + Win95 primitives, themed via CSS vars
 public/css/themes.css  Alternate themes (deep-sea-lab, vaporwave, brutalist-concrete, liquid-glass)
@@ -150,6 +159,7 @@ public/dreamborn-sniffer.js  Console-paste fetch/XHR/WebSocket recorder
 | `/api/collection`         | `dreamborn.ink/api/users/{uid}/owned-cards`         | needs sign-in                  |
 | `/api/decks`              | `dreamborn.ink/api/v2/decks`                        | page 2+ needs sign-in          |
 | `/api/decks/:id`          | scrapes the Nuxt SSR payload from `/decks/{id}`     | decodes `pbCode` into cards    |
+| `/api/stats`              | local `data/ink.db` (SQLite)                        | persistent site-visit counts   |
 
 ## Disclaimer
 
