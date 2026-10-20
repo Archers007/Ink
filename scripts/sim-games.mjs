@@ -22,10 +22,11 @@ for (const d of index.demoDecks) {
   if (!r.legal) throw new Error(`demo deck ${d.name} illegal: ${[...r.problems, ...r.errors].join('; ')}`);
 }
 
-const FUZZ = ['ink', 'play', 'quest', 'challenge', 'move', 'boost', 'endTurn', 'damage', 'exert', 'moveCard', 'mod', 'support', 'useAbility'];
+const FUZZ = ['ink', 'play', 'quest', 'challenge', 'move', 'boost', 'endTurn', 'damage', 'exert', 'moveCard', 'mod', 'support', 'useAbility', 'choose'];
 let rngState = SEED;
 const rnd = () => ((rngState = (rngState * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 
+const fx = { auto: 0, manual: 0, skipped: 0, ops: {} };
 const stats = { games: 0, wins: [0, 0], reasons: {}, turns: [], actions: 0, rejected: 0 };
 for (let g = 0; g < GAMES; g++) {
   const da = index.demoDecks[g % index.demoDecks.length];
@@ -83,6 +84,13 @@ for (let g = 0; g < GAMES; g++) {
     if (!acted && s.status !== 'over') throw new Error(`nobody can act in game ${g}: status=${s.status} pending=${JSON.stringify(s.pending)} active=${s.active}`);
   }
   stats.games++;
+  for (const l of s.log) {
+    if (l.kind !== 'effect') continue;
+    const m = l.text.match(/^↳ (?:.*?\b)?(Dealt|Removed|Returned|Put|Exerted|Readied|drew|gained|lost|discarded|exerted|gets|gains|get)\b/);
+    if (/chose not to|no valid|has nothing to/.test(l.text)) fx.skipped++;
+    else if (m) { fx.auto++; fx.ops[m[1]] = (fx.ops[m[1]] || 0) + 1; }
+    else { fx.manual++; if (process.env.SHOW_MANUAL) console.log('MANUAL', l.text); }
+  }
   stats.wins[s.winner]++;
   const reason = s.endReason.replace(/^.*?(reached|ended|conceded)/, '$1').replace(/\d+/g, 'N');
   stats.reasons[reason] = (stats.reasons[reason] || 0) + 1;
@@ -92,4 +100,6 @@ const avg = stats.turns.reduce((a, b) => a + b, 0) / stats.turns.length;
 console.log(`games: ${stats.games}  wins A/B: ${stats.wins.join('/')}  avg turns: ${avg.toFixed(1)}  min/max: ${Math.min(...stats.turns)}/${Math.max(...stats.turns)}`);
 console.log(`bot actions: ${stats.actions}  fuzz rejected (atomic): ${stats.rejected}`);
 console.log('end reasons:', stats.reasons);
+console.log(`card effects: ${fx.auto} automated steps, ${fx.skipped} skipped/declined, ${fx.manual} manual reminders`);
+console.log('  ', Object.entries(fx.ops).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join('  '));
 console.log('OK');

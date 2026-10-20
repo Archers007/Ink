@@ -213,3 +213,6 @@ i.hx { display: inline-block; width: 11px; height: 12px; vertical-align: -1px; c
   #inspector { width: 260px; }
   .plate { width: 200px; }
 }
+
+.insp-text p.auto { border-left: 2px solid #58ff8a88; padding-left: 8px; }
+.auto-tag { font-style: normal; font-size: 11px; color: #58ff8a; background: #58ff8a1a; border-radius: 6px; padding: 1px 6px; margin-right: 2px; }

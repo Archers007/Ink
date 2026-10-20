@@ -10,6 +10,8 @@
 //     classes: ['storyborn','hero'], abilities: [{ name, text }],
 //     rarity, set, num, franchise, img }
 
+import { parseAbility, KEYWORD_ONLY } from './effects.js';
+
 const INK_BITS = [[1, 'amber'], [2, 'amethyst'], [4, 'emerald'], [8, 'ruby'], [16, 'sapphire'], [32, 'steel']];
 export const INK_ORDER = INK_BITS.map(([, n]) => n);
 
@@ -145,11 +147,16 @@ export function rowToDef(r) {
   };
 }
 
-// Is every rule on this card handled by the engine? (vanilla or keyword-only)
+// Is every rule on this card handled by the engine? Keywords, plus abilities
+// whose text effects.js can parse into automated steps.
 export function isFullyAutomated(def) {
-  if (def.type === 'action' || def.type === 'song') return false;
-  return def.abilities.every((a) => !a.name);
+  const parsed = def.abilities.map((a) => parseAbility(a, def.type));
+  if (def.type === 'action' || def.type === 'song') {
+    return parsed.length > 0 && parsed.every((p) => p?.trigger === 'action') && parsed.some((p) => p.steps.length);
+  }
+  return def.abilities.every((a, i) => (!a.name && KEYWORD_ONLY.test(a.text)) || (parsed[i] && parsed[i].trigger !== 'action'));
 }
+export const hasAutomatedText = (def) => def.abilities.some((a) => !KEYWORD_ONLY.test(a.text) && parseAbility(a, def.type));
 
 // ---------- index ----------
 
@@ -178,6 +185,12 @@ export async function loadCardIndex(dbFile) {
     if (!byName.has(nk) || score(def) < score(byName.get(nk))) byName.set(nk, def);
   }
   const index = { byId, byFull, byName, size: byId.size, loadedAt: Date.now() };
+  // Which ability texts the engine resolves on its own (shown as ⚡ in the client)
+  for (const d of index.byFull.values()) {
+    const spell = d.type === 'action' || d.type === 'song';
+    const whole = spell && isFullyAutomated(d);
+    d.auto = d.abilities.map((a) => (spell ? whole : !KEYWORD_ONLY.test(a.text) && !!parseAbility(a, d.type)));
+  }
   index.demoDecks = buildDemoDecks(index);
   return index;
 }
@@ -284,7 +297,7 @@ function buildDemoDecks(index) {
     const kwScore = (d) => Object.keys(d.kw).length * 1.5
       + (d.kw.rush ? 1 : 0) + (d.kw.evasive ? 1 : 0) + (d.kw.bodyguard ? 0.5 : 0) + (d.kw.support ? 0.5 : 0);
     const statScore = (d) => ((d.str || 0) + (d.wp || 0) + (d.lore || 0) * 2) / Math.max(1, d.cost);
-    const charScore = (d) => kwScore(d) + statScore(d) * 2 + (d.inkable ? 2 : 0) - (d.kw.reckless ? 1 : 0);
+    const charScore = (d) => kwScore(d) + statScore(d) * 2 + (d.inkable ? 2 : 0) - (d.kw.reckless ? 1 : 0) + (hasAutomatedText(d) ? 2.5 : 0);
     const chars = canon.filter((d) => d.type === 'character' && fits(d) && isFullyAutomated(d) && !d.kw.shift)
       .sort((a, b) => charScore(b) - charScore(a) || a.full.localeCompare(b.full));
     const curve = [[1, 2], [2, 2], [3, 2], [4, 2], [5, 1], [6, 1], [7, 1]];
@@ -297,10 +310,10 @@ function buildDemoDecks(index) {
     picked.push(...pick(chars, 11 - picked.length));
 
     const simple = (d) => d.abilities.map((a) => a.text).join(' ').length;
-    const songs = pick(canon.filter((d) => d.type === 'song' && fits(d) && d.cost <= 5 && d.inkable)
+    const songs = pick(canon.filter((d) => d.type === 'song' && fits(d) && d.cost <= 5 && d.inkable && isFullyAutomated(d))
       .sort((a, b) => simple(a) - simple(b) || a.cost - b.cost), 2);
-    const actions = pick(canon.filter((d) => d.type === 'action' && fits(d) && d.cost <= 4 && d.inkable)
-      .sort((a, b) => simple(a) - simple(b) || a.cost - b.cost), 1);
+    const actions = pick(canon.filter((d) => d.type === 'action' && fits(d) && d.cost <= 4 && d.inkable && isFullyAutomated(d))
+      .sort((a, b) => simple(a) - simple(b) || a.cost - b.cost), 2);
     const locations = pick(canon.filter((d) => d.type === 'location' && fits(d) && isFullyAutomated(d))
       .sort((a, b) => (b.lore || 0) - (a.lore || 0) || a.cost - b.cost), 1);
 

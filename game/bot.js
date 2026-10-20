@@ -108,11 +108,31 @@ function chooseSupport(s, seat) {
   return { type: 'support', target: others[0].iid };
 }
 
+// Effect targeting: hurt the opponent's best card, help our own best card;
+// when forced to pick our own card to lose, give up the cheapest.
+function chooseEffect(s, seat) {
+  const pend = s.pending;
+  if (pend.confirm) return { type: 'choose', confirm: true };
+  const cards = pend.valid.map((iid) => s.cards[iid]);
+  const value = (c) => D(s, c).cost + (D(s, c).lore || 0);
+  let pool;
+  if (/Pick$/.test(pend.op) || pend.op === 'selfDiscard') pool = [...cards].sort((a, b) => value(a) - value(b));
+  else {
+    const want = pend.harmful ? cards.filter((c) => c.owner !== seat) : cards.filter((c) => c.owner === seat);
+    if (!want.length) return pend.optional ? { type: 'choose', skip: true } : { type: 'choose', target: [...cards].sort((a, b) => value(a) - value(b))[0].iid };
+    pool = want.sort((a, b) => value(b) - value(a));
+  }
+  return { type: 'choose', target: pool[0].iid };
+}
+
 export function botDecide(s, seat) {
   if (s.status === 'over') return null;
   const p = s.players[seat];
   if (s.status === 'mulligan') return p.mulligan.done ? null : { type: 'mulligan', iids: chooseMulligan(s, seat) };
-  if (s.pending) return s.pending.seat === seat && s.pending.type === 'support' ? chooseSupport(s, seat) : null;
+  if (s.pending) {
+    if (s.pending.seat !== seat) return null;
+    return s.pending.type === 'support' ? chooseSupport(s, seat) : s.pending.type === 'choose' ? chooseEffect(s, seat) : null;
+  }
   if (s.active !== seat) return null;
 
   if (p.inkedThisTurn < 1 + p.extraInk) {
