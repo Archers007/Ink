@@ -18,6 +18,7 @@ uv run tools/card-scan/scan.py --name "Webby" --debug   # one card, annotated cr
 Outputs (gitignored, in `cache/scan/`):
 - `results.jsonl` — one row per card: status, icons found, banners, scanned text, diff problems
 - `icon-fixes.json` — card id → DB abilities with the missing icons patched in
+- `rules.json` — card id → clean rules text for the ability compiler (flavour cut; `abilities: null` = DB text is already right)
 - `summary.json` — counts per status
 
 ## Pipeline
@@ -26,7 +27,9 @@ Outputs (gitignored, in `cache/scan/`):
 2. image cached in `cache/card-img/`; locations rotated upright
 3. fixed-layout rules box (standard + legendary frames share it), lore-pip column trimmed
 4. ability-name banners found (dark fill + white letters), OCR'd on their own, blanked
-5. flavour text cut at the divider (one unbroken line across the box)
+5. flavour text cut at the divider (one unbroken line across the box), then a second cut:
+   align the scan to the DB text and drop trailing lines the DB doesn't cover. Never cuts past an
+   ability banner — if a banner sits below the cut, the DB is missing an ability (`db-suspect`)
 6. stat icons template-matched (`templates/*.png`: strength, willpower, lore, ink, exert), blanked
 7. tesseract on the rest, icons slotted back in by position
 8. token diff vs DB — reminder text and keyword phrases masked on both sides
@@ -38,6 +41,7 @@ Outputs (gitignored, in `cache/scan/`):
 | `match`    | card and DB agree on every rules word and icon                  |
 | `icon-fix` | agree on words; DB is missing icons the card shows → patched    |
 | `close`    | 1-2 small disagreements, needs a look                           |
+| `db-suspect` | scan looks right, DB looks broken (empty text, icon became a digit, missing ability) |
 | `mismatch` | OCR or layout trouble, or a real DB difference — manual review  |
 
 Only `match` / `icon-fix` cards should feed the ability compiler automatically.
