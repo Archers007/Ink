@@ -6,14 +6,18 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test:engine": "node scripts/sim-games.mjs 60",
+    "test:lobby": "node scripts/test-lobby.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.5"
   },
   "packageManager": "pnpm@10.28.0"
 }

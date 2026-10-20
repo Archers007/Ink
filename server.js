@@ -15,6 +15,8 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
+import { loadCardIndex } from './game/cards.js';
+import { attachLobby } from './game/lobby.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -130,7 +132,26 @@ async function ensureCached(filename, url, maxAgeMs = 60 * 60 * 1000) {
   } catch (e) {
     console.error('[cache] warmup failed:', e.message);
   }
+  await refreshCardIndex();
 })();
+
+// ---------- Play mode: card index for the rules engine ----------
+// Built from the same cached cards.db; rebuilt whenever the cache refreshes.
+let cardIndex = null;
+async function refreshCardIndex() {
+  try {
+    const file = await ensureCached('cards.db', CARDS_DB_URL);
+    const mtime = (await fs.stat(file)).mtimeMs;
+    if (cardIndex && cardIndex.mtime === mtime) return;
+    const idx = await loadCardIndex(file);
+    idx.mtime = mtime;
+    cardIndex = idx;
+    console.log(`[play] card index ready: ${idx.size} cards, ${idx.demoDecks.length} demo decks`);
+  } catch (e) {
+    console.error('[play] card index failed:', e.message);
+  }
+}
+setInterval(refreshCardIndex, 60 * 60 * 1000).unref();
 
 // ---------- app ----------
 const app = express();
@@ -502,6 +523,16 @@ function findDeckObject(arr, expectedId) {
 // ----- static -----
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
 
-app.listen(PORT, () => {
+// three.js for the Play board (served from node_modules, no CDN needed)
+app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), { maxAge: '7d' }));
+
+// Demo decks for Play mode (also sent over the socket; handy for curl/debugging)
+app.get('/api/play/demo-decks', (req, res) => {
+  if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
+  res.json(cardIndex.demoDecks);
+});
+
+const server = app.listen(PORT, () => {
   console.log(`\n  Ink ▸ http://localhost:${PORT}\n`);
 });
+attachLobby(server, { getIndex: () => cardIndex });
