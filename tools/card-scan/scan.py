@@ -288,6 +288,35 @@ def build_lines(words, icons, scale):
     return ordered
 
 
+def cut_flavour_by_db(lines, db_abilities, card_kws, banners=()):
+    """Drop trailing lines that the DB rules text doesn't account for (flavour the divider check missed).
+    Align scan tokens to DB tokens; everything after the last line that holds a solid DB match goes.
+    Only cuts *after* the rules end — a broken/empty DB never removes text in the middle."""
+    kw = []                                        # align on raw text: reminder/keyword lines count here
+    db = [t for ab in db_abilities for t, _, _ in raw_tokens(norm_db(ab.get("description", "")))]
+    if len(db) < 3 or not lines:
+        return lines, []                           # DB empty / tiny → nothing to align against, keep all
+    flat, owner = [], []
+    for li, l in enumerate(lines):
+        for t, _, _ in raw_tokens(l["text"].replace("’", "'")):
+            flat.append(t)
+            owner.append(li)
+    sm = difflib.SequenceMatcher(a=db, b=flat, autojunk=False)
+    last = -1
+    for blk in sm.get_matching_blocks():
+        if blk.size >= 2:                          # 1-token matches ("a", "the") are luck, not alignment
+            last = max(last, owner[blk.b + blk.size - 1])
+    if last < 0:
+        return lines, []
+    # a line made only of icons/reminder bits right after the match still belongs to the rules
+    while last + 1 < len(lines) and not raw_tokens(lines[last + 1]["text"]):
+        last += 1
+    # flavour never sits under an ability banner — if one starts below the cut, the DB is missing an ability
+    if last + 1 < len(lines) and any(b["y"] + b["h"] > lines[last + 1]["top"] for b in banners):
+        return lines, None
+    return lines[: last + 1], [l["text"] for l in lines[last + 1:]]
+
+
 def assemble(lines, banners):
     """Lines + banner names → [{name?, text}] paragraphs."""
     if not lines and not banners:
@@ -332,6 +361,7 @@ def norm_db(text: str) -> str:
     t = re.sub(r"<([^>]+)>", r"\1", t)          # <Challenger> keyword markup
     t = re.sub(r"\{([A-Z][a-z]+)\}", r"\1", t)  # {Reckless} → Reckless
     t = re.sub(r"\\[^\\]+\\", " ", t)            # \Ability Name\ (names are compared separately)
+    t = re.sub(r"^\s*[A-Z][A-Z0-9'’ ,!?.&-]{3,}?(?= [A-Z][a-z])", "", t)   # bare "HIDE AND SEEK While…"
     return t
 
 
@@ -363,6 +393,21 @@ def content_tokens(text: str, kw_pats):
     return out
 
 
+def raw_tokens(text: str):
+    return [(m.group(0).lower(), m.start(), m.end()) for m in TOKEN_RE.finditer(text) if m.group(0) not in "+-—–"]
+
+
+def db_suspect(db_abilities, cmp):
+    """The scan looks fine and the DB looks broken: empty text, or a stray digit where the card has an icon."""
+    db_all = " ".join(a.get("description", "") for a in db_abilities).strip()
+    if not db_all and cmp["scanTokens"] >= 5:
+        return "db-empty"
+    for p in cmp["problems"]:
+        if p["op"] == "replace" and re.match(r"^\d\b", p["db"]) and p["scan"].startswith("{"):
+            return "db-icon-became-digit"
+    return None
+
+
 def compare(db_abilities, scanned, card_kws):
     kw = keyword_patterns(card_kws)
     a = [t for ab in db_abilities for t, _, _ in content_tokens(norm_db(ab.get("description", "")), kw)]
@@ -386,7 +431,7 @@ def compare(db_abilities, scanned, card_kws):
         else:
             problems.append({"op": op, "db": " ".join(a[i1:i2]), "scan": " ".join(ins)})
     return {"ratio": round(sm.ratio(), 4), "fixes": fixes, "problems": problems,
-            "dbIcons": sum(x in ICON_SET for x in a), "scanIcons": sum(x in ICON_SET for x in b)}
+            "dbIcons": sum(x in ICON_SET for x in a), "scanIcons": sum(x in ICON_SET for x in b), "scanTokens": len(b)}
 
 
 def patch_db_text(db_abilities, fixes, card_kws):
@@ -455,6 +500,8 @@ def scan_card(card, debug=False):
     up = cv2.adaptiveThreshold(up, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 51, 25)
     words = [w for w in tesseract_tsv(up, 6) if w["conf"] > 10 or re.search(r"[A-Za-z0-9]", w["text"])]
     lines = build_lines(words, icons, scale)
+    lines, flavour = cut_flavour_by_db(lines, card["abilities"], card.get("keywords"), banners)
+    missing_ability = flavour is None
     scanned = assemble(lines, banners)
     cmp = compare(card["abilities"], scanned, card.get("keywords"))
 
@@ -462,13 +509,17 @@ def scan_card(card, debug=False):
         status = "match"
     elif cmp["fixes"] and len(cmp["problems"]) <= 2 and cmp["dbIcons"] + sum(len(f["icons"]) for f in cmp["fixes"]) == cmp["scanIcons"]:
         status = "icon-fix"
+    elif missing_ability:
+        status = "db-suspect"
+    elif db_suspect(card["abilities"], cmp):
+        status = "db-suspect"
     elif cmp["ratio"] >= 0.9:
         status = "close"
     else:
         status = "mismatch"
-    out = {**res, "status": status, "ratio": cmp["ratio"], "box": box, "icons": icons,
+    out = {**res, "status": status, "dbIssue": ("db-missing-ability" if missing_ability else db_suspect(card["abilities"], cmp)) if status == "db-suspect" else None, "ratio": cmp["ratio"], "box": box, "icons": icons,
            "banners": [b["name"] for b in banners], "scanned": scanned,
-           "fixes": cmp["fixes"], "problems": cmp["problems"][:12]}
+           "fixes": cmp["fixes"], "problems": cmp["problems"][:12], "flavourCut": flavour or []}
     if status == "icon-fix":
         out["patched"] = patch_db_text(card["abilities"], cmp["fixes"], card.get("keywords"))
     if debug:
@@ -515,7 +566,19 @@ def main():
         counts[r["status"]] = counts.get(r["status"], 0) + 1
     fixes = {r["id"]: r["patched"] for r in results if r.get("patched")}
     (OUT_DIR / "icon-fixes.json").write_text(json.dumps(fixes, indent=2, ensure_ascii=False))
-    summary = {"cards": len(results), "status": counts, "iconFixes": len(fixes)}
+    # Clean rules text for the ability compiler. Flavour is already cut. Source per card:
+    #   match → DB text · icon-fix → DB text + scanned icons · db-suspect → scanned text (needs a human ✅)
+    rules = {}
+    for r in results:
+        if r["status"] == "match":
+            rules[r["id"]] = {"source": "db", "abilities": None}
+        elif r["status"] == "icon-fix":
+            rules[r["id"]] = {"source": "db+icons", "abilities": r["patched"]}
+        elif r["status"] == "db-suspect":
+            rules[r["id"]] = {"source": "scan", "review": r["dbIssue"],
+                              "abilities": [{"name": p["name"], "description": p["text"]} for p in r["scanned"]]}
+    (OUT_DIR / "rules.json").write_text(json.dumps(rules, indent=1, ensure_ascii=False))
+    summary = {"cards": len(results), "status": counts, "iconFixes": len(fixes), "rulesReady": len(rules)}
     (OUT_DIR / "summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))
 
