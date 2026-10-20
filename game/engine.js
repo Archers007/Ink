@@ -1,0 +1,960 @@
+// Ink Play — server-authoritative Disney Lorcana rules engine.
+//
+// Pure, synchronous state machine: newGame() builds a state object, applyAction()
+// validates + applies one action atomically (illegal actions are fully undone,
+// CR 1.7.6), and viewFor() produces the per-seat view that hides private zones
+// (hands, decks, inkwells, facedown cards — CR 7.1.3).
+//
+// What's automated (CR section in brackets):
+//   setup + mulligan [2.2] · start of turn: ready / set / draw [3.2] · drying [1.7.5]
+//   ink once per turn [4.2] · paying ink [4.3.2.4] · play characters/items/locations/actions [4.3]
+//   songs: sing / Sing Together [5.4.4, 8.12] · Shift + Puppy/Universal Shift [8.10]
+//   quest + lore [4.5] · challenge incl. Evasive/Alert/Bodyguard/Challenger/Resist/Rush [4.6, 8.x]
+//   locations: move cost, start-of-turn lore, challenging locations [4.7, 3.2.2.2, 4.6.8]
+//   Support [8.13] · Boost [8.4] · Reckless [8.7] · game state check: 20 lore, banish [1.8]
+//   deck-out at end of turn [1.8.1.2] · concede [2.3.3.4]
+//
+// What's manual (logged + visible to both players, like a real table): card
+// abilities/effects text. The engine offers primitive "effect" actions (damage,
+// lore, exert/ready, move cards between zones, draw, look at top N, stat
+// modifiers) so any card can be resolved by hand.
+
+import {
+  LORE_TO_WIN, OPENING_HAND, INKS_PER_TURN, KEYWORD_LABEL,
+  cardLabel, effStr, effWp, effLore, kwVal, hasKw, effectiveKeywords, singValue,
+  questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker,
+  shiftOptions, shiftTargetOk, parseActivatedCost, prettyText,
+} from '../public/js/play/rules.js';
+
+export class RuleError extends Error {}
+const RE = (msg) => new RuleError(msg);
+
+// ---------- rng (seeded, so simulations are reproducible) ----------
+function rand(s) {
+  s.rng = (s.rng + 0x6D2B79F5) | 0;
+  let t = s.rng;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+function shuffleArr(s, arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand(s) * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ---------- small helpers ----------
+export const D = (s, c) => s.defs[c.cardId];
+const P = (s, seat) => s.players[seat];
+const nameOf = (s, seat) => s.players[seat]?.name || `Player ${seat + 1}`;
+const clampInt = (v, lo, hi, dflt = 0) => {
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt;
+};
+const uniq = (a) => [...new Set(a)];
+const ZONE_NAME = { deck: 'deck', hand: 'hand', play: 'play', inkwell: 'inkwell', discard: 'discard', under: 'a stack' };
+const PUBLIC_ZONES = new Set(['play', 'discard']);
+
+function newCard(iid, cardId, owner) {
+  return {
+    iid, cardId, owner, zone: 'deck', exerted: false, damage: 0, drying: false, atLocation: null,
+    mods: [], under: [], faceDown: false, enteredTurn: 0, boostedTurn: 0, parent: null,
+  };
+}
+function resetCard(c) {
+  c.exerted = false; c.damage = 0; c.drying = false; c.atLocation = null; c.mods = [];
+  c.faceDown = false; c.boostedTurn = 0; c.parent = null; c.under = [];
+}
+
+function log(s, text, opt = {}) {
+  s.seq += 1;
+  s.log.push({ n: s.seq, text, seat: opt.seat ?? null, kind: opt.kind || '', priv: opt.priv || null });
+  if (s.log.length > 400) s.log.splice(0, s.log.length - 400);
+}
+
+export function readyInk(s, seat) {
+  return P(s, seat).inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0);
+}
+function payInk(s, seat, n) {
+  if (n <= 0) return;
+  const ready = P(s, seat).inkwell.filter((iid) => !s.cards[iid].exerted);
+  if (ready.length < n) throw RE(`Not enough ink — need ${n}, you have ${ready.length} ready.`);
+  for (let i = 0; i < n; i++) s.cards[ready[ready.length - 1 - i]].exerted = true;
+}
+
+function listOf(s, c) {
+  return c.zone === 'under' ? s.cards[c.parent].under : P(s, c.owner)[c.zone];
+}
+function detach(s, c) {
+  const list = listOf(s, c);
+  const i = list.indexOf(c.iid);
+  if (i >= 0) list.splice(i, 1);
+}
+export function nextSeat(s, seat) {
+  const n = s.players.length;
+  for (let k = 1; k <= n; k++) {
+    const t = (seat + k) % n;
+    if (!s.players[t].out) return t;
+  }
+  return seat;
+}
+const opponentsOf = (s, seat) => s.players.map((p, i) => i).filter((i) => i !== seat && !s.players[i].out);
+
+function privateMove(s, iid, from, to, viewerSeat) {
+  const c = s.cards[iid];
+  return {
+    k: 'move', iid, cardId: c.cardId, from, to, privateTo: viewerSeat,
+    redacted: { k: 'move', from, to },
+  };
+}
+
+// Move a top-level card (and its whole stack, CR 5.1.1.7) to a zone.
+function moveTo(s, iid, to, ev, opt = {}) {
+  const c = s.cards[iid];
+  const p = P(s, c.owner);
+  const from = c.zone;
+  if (from === 'under') throw RE('Cards under another card move together with it.');
+  const stack = from === 'play' ? [...c.under, iid] : [iid];
+  detach(s, c);
+  if (from === 'play' && D(s, c).type === 'location') {
+    for (const pl of s.players) for (const id of pl.play) if (s.cards[id].atLocation === iid) s.cards[id].atLocation = null;
+  }
+  for (const id of stack) {
+    const k = s.cards[id];
+    const wasFaceDown = k.faceDown;
+    resetCard(k);
+    k.zone = to;
+    if (to === 'deckTop' || to === 'deckBottom') k.zone = 'deck';
+    if (to === 'deckTop') p.deck.unshift(id);
+    else if (to === 'deckBottom') p.deck.push(id);
+    else if (to === 'inkwell') { k.faceDown = true; k.exerted = !!opt.exerted; p.inkwell.push(id); }
+    else if (to === 'play') { k.enteredTurn = s.turn; k.drying = D(s, k).type === 'character'; p.play.push(id); }
+    else p[to].push(id);
+    const fromZ = { seat: c.owner, zone: from === 'play' && id !== iid ? 'play' : from };
+    const toZ = { seat: c.owner, zone: k.zone };
+    const visibleBefore = PUBLIC_ZONES.has(from) && !wasFaceDown;
+    const visibleAfter = PUBLIC_ZONES.has(k.zone);
+    if (visibleBefore || visibleAfter || opt.reveal) ev.push({ k: 'move', iid: id, cardId: k.cardId, from: fromZ, to: toZ, parent: id !== iid ? iid : undefined });
+    else ev.push(privateMove(s, id, fromZ, toZ, c.owner));
+  }
+}
+
+function drawCards(s, seat, n, ev) {
+  const p = P(s, seat);
+  let drawn = 0;
+  const names = [];
+  for (let i = 0; i < n; i++) {
+    if (!p.deck.length) { log(s, `${nameOf(s, seat)} can't draw — their deck is empty!`, { seat, kind: 'warn' }); break; }
+    const iid = p.deck.shift();
+    const c = s.cards[iid];
+    c.zone = 'hand';
+    p.hand.push(iid);
+    ev.push(privateMove(s, iid, { seat, zone: 'deck' }, { seat, zone: 'hand' }, seat));
+    names.push(cardLabel(D(s, c)));
+    drawn++;
+  }
+  return { drawn, names };
+}
+
+function gainLore(s, seat, n, ev) {
+  if (!n) return;
+  const p = P(s, seat);
+  const before = p.lore;
+  p.lore = Math.max(0, p.lore + n);  // can't go below 0 (1.11.1)
+  if (p.lore !== before) ev.push({ k: 'lore', seat, n: p.lore - before, total: p.lore });
+}
+
+function win(s, seat, reason, ev) {
+  if (s.status === 'over') return;
+  s.status = 'over';
+  s.winner = seat;
+  s.endReason = reason;
+  s.pending = null;
+  log(s, `🏆 ${nameOf(s, seat)} wins — ${reason}.`, { kind: 'win' });
+  ev.push({ k: 'win', seat, reason });
+}
+
+function banish(s, iid, ev, why = '') {
+  const c = s.cards[iid];
+  const d = D(s, c);
+  ev.push({ k: 'banish', iid, cardId: c.cardId });
+  log(s, `💥 ${nameOf(s, c.owner)}'s ${cardLabel(d)} was banished${why ? ` (${why})` : ''}.`, { kind: 'banish' });
+  moveTo(s, iid, 'discard', ev);
+  const trig = d.abilities.find((a) => /when(ever)? this (character|location) is banished/i.test(a.text));
+  if (trig) log(s, `↳ ${trig.name ? trig.name + ': ' : ''}${prettyText(trig.text)}`, { kind: 'effect' });
+}
+
+// Game state check (CR 1.8): win at 20 lore, banish anything with lethal damage; repeat until stable.
+function gameStateCheck(s, ev) {
+  if (s.status !== 'playing') return;
+  for (let guard = 0; guard < 50; guard++) {
+    const order = [];
+    for (let k = 0, seat = s.active; k < s.players.length; k++, seat = nextSeat(s, seat)) if (!order.includes(seat)) order.push(seat);
+    for (const seat of order) {
+      if (P(s, seat).lore >= LORE_TO_WIN) { win(s, seat, `reached ${P(s, seat).lore} lore`, ev); return; }
+    }
+    const doomed = [];
+    for (const p of s.players) {
+      for (const iid of p.play) {
+        const c = s.cards[iid];
+        const d = D(s, c);
+        if ((d.type === 'character' || d.type === 'location') && d.wp != null && c.damage >= effWp(c, d)) doomed.push(iid);
+      }
+    }
+    if (!doomed.length) return;
+    for (const iid of doomed) banish(s, iid, ev, `${s.cards[iid].damage} damage`);
+  }
+}
+
+function startTurn(s, seat, ev) {
+  s.turn += 1;
+  s.active = seat;
+  const p = P(s, seat);
+  p.inkedThisTurn = 0;
+  p.extraInk = 0;
+  ev.push({ k: 'turn', seat, turn: s.turn });
+  log(s, `── Turn ${s.turn}: ${nameOf(s, seat)} ──`, { kind: 'turn', seat });
+  // Ready step (3.2.1)
+  for (const iid of p.play) s.cards[iid].exerted = false;
+  for (const iid of p.inkwell) s.cards[iid].exerted = false;
+  // Set step (3.2.2): drying ends, locations give lore
+  let locLore = 0;
+  for (const iid of p.play) {
+    const c = s.cards[iid];
+    const d = D(s, c);
+    if (d.type === 'character') c.drying = false;
+    if (d.type === 'location') locLore += Math.max(0, effLore(c, d));
+  }
+  if (locLore) {
+    gainLore(s, seat, locLore, ev);
+    log(s, `${nameOf(s, seat)} gained ${locLore} lore from locations (${p.lore}/${LORE_TO_WIN}).`, { seat });
+  }
+  for (const iid of p.play) {
+    const d = D(s, s.cards[iid]);
+    const trig = d.abilities.find((a) => /at the start of your turn/i.test(a.text));
+    if (trig) log(s, `↳ ${cardLabel(d)} — ${trig.name ? trig.name + ': ' : ''}${prettyText(trig.text)}`, { kind: 'effect' });
+  }
+  gameStateCheck(s, ev);
+  if (s.status !== 'playing') return;
+  // Draw step (3.2.3) — the starting player skips it on the first turn of the game.
+  if (!(s.turn === 1 && seat === s.starting)) {
+    const { names } = drawCards(s, seat, 1, ev);
+    if (names.length) log(s, `${nameOf(s, seat)} drew a card.`, { seat, priv: { seat, text: `You drew ${names[0]}.` } });
+  } else {
+    log(s, `${nameOf(s, seat)} goes first and skips their first draw.`, { seat });
+  }
+}
+
+// ---------- game creation ----------
+
+export function newGame({ players, seed, starting = null }) {
+  const s = {
+    v: 1,
+    rng: (seed ?? Math.floor(Math.random() * 2 ** 31)) | 0,
+    status: 'mulligan',
+    turn: 0,
+    active: 0,
+    starting: 0,
+    players: [],
+    cards: {},
+    defs: {},
+    pending: null,
+    winner: null,
+    endReason: '',
+    log: [],
+    seq: 0,
+  };
+  let next = 1;
+  const ev = [];
+  players.forEach((pl, seat) => {
+    const p = {
+      seat, name: pl.name || `Player ${seat + 1}`, lore: 0,
+      deck: [], hand: [], play: [], inkwell: [], discard: [],
+      inkedThisTurn: 0, extraInk: 0, mulligan: { done: false, count: 0 }, peek: [], out: false,
+    };
+    // shuffle BEFORE numbering so instance ids can't hint at decklist order
+    const defs = shuffleArr(s, [...pl.deck]);
+    for (const def of defs) {
+      s.defs[def.id] = def;
+      const iid = `c${next++}`;
+      s.cards[iid] = newCard(iid, def.id, seat);
+      p.deck.push(iid);
+    }
+    s.players.push(p);
+  });
+  s.starting = starting ?? Math.floor(rand(s) * players.length);
+  s.active = s.starting;
+  log(s, `🎲 ${nameOf(s, s.starting)} was chosen at random to go first.`, { kind: 'setup' });
+  for (const p of s.players) {
+    shuffleArr(s, p.deck);
+    drawCards(s, p.seat, OPENING_HAND, ev);
+  }
+  log(s, 'Each player drew 7. Choose any cards to put on the bottom of your deck (you may keep all).', { kind: 'setup' });
+  return s;
+}
+
+// ---------- guards ----------
+function needSeat(s, seat) {
+  if (!(Number.isInteger(seat) && seat >= 0 && seat < s.players.length)) throw RE('You are not seated in this game.');
+}
+function needPlaying(s) {
+  if (s.status === 'over') throw RE('The game is over.');
+  if (s.status !== 'playing') throw RE('Finish the mulligan first.');
+}
+function needMain(s, seat) {
+  needPlaying(s);
+  if (s.active !== seat) throw RE("It's not your turn.");
+  if (s.pending) throw RE('Resolve the pending choice first.');
+}
+function ownCard(s, seat, iid, zone) {
+  const c = s.cards[iid];
+  if (!c || c.owner !== seat) throw RE("That isn't your card.");
+  if (zone && c.zone !== zone) throw RE(`That card isn't in your ${ZONE_NAME[zone] || zone}.`);
+  return c;
+}
+function inPlay(s, iid) {
+  const c = s.cards[iid];
+  if (!c || c.zone !== 'play') throw RE('That card is not in play.');
+  return c;
+}
+function sideOf(s, seat) {
+  return P(s, seat).play.map((id) => ({ card: s.cards[id], def: D(s, s.cards[id]) }));
+}
+
+function reminders(s, d, rx, prefix = '') {
+  for (const ab of d.abilities) {
+    if (rx.test(ab.text)) log(s, `↳ ${prefix}${ab.name ? ab.name + ': ' : ''}${prettyText(ab.text)}`, { kind: 'effect' });
+  }
+}
+
+export function recklessBlockers(s, seat) {
+  const out = [];
+  for (const iid of P(s, seat).play) {
+    const c = s.cards[iid];
+    const d = D(s, c);
+    if (d.type !== 'character' || !hasKw(c, d, 'reckless') || attackerBlocker(c, d)) continue;
+    const canHit = opponentsOf(s, seat).some((o) => sideOf(s, o).some(({ card, def }) => !defenderBlocker(c, d, card, def, sideOf(s, o))));
+    if (canHit) out.push(iid);
+  }
+  return out;
+}
+
+// ---------- action handlers ----------
+
+const H = {};
+
+H.mulligan = (s, seat, a, ev) => {
+  if (s.status !== 'mulligan') throw RE('The mulligan step is over.');
+  const p = P(s, seat);
+  if (p.mulligan.done) throw RE('You already chose your opening hand.');
+  const ids = uniq(Array.isArray(a.iids) ? a.iids : []);
+  for (const id of ids) ownCard(s, seat, id, 'hand');
+  for (const id of ids) {
+    const c = s.cards[id];
+    detach(s, c);
+    c.zone = 'deck';
+    p.deck.push(id);
+    ev.push(privateMove(s, id, { seat, zone: 'hand' }, { seat, zone: 'deck' }, seat));
+  }
+  if (ids.length) {
+    drawCards(s, seat, ids.length, ev);
+    shuffleArr(s, p.deck);
+    ev.push({ k: 'shuffle', seat });
+  }
+  p.mulligan = { done: true, count: ids.length };
+  log(s, ids.length
+    ? `${nameOf(s, seat)} put ${ids.length} card${ids.length === 1 ? '' : 's'} on the bottom, drew back to 7 and shuffled.`
+    : `${nameOf(s, seat)} kept their opening hand.`, { seat });
+  if (s.players.every((pl) => pl.mulligan.done)) {
+    s.status = 'playing';
+    startTurn(s, s.starting, ev);
+  }
+};
+
+H.ink = (s, seat, a, ev) => {
+  needMain(s, seat);
+  const c = ownCard(s, seat, a.iid, 'hand');
+  const d = D(s, c);
+  const p = P(s, seat);
+  if (!d.inkable) throw RE(`${cardLabel(d)} doesn't have the inkwell symbol.`);
+  if (p.inkedThisTurn >= INKS_PER_TURN + p.extraInk) throw RE("You've already put a card into your inkwell this turn.");
+  moveTo(s, c.iid, 'inkwell', ev, { reveal: true });  // inking reveals the card (4.2.1.1)
+  p.inkedThisTurn += 1;
+  log(s, `${nameOf(s, seat)} inked ${cardLabel(d)} (${p.inkwell.length} ink).`, { seat });
+};
+
+H.play = (s, seat, a, ev) => {
+  needMain(s, seat);
+  const c = ownCard(s, seat, a.iid, 'hand');
+  const d = D(s, c);
+  const p = P(s, seat);
+  const mode = a.mode || 'ink';
+  const adjust = clampInt(a.costAdjust, -20, 20);
+  let how = '';
+  let shiftTarget = null;
+
+  if (mode === 'ink') {
+    const cost = Math.max(0, d.cost + adjust);
+    payInk(s, seat, cost);
+    how = `for ${cost} ink${adjust ? ` (cost ${d.cost}, adjusted ${adjust > 0 ? '+' : ''}${adjust})` : ''}`;
+  } else if (mode === 'free') {
+    how = 'for free';
+  } else if (mode === 'shift') {
+    if (d.type !== 'character') throw RE('Only characters can shift.');
+    const opts = shiftOptions(d);
+    const opt = opts.find((o) => o.kind === a.shiftKind) || opts[0];
+    if (!opt) throw RE(`${cardLabel(d)} doesn't have Shift.`);
+    const t = s.cards[a.target];
+    if (!t || t.owner !== seat || t.zone !== 'play' || !shiftTargetOk(opt.kind, d, D(s, t))) {
+      throw RE(`Choose one of your characters that ${cardLabel(d)} can shift onto.`);
+    }
+    if (typeof opt.cost === 'number') {
+      const cost = Math.max(0, opt.cost + adjust);
+      payInk(s, seat, cost);
+      how = `by shifting onto ${cardLabel(D(s, t))} for ${cost} ink`;
+    } else {
+      how = `by shifting onto ${cardLabel(D(s, t))} (shift cost: ${opt.cost} — resolve by hand)`;
+    }
+    shiftTarget = t;
+  } else if (mode === 'sing' || mode === 'singTogether') {
+    if (d.type !== 'song') throw RE('Only songs can be sung.');
+    const singers = uniq(Array.isArray(a.singers) ? a.singers : []).map((id) => s.cards[id]);
+    if (!singers.length || singers.some((x) => !x || x.owner !== seat || x.zone !== 'play')) throw RE('Choose which of your characters will sing.');
+    if (mode === 'sing') {
+      if (singers.length !== 1) throw RE('One character sings a song — use Sing Together for more.');
+      const why = singerBlocker(singers[0], D(s, singers[0]), d);
+      if (why) throw RE(why);
+    } else {
+      const need = d.kw?.singTogether;
+      if (!need) throw RE(`${cardLabel(d)} doesn't have Sing Together.`);
+      let total = 0;
+      for (const x of singers) {
+        const why = singerBlocker(x, D(s, x), null);
+        if (why) throw RE(`${cardLabel(D(s, x))}: ${why}`);
+        total += singValue(x, D(s, x));
+      }
+      if (total < need) throw RE(`Your singers total cost ${total}; Sing Together needs ${need}.`);
+    }
+    for (const x of singers) x.exerted = true;
+    how = `— sung by ${singers.map((x) => cardLabel(D(s, x))).join(' + ')}`;
+    ev.push({ k: 'sing', singers: singers.map((x) => x.iid), cardId: d.id });
+  } else {
+    throw RE('Unknown way to play a card.');
+  }
+
+  if (d.type === 'action' || d.type === 'song') {
+    moveTo(s, c.iid, 'discard', ev);
+    ev.push({ k: 'reveal', seat, iid: c.iid, cardId: d.id });
+    log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
+    for (const ab of d.abilities) {
+      const text = prettyText(ab.text).replace(/^\s*Sing Together \d+\s*\([^)]*\)\s*/i, '').replace(/^\s*\([^)]*sing this song[^)]*\)\s*/i, '');
+      if (text) log(s, `↳ ${text}`, { kind: 'effect' });
+    }
+    return;
+  }
+
+  detach(s, c);
+  c.zone = 'play';
+  c.enteredTurn = s.turn;
+  c.mods = [];
+  c.damage = 0;
+  if (shiftTarget) {
+    const t = shiftTarget;
+    c.exerted = t.exerted;            // 8.10.2
+    c.drying = t.drying;              // 8.10.4
+    c.damage = t.damage;              // 8.10.6
+    c.atLocation = t.atLocation;
+    c.mods = t.mods;                  // keeps effects applied to the character (8.10.5)
+    if (a.enterExerted && hasKw(c, d, 'bodyguard')) c.exerted = true;
+    c.under = [...t.under, t.iid];
+    const idx = p.play.indexOf(t.iid);
+    p.play[idx] = c.iid;
+    t.zone = 'under'; t.parent = c.iid; t.under = []; t.exerted = false; t.damage = 0; t.mods = []; t.atLocation = null; t.drying = false;
+    for (const u of c.under) s.cards[u].parent = c.iid;
+    ev.push({ k: 'shift', iid: c.iid, onto: t.iid });
+  } else {
+    c.exerted = d.type === 'character' && !!a.enterExerted && hasKw(c, d, 'bodyguard');  // 8.3.2
+    c.drying = d.type === 'character';
+    p.play.push(c.iid);
+  }
+  ev.push({ k: 'move', iid: c.iid, cardId: c.cardId, from: { seat, zone: 'hand' }, to: { seat, zone: 'play' } });
+  log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${c.exerted ? ' (entered exerted)' : ''}.`, { seat, kind: 'play' });
+  reminders(s, d, /\bwhen(ever)? you play this\b/i);
+};
+
+H.quest = (s, seat, a, ev) => {
+  needMain(s, seat);
+  const c = ownCard(s, seat, a.iid, 'play');
+  const d = D(s, c);
+  const why = questBlocker(c, d);
+  if (why) throw RE(why);
+  c.exerted = true;
+  const gain = Math.max(0, effLore(c, d));
+  gainLore(s, seat, gain, ev);
+  ev.push({ k: 'quest', iid: c.iid, lore: gain });
+  log(s, `${nameOf(s, seat)} quested with ${cardLabel(d)} for ${gain} lore (${P(s, seat).lore}/${LORE_TO_WIN}).`, { seat, kind: 'quest' });
+  reminders(s, d, /\bwhen(ever)? this character quests\b/i);
+  if (hasKw(c, d, 'support')) {
+    const others = P(s, seat).play.some((id) => id !== c.iid && D(s, s.cards[id]).type === 'character');
+    if (others) s.pending = { type: 'support', seat, from: c.iid };
+    else log(s, `${cardLabel(d)} has Support, but there's no other character to support.`, { seat });
+  }
+};
+
+H.support = (s, seat, a, ev) => {
+  needPlaying(s);
+  const pend = s.pending;
+  if (!pend || pend.type !== 'support' || pend.seat !== seat) throw RE('There is nothing to Support right now.');
+  const from = s.cards[pend.from];
+  if (a.target) {
+    const t = inPlay(s, a.target);
+    const td = D(s, t);
+    if (td.type !== 'character' || t.iid === from.iid) throw RE('Support needs another character.');
+    if (t.owner !== seat && hasKw(t, td, 'ward')) throw RE("Ward — you can't choose that character.");
+    const amt = from.zone === 'play' ? Math.max(0, effStr(from, D(s, from))) : 0;
+    t.mods.push({ stat: 'str', delta: amt, until: 'eot', src: 'Support' });
+    ev.push({ k: 'mod', iid: t.iid, stat: 'str', delta: amt });
+    log(s, `${cardLabel(D(s, from))} supported ${cardLabel(td)} (+${amt} ⚔️ this turn).`, { seat });
+  } else {
+    log(s, `${nameOf(s, seat)} skipped Support.`, { seat });
+  }
+  s.pending = null;
+};
+
+H.challenge = (s, seat, a, ev) => {
+  needMain(s, seat);
+  const A = ownCard(s, seat, a.attacker, 'play');
+  const Ad = D(s, A);
+  let why = attackerBlocker(A, Ad);
+  if (why) throw RE(why);
+  const T = s.cards[a.target];
+  if (!T || T.zone !== 'play' || T.owner === seat) throw RE('Choose an opposing character or location to challenge.');
+  const Td = D(s, T);
+  why = defenderBlocker(A, Ad, T, Td, sideOf(s, T.owner));
+  if (why) throw RE(why);
+  A.exerted = true;
+  const { toDefender, toAttacker } = challengeDamage(A, Ad, T, Td);
+  ev.push({ k: 'challenge', a: A.iid, t: T.iid, toA: toAttacker, toT: toDefender });
+  log(s, `⚔️ ${nameOf(s, seat)}'s ${cardLabel(Ad)} challenged ${cardLabel(Td)} — dealt ${toDefender}, took ${toAttacker}.`, { seat, kind: 'challenge' });
+  reminders(s, Ad, /\bwhen(ever)? (this character|he|she|they) challenges?\b/i);
+  reminders(s, Td, /\bwhen(ever)? this (character|location) is challenged\b/i);
+  if (toDefender) { T.damage += toDefender; ev.push({ k: 'damage', iid: T.iid, n: toDefender }); }
+  if (toAttacker) { A.damage += toAttacker; ev.push({ k: 'damage', iid: A.iid, n: toAttacker }); }
+};
+
+H.move = (s, seat, a, ev) => {
+  needMain(s, seat);
+  const C = ownCard(s, seat, a.iid, 'play');
+  const Cd = D(s, C);
+  if (Cd.type !== 'character') throw RE('Only characters can move to locations.');
+  const L = s.cards[a.location];
+  if (!L || L.owner !== seat || L.zone !== 'play' || D(s, L).type !== 'location') throw RE('Choose one of your locations.');
+  const Ld = D(s, L);
+  if (C.atLocation === L.iid) throw RE(`${cardLabel(Cd)} is already at ${cardLabel(Ld)}.`);
+  const cost = Math.max(0, (Ld.move ?? 0) + clampInt(a.costAdjust, -20, 20));
+  payInk(s, seat, cost);
+  C.atLocation = L.iid;
+  ev.push({ k: 'moveTo', iid: C.iid, location: L.iid });
+  log(s, `${nameOf(s, seat)} moved ${cardLabel(Cd)} to ${cardLabel(Ld)} for ${cost} ink.`, { seat });
+  reminders(s, Ld, /\bwhenever a character moves here\b|\bwhen(ever)? you move a character here\b/i, `${cardLabel(Ld)} — `);
+};
+
+H.boost = (s, seat, a, ev) => {
+  needMain(s, seat);
+  const C = ownCard(s, seat, a.iid, 'play');
+  const Cd = D(s, C);
+  const n = Cd.kw?.boost;
+  if (typeof n !== 'number') throw RE(`${cardLabel(Cd)} doesn't have Boost.`);
+  if (C.boostedTurn === s.turn) throw RE('Boost can only be used once per turn.');
+  const p = P(s, seat);
+  if (!p.deck.length) throw RE('Your deck is empty.');
+  payInk(s, seat, n);
+  const top = p.deck.shift();
+  const u = s.cards[top];
+  u.zone = 'under'; u.parent = C.iid; u.faceDown = true;
+  C.under.push(top);
+  C.boostedTurn = s.turn;
+  ev.push({ k: 'move', from: { seat, zone: 'deck' }, to: { seat, zone: 'under' }, parent: C.iid });
+  log(s, `${nameOf(s, seat)} used Boost ${n} on ${cardLabel(Cd)} — the top card of their deck went facedown under it.`, { seat });
+};
+
+H.useAbility = (s, seat, a, ev) => {
+  needMain(s, seat);
+  const C = ownCard(s, seat, a.iid, 'play');
+  const Cd = D(s, C);
+  const ab = Cd.abilities[clampInt(a.index, 0, 50, -1)];
+  if (!ab) throw RE('No such ability.');
+  const cost = parseActivatedCost(ab.text);
+  const paid = [];
+  if (cost) {
+    if (cost.exert) {
+      if (Cd.type === 'location') throw RE("Locations can't exert.");
+      if (C.exerted) throw RE('It is exerted — this ability costs ⟳.');
+      if (Cd.type === 'character' && C.drying) throw RE("Characters can't ⟳ the turn they're played (drying).");
+    }
+    payInk(s, seat, cost.ink);
+    if (cost.exert) { C.exerted = true; paid.push('⟳'); }
+    if (cost.ink) paid.push(`${cost.ink} ink`);
+  }
+  log(s, `${nameOf(s, seat)} used ${cardLabel(Cd)}'s ${ab.name || 'ability'}${paid.length ? ` (paid ${paid.join(' + ')})` : ''}.`, { seat, kind: 'play' });
+  log(s, `↳ ${prettyText(cost ? cost.effect : ab.text)}`, { kind: 'effect' });
+  ev.push({ k: 'ability', iid: C.iid, index: a.index });
+};
+
+H.endTurn = (s, seat, a, ev) => {
+  needPlaying(s);
+  if (s.active !== seat) throw RE("It's not your turn.");
+  if (s.pending) throw RE('Resolve the pending choice first.');
+  if (!a.force) {
+    const r = recklessBlockers(s, seat);
+    if (r.length) throw RE(`Reckless: ${r.map((id) => cardLabel(D(s, s.cards[id]))).join(', ')} must challenge if able. (Force end turn to override.)`);
+  }
+  // End-of-turn phase (3.4): "this turn" effects end.
+  for (const p of s.players) for (const iid of p.play) {
+    const c = s.cards[iid];
+    if (c.mods.length) c.mods = c.mods.filter((m) => m.until !== 'eot');
+  }
+  const p = P(s, seat);
+  log(s, `${nameOf(s, seat)} ended their turn.`, { seat });
+  for (const iid of p.play) {
+    const d = D(s, s.cards[iid]);
+    const trig = d.abilities.find((x) => /at the end of (your|the) turn/i.test(x.text));
+    if (trig) log(s, `↳ ${cardLabel(d)} — ${trig.name ? trig.name + ': ' : ''}${prettyText(trig.text)}`, { kind: 'effect' });
+  }
+  if (p.deck.length === 0) {                                   // 1.8.1.2
+    const others = opponentsOf(s, seat);
+    win(s, others[0], `${nameOf(s, seat)} ended their turn with no cards in their deck`, ev);
+    return;
+  }
+  gameStateCheck(s, ev);
+  if (s.status !== 'playing') return;
+  startTurn(s, nextSeat(s, seat), ev);
+};
+
+H.concede = (s, seat, a, ev) => {
+  if (s.status === 'over') throw RE('The game is already over.');
+  const others = opponentsOf(s, seat);
+  log(s, `${nameOf(s, seat)} conceded.`, { seat });
+  if (s.status === 'mulligan') s.status = 'playing';
+  win(s, others[0], `${nameOf(s, seat)} conceded`, ev);
+};
+
+// ----- manual "effect" tools (anyone can use them; everything is logged) -----
+
+H.damage = (s, seat, a, ev) => {
+  needPlaying(s);
+  const c = inPlay(s, a.iid);
+  const d = D(s, c);
+  if (d.type !== 'character' && d.type !== 'location') throw RE('Only characters and locations take damage.');
+  const delta = clampInt(a.delta, -20, 20);
+  if (!delta) return;
+  const before = c.damage;
+  c.damage = Math.max(0, c.damage + delta);
+  const n = c.damage - before;
+  if (!n) return;
+  ev.push({ k: 'damage', iid: c.iid, n });
+  log(s, `${nameOf(s, seat)} ${n > 0 ? 'put' : 'removed'} ${Math.abs(n)} damage ${n > 0 ? 'on' : 'from'} ${cardLabel(d)} (now ${c.damage}/${effWp(c, d)}).`, { seat, kind: 'manual' });
+};
+
+H.lore = (s, seat, a, ev) => {
+  needPlaying(s);
+  const target = a.seat == null ? seat : clampInt(a.seat, 0, s.players.length - 1);
+  const delta = clampInt(a.delta, -20, 20);
+  const before = P(s, target).lore;
+  gainLore(s, target, delta, ev);
+  const now = P(s, target).lore;
+  if (now === before) return;
+  log(s, `${nameOf(s, seat)} ${now > before ? 'added' : 'removed'} ${Math.abs(now - before)} lore ${target === seat ? '' : `${now > before ? 'to' : 'from'} ${nameOf(s, target)} `}(${nameOf(s, target)}: ${now}/${LORE_TO_WIN}).`, { seat, kind: 'manual' });
+};
+
+H.exert = (s, seat, a, ev) => {
+  needPlaying(s);
+  const c = inPlay(s, a.iid);
+  const d = D(s, c);
+  if (d.type === 'location') throw RE("Locations can't be exerted or readied.");
+  const want = !!a.exerted;
+  if (c.exerted === want) return;
+  c.exerted = want;
+  log(s, `${nameOf(s, seat)} ${want ? 'exerted' : 'readied'} ${cardLabel(d)}.`, { seat, kind: 'manual' });
+};
+
+H.inkPay = (s, seat, a, ev) => {      // exert (pay) or ready ink cards by hand
+  needPlaying(s);
+  const p = P(s, seat);
+  const n = clampInt(a.delta, -20, 20);
+  if (n > 0) {
+    payInk(s, seat, n);
+    log(s, `${nameOf(s, seat)} paid ${n} ink.`, { seat, kind: 'manual' });
+  } else if (n < 0) {
+    let k = 0;
+    for (const iid of p.inkwell) { if (k >= -n) break; if (s.cards[iid].exerted) { s.cards[iid].exerted = false; k++; } }
+    if (k) log(s, `${nameOf(s, seat)} readied ${k} ink.`, { seat, kind: 'manual' });
+  }
+};
+
+H.extraInk = (s, seat, a, ev) => {
+  needMain(s, seat);
+  P(s, seat).extraInk += 1;
+  log(s, `${nameOf(s, seat)} may put an additional card into their inkwell this turn.`, { seat, kind: 'manual' });
+};
+
+H.draw = (s, seat, a, ev) => {
+  needPlaying(s);
+  const n = clampInt(a.n, 1, 10, 1);
+  const { drawn, names } = drawCards(s, seat, n, ev);
+  if (drawn) log(s, `${nameOf(s, seat)} drew ${drawn} card${drawn === 1 ? '' : 's'}.`, { seat, kind: 'manual', priv: { seat, text: `You drew ${names.join(', ')}.` } });
+};
+
+H.mill = (s, seat, a, ev) => {
+  needPlaying(s);
+  const target = a.seat == null ? seat : clampInt(a.seat, 0, s.players.length - 1);
+  const n = clampInt(a.n, 1, 20, 1);
+  const p = P(s, target);
+  const names = [];
+  for (let i = 0; i < n && p.deck.length; i++) {
+    const iid = p.deck[0];
+    names.push(cardLabel(D(s, s.cards[iid])));
+    moveTo(s, iid, 'discard', ev);
+  }
+  if (names.length) log(s, `${nameOf(s, seat)} put the top ${names.length} card${names.length === 1 ? '' : 's'} of ${target === seat ? 'their' : `${nameOf(s, target)}'s`} deck into the discard: ${names.join(', ')}.`, { seat, kind: 'manual' });
+};
+
+H.shuffle = (s, seat, a, ev) => {
+  needPlaying(s);
+  shuffleArr(s, P(s, seat).deck);
+  P(s, seat).peek = [];
+  ev.push({ k: 'shuffle', seat });
+  log(s, `${nameOf(s, seat)} shuffled their deck.`, { seat, kind: 'manual' });
+};
+
+const MOVE_TARGETS = new Set(['hand', 'discard', 'deckTop', 'deckBottom', 'inkwell', 'play']);
+H.moveCard = (s, seat, a, ev) => {
+  needPlaying(s);
+  const c = s.cards[a.iid];
+  if (!c) throw RE('No such card.');
+  const to = String(a.to || '');
+  if (!MOVE_TARGETS.has(to)) throw RE('Unknown destination.');
+  const p = P(s, c.owner);
+  const fromPublic = PUBLIC_ZONES.has(c.zone);
+  if (c.zone === 'under') throw RE('Cards under another card move together with it.');
+  if (c.zone === 'inkwell') throw RE("Cards in an inkwell can't be looked at — move them with a specific effect.");
+  if (!fromPublic && c.owner !== seat) throw RE("You can only move your own hidden cards.");
+  if (c.zone === 'deck' && !p.peek.includes(c.iid)) throw RE('Cards can only leave your deck through an effect (Draw / Look at top).');
+  if (to === 'play' && c.owner !== seat) throw RE("You can't put cards into another player's play area.");
+  const d = D(s, c);
+  if (to === 'play' && (d.type === 'action' || d.type === 'song')) throw RE('Actions resolve and go to the discard — play them from your hand instead.');
+  const from = c.zone;
+  const wasPublic = fromPublic;
+  moveTo(s, c.iid, to, ev, { exerted: !!a.exerted });
+  p.peek = p.peek.filter((x) => x !== c.iid);
+  const dest = { hand: 'hand', discard: 'discard', deckTop: 'top of deck', deckBottom: 'bottom of deck', inkwell: 'inkwell (facedown)', play: 'play' }[to];
+  const owner = c.owner === seat ? 'their' : `${nameOf(s, c.owner)}'s`;
+  const shown = wasPublic || PUBLIC_ZONES.has(to) ? cardLabel(d) : 'a card';
+  log(s, `${nameOf(s, seat)} moved ${shown} from ${owner} ${ZONE_NAME[from]} to ${dest}.`, {
+    seat, kind: 'manual', priv: shown === 'a card' ? { seat, text: `You moved ${cardLabel(d)} from your ${ZONE_NAME[from]} to ${dest}.` } : null,
+  });
+};
+
+H.reveal = (s, seat, a, ev) => {
+  needPlaying(s);
+  const c = ownCard(s, seat, a.iid, 'hand');
+  ev.push({ k: 'reveal', seat, iid: c.iid, cardId: c.cardId });
+  log(s, `${nameOf(s, seat)} revealed ${cardLabel(D(s, c))} from their hand.`, { seat, kind: 'manual' });
+};
+
+H.revealHand = (s, seat, a, ev) => {
+  needPlaying(s);
+  const names = P(s, seat).hand.map((id) => cardLabel(D(s, s.cards[id])));
+  log(s, `${nameOf(s, seat)} revealed their hand: ${names.join(', ') || '(empty)'}.`, { seat, kind: 'manual' });
+};
+
+H.peek = (s, seat, a, ev) => {
+  needPlaying(s);
+  const p = P(s, seat);
+  const n = clampInt(a.n, 1, 10, 1);
+  p.peek = p.deck.slice(0, n);
+  log(s, `${nameOf(s, seat)} looked at the top ${p.peek.length} card${p.peek.length === 1 ? '' : 's'} of their deck.`, { seat, kind: 'manual' });
+};
+
+// placements: [{ iid, to: 'top'|'bottom'|'hand'|'discard'|'inkwell' }] — "top" entries in order, first = top.
+H.resolvePeek = (s, seat, a, ev) => {
+  needPlaying(s);
+  const p = P(s, seat);
+  const places = Array.isArray(a.placements) ? a.placements : [];
+  const valid = places.filter((x) => p.peek.includes(x.iid) && p.deck.includes(x.iid));
+  const tops = [];
+  const counts = { top: 0, bottom: 0, hand: 0, discard: 0, inkwell: 0 };
+  const shown = [];
+  for (const x of valid) {
+    const to = ['top', 'bottom', 'hand', 'discard', 'inkwell'].includes(x.to) ? x.to : 'top';
+    const c = s.cards[x.iid];
+    counts[to]++;
+    if (to === 'top') { tops.push(x.iid); continue; }
+    if (to === 'discard') shown.push(cardLabel(D(s, c)));
+    moveTo(s, x.iid, to === 'bottom' ? 'deckBottom' : to, ev);
+  }
+  for (const iid of tops) p.deck.splice(p.deck.indexOf(iid), 1);
+  p.deck.unshift(...tops);
+  p.peek = [];
+  const parts = Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `${n} ${k === 'top' ? 'on top' : k === 'bottom' ? 'on the bottom' : `into ${k === 'hand' ? 'hand' : k}`}`);
+  log(s, `${nameOf(s, seat)} put ${parts.join(', ') || 'nothing'}${shown.length ? ` (discarded ${shown.join(', ')})` : ''}.`, { seat, kind: 'manual' });
+};
+
+const MOD_STATS = new Set(['str', 'wp', 'lore', 'sing', 'kw']);
+H.mod = (s, seat, a, ev) => {
+  needPlaying(s);
+  const c = inPlay(s, a.iid);
+  const d = D(s, c);
+  const stat = String(a.stat || '');
+  if (!MOD_STATS.has(stat)) throw RE('Unknown stat.');
+  if (stat === 'kw' && !KEYWORD_LABEL[a.kw]) throw RE('Unknown keyword.');
+  const delta = clampInt(a.delta, -20, 20);
+  if (!delta) return;
+  const until = a.until === 'perm' ? 'perm' : 'eot';
+  c.mods.push({ stat, delta, until, kw: stat === 'kw' ? a.kw : undefined, src: 'manual' });
+  ev.push({ k: 'mod', iid: c.iid, stat, delta });
+  const what = stat === 'kw' ? `${delta > 0 ? 'gains' : 'loses'} ${KEYWORD_LABEL[a.kw]}${Math.abs(delta) > 1 ? ` ${Math.abs(delta)}` : ''}`
+    : `${delta > 0 ? '+' : ''}${delta} ${{ str: '⚔️', wp: '🛡️', lore: '◆', sing: 'sing cost' }[stat]}`;
+  log(s, `${nameOf(s, seat)}: ${cardLabel(d)} ${what} ${until === 'eot' ? 'this turn' : 'while in play'}.`, { seat, kind: 'manual' });
+};
+
+H.clearMods = (s, seat, a, ev) => {
+  needPlaying(s);
+  const c = inPlay(s, a.iid);
+  if (!c.mods.length) return;
+  c.mods = [];
+  log(s, `${nameOf(s, seat)} cleared all modifiers on ${cardLabel(D(s, c))}.`, { seat, kind: 'manual' });
+};
+
+// ---------- public API ----------
+
+export function applyAction(s, seat, a) {
+  try {
+    needSeat(s, seat);
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+  const handler = a && typeof a.type === 'string' && Object.hasOwn(H, a.type) ? H[a.type] : null;
+  if (!handler) return { ok: false, error: `Unknown action: ${a?.type}` };
+  const backup = structuredClone(s);
+  const ev = [];
+  try {
+    handler(s, seat, a, ev);
+    gameStateCheck(s, ev);
+    return { ok: true, events: ev };
+  } catch (e) {
+    for (const k of Object.keys(s)) delete s[k];
+    Object.assign(s, backup);
+    if (e instanceof RuleError) return { ok: false, error: e.message };
+    console.error('[engine] action crashed', a, e);
+    return { ok: false, error: 'Internal error: ' + e.message };
+  }
+}
+
+function publicCard(s, c) {
+  const d = D(s, c);
+  const isUnit = d.type === 'character' || d.type === 'location';
+  return {
+    iid: c.iid,
+    cardId: c.cardId,
+    owner: c.owner,
+    exerted: c.exerted,
+    damage: c.damage,
+    drying: c.drying,
+    atLocation: c.atLocation,
+    enteredTurn: c.enteredTurn,
+    boostedTurn: c.boostedTurn,
+    mods: c.mods.map((m) => ({ stat: m.stat, delta: m.delta, until: m.until, kw: m.kw, src: m.src })),
+    under: c.under.map((u) => (s.cards[u].faceDown ? { faceDown: true } : { iid: u, cardId: s.cards[u].cardId })),
+    eff: isUnit ? { str: d.type === 'character' ? effStr(c, d) : null, wp: effWp(c, d), lore: effLore(c, d) } : null,
+    kw: effectiveKeywords(c, d),
+  };
+}
+
+// The game as one seat is allowed to see it (seat -1 = spectator).
+export function viewFor(s, seat) {
+  return {
+    you: seat,
+    status: s.status,
+    turn: s.turn,
+    active: s.active,
+    starting: s.starting,
+    winner: s.winner,
+    endReason: s.endReason,
+    pending: s.pending ? { ...s.pending } : null,
+    players: s.players.map((p, i) => ({
+      seat: i,
+      name: p.name,
+      lore: p.lore,
+      deckCount: p.deck.length,
+      handCount: p.hand.length,
+      hand: i === seat ? p.hand.map((iid) => ({ iid, cardId: s.cards[iid].cardId })) : null,
+      inkTotal: p.inkwell.length,
+      inkReady: p.inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0),
+      inkedThisTurn: p.inkedThisTurn,
+      inkLimit: INKS_PER_TURN + p.extraInk,
+      mulliganDone: p.mulligan.done,
+      mulliganCount: p.mulligan.done ? p.mulligan.count : null,
+      discard: p.discard.map((iid) => ({ iid, cardId: s.cards[iid].cardId })),
+      play: p.play.map((iid) => publicCard(s, s.cards[iid])),
+      peek: i === seat ? p.peek.map((iid) => ({ iid, cardId: s.cards[iid].cardId })) : null,
+    })),
+    log: s.log.slice(-150).map((l) => ({ n: l.n, kind: l.kind, seat: l.seat, text: l.priv && l.priv.seat === seat ? l.priv.text : l.text })),
+  };
+}
+
+// Strip private details from engine events for one viewer.
+export function eventsFor(events, seat) {
+  const out = [];
+  for (const e of events || []) {
+    if (!('privateTo' in e)) { out.push(e); continue; }
+    if (e.privateTo === seat) {
+      const { privateTo, redacted, ...rest } = e;
+      out.push(rest);
+    } else if (e.redacted) {
+      out.push(e.redacted);
+    }
+  }
+  return out;
+}
+
+// Card defs a given view references (so the client can render them).
+export function defsInView(s, view) {
+  const ids = new Set();
+  for (const p of view.players) {
+    for (const c of p.hand || []) ids.add(c.cardId);
+    for (const c of p.discard) ids.add(c.cardId);
+    for (const c of p.peek || []) ids.add(c.cardId);
+    for (const c of p.play) { ids.add(c.cardId); for (const u of c.under) if (u.cardId) ids.add(u.cardId); }
+  }
+  return ids;
+}
+
+// Sanity check used by tests: every card is in exactly one place.
+export function checkInvariants(s) {
+  const seen = new Map();
+  const mark = (iid, where) => {
+    if (seen.has(iid)) throw new Error(`card ${iid} in two places: ${seen.get(iid)} and ${where}`);
+    seen.set(iid, where);
+  };
+  for (const p of s.players) {
+    for (const z of ['deck', 'hand', 'play', 'inkwell', 'discard']) {
+      for (const iid of p[z]) {
+        mark(iid, `${p.seat}:${z}`);
+        const c = s.cards[iid];
+        if (c.zone !== z) throw new Error(`card ${iid} zone mismatch ${c.zone} vs ${z}`);
+        if (c.owner !== p.seat) throw new Error(`card ${iid} owner mismatch`);
+        if (z === 'play') for (const u of c.under) {
+          mark(u, `${p.seat}:under:${iid}`);
+          if (s.cards[u].zone !== 'under' || s.cards[u].parent !== iid) throw new Error(`under card ${u} bad link`);
+        }
+      }
+    }
+    if (p.lore < 0) throw new Error('negative lore');
+  }
+  const total = Object.keys(s.cards).length;
+  if (seen.size !== total) throw new Error(`card count mismatch: ${seen.size} placed vs ${total}`);
+  return true;
+}

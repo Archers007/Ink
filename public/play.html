@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ink ▸ Play Lorcana</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/play.css">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5' fill='%23d4b25c'/></svg>">
+<script type="importmap">
+  { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+  <canvas id="board"></canvas>
+
+  <div id="lobby"></div>
+
+  <div id="hud" hidden>
+    <div id="topbar"></div>
+    <div class="plate opp" id="plateOpp"></div>
+    <div class="plate me" id="plateMe"></div>
+    <div id="banner" hidden></div>
+    <aside id="inspector" hidden></aside>
+    <div id="preview" hidden></div>
+    <div id="side">
+      <div id="log"></div>
+      <form id="gameChat" class="chat-form"><input placeholder="Chat…" maxlength="280"><button>↵</button></form>
+      <div class="chat-msgs mini"></div>
+    </div>
+    <div id="controls">
+      <button id="toolsBtn" class="ghost" title="Draw, look at top, shuffle, lore/ink adjustments">🧰 Tools</button>
+      <button id="endTurn" class="hot big">End turn</button>
+    </div>
+  </div>
+
+  <div id="modal" hidden></div>
+  <div id="toasts"></div>
+
+  <script type="module" src="/js/play/main.js"></script>
+</body>
+</html>

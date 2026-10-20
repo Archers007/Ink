@@ -27,6 +27,7 @@ RUN pnpm install --frozen-lockfile --prod
 # fetches cards.db / prices.db into cache/ on boot and creates data/ink.db for
 # visit stats at runtime; see .dockerignore).
 COPY server.js ./
+COPY game ./game
 COPY public ./public
 
 # The runtime cache/ and data/ directories must be writable by the unprivileged

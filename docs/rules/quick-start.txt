@@ -1,0 +1,337 @@
+EN
+
+
+
+
+       QUICK START RULES
+
+
+         s an Illumineer in the wondrous realm of
+     A Lorcana, you’ll wield magical ink to summon new
+     versions of Disney characters, items, and locations
+     which are called glimmers. These glimmers—some
+     familiar, some fantastic—will help you as you
+     race across Lorcana to find enough lore to claim
+     a story star. Endless quests await!
+              TABLE OF CONTENTS                                                   GAME OVERVIEW
+   1   Game Overview
+  8    Parts of a Card                                                                About the Game
+ 10    Setting Up
+  11   Playing the Game, Your Turn                            In this game, you race other Illumineers to capture a story star.
+ 12    Your Inkwell                                           Summon glimmers of Disney characters, items, and locations
+ 13    Playing a Card, Shift                                  along the way to help quest for lore, hinder opponents, and
+ 14    Questing, Challenging, Damage                          challenge opposing characters.
+ 16    Locations
+ 18    Using Abilities
+ 19    Ending the Game
+ 19    Multiplayer Games                                                                 Learn to Play
+ 20    Building a Deck
+                                                              There are several ways to learn to play! The
+ 21    Playing the Amber and Emerald Deck
+                                                              best—and most fun—way to learn is to have a
+                                                              friend teach you. You can also ask about events
+                                                              at a game store near you and download the
+                                                              Disney Lorcana Trading Card Game Companion
+             What Kind of Game Is This?                       app for an interactive tutorial.
+The Disney Lorcana Trading Card Game is a strategy card
+game where each player makes their own deck before
+the game starts, and the decks aren’t mixed together.
+You can play with one of the available ready-to-play                                       Winning
+decks, make changes to one of those decks, or build a
+deck that’s entirely your own!                                 Your goal is to be the first player to gain 20 or more points,
+                                                               called lore. Some card abilities give you lore, but the most
+In a game like this, cards can allow you to do things that     common way to gain it is by playing characters and sending
+aren’t normally a part of every turn. If a card’s text ever    them on quests.
+contradicts the game rules, follow what the card says.
+
+
+                                                                                              1
+                       THE CARDS
+
+Your Disney Lorcana TCG deck includes a mix of four types of
+cards: characters, items, actions, and locations.
+
+
+                       Characters                                                 Items
+    You’ll send character glimmers on quests and               Item glimmers stay in play when you play them
+    into challenges. Some have special abilities.              and give you special abilities during the game.
+
+
+
+
+                              2                                                      3
+                  Actions                                          Songs
+Actions give you a one-time advantage and are   Songs are a special type of action that offer a
+then discarded.                                 different way to play them—without paying ink!
+
+
+
+
+                      4                                               5
+                                                                     DUAL-INK CARDS
+
+                                                     Some cards from previous sets have two ink types.
+                                                     But don’t worry! These cards don’t play any differently
+                   Locations                         than a card with a single ink type—ink types only affect
+                                                     deckbuilding.
+Location glimmers stay in play when you play them.
+                                                     You can include dual-ink cards in any deck of the same two
+Some give you special abilities during the game,
+                                                     ink types. For example, Magica De Spell – Shadow Form is
+and other cards can interact with them in exciting   Amethyst and Emerald. This means she can’t be in a deck
+ways.                                                that has any other inks.
+
+
+
+
+                                                                            Ink Key
+                                                          = Amber              = Emerald            = Sapphire
+
+                                                          = Amethyst           = Ruby               = Steel
+                        6                                                        7
+                   PARTS OF A CARD
+                        On All Cards                                   1
+1   Cost: How much ink {I} the card costs to play.
+2   Inkwell Icon: Cards with around the cost hexagon can               2
+    be put into your inkwell to use as ink.
+3   Name: Characters and locations have names and, in
+    smaller print below that, version names.
+4   Ink Type: This symbol and the colored band behind the
+    card name indicate the card’s ink type.
+5   Classifications: Categories sometimes referenced in card
+    rules.
+6   Abilities and Effects: The card’s special rules. On actions,
+    these are called effects. On characters, items, and                            7   8
+    locations, most abilities have a story-based name.             3
+    Especially common abilities instead use bolded keywords
+    like “Challenger” and “Evasive.”                               4       5
+                   Only on Some Cards
+                                                                   6
+7   Strength {S}: How much damage the character deals                                  9
+    during a challenge.
+8   Willpower {W}: How much damage it takes to banish the
+    character or location.
+9   Lore Value {L}: On a character, how much lore you gain
+    when they quest. On a location, how much lore you gain at
+    the start of your turn.
+
+                              8                                                9
+                        SETTING UP                                                       PLAYING THE GAME
+
+Each player needs their own deck. You’ll also need damage              A turn is divided into two parts. Each player takes their whole
+counters and a way to track how much lore you have. Both come          turn before passing the turn to the next player.
+with your single-player deck.                                          On your turn, take these steps in order.
+   1. Determine the first player by flipping a coin, rolling a die,    Beginning Phase
+      or so on.
+   2. Shuffle your deck.                                                   1. READY – Ready your exerted cards by turning them
+   3. Set your lore tracker to 0.                                             upright.
+   4. Draw 7 cards for your starting hand. You can look at the cards       2. SET – Check for effects that happen at the start of your
+      in your hand, but not anyone else’s hand!                               turn and follow their instructions.
+   5. Alter your starting hand if you choose (see below). Skip this        3. DRAW – Draw a card from the top of your deck. The first
+      step in your very first game.                                           player skips this step on their first turn.
+                                                                       Main Phase
+                                                                       Once per turn, you can put a card facedown into your inkwell
+                                                                       at any time.
+                Altering Your Starting Hand                            Additionally, you can do any of the things listed below, any
+  Before the game begins, each player can alter their starting         number of times, in any order you want.
+  hand one time, beginning with the first player. (Usually, a              ♦   Play a card.
+  player does this if they don’t have very many cards with                 ♦   Use a character ability that doesn’t require them to exert.
+  inkwell icons on them or if too many of their cards have                 ♦   Use an item ability.
+  a high cost.) To do this, put any number of cards from your              ♦   Use a location ability. (See p. 16.)
+  hand on the bottom of your deck without revealing them,                  ♦   Move a character to a location.
+  then draw cards until your hand has 7 cards again. Finally,
+                                                                           ♦   Take an action with a character that’s been in play since the
+  reshuffle your deck.
+                                                                               start of your turn. These include:
+                                                                               ▪ Quest.
+                                                                               ▪ Challenge an opponent’s location or exerted character.
+                                                                               ▪ Use an ability that requires them to exert.
+                                10                                                                     11
+                                                                                              Playing a Card
+                                                                      Playing a card just means taking it from your hand and putting
+            What Are Ready and Exerted Cards?                         it faceup on the table. Each card has an ink cost in a hexagon in
+  Some game rules and card effects require you to exert {E} a         the upper left corner. To play the card, you must exert that many
+  card in play. To exert a card, turn it sideways.                    cards in your inkwell.
+  Once a card is exerted, you can’t exert it again until it’s been    When you play a character card, put it on the table above your
+  readied by a game rule or card effect. To ready a card, simply      inkwell. Characters enter play in the ready position, but you
+  turn it back upright. Remember to ready all your exerted cards      can’t exert them to do anything until your next turn. You need
+  at the beginning of your turn.                                      to wait for their ink to dry!
+                                                                      When you play an item card, put it on the table above your
+                                                                      inkwell. Unlike characters, you can use items right away.
+                                                                      When you play an action card, do what the card tells you to do,
+                                                                      then put the card into your discard pile. Always put cards into
+                                                                      your discard pile faceup so everyone can see them.
+                     Ready            Exerted
+                                                                      Songs are a kind of action card, but there’s a special rule that
+                                                                      gives you another way to pay for them. Each song says “(A
+                          Your Inkwell                                character with cost X or more can {E} to sing this song for free.)”
+Your inkwell is where you’ll put your ink cards, facedown. You’ll     If you have a character with the listed cost or higher, you can
+use the cards in your inkwell to pay costs, such as for cards you     exert that character to play the song card instead of exerting
+play from your hand.                                                  cards in your inkwell to do it! Using this approach still counts as
+                                                                      playing the card. Rules for when you can exert a character still
+You may put a card from your hand into your inkwell once each         apply, of course, so characters can't sing songs the same turn
+turn. The card you choose must have the inkwell icon around           they come into play.
+its cost {I} in the upper left corner. The more ink cards you have,
+the more you’ll be able to do.                                                                      Shift
+To put a card in your inkwell, show the card to your opponents        You can play a Floodborn character using their Shift ability if you
+and then put it facedown into your inkwell as ink. Every card         have a character with the same name in play. Pay the Shift cost
+in your inkwell represents 1 {I}, no matter what’s on the front.      instead of their ink cost and cover the original card with the new
+Choose wisely! Cards put into your inkwell stay there for the rest    one. (You could play The Headless Horseman – Cursed Rider on
+of the game. Once you put a card in your inkwell, nothing on          top of any card named The Headless Horseman, for example.)
+the front matters—including its cost and ink type. It’s simply ink.   The shifted character has their own rules but keeps any damage
+                                                                      or effects that were on the original. If the original was exerted,
+                                 12                                                                   13
+so is the shifted one. If the original was able to challenge, quest,   Example: Challenge and Damage
+or use abilities, though, the shifted character can do those           The Headless Horseman – Terror of Sleepy Hollow is challenging
+things as soon as they come into play!                                 Rapunzel – Creative Captor.
+When a shifted character leaves play, all the cards in their stack     The Headless Horseman has 4 {S} (Strength), so he deals 4 damage
+go with them.                                                          to Rapunzel. Put 4 damage counters on her. Rapunzel has 3 {S},
+                            Questing                                   so she deals 3 damage to The Headless Horseman. Put 3 damage
+To quest with one of your characters, exert them and gain lore         counters on him.
+equal to their Lore value {L}. Remember, you can’t quest with a        Now compare each character’s damage to their {W} Willpower.
+character the same turn you play them.                                 Uh oh! With 3 damage and 2 {W} (Willpower), The Headless
+                                                                       Horseman’s in trouble! Because his damage is equal or greater than
+                          Challenging                                  his {W}, he’s banished and goes to his player’s discard pile. Rapunzel
+Questing is how you win the game, but sometimes you need to            wins the challenge! She needs be careful, though. Her own {W} is 6,
+slow your opponents down. This is where challenging comes              so if she takes 2 more damage later, she’ll be banished too.
+in. First, exert one of your characters to send them into the
+challenge. Then choose an opponent's exerted character
+to challenge. You can’t challenge a ready character! Both
+characters in a challenge deal damage at the same time. Look                                                         BANISHED
+at each character’s Strength {S} and put that many damage
+counters on the other character.
+                             Damage
+A character is banished when they have damage counters on them
+that reach or exceed their Willpower {W}. Put the character card                                 4           2
+into its player’s discard pile.
+                        Moving Damage
+Moving damage counters from one character or location to
+another doesn’t count as “dealing damage” or “damaging”
+the character or location receiving the damage counters. Effects                                       6            3
+that modify the amount of damage dealt don’t apply to damage
+being moved.
+
+                                                                        STAYS IN PLAY
+                                 14                                                                     15
+                   Gaining Lore with Locations                             When a location has damage equal to or greater than its Willpower
+At the start of your turn, gain lore equal to the Lore value {L} on each   {W}, it’s banished and you put that card in your discard pile.
+of the locations you have in play. Note that this is not questing,         Characters who are at a location when it’s banished simply find
+which only characters can do.                                              themselves abroad again. They’re fine; they’re just no longer at
+                                                                           a location.
+                         Location Abilities
+Some locations have abilities that give you benefits, often based
+on characters being at the location. These abilities can be used the                     PARTS OF A LOCATION CARD
+same turn the location comes into play.
+                Moving Characters to Locations
+During your turn, you can move one of your characters to one                                                                             1
+of your locations by paying the location’s move cost . Your
+characters can move only to your locations.
+A character can move to a location the same turn either one is
+played. It doesn’t matter if the character being moved is exerted
+or ready. There’s no limit to the number of characters who can be
+at a location at a time.                                                    2                                                           3
+A character can’t move from a location except to move to another
+location. You can do this by paying the other location’s move cost.         4
+                 Location Challenges & Damage                                                                                           5
+On their turn, opposing characters may challenge a location the
+same way they’d challenge an exerted character. A character’s
+Challenger ability applies when challenging locations. When a
+location is challenged, it takes damage equal to the challenging
+character’s Strength {S}. It doesn’t deal damage of its own in the           1 Ink Cost {I}      2 Move Cost {M}        3 Willpower {W}
+challenge, however.
+Locations can also take damage from some actions and abilities.              4 Ability           5 Lore Value {L}
+Locations can’t be chosen for actions and abilities unless that text
+specifies a location can be chosen.
+
+
+                                   16                                                                     17
+                         Using Abilities
+Many items and characters have abilities you can use during your
+                                                                                           ENDING THE GAME
+turn (and only during your turn). These normally affect other cards
+in play. Cards in a player’s deck, discard, hand, or inkwell aren’t    The first player to reach 20 lore or more wins. If your deck runs
+“in play,” so they aren’t affected by other cards unless the card      out of cards, you lose the next time you would have to draw a card.
+says otherwise.
+A card ability that has a cost lists it before the effect. The cost
+might include an exert cost {E}, an ink cost {I}, text that explains                     MULTIPLAYER GAMES
+the cost, or a combination of any of these. You must pay every part
+of an ability’s cost in order to use the ability.
+                                                                       This is a fun 2-player game, but there’s nothing stopping you from
+Remember, you can’t use the {E} abilities of a character you played    playing games of 3 or more players!
+this turn.
+                                                                       The game rules remain the same except that at the end of a player’s
+Example: The Black Cauldron’s ability The Cauldron Calls reads,        turn, the player to their left takes the next turn.
+“{E}, 1 {I} — Put a character card from your discard under this item
+faceup.” On your turn, you may use this ability by exerting the card   Whenever an ability requires more than one player to do something
+and 1 card in your inkwell. Because The Black Cauldron is an item,     at the same time, start with the player whose turn it is, then
+you can even use its ability the same turn you play the card!          proceed to the left until each affected player has done their action.
+
+
+
+
+                                 18                                                                     19
+                     BUILDING A DECK                                         PLAYING THE AMBER AND EMERALD DECK
+
+Making your own deck is part of the fun! You get to choose which
+characters you want, which abilities you include, and the strategies
+you want to use.
+There are two ways to approach building a deck. The easiest is to         Explore the depths of the Inkwell Caverns to recover lost lorebook
+switch out cards in an existing deck, like one of the single-player       pages! Be on the lookout for whispers, glimmers who can grow
+decks. You can also build a new deck from scratch using the cards         more powerful through their Boost ability. Simba – King in the
+in your collection. This method is more work, but it can be a lot         Making calls friends to his side whenever you boost him, allowing
+of fun!                                                                   you to gain supernatural amounts of lore.
+Each Disney Lorcana TCG deck must follow these rules:
+                                                                          Always up for an adventure, your favorite DuckTales characters like
+♦ Your deck must have at least 60 cards in it.                            Webby Vanderquack and Della Duck pitch in to get the most out
+♦ Your deck can’t contain more than 4 copies of any single card.          of your whispers. Scrooge McDuck – Cavern Prospector helps you
+  Example: You can’t have more than 4 copies of Judy Hopps – On           invest in their spectral abilities without having to spend ink.
+  the Case in your deck. Different versions of a character count as
+  different cards, so having 4 copies of Judy Hopps – On the Case         But don’t let yourself be spooked. If your hand starts to run out
+  in your deck doesn’t keep you from adding up to 4 copies of Judy        of whispers, you can play items like Recovered Page to find more!
+  Hopps – Lead Detective.
+♦ Your deck can only contain cards from 1 or 2 inks. (This means that
+  you can include dual-ink cards in any deck that has the same 2 inks.)
+
+Be sure to check out disneylorcana.com for videos with deckbuilding
+and strategy tips.
+
+
+                           Rarity Key
+     = Common          = Rare            = Legendary     = Enchanted
+
+     = Uncommon        = Super Rare      = Epic          = Iconic
+
+                                  20                                                                      21
+                    TURN ORDER AT A GLANCE
+
+                                Beginning Phase
+         1. READY – Ready all your cards.
+         2. SET – Start of turn effects happen.
+         3. DRAW – Draw a card. (Skip this on the first turn.)
+                                    Main Phase
+     Choose as many as you like (except as noted), in any order:
+       ♦ Once a turn, add a card to your inkwell.
+       ♦ Play a card.
+       ♦ Use a character ability that doesn’t require {E}.
+       ♦ Use an item ability.
+       ♦ Use a location ability.
+       ♦ Move a character to a location.
+       ♦ With a character that was in play during the Set step:
+          ▪ Quest -OR-
+          ▪ Challenge a location or an exerted character -OR-
+          ▪ Use an ability that requires {E}.
+        {I} Cost                  {S} Strength      {L} Lore Value
+        {C} Inkwell               {W} Willpower     {M} Move Cost
+
+©2025                                                              ©Disney
+Ravensburger Verlag GmbH                                disneylorcana.com
+Postfach 24 60 · D-88194 Ravensburg                      ravensburger.com
+Imported into the UK by Ravensburger Ltd.
+Units 3-5 · Avonbury Business Park
+Howes Lane · Bicester · OX26 2UA · GB
+Ravensburger North America, Inc.
+PO Box 9333 · Seattle WA 98109 · USA
+
+
+          NOTICE
+
