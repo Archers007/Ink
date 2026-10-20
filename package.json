@@ -9,7 +9,8 @@
     "dev": "node --watch server.js",
     "test:engine": "node scripts/sim-games.mjs 60",
     "test:lobby": "node scripts/test-lobby.mjs",
-    "test:effects": "node scripts/test-effects.mjs"
+    "test:effects": "node scripts/test-effects.mjs",
+    "scan:cards": "uv run tools/card-scan/scan.py --jobs 12"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
