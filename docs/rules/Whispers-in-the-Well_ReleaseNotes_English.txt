@@ -1,0 +1,563 @@
+Disney Lorcana TCG Set Release Notes:
+Whispers in the Well
+
+Hello, Illumineers! Welcome back to another installment of the Disney Lorcana TCG set release
+notes, this time covering the mysterious new set Whispers in the Well. These release notes go
+over any rules changes, new mechanics, and features of the game introduced with this set and
+offer context for why the adjustments are necessary.
+For more detailed game information beyond these release notes, visit
+DisneyLorcana.com/Resources to check out the Comprehensive Rules, tournament rules,
+and more.
+
+
+
+Game Updates
+These are the exciting updates coming with Whispers in the Well, along with brief explanations
+on how they work and what that means for you, the player.
+
+
+
+
+©Disney
+Gargoyles / Stone by Day Ability
+
+
+
+
+Demona – Scourge of the Wyvern Clan
+
+Amethyst character
+
+Storyborn • Villain • Gargoyle • Sorcerer
+
+6 cost, inkable
+
+5/6/2
+
+\Ad Saxum Commutate\ When you play this character, exert all opposing
+characters. Then, each player with fewer than 3 cards in their hand draws
+until they have 3.
+
+\Stone by Day\ If you have 3 or more cards in your hand, this character
+can’t ready.
+
+
+
+Goliath – Clan Leader
+
+Steel character
+
+Dreamborn • Hero • Gargoyle
+
+6 cost, inkable
+
+6/5/2
+
+\Dusk to Dawn\ At the end of each player's turn, if they have more than 2
+cards in their hand, they choose and discard cards until they have 2. If
+they have fewer than 2 cards in their hand, they draw until they have 2.
+
+
+
+
+©Disney
+\Stone by Day\ If you have 3 or more cards in your hand, this character
+can’t ready.
+
+
+
+Characters from Disney’s Gargoyles are joining the Disney Lorcana TCG as new glimmers!
+To reflect their gargoyle nature, many of them share a new static ability. This new Stone by Day
+ability reads, “If you have 3 or more cards in your hand, this character can’t ready.” Whether
+you’re planning to ready that Gargoyle at the start of your turn or through an effect, this static
+ability can stop you in your tracks.
+So how can you get around this? Here’s one method: If you have 3 cards in your hand and then
+play a card that readies your characters, you would be able to ready any Gargoyles in play that
+have the Stone by Day ability, because you’d have only 2 cards in your hand when the effect
+resolves.
+
+
+
+Detectives
+
+
+
+
+Judy Hopps – On the Case
+
+Sapphire character
+
+Storyborn • Hero • Detective
+
+3 cost, inkable
+
+4/3/1
+
+\Hidden Clues\ When you play this character, if you have another Detective
+character in play, you may put chosen item into its player's inkwell
+facedown and exerted.
+
+
+
+
+©Disney
+Whispers in the Well is all about investigating, and we have a squad of new Detective characters
+on the case. These detectives work especially well as a team, bolstering each other’s abilities,
+giving you extra card draws, and even making it easier to bring more Detective characters into
+play. So get out there and start uncovering all the possibilities with this strategic troop!
+
+
+
+Ink Type Champions
+
+
+
+
+Daisy Duck – Sapphire Champion
+
+Sapphire character
+
+Dreamborn • Hero
+
+5 cost, inkable
+
+5/6/1
+
+\Stand Fast\ Your other Sapphire characters gain Resist +1. (Damage dealt
+to them is reduced by 1.)
+
+\Look Ahead\ Whenever one of your other Sapphire characters quests, you
+may look at the top card of your deck. Put it on either the top or the
+bottom of your deck.
+
+
+
+For the first time in the Disney Lorcana TCG, we have card abilities that directly reference
+specific ink types.
+
+
+
+
+©Disney
+Glimmers of Disney’s Sensational Six (Mickey Mouse, Minnie Mouse, Pluto, Donald Duck,
+Daisy Duck, and Goofy) serve as champions for the six Disney Lorcana ink types, with abilities
+tied to the unique characteristics of each ink. For example, Daisy Duck – Sapphire Champion
+makes your other Sapphire characters more resilient by giving them Resist +1.
+Be sure to check out all six champions to get a look at all of their abilities!
+
+
+
+New Keyword: Alert
+
+
+
+
+Cri-Kee – Good Luck Charm
+
+Sapphire character
+
+Storyborn • Ally
+
+2 cost, inkable
+
+3/2/1
+Alert (This character can challenge as if they had Evasive.)
+
+
+
+Evasive characters, beware. There are new glimmers with sharp eyes and quick reflexes on the
+lookout. With the new Alert keyword ability, some characters are able to challenge Evasive
+characters, even without having Evasive themselves. Variations of this mechanic have appeared
+in the game before, and now we’re giving it an official place in the pantheon of keyword
+abilities.
+
+
+
+
+©Disney
+It’s important to note that Alert is not Evasive, so an ability that gives your Evasive characters
++1 {S} won’t affect characters with Alert. However, a character with Alert can still gain
+Evasive from an ability that grants it.
+
+
+
+New Keyword: Boost
+
+
+
+
+Simba – King in the Making
+
+Amber character
+
+Storyborn • Hero • Prince • Whisper
+
+7 cost, inkable
+
+5/5/3
+
+Boost 3 {I} (Once during your turn, you may pay 3 {I} to put the top card
+of your deck facedown under this character.)
+
+\Timely Alliance\ Whenever you put a card under this character, you may
+reveal the top card of your deck. If it's a character card, you may play
+that character for free and they enter play exerted. Otherwise, put it on
+the bottom of your deck.
+
+
+
+Mysterious characters called whispers have arrived in the realm of Lorcana, but they need the
+help of an Illumineer to be boosted to their full potential. (See what we did there?) In exchange
+for some ink and the top card of your deck, characters with Boost can be granted new abilities or
+help other characters in play.
+
+
+
+
+©Disney
+Each instance of Boost on a card is followed by a number and the {I} symbol, showing how
+much ink is needed to use the ability. For example, Boost 3 {I} means you’d need to pay 3 ink to
+use this ability.
+
+When you pay the cost by exerting the ink cards, you take the top card of your deck and put it
+facedown under the card with the Boost ability you used. Simple as that! Some effects care
+whether there’s a card under a character, while other effects depend on the act of putting a card
+under a character. You can only use each Boost ability once per turn, so choose your moment
+wisely.
+Just like with cards in a player’s inkwell, cards that are facedown under characters can’t be
+looked at by any player at any time. No peeking!
+Along with Boost, there are some other effects that put cards directly under others, even cards
+without Boost. To that end, we looked at some of the mechanics of what it means to be under, on
+top, and even just in play. Which brings us to . . .
+
+
+
+Clarified Rules: Conditions
+Disney Lorcana cards can be in a variety of different conditions during a game, such as ready
+and exerted. Now that you can use Boost to put cards under other cards facedown and one of
+The Black Cauldron’s abilities to put cards under itself faceup, we needed to clarify the rules for
+some particular card conditions as well as add to the list of conditions.
+In short, cards that are under others aren’t considered to be in play. Think of them as
+stowed-away cards that can’t be interacted with but aren’t completely gone. Let’s look at The
+Black Cauldron to help illustrate this.
+
+
+
+
+©Disney
+The Black Cauldron
+
+Amber item
+
+3 cost, uninkable
+
+\The Cauldron Calls\ {E}, 1 {I} — Put a character card from your discard
+under this item faceup.
+
+\Rise and Join Me!\ {E}, 1 {I} — This turn, you may play characters from
+under this item.
+
+
+
+We wanted to clarify the rules around “put” and “under” and therefore made the
+following updates:
+
+   •   Cards that are under other cards aren’t considered to be in play.
+   •   Putting cards under other cards is not playing them.
+   •   Cards are considered to be in play only if they’re in the Play zone, don’t have any cards
+       on top of them, and are faceup.
+Check out the Disney Lorcana TCG Comprehensive Rules for more info and the latest updates.
+
+
+
+Minor Rules Updates
+With this new set we’ve made the following general updates to the Disney Lorcana TCG
+Comprehensive Rules:
+
+   •   6.1.2.2. Added the following classifications: Colossus, Gargoyle, Ghost, Hunny, and
+       Whisper.
+   •   7.7.8. Added a rule to clarify that multiple instances of the same replacement effect can’t
+       apply to the same event.
+   •   8.2.4.–8.2.4.1. Added rules detailing how to move one or more stacks of cards when
+       putting cards in any order on the top or bottom of a player’s deck.
+   •   10.10.3. Adjusted the language to clarify the conditions that a shifted character has when
+       placed on top of another character.
+
+
+
+Quality-of-Life Updates
+These updates are adjustments to language and word usage within the rules for more clarity.
+
+   •   8.5.2. Modified language to align more closely with card text.
+
+
+
+
+©Disney
+Rules Glossary Updates
+Sometimes glossary updates clarify past entries, and sometimes they include newly introduced
+terms. With the release of the latest set we clarified and added the following:
+
+   •   facedown: A card in the play area with its back facing up toward the players and its front
+       facing down toward the play surface. No player can look at the front of a facedown card
+       at any time, not even their own. A facedown card is never considered to be in play.
+   •   faceup: A card in the play area with its back facing down toward the play surface and its
+       front facing up toward the players. A faceup card is publicly known and can be looked at
+       by any player at any time.
+   •   in a stack: 2 or more cards that are in play and in a single pile, comprised of a top card
+       and all cards under it. If the top card in a stack moves to a specific zone, all cards under
+       that card move to the same zone, and these cards are no longer considered to be in a
+       stack.
+   •   in play: A card in the Play zone without any cards on top of it. If a card is under another
+       card, it’s not considered to be in play. If a card is facedown, under another card, or is in
+       any other zone than the Play zone, it isn’t considered to be in play.
+   •   on top: When a card has one or more cards under it.
+   •   under: When a card has one or more cards on top of it. A card that’s under another card
+       and in the Play zone isn’t considered to be in play. Any player can look at a faceup card
+       that’s under another card at any time. No player can look at the front of a facedown card
+       that’s under another card at any time, not even their own.
+
+
+
+Card-Specific Notes
+The following are answers to a few questions that might come up when playing specific cards
+from this new set. This isn’t meant to be an exhaustive list, but we hope it’s a helpful guide for
+some of the more complex cards.
+
+
+
+
+©Disney
+The Horned King – Wicked Ruler
+
+
+
+
+The Horned King – Wicked Ruler
+
+Amethyst character
+
+Floodborn • Villain • King • Sorcerer
+
+4 cost, inkable
+
+3/4/2
+
+Shift 2 {I} (You may pay 2 {I} to play this on top of one of your
+characters named The Horned King.)
+
+\Arise!\ Whenever one of your other characters is banished in a challenge,
+you may return that card to your hand, then choose and discard a card.
+
+
+
+Q: If I choose not to return a card to my hand, do I still have to discard a card?
+A: No. If you choose not to do the “may” part of an ability, nothing in the sentence after that
+happens, which includes the effect to choose and discard a card.
+
+
+
+
+©Disney
+Rapunzel – Ready for Adventure
+
+
+
+
+Rapunzel – Ready for Adventure
+
+Amber character
+
+Dreamborn • Hero • Princess
+
+2 cost, inkable
+
+1/2/1
+
+Support (Whenever this character quests, you may add their {S} to another
+chosen character's {S} this turn.)
+
+\Act of Kindness\ Whenever one of your characters is chosen for Support,
+until the start of your next turn, the next time they would be dealt
+damage they take no damage instead.
+
+
+
+Q: How does Rapunzel’s Act of Kindness ability work?
+A: Act of Kindness is a triggered ability that creates a static replacement effect whenever you
+choose one of your characters for Support. This static effect lasts until it’s used or until the start
+of your next turn, whichever comes first. A static replacement effect exists independently of the
+character it was chosen for, so if another effect causes the character to lose all abilities, the static
+replacement effect is unaffected.
+
+ Q: If multiple instances of the replacement effect generated by Act of Kindness can apply at the
+same time, do they stick around if they’re not applied the next time damage is dealt?
+A: No, if an event would be affected by multiple instances of the same replacement effect, their
+player chooses which one to apply and the other effects cease to exist. For example, if there are
+two static replacement effects generated from Act of Kindness, they could both apply to the next
+
+
+©Disney
+damage event to that character. The character’s player chooses which one to apply and the other
+effect ceases to exist.
+
+
+
+The Black Cauldron
+
+
+
+
+The Black Cauldron
+
+Amber item
+
+3 cost, uninkable
+
+\The Cauldron Calls\ {E}, 1 {I} — Put a character card from your discard
+under this item faceup.
+
+\Rise and Join Me!\ {E}, 1 {I} — This turn, you may play characters from
+under this item.
+
+
+
+Q: Does putting a card under The Black Cauldron count as playing that card?
+A: No. A card that’s been put under The Black Cauldron isn’t considered to have been played or
+to be in play. Therefore, putting a card under The Black Cauldron with its The Cauldron Calls
+ability won’t cause any “whenever you play” abilities to trigger.
+Q: Can I look at cards put under The Black Cauldron with its The Cauldron Calls ability?
+A: Yes. Any player can look at faceup cards under any card at any time.
+
+
+
+
+©Disney
+Nana – Canine Caregiver
+
+
+
+
+Nana – Canine Caregiver
+
+Amethyst character
+
+Storyborn • Ally
+
+3 cost, inkable
+
+3/3/1
+
+\Helpful Instincts\ When you play this character, you may choose and
+discard a card to return chosen character with cost 2 or less to their
+player's hand.
+
+
+
+Q: If I don’t have any cards in my hand when I play Nana – Canine Caregiver, can I still choose
+to return a character to their player’s hand?
+A: No. You need to choose and discard a card when you play her in order to return a character to
+their player’s hand. Discarding a card is a cost you have to pay in order to get the effect. If you
+don’t discard a card, nothing in the rest of the sentence happens.
+
+
+
+
+©Disney
+Beast – Aggressive Lord / Blessed Bagpipes
+
+
+
+
+Beast – Aggressive Lord
+
+Ruby character
+
+Storyborn • Hero • Prince • Whisper
+
+2 cost, inkable
+
+3/2/1
+
+Boost 2 {I} (Once during your turn, you may pay 2 {I} to put the top card
+of your deck facedown under this character.)
+
+\That's Mine\ Whenever he challenges another character, if there's a card
+under this character, each opponent loses 1 lore and you gain 1 lore.
+
+
+
+Blessed Bagpipes
+
+Emerald item
+
+2 cost, inkable
+
+\McDuck Heirloom\ When you play this item, you may put the top card of
+your deck facedown under one of your characters or locations with Boost.
+
+\Battle Anthem\ Whenever one of your characters or locations with a card
+under them is challenged, gain 1 lore.
+
+
+
+Q: If my Beast – Aggressive Lord challenges a character with a card under them and my
+opponent has a Blessed Bagpipes in play, what happens if they’re at 19 lore?
+
+
+
+©Disney
+A: When you declare Beast as a challenger, both his triggered ability and Blessed Bagpipes’
+triggered ability go into the bag. The active player chooses and resolves their triggered abilities
+first, so you resolve Beast’s ability and gain 1 lore while your opponent loses 1 lore, bringing
+their lore total to 18. With no more triggered abilities in the bag for you to resolve, your
+opponent then resolves the Bagpipes’ ability and gains 1 lore, which brings them back up to 19.
+This all happens before damage is dealt.
+
+
+
+Hercules – Mighty Leader
+
+
+
+
+Hercules – Mighty Leader
+
+Ruby character
+
+Storyborn • Hero • Prince • Deity
+
+4 cost, uninkable
+
+5/3/2
+
+\Ever Vigilant\ This character can't be dealt damage unless he's being
+challenged.
+
+\Ever Valiant\ While this character is exerted, your other Hero characters
+can't be dealt damage unless they're being challenged.
+
+
+
+Q: Does Hercules’s ability Ever Vigilant apply when he’s challenging, too?
+A: No. The difference between a challenging character and one that’s being challenged is
+whether they’re the active player’s character or the opponent’s character. The active player
+declares which of their characters is the challenger, and the opposing character they chose is the
+
+
+
+©Disney
+one being challenged. So Ever Vigilant doesn’t make Hercules immune from all challenge
+damage. He can’t be dealt damage when he’s challenging (or outside of a challenge), but he can
+be dealt damage if he’s being challenged.
+
+
+
+Have further questions about any cards? Join the community at discord.gg/disneylorcana and ask
+away! We’re a friendly bunch.
+
+
+
+
+©Disney
+

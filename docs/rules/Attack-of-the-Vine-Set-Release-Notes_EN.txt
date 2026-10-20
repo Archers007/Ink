@@ -1,0 +1,945 @@
+Disney Lorcana TCG Set Release Notes:
+Attack of the Vine!
+Hello, Illumineers! Welcome to the Disney Lorcana TCG set release notes for Attack of the Vine!
+These release notes go over any rules changes, new mechanics, and features of the game
+introduced with this set and offer context for why the adjustments are necessary.
+
+For more detailed game information beyond these release notes, visit
+DisneyLorcana.com/Resources to check out the Comprehensive Rules, Tournament Rules, and
+more. Newer to the game? Check out the Disney Lorcana TCG Companion app, where you can
+learn how to play, track your cards, build a wishlist, and even use our digital lore counter.
+
+
+Game Updates
+These are the exciting updates coming with Attack of the Vine! along with brief explanations on
+how they work and what that means for you, the player.
+
+
+
+
+©Disney
+More Dual-Named Characters
+
+
+
+
+Sulley & Boo – Scare Buddies
+Amber Ruby character
+Storyborn • Team • Hero • Monster
+6 cost, inkable
+6/5/2
+Combo Shift 4 {I} (You may pay 4 {I} to play this on top of one of your
+characters named Sulley, one named Boo, or one of each.)
+\The Power of Friendship\ When this character is banished, if any of the
+cards that were under them are character cards, you may play those
+characters from your discard for free.
+
+
+Dual-named characters are branching out in Attack of the Vine! These cards combine two of your
+favorite characters into one card, for powerful abilities and awesome potential. We also have a
+new classification to help showcase them: Team.
+
+We’ve had a few dual-named characters before, but with so many in this set, we wanted to
+review the rules around dual-named characters. Let’s use the new Sulley & Boo – Scare Buddies
+as an example.
+
+   •    Dual-named characters essentially have three names. Sulley & Boo – Scare Buddies
+        counts as Sulley, as Boo, and as Sulley & Boo.
+   •    If an effect wants a player to name a card and the player says, “Sulley,” then the effect
+        pertains to all characters named Sulley, including dual-named characters with Sulley
+        before or after the &.
+
+
+
+
+©Disney
+   •    If an effect wants a payer to name a character and the player says, “Sulley & Boo,” then it
+        only pertains to characters named Sulley & Boo and not to a character that’s just named
+        Sulley or one that’s just named Boo.
+   •    Even though a dual-named character has multiple names, it’s still considered one
+        character.
+
+
+Christopher Robin
+
+
+
+
+Christopher Robin – Hunny Sage
+Amethyst Sapphire character
+Dreamborn • Hero • Hunny
+6 cost, inkable
+4/4/2
+\Gather the Party\ You can have other Hunny characters in your deck
+regardless of ink type.
+\Magical Summons\ When you play this character, you may search your deck
+for a Hunny card, reveal it, and put it in your hand. If you do, shuffle
+your deck.
+
+
+Christopher Robin and his friends from the Hundred Acre Wood have embraced the quest to stop
+the Vine, and what a team they make! Leading the way is Christopher Robin – Hunny Sage with
+an ability that’s unlike any we’ve seen before in Disney Lorcana. Gather the Party lets a player
+add any Hunny character to their deck, no matter their ink type. This effect only applies to
+characters with the Hunny classification, though, so make sure the ones you want to add have it.
+
+
+
+
+©Disney
+This doesn’t mean you can add Christopher Robin – Hunny Sage to any deck! He has the ink
+types Amethyst and Sapphire, so he can only be included in a deck with those ink types. Because
+he has the Hunny classification himself, it may seem like his Gather the Party ability would get
+around that restriction. However, the effect can’t apply until he’s in a deck, and he can’t be put
+into a deck that isn’t Amethyst and Sapphire.
+
+
+New Shift Keyword Variants
+It’s been a while since we’ve introduced anything new for our beloved Shift keyword, and we’re
+going big with four new Shift variants in Attack of the Vine!
+
+Duo Shift
+
+
+
+
+Mickey Mouse & Minnie Mouse – Adventuring Duo
+Emerald Sapphire character
+Dreamborn • Team • Hero
+7 cost, inkable
+5/5/5
+Duo Shift 0 {I} (You may pay 0 {I} to play this on top of two of your
+characters, one named Mickey Mouse and one named Minnie Mouse.)
+\Thinking of You\ If this character would be banished, put them into your
+inkwell facedown and exerted instead.
+
+
+If you think shifting on top of one character is good, try shifting onto two with Duo Shift!
+Normally, you need only one character in play with the same name in order to shift a character
+on top of it. (For example, if you want to shift a Flotsam & Jetsam – Entangling Eels, you need
+just one Flotsam, Jetsam, or Flotsam & Jetsam.) With Duo Shift, you need two characters that
+
+
+
+©Disney
+each match one of the names of the dual-named character you’re shifting. So, to play Mickey
+Mouse & Minnie Mouse – Adventuring Duo using their Duo Shift ability, you must have both a
+Mickey Mouse and a separate Minnie Mouse in play. When you shift a character this way, put
+the Duo Shift card on top with the two cards under it stacked in any order.
+
+If you want to use Duo Shift to shift Mickey Mouse & Minnie Mouse – Adventuring Duo on top
+of another Mickey Mouse & Minnie Mouse, the duo underneath counts as only one of the two
+names required, either Mickey Mouse or Minnie Mouse. Duo Shift needs to shift on top of two
+characters, one for each name.
+
+Another important note is if you shift on top of both a dry character and a drying character,
+Mickey Mouse & Minnie Mouse – Adventuring Duo will be drying. Likewise, if you shift on top
+of both a ready character and an exerted character, the shifted character (the one on top) will be
+exerted.
+
+
+Combo Shift
+
+
+
+
+Dash Parr & Violet Parr – Super Siblings
+Ruby Steel character
+Storyborn • Team • Super • Hero
+8 cost, inkable
+5/5/2
+Combo Shift 6 {I} (You may pay 6 {I} to play this on top of one of your
+characters named Dash Parr, one named Violet Parr, or one of each.)
+Evasive, Resist +1
+\Incredible Tactics\ Whenever this character quests or challenges, draw a
+card for each card under them.
+
+
+
+©Disney
+Combo Shift is a combination (see what we did there?) of the standard Shift ability and the new
+Duo Shift ability. You can play a character with the Combo Shift ability on top of one character
+with either name or you can play that character on top of two characters, one with each name.
+So, you could shift Dash Parr & Violet Parr – Super Siblings on top of either a Dash Parr or a
+Violet Parr, or you could shift them on top of both a Dash Parr and a Violet Parr.
+
+As with Duo Shift, if you put the shifted character on top of two cards and one is drying, the
+shifted character will be drying, and if one of the characters you shifted onto is exerted, the
+shifted character will be exerted. Stack the two cards under the shifted character in any order.
+
+Temporary Shift
+
+
+
+
+Meilin Lee – Popular Red Panda
+Ruby character
+Storyborn • Hero • Red Panda
+6 cost, inkable
+4/5/3
+Temporary Shift 3 {I} (You may pay 3 {I} to play this on top of one of
+your characters named Meilin Lee. At the end of your turn, remove all
+damage from this character and return only this card to your hand.)
+\Karaoke Queen\ Once during your turn, whenever this character sings a
+song, gain 3 lore.
+
+
+Turning Red makes its debut in Disney Lorcana with the new Temporary Shift ability.
+Characters with Temporary Shift can shift on top of a character in play with the same name, but
+only temporarily. They return to your hand at the end of your turn, removing all damage from
+
+
+
+
+©Disney
+their stack on the way. The same holds true for Temporary Red Panda Shift, but instead of
+needing a character in play with the same name, you need a character in play with the Red Panda
+classification.
+
+Note that you’ll return the Temporary Shift character to your hand at the end of your turn only
+if it’s in a stack that’s still in play. If it was banished, it stays in your discard. Also, if it’s in the
+middle or on the bottom of a stack of cards in play, it still returns to your hand. For instance, if
+you played the character using its Temporary Shift ability and then shift another card on top of
+it, you’ll return the card from the middle of the stack to your hand and remove any damage from
+the top character of the stack as well.
+
+
+Potato Shift
+
+
+
+
+Posey – Vampire Potato
+Emerald character
+Storyborn • Monster
+7 cost, inkable
+7/8/2
+Potato Shift 5 {I} (You may pay 5 {I} to play this on top of one of your
+items named Potato.)
+
+
+Until now, you could only shift a character on top of another character. Posey – Vampire Potato
+changes that. After all, it’s only right that she should be able to shift onto a Potato even though
+it’s only a Potato—that is, an item.
+
+This change required the following Potato-related rules adjustments:
+
+
+
+
+©Disney
+   •      When you shift Posey on top of a Potato that was in play at the start of your turn, Posey
+          can quest, challenge, sing, and take all the normal actions that a character can do.
+   •      If you play a Potato and then shift Posey on top of it during the same turn, Posey is
+          considered to be drying and can’t quest, challenge, sing, or take normal character actions.
+
+Think we can say “potato” any more?
+
+Potato.
+
+
+Rules Clarifications
+With our previous set, Wilds Unknown, we released the “2.1” version of the Disney Lorcana
+Comprehensive Rules. This technical document covers the intricate details and nuances of
+playing the game.
+
+The 2.1 version featured a list of clarity and functionality updates from the 2.0 update. With 2.2,
+we’ve continued to make updates to improve the readability and functionality of the
+Comprehensive Rules. Here are the tune-ups we made with the release of Attack of the Vine!
+
+
+More Damage Language
+The most recent updates to the damage section achieved what we’d hoped, with improved clarity
+and a more intuitive framework. This round, we codified the damage calculation process and
+consolidated it in one part of the rules. Changes include:
+
+   •      A new section defining the process of damage calculation for both damage from
+          challenges and damage from resolving effects.
+   •      Additional clarity regarding when something “deals” damage versus when something
+          “takes” damage.
+   •      Further helpful examples.
+
+It’s important to note that nothing has changed in how dealing damage is calculated. It simply
+lives in one spot now rather than being spread across different sections of the rules.
+
+
+Conditional Dependent Effects
+Previously, these definitions only existed in the static abilities section, which meant they only
+applied to static abilities. The definitions were meant to apply to all types of abilities, so we
+moved them out of the rules about static abilities and into a more general section. This doesn’t
+
+
+
+
+©Disney
+change how any cards interact, but it should provide clearer interpretations of how certain effects
+work. This change included:
+
+   •   Updating the terminology from conditional static abilities to conditional dependent
+       effects.
+   •   Moving rules from 6.4 to 6.1, with language updated to reflect this.
+
+
+Minor Rules Updates
+With this new set we’ve also made the following general updates to the Disney Lorcana TCG
+Comprehensive Rules:
+   • 1.10.1.3. Added language detailing the rules for cards whose abilities adjust deck
+       construction.
+   • 4.3.4.2. Added language clarifying that triggered abilities that occur from a card being
+       played on top of a card with a triggered ability align with on-play triggered abilities.
+   • 4.3.6. Adjusted the wording in the example to clarify that the payment reduction still
+       applies to a character that’s played for free.
+   • 4.6.4.4. Added language explaining what happens if a character in a challenge is readied
+       during that challenge.
+   • 5.1.1.7. Added language explaining that cards under a top card gain the states of the top
+       card when that top card moves zones.
+   • 5.3.3.2. Added new classifications: Boss, Red Panda, Team, and Vineling.
+   • 5.5.3. Added language stating that an item can have additional classifications.
+   • 5.6.3. Added language stating that a location can have additional classifications.
+   • 6.1.4.1. Added language to clarify that when an effect has a cost and “may,” if the player
+       chooses not to or can’t pay the cost it’s treated the same way as if the player chose “no.”
+   • 6.7.2. Added language defining exactly when an ink payment is made during the steps of
+       resolving an effect.
+   • 6.7.2.1. Added language defining choices that are made when a secondary “if” condition
+       is checked.
+   • 8.4.1. Adjusted language to further define the Boost keyword, but its functionality
+       remains unchanged.
+   • 8.8.2. Adjusted language to reflect the proper terminology in correlation with the updated
+       damage rules.
+   • 8.10.4.1. Added language explaining what happens when a shifted character is put on top
+       of a non-character.
+   • 8.10.4.2. Added language explaining what happens when a shifted character is put on top
+       of two characters with conflicting states.
+   • 8.10.9. Added language that explains what happens if a card has two or more Shift
+       variants combined into a single ability.
+
+
+
+©Disney
+Quality-of-Life Updates
+The following updates are adjustments to language and word usage within the rules and on the
+cards to be clear, concise, and consistent.
+    • 4.6.6.1. Adjusted the section reference numbers to the updated damage rules.
+    • 4.6.6.2. Adjusted the section reference numbers to the updated damage rules.
+    • 5.1.3. Adjusted the section reference number in the example.
+    • 6.1.6. Adjusted the example to include both “another” and “other.”
+    • 6.1.10. Added a new example.
+    • 6.7.2.2. Adjusted language to match the related sections.
+    • 8.10. Adjusted several instances of “character” to “card” throughout this section.
+    • 8.10.8. Added new Shift variants to the section.
+    • 8.10.8.1. Added “[Classification]” to the definition.
+    • 8.10.8.2. Added “Universal” to the definition.
+    • 8.12.1. Adjusted the definition to match the language used for songs.
+
+
+Card-Specific Notes
+The following are answers to a few questions that might come up when playing specific cards
+from this new set. This isn’t meant to be an exhaustive list, but we hope it’s a helpful guide for
+some of the more complex cards.
+
+
+Woody – Helping a Friend
+
+
+
+
+Woody – Helping a Friend
+Amber character
+Storyborn • Hero • Toy
+4 cost, uninkable
+
+
+
+©Disney
+2/4/2
+\Hang On!\ When you play this character, choose one of the following. If
+you have another Toy character in play, choose both instead:
+• You may return a character card with cost 2 or less from your discard to
+your hand.
+• You may play a character with cost 2 or less for free.
+
+
+Q: If I play Woody – Helping a Friend while I have another Toy character in play, can I choose
+the order of resolving the effects?
+A: No, the effects are resolved in the order written on the card. If you have a Toy character in
+play when you play Woody, “choose one of the following” is replaced with “choose both.” When
+that happens, you’ll first return the character card with cost 2 or less from your discard to your
+hand, then you may play a character with cost 2 or less for free. The effects will always resolve
+in that order if both are chosen.
+
+
+Celia Mae – Friendly Receptionist
+
+
+
+
+Celia Mae – Friendly Receptionist
+Amber character
+Storyborn • Ally • Monster
+3 cost, uninkable
+3/3/2
+\Please Hold\ When you play this character, you may pay 1 {I} to ready
+chosen character of yours. They can't quest or challenge for the rest of
+this turn.
+
+
+
+
+©Disney
+Q: If I play Celia Mae – Friendly Receptionist and I don’t have any ready ink to use her Please
+Hold ability, do I still have a character that can’t quest or challenge?
+A: No. If you can’t pay the ability’s ink cost or choose not to pay it, it’s the same as if you
+choose “no” for the “may” part of the effect. This means that no part of that effect happens, so
+there’s no character chosen.
+
+
+Woody – Town Sheriff
+
+
+
+
+Woody – Town Sheriff
+Amber character
+Storyborn • Hero • Toy
+3 cost, inkable
+3/2/1
+\Move Along\ When you play this character, until the start of your next
+turn, chosen opposing character can't challenge and must quest if able.
+
+
+Q: Can the opposing character chosen with Woody’s Move Along ability still sing songs?
+A: Yes, the chosen character can still sing songs or pay any ! costs. The ability simply means
+that the player must quest with the character before they can end their turn if the character is
+ready and able to quest.
+
+
+
+
+©Disney
+Pocahontas & Meeko – Adventurous Friends
+
+
+
+
+Pocahontas & Meeko – Adventurous Friends
+Amber Amethyst character
+Storyborn • Team • Hero • Princess
+4 cost, inkable
+2/3/2
+Shift 2 {I} (You may pay 2 {I} to play this on top of one of your
+characters named Pocahontas or Meeko.)
+Evasive
+\Welcome Return\ Whenever this character quests, you may return chosen
+character of yours with cost 1 to your hand. If you do, you may play a
+character with cost 1 for free.
+
+
+Q: Do I return a character before or after I gain the lore from questing with Pocahontas & Meeko
+– Adventurous Friends?
+A: After. All triggers related to the condition of a character questing resolve after the lore is
+gained from the quest.
+
+
+
+
+©Disney
+Sulley & Boo – Scare Buddies
+
+
+
+
+Sulley & Boo – Scare Buddies
+Amber Ruby character
+Storyborn • Team • Hero • Monster
+6 cost, inkable
+6/5/2
+Combo Shift 4 {I} (You may pay 4 {I} to play this on top of one of your
+characters named Sulley, one named Boo, or one of each.)
+\The Power of Friendship\ When this character is banished, if any of the
+cards that were under them are character cards, you may play those
+characters from your discard for free.
+
+
+Q: If Sulley & Boo – Scare Buddies is banished with cards both faceup and facedown under it,
+can I play characters that were facedown?
+A: Yes. When Sulley & Boo is banished, all cards under them go to the discard and become
+faceup. When the effect resolves, it checks if any of those cards are character cards, and since
+they’re all faceup in your discard now, the effect can play them.
+
+Q: If I use Combo Shift to play Sulley & Boo on top of a dry Sulley and a drying Boo, what
+happens? What if the Sulley they’re shifting onto is ready but the Boo is exerted?
+A: If you shift on top of a dry character and a drying character, the shifted character will be
+drying. If you shift them on top of a ready character and an exerted character, they’ll be exerted.
+
+
+
+
+©Disney
+Winnie the Pooh – Hunny Archmage
+
+
+
+
+Winnie the Pooh – Hunny Archmage
+Amethyst character
+Dreamborn • Hero • Sorcerer • Hunny
+2 cost, inkable
+2/3/1
+\Stick Together\ While you have 2 or more other Hunny characters in play,
+this character gets +2 {L}.
+
+
+Q: If I have two Winnie the Pooh – Hunny Archmage characters in play, do they count for each
+other?
+A: Yes. “Other Hunny characters” means a Hunny character that isn’t itself, regardless of the
+name of the character. One Winnie the Pooh sees the second Winnie the Pooh as an “other”
+Hunny character.
+
+
+
+
+©Disney
+Merida – Wisp Conjurer
+
+
+
+
+Merida – Wisp Conjurer
+Amethyst character
+Dreamborn • Hero • Princess • Sorcerer
+4 cost, uninkable
+3/3/1
+\Focused Energy\ This character may enter play exerted to draw a card.
+\Beckon\ During your turn, whenever another character of yours enters play
+exerted, you may draw a card.
+
+
+Q: Do I exert Merida – Wisp Conjurer after she enters play to draw the card?
+A: No. Like with a character with Bodyguard, you choose if you want Merida to enter play
+already exerted. If you do, you’ll draw a card. The choice is made as you put Merida into play.
+
+
+
+
+©Disney
+Heihei – Created by the Vine
+
+
+
+
+Heihei – Created by the Vine
+Amethyst character
+Floodborn • Vineling
+2 cost, inkable
+1/3/1
+\Botanical Remedy\ Whenever one of your Floodborn characters quests, you
+may move 1 damage from chosen character to chosen opposing character.
+
+
+Q: If I quest with Heihei – Created by the Vine, does his Botanical Remedy ability trigger?
+A: Yes, Heihei recognizes his Floodborn classification and will trigger this ability when he
+quests. (We don’t know, however, where he’ll end up.)
+
+
+Morph – Little Imitator
+
+
+
+
+©Disney
+Morph – Little Imitator
+Amethyst character
+Storyborn • Ally • Alien
+2 cost, inkable
+1/2/1
+\Advanced Mimicry\ You can shift any character on top of this character.
+(This includes all Shift variants.)
+
+
+Q: What does the reminder text on Morph – Little Imitator actually mean?
+A: If a character has a Shift ability, regardless of what Shift variant it is, Morph is a legal choice
+for them to shift on top of. For example, if you want to shift a character with Puppy Shift onto a
+character, you can choose Morph even though Morph doesn’t have the Puppy classification.
+
+Q: Can I shift a character with Duo Shift onto only one Morph?
+A: No. Morph can only count as one of the characters for Duo Shift, which has a two-character
+requirement to use it. While you can shift onto Morph and another character with Duo Shift,
+Morph himself still only counts as one character.
+
+
+Christopher Robin – Hunny Sage
+
+
+
+
+Christopher Robin – Hunny Sage
+Amethyst Sapphire character
+Dreamborn • Hero • Hunny
+6 cost, inkable
+4/4/2
+
+
+
+
+©Disney
+\Gather the Party\ You can have other Hunny characters in your deck
+regardless of ink type.
+\Magical Summons\ When you play this character, you may search your deck
+for a Hunny card, reveal it, and put it in your hand. If you do, shuffle
+your deck.
+
+
+Q: If I have two or more Christopher Robin – Hunny Sage cards, can I include them in any deck?
+A: No. For Christopher Robin to be included in a deck, it has to match his ink types. Christopher
+Robin is Amethyst and Sapphire, so he can’t be put into a deck that has any other ink types.
+
+
+Winnie the Pooh & Piglet – Hunny Mages
+
+
+
+
+Winnie the Pooh & Piglet – Hunny Mages
+Amethyst Sapphire character
+Dreamborn • Team • Hero • Sorcerer • Hunny
+5 cost, inkable
+3/4/0
+<Shift> 3 {I} (You may pay 3 {I} to play this on top of one of your
+characters named Winnie the Pooh or Piglet.)
+\Magical Mix\ This character gets +1 {L} for each different ink type of
+characters you have in play.
+
+
+Q: If I quest with Winnie the Pooh & Piglet – Hunny Mages and I have another Amethyst
+character in play, how much lore do I gain?
+A: You gain 2 lore. The ink types of Winnie the Pooh & Piglet are Amethyst and Sapphire. Even
+though there are a total of 3 ink type symbols across all cards you have in play, the ability only
+
+
+
+©Disney
+counts how many unique ink types exist among your cards in play. Since you only have
+Amethyst and Sapphire ink types in play, Winnie the Pook & Piglet have 2 " and you gain 2 lore.
+
+
+With a Few Good Friends
+
+
+
+
+With a Few Good Friends
+Amethyst action
+Song
+6 cost, inkable
+<Sing Together> 6 (Any number of your or your teammates’ characters with
+total cost 6 or more may {E} to sing this song for free.)
+Chosen player draws a card for each different ink type of characters you
+have in play.
+
+
+Q: How do I determine the ink type of the characters I have in play?
+A: There are symbols on the left side of the card below the name and version, on the same line
+where the classifications are listed. These symbols represent the six different ink types in Disney
+Lorcana. A card can have one or two symbols, and the card is the ink type of each ink type
+symbol listed on it. For example, With a Few Good Friends has the Amethyst ink type symbol, so
+it has the Amethyst ink type.
+
+
+
+
+©Disney
+One and Only
+
+
+
+
+One and Only
+Amethyst action
+3 cost, inkable
+Choose a character. Banish all other characters with the same name as that
+character.
+
+
+Q: If my opponent has Winnie the Pooh – Hunny Wizard and Winnie the Pooh – Hunny
+Archmage in play and I choose one of them for One and Only, will the other be banished?
+A: Yes. When the effect compares names, it only compares the larger name on the card, not the
+version. Both cards are named “Winnie the Pooh,” so when one of them is chosen, all other
+Winnie the Pooh characters are banished, regardless of their versions.
+
+
+Narrow Escape
+
+
+
+
+©Disney
+Narrow Escape
+Amethyst action
+4 cost, inkable
+Return up to 2 chosen characters, items, or locations with cost 2 or less
+each to their player's hand.
+
+
+Q: Does the effect mean that if I want to return 2 characters, items, or locations, those cards need
+to have a cost of 1 for a total of 2?
+A: No. You can choose up to 2 cards that each have a cost of 2 or less. You can choose one cost 1
+and one cost 2 card, two cost 1 cards, or one cost 2 card. You have a lot of options!
+
+
+Roo – Hunny Rogue
+
+
+
+
+Roo – Hunny Rogue
+Emerald character
+Dreamborn • Ally • Hunny
+1 cost, uninkable
+1/1/1
+Ward (Opponents can't choose this character except to challenge.)
+\Elusive Expertise\ While you have another Hunny character in play, this
+character gains Evasive. (Only characters with Evasive can challenge
+them.)
+
+
+Q: If I have two Roo - Hunny Rogue characters in play, do they count for each other’s abilities?
+A: Yes. “Another Hunny character” means a Hunny character that isn’t itself, regardless of the
+name of the character. Each Roo sees the other Roo as “another” Hunny character.
+
+
+
+©Disney
+Posey – Vampire Potato / Morph - Little Imitator
+
+
+
+
+Posey – Vampire Potato
+Emerald character
+Storyborn • Monster
+7 cost, inkable
+7/8/2
+Potato Shift 5 {I} (You may pay 5 {I} to play this on top of one of your
+items named Potato.)
+
+
+Morph – Little Imitator
+Amethyst character
+Storyborn • Ally • Alien
+2 cost, inkable
+1/2/1
+\Advanced Mimicry\ You can shift any character on top of this character.
+(This includes all Shift variants.)
+
+
+Q: Can I shift Posey – Vampire Potato onto Morph – Little Imitator?
+A: Yes. Posey’s Potato Shift ability says she shifts onto an item called Potato, but Morph’s
+ability allows him to be a legal choice to shift onto, even though his name isn’t the same and he
+isn’t an item.
+
+
+
+
+©Disney
+Mickey Mouse & Minnie Mouse – Adventuring Duo
+
+
+
+
+Mickey Mouse & Minnie Mouse – Adventuring Duo
+Emerald Sapphire character
+Dreamborn • Team • Hero
+7 cost, inkable
+5/5/5
+Duo Shift 0 {I} (You may pay 0 {I} to play this on top of two of your
+characters, one named Mickey Mouse and one named Minnie Mouse.)
+\Thinking of You\ If this character would be banished, put them into your
+inkwell facedown and exerted instead.
+
+
+Q: If I have a Mickey Mouse & Minnie Mouse – Adventuring Duo in play, can I shift another
+Mickey Mouse & Minnie Mouse on top of them?
+A: No. While that dual-named character matches the names for the Duo Shift ability, Mickey
+Mouse & Minnie Mouse is still only 1 character. With Duo Shift you must shift on top of two
+characters stacked.
+
+Q: If I use Duo Shift to play Mickey Mouse & Minnie Mouse – Adventuring Duo on top of a dry
+Mickey Mouse and a drying Minnie Mouse, what happens? What if the Mickey Mouse they’re
+shifting onto is ready but the Minnie Mouse is exerted?
+A: If you shift on top of a dry character and a drying character, the shifted character will be
+drying. If you shift them on top of a ready character and an exerted character, they’ll be exerted.
+
+
+
+
+©Disney
+Piercing Attack / Omnidroid – Ultimate Iteration
+
+
+
+
+Piercing Attack
+Emerald action
+2 cost, inkable
+Deal 2 damage to chosen character. This damage can't be reduced by Resist.
+
+
+Omnidroid – Ultimate Iteration
+Steel character
+Dreamborn • Robot
+8 cost, inkable
+8/8/2
+Shift 6 {I} (You may pay 6 {I} to play this on top of one of your
+characters named Omnidroid.)
+Resist +2 (Damage dealt to this character is reduced by 2.)
+\Return on Investment\ When you shift this character, you may return all
+cards under it to your hand.
+
+
+Q: If I play Piercing Attack and choose Omnidroid – Ultimate Iteration, which has Resist +2,
+what happens?
+A: First, start with the base damage of the action, which is 2 damage. Then, apply modifiers to
+that damage. Resist +2 would normally apply here and reduce the damage to 0. However,
+Piercing Attack says its damage can’t be reduced by Resist, so Omnidroid’s Resist +2 doesn’t
+apply. The final total damage dealt by Piercing Attack is 2, and 2 damage counters are then
+placed on Omnidroid.
+
+
+
+
+©Disney
+Boo – Energetic Child / Piglet – Hunny Mage Apprentice
+
+
+
+
+Boo – Energetic Child
+Ruby character
+Storyborn • Hero
+3 cost, uninkable
+0/1/1
+Rush (This character can challenge the turn they're played.)
+\Kid-Tastrophe!\ Whenever this character challenges another character with
+3 {S} or less, banish that character. (No damage is dealt in that
+challenge.)
+
+
+Piglet – Hunny Mage Apprentice
+Sapphire character
+Dreamborn • Ally • Sorcerer • Hunny
+1 cost, inkable
+2/2/1
+
+
+Q: If I declare Boo – Energetic Child as challenging Piglet – Hunny Mage Apprentice with 2 #,
+how is it possible that no damage is dealt in the challenge?
+A: There are two parts to the challenge turn action: challenge declaration and challenge damage.
+In the declaration step, the player chooses one of their characters to challenge another character
+or a location. When that process is complete, Boo’s Kid-Tastrophe! ability triggers. That’s when
+it’s added to the bag and resolves, banishing Piglet before any damage is dealt to him.
+
+
+
+
+©Disney
+Ming Lee – Giant Red Panda
+
+
+
+
+Ming Lee – Giant Red Panda
+Ruby character
+Storyborn • Mentor • Giant • Red Panda
+9 cost, inkable
+10/10/2
+Temporary Shift 7 {I} (You may pay 7 {I} to play this on top of one of
+your characters named Ming Lee. At the end of your turn, remove all damage
+from this character and return only this card to your hand.)
+\Path of Destruction\ Whenever this character challenges another
+character, ready her. She can't quest for the rest of this turn.
+
+
+Q: If I challenge with Ming Lee – Giant Red Panda and resolve her Path of Destruction ability,
+when I ready her during the challenge, does it remove her from the challenge?
+A: No. Once a character is declared as a challenger or being challenged, they can only be
+removed from the challenge if they leave play before the process of the challenge is complete.
+
+
+
+
+©Disney
+Prophetic Vision
+
+
+
+
+Prophetic Vision
+Ruby action
+2 cost, inkable
+Shuffle your deck, then reveal the top card. If it's an action card, you
+may play it for free. Otherwise, put it on the bottom of your deck, then
+each opponent loses 1 lore and you gain 1 lore.
+
+
+Q: If I play an action as part of resolving Prophetic Vision, will my opponent lose 1 lore while I
+gain 1 lore?
+A: No. The lore gain and loss only occur if you don’t choose to play a revealed action card. If the
+revealed card isn’t an action card or you reveal an action card and choose not to play it, that’s
+when the lore gain and loss occur.
+
+
+
+
+©Disney
+Look What You’ve Done
+
+
+
+
+Look What You've Done
+Steel action
+2 cost, inkable
+Deal 2 damage to chosen character. During your turn, when you discard this
+card, you may play it from your discard. (You pay all costs.)
+
+
+Q: If I play Look What You’ve Done and put it into my discard after dealing damage, can I pay
+its cost again to play it from my discard?
+A: No. The second effect of Look What You’ve Done occurs separately from the deal damage
+effect. For example, if something instructs you to discard a card on your turn, you could discard
+it and then the option to play it from your discard would trigger.
+
+
+Dash Parr & Violet Parr – Super Siblings
+
+
+
+
+©Disney
+Dash Parr & Violet Parr – Super Siblings
+Ruby Steel character
+Storyborn • Team • Super • Hero
+8 cost, inkable
+5/5/2
+Combo Shift 6 {I} (You may pay 6 {I} to play this on top of one of your
+characters named Dash Parr, one named Violet Parr, or one of each.)
+Evasive, Resist +1
+\Incredible Tactics\ Whenever this character quests or challenges, draw a
+card for each card under them.
+
+
+Q: If I use Combo Shift to play Dash Parr & Violet Parr – Super Siblings on top of a dry Dash
+Parr and a drying Violet Parr, what happens? What if the Dash Parr they’re shifting onto is ready
+but the Violet Parr is exerted?
+A: If you shift on top of a dry character and a drying character, the shifted character will be
+drying. If you shift them on top of a ready character and an exerted character, they’ll be exerted.
+
+
+Have further questions about any cards? Join the community at discord.gg/disneylorcana and ask
+away! We’re a friendly bunch.
+
+
+
+
+©Disney
+

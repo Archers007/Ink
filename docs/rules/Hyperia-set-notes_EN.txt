@@ -1,0 +1,952 @@
+                     Disney Lorcana TCG Set Release Notes:
+                                  Hyperia City
+
+                Hello, Illumineers! Welcome to the Disney Lorcana TCG set release notes for
+                Hyperia City. These release notes go over any rules changes, new mechanics, and
+                features of the game introduced with this set and offer context for why the
+                adjustments are necessary.
+                For more detailed game information beyond these release notes, visit
+                DisneyLorcana.com/Resources to check out the Comprehensive Rules,
+                Tournament Rules, and more. Newer to the game? Check out the Disney Lorcana
+                TCG Companion app, where you can learn how to play, track your cards, build a
+                wishlist, and even use our digital lore counter.
+
+
+
+
+©Disney
+©Disney/Pixar
+       GAME UPDATES
+       These are the exciting updates coming with Hyperia City, along with brief explanations on how
+       they work and what that means for you, the player.
+
+       Ink Drops
+
+
+
+
+       Higitus Figitus
+       Amethyst action
+       Song
+       6 cost, inkable
+       (A character with cost 6 or more can {E} to sing this song for free.)
+       Get 3 ink drops. (Each ink drop may be removed to pay 1 {I}.)
+
+
+       Ink Drop
+       Counter
+       (This counter doesn’t count as a card.)
+       You may remove this counter to pay 1 {I}.
+
+       An ink drop is a counter that you can use to help pay ink costs. They may look like cards, but
+       they don’t count as cards and aren’t shuffled into your deck. Instead, you keep them nearby to
+       put into your inkwell when a card says you get an ink drop.
+       Anytime you pay an ink cost, you can remove one or more ink drops from your inkwell to pay 1
+       ! each toward that cost! You can pay a cost entirely with ink drops, use a combination of ink
+       drops and ink cards, or just pay the ink cost with your ink cards as normal. You can’t reuse ink
+       drops, so instead of exerting one when you use it, you simply remove it from play.
+       You can find printed ink drops in Hyperia City booster packs, but if you don’t have any printed
+       ink drops, you can use dice or other objects to represent them in your game.
+
+
+
+©Disney
+©Disney/Pixar
+       There’s no limit to how many ink drops you can have in your inkwell or how many you can use
+       to pay an ink cost. If you want to play a cost 5 character and you have 5 ink drops, you can
+       remove them all to play that character and still have all your inkwell cards left to pay for other
+       cards or abilities!
+       In addition to adding the new ink drop counter type, we also revamped the rules around counters
+       and made a new section in the Comprehensive Rules describing them. Ink drops are all the rage
+       in Hyperia City, so have fun experimenting with them.
+
+       Stone by Day Returns
+
+
+
+
+       Lexington – Fearless Flier
+       Amethyst character
+       Storyborn • Ally • Gargoyle
+       2 cost, inkable
+       3/1/2
+       Evasive (Only characters with Evasive can challenge this character.)
+       \Stone by Day\ If you have 3 or more cards in your hand, this character
+       can’t ready.
+
+
+       Brooklyn – Full Throttle
+       Amethyst character
+       Dreamborn • Ally • Gargoyle
+       1 cost, inkable
+       1/4/1
+       \Wild Ride\ 6 {I} — Gain 1 lore.
+       \Stone by Day\ If you have 3 or more cards in your hand, this character
+       can’t ready.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Our first ability that’s specific to a set of characters returns with Gargoyles and their Stone by
+       Day ability, which was introduced in Whispers in the Well.
+       To recap, the Stone by Day ability reads, “If you have 3 or more cards in your hand, this
+       character can’t ready.” Whether you’re planning to ready a Gargoyle character at the start of your
+       turn or through an effect, this static ability can stop you in your tracks.
+       There are ways to get around this. For instance, say you have 3 cards in your hand and play a
+       card that readies your characters. When the effect resolves, you only have 2 cards in your hand,
+       so Stone by Day doesn’t apply. See what other tricks you can find to keep your Gargoyles from
+       turning to stone . . .
+
+       New Keyword: Adventurous
+
+
+
+
+       Mickey Mouse – Best in Town
+       Amber character
+       Dreamborn • Hero
+       1 cost, inkable
+       0/4/2
+       Adventurous (This character can’t challenge and must quest each turn if
+       able.)
+       \Hot Dog!\ At the end of your turn, if this character is exerted, each
+       player gets 1 ink drop. (Each ink drop may be removed to pay 1 {I}.)
+
+       Characters with the Adventurous keyword ability are determined to quest for lore. While the
+       Reckless keyword requires characters to challenge, the Adventurous keyword requires
+       characters to quest. Many of the Reckless interactions carry over, such as how Adventurous
+       works when you " the character, including when they sing a song.
+
+       In addition, we’re updating five cards from previous sets with wording we used before
+       Adventurous, to correctly reflect that they now have this new keyword. These cards are:
+
+
+©Disney
+©Disney/Pixar
+           •    Cobra Bubbles – Dedicated Official
+           •    This Growing Pressure
+           •    Ariel – Curious Traveler
+           •    Woody – Town Sheriff
+           •    Gaston – Frightful Bully
+
+
+       RULES CLARIFICATIONS
+       To support the release of Hyperia City, we’ve continued to improve the readability and functional-
+       ity of the Comprehensive Rules, our technical document covering the intricate details and nuances
+       of playing the game. The following cover some of the tune-ups we made with the 2.3 version.
+       Check out the Disney Lorcana TCG Comprehensive Rules for more info and the latest updates.
+
+       Black Cauldron Update
+
+
+
+
+       The Black Cauldron
+       Amber item
+       3 cost, uninkable
+       \The Cauldron Calls\ {E}, 1 {I} — Put a character card from your discard
+       under this item faceup.
+       \Rise and Join Me!\ {E}, 1 {I} — This turn, you may play characters from
+       under this item.
+
+
+       Belle – Apprentice Inventor
+       Sapphire character
+       Storyborn • Hero • Princess • Inventor
+       3 cost, inkable
+       3/3/1
+
+
+
+©Disney
+©Disney/Pixar
+       \What a Mess\ During your turn, you may banish chosen item of yours to
+       play this character for free.
+
+       Word’s been brewing in the community of a tricky interaction between Belle – Apprentice
+       Inventor and The Black Cauldron, which was released in Whispers in the Well. If Belle is under
+       The Black Cauldron, you can banish the Cauldron to play Belle by using her What a Mess
+       ability. We’ve added language to the rules to clarify why it works that way: When you banish
+       The Black Cauldron to pay the cost for playing Belle, the entire stack of cards (Belle included)
+       goes to your discard, then Belle is played from your discard.
+       A big shoutout to our rules-focused community for highlighting this intricacy with our cards. We
+       can’t wait to see what will bubble up next!
+
+       Updates on How “Enters” Works
+       We streamlined "enters" effects quite a bit by moving those rules away from being replacement
+       effects to being static effects. We’re also adding clarifications that guide how “enters” effects can
+       interact with each other. Now these effects apply as the card is coming into play but before it’s
+       actually put into play. In addition, “enters” effects now have a small hierarchy of application, and
+       effects from the card entering play apply first. Then, effects from other sources are applied.
+
+       Moving Characters
+       We’ve retouched the rules to make them clearer about how moves are affected when effects
+       instruct characters to move rather than a player taking a turn action to move them. This means
+       choices made for moving are now inherent to the rule itself. So, choices are always made for a
+       move, whether the move is triggered by a turn action or by an effect. Choices are also made even
+       if the move won’t happen. This change is a bit more finicky than the others, and we’ll be closely
+       monitoring discussions for community feedback!
+
+       “Act at Same Time” Changes
+
+
+
+
+©Disney
+©Disney/Pixar
+       Thomas O’Malley – Savvy Vagabond
+       Sapphire character
+       Storyborn • Hero
+       2 cost, inkable
+       2/3/2
+       \Lucky Break\ Whenever this character quests, each player reveals the top
+       card of their deck. Put the card with the highest cost revealed this way,
+       or each card tied for highest cost, into its player’s hand. Put the rest
+       on the bottom of their players’ decks.
+
+       It seems like just yesterday we were answering questions on how multiple players resolve A
+       Whole New World. As we’ve created new cards, effects where multiple players act at the same
+       time have fit into the framework we created nicely. But we needed to make a small adjustment
+       for the street-smart Thomas O’Malley – Savvy Vagabond to work as intended.
+       Now, if an effect requires multiple players to act at the same time and there are multiple parts to
+       that effect, each player does the first part of the effect in turn order. Then, they do the second part
+       in turn order, and so on until all parts are resolved. As an example, with Thomas O’Malley the
+       active player reveals the top card of their deck first. Then, each opponent does the same, in turn
+       order, at which point the card or cards with the highest cost are put into their players’ hands.
+       Finally, the active player puts any revealed card they still have on the bottom of their deck, and
+       each opponent does the same in turn order.
+       This process change affects a few other cards, too, but we feel this opens up some new and
+       exciting design opportunities, so stay tuned!
+
+       Keyword Stacking
+       Before, if an effect attempted to apply a keyword ability to a card that already had it, it simply
+       wasn’t applied. But interactions with Duo Shift in Attack of the Vine! and cards like Ancestral
+       Guitar in this set, it was clear we needed to revisit the rules that guided this process. Now, if a
+       keyword is applied to a card that already has it, the one with the longer duration applies and the
+       other one doesn’t.
+
+
+       MINOR RULES UPDATES
+       With this new set we’ve made the following general updates to the Disney Lorcana TCG
+       Comprehensive Rules:
+
+           •    6.1.4.2. Added rules to explain effects with multiple “may” conditions.
+           •    6.7.7. Added language defining the characteristics of a card.
+
+
+
+
+©Disney
+©Disney/Pixar
+       QUALITY-OF-LIFE UPDATES
+       The following updates are adjustments to language and word usage within the rules and on the
+       cards to be clear, concise, and consistent.
+
+           •    4.3.2.1. Updated language clarifying that a played card is revealed from the zone it’s
+                currently in.
+           •    4.3.2.4. Added language for ink drops.
+           •    4.4.3.4. Added language for ink drops.
+           •    4.7.3.4. Added language for ink drops.
+           •    5.1.1.5. Fixed an incorrect number reference.
+           •    6.1.14.3. Added language clarifying that when effects reveal cards, they take action only
+                on those revealed cards.
+           •    6.4.2.1. Added language clarifying what static abilities can affect.
+           •    6.4.2.3. Added language clarifying what static abilities can affect.
+
+
+       RULES GLOSSARY UPDATES
+       Sometimes glossary updates clarify past entries, and sometimes they include new terms. With the
+       release of the latest set, we clarified and added the following:
+
+           •    action, turn: Adjusted and expanded.
+           •    ink drop: Added.
+           •    passing the bag: Corrected numbering in citation.
+           •    Set step: Adjusted.
+           •    triggered ability: Adjusted.
+           •    turn action: Removed.
+
+
+       CARD-SPECIFIC NOTES
+       The following are answers to a few questions that might come up when playing specific cards
+       from this new set. This isn’t meant to be an exhaustive list, but we hope it’s a helpful guide for
+       some of the more complex cards.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Ancestral Guitar
+
+
+
+
+       Ancestral Guitar
+       Amber item
+       2 cost, inkable
+       \Musical Legacy\ When you play this item, draw a card.
+       \From the Heart\ {E}, 1 {I} — Chosen character gains Singer and counts as
+       having +2 cost to sing songs this turn.
+
+       Q: With Ancestral Guitar’s ability From the Heart, if I chose a character that already has Singer,
+       do they still get the +2 cost to sing songs?
+       A: Yes. Even though gaining Singer wouldn’t apply (because a card with the Singer keyword
+       has that ability in perpetuity), the effect still does as much as it can, so the +2 cost part applies
+       for that turn.
+
+       Port Authority – Center Hub / Russell – Junior Wilderness Explorer
+
+
+
+
+©Disney
+©Disney/Pixar
+       Port Authority – Center Hub
+       Amber location
+       Hyperia City
+       4 cost, uninkable
+       Move 1, 8/2
+       \Welcome to Town\ Once during your turn, whenever a character moves here,
+       each player gets 1 ink drop and gains 1 lore. (Each ink drop may be
+       removed to pay 1 {I}.)
+
+
+       Russell – Junior Wilderness Explorer
+       Emerald character
+       Storyborn • Hero
+       2 cost, inkable
+       3/2/1
+       \Assisting the Elderly Badge\ Whenever this character quests, you may move
+       him and one of your other characters to the same location for free.
+
+       Q: If I move 2 characters to Port Authority – Center Hub at the same time, say with Russell –
+       Junior Wilderness Explorer’s ability, how many ink drops and how much lore should each player
+       get?
+       A: Each player will get 1 ink drop and 1 lore. When both characters move to the location at the
+       same time, the ability triggers and is added to the bag twice. When the first one resolves, it
+       fulfills the “once during your turn” condition of the trigger and resolves successfully. When the
+       second one resolves, since the “once” condition has already been fulfilled, the triggered ability
+       resolves with no effect.
+
+       Nick Wilde – Inquisitive Harbormaster
+
+
+
+
+©Disney
+©Disney/Pixar
+       Nick Wilde – Inquisitive Harbormaster
+       Amber character
+       Dreamborn • Ally • Detective
+       6 cost, inkable
+       3/5/3
+       Shift 4 {I} (You may pay 4 {I} to play this on top of one of your
+       characters named Nick Wilde.)
+       \Restricted Route\ Whenever this character quests, you may give chosen
+       character Adventurous until the start of your next turn. (They can’t
+       challenge and must quest if able.)
+
+       Q: If I give a character with 0 # the Adventurous keyword with Nick Wilde’s Restricted Route
+       ability, do they still have to quest?
+       A: Yes, although sadly you won’t gain any lore from their adventure.
+
+       Mr. Manchas – Service with a Smile
+
+
+
+
+       Mr. Manchas – Service with a Smile
+       Amber character
+       Storyborn • Ally
+       3 cost, inkable
+       1/4/2
+       \Always on Time\ Whenever this character quests, you pay 1 {I} less for
+       the next character you play this turn.
+
+       Q: If I quest with Mr. Manchas – Service with a Smile twice in the same turn, do I pay 1 ! less
+       or 2 ! less for the next character I play this turn?
+
+
+
+
+©Disney
+©Disney/Pixar
+       A: You pay 2 ! less. The payment reduction stacks as many times as the triggered ability
+       resolves before playing the next character.
+
+       Nick Wilde – Toy Drive Officer
+
+
+
+
+       Nick Wilde – Toy Drive Officer
+       Amber character
+       Dreamborn • Ally • Detective
+       4 cost, uninkable
+       2/4/1
+       Support (Whenever this character quests, you may add their {S} to another
+       chosen character’s {S} this turn.)
+       \Community Outreach\ At the end of your turn, if you played 2 or more
+       characters this turn, draw a card.
+
+       Q: Does Nick Wilde – Toy Drive Officer count himself for his Community Outreach ability the
+       turn you play him?
+       A: Yes. On the turn you play him, he counts as 1 of the “2 or more characters.”
+
+
+
+
+©Disney
+©Disney/Pixar
+       Clawhauser – Safety Officer
+
+
+
+
+       Clawhauser – Safety Officer
+       Amber character
+       Storyborn • Ally • Detective
+       3 cost, inkable
+       3/5/1
+       Bodyguard (This character may enter play exerted. An opposing character
+       who challenges one of your characters must choose one with Bodyguard if
+       able.)
+       \Everyone’s Buddy\ You can’t play this character unless you played another
+       character this turn.
+
+       Q: If an effect says I can play a character “for free,” can I play Clawhauser – Safety Officer if I
+       haven’t played another character that turn?
+       A: No. You must have played another character that turn in order to play Clawhauser by any
+       means, whether as part of the normal turn action or by using an effect that allows you to play
+       him.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Powerline – Megastar / Never Gonna Let You Cry
+
+
+
+
+       Powerline – Megastar
+       Amber character
+       Storyborn
+       6 cost, inkable
+       4/6/1
+       Singer 9
+       \Backup Singers\ Once during your turn, whenever you play a song, return a
+       character card with Singer from your discard to your hand.
+       \Perfect Harmony\ This character gets +1 {L} for each other character with
+       Singer you have in play.
+
+
+       Never Gonna Let You Cry
+       Amber action
+       Song
+       5 cost, inkable
+       Sing Together 5 (Any number of your or your teammates’ characters with
+       total cost 5 or more may {E} to sing this song for free.)
+       Return up to 2 character cards with cost 2 or less each from your discard
+       to your hand.
+
+       Q: If I use Powerline – Megastar to sing Never Gonna Let You Cry, in what order do I return
+       characters from my discard to my hand?
+       A: You resolve the song first and then the triggered ability from Powerline. In this instance, first
+       you return up to 2 character cards with cost 2 or less each from your discard to your hand. Then,
+       you resolve Powerline’s triggered ability and return a character card with Singer from your
+       discard to your hand.
+
+
+©Disney
+©Disney/Pixar
+       Flash – Efficient Clerk / Donald Duck – Taxi Driver
+
+
+
+
+       Flash – Efficient Clerk
+       Steel character
+       Storyborn • Ally
+       2 cost, uninkable
+       3/2/2
+       Resist +1 (Damage dealt to this character is reduced by 1.)
+       \Take . . . Your . . . Time\ All characters lose Rush and can’t gain Rush.
+
+
+       Donald Duck – Taxi Driver
+       Ruby character
+       Dreamborn • Hero
+       3 cost, uninkable
+       4/2/1
+       \Rush Hour\ When you play this character, chosen character gains Rush this
+       turn. (They can challenge the turn they’re played.)
+
+       Q: If I have Flash – Efficient Clerk in play when my opponent plays Donald Duck – Taxi Driver,
+       and they choose Donald Duck for the triggered ability, what happens?
+       A: Due to Flash’s Take . . . Your . . . Time ability, Donald . . . Duck . . . can’t . . . gain . . . Rush.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Everyone Knows Juanita
+
+
+
+
+       Everyone Knows Juanita
+       Amethyst action
+       Song
+       5 cost, uninkable
+       (A character with cost 5 or more can {E} to sing this song for free.)
+       Draw 2 cards. If you have 10 or more cards in your discard, draw 3 cards
+       instead.
+
+       Q: When I play Everyone Knows Juanita, does it count toward the “10 or more cards in your
+       discard”?
+       A: No. When you play an action, it’s still in play while its ability resolves. Therefore, it wouldn’t
+       be in your discard when you’re counting cards to determine if you have 10 or more. Once its
+       ability resolves, then it goes into the discard.
+
+       Merlin’s Wand / Winnie the Pooh & Piglet – Hunny Mages
+
+
+
+
+©Disney
+©Disney/Pixar
+       Merlin’s Wand
+       Amethyst item
+       2 cost, inkable
+       \Magic Touch\ {E}, Reveal 2 cards with the same name in your hand — You
+       pay 1 {I} less for the next card you play with that name this turn.
+
+
+       Winnie the Pooh & Piglet – Hunny Mages
+       Amethyst Sapphire character
+       Dreamborn • Team • Hero • Sorcerer • Hunny
+       5 cost, inkable
+       3/4/0
+       <Shift> 3 {I} (You may pay 3 {I} to play this on top of one of your
+       characters named Winnie the Pooh or Piglet.)
+       \Magical Mix\ This character gets +1 {L} for each different ink type of
+       characters you have in play.
+
+       Q: If I use the Merlin’s Wand Magic Touch ability and choose to reveal Winnie the Pooh &
+       Piglet – Hunny Mages, do I have to reveal another Winnie the Pooh & Piglet or can I reveal any
+       Winnie the Pooh or Piglet?
+       A: Winnie the Pooh & Piglet – Hunny Mages has three names: Winnie the Pooh, Piglet, and
+       Winnie the Pooh & Piglet. As long as the second card you reveal matches one of those names,
+       you’ve paid the ability’s cost successfully.
+
+       Remember Me
+
+
+
+
+       Remember Me
+       Amber action
+       Song
+
+
+
+©Disney
+©Disney/Pixar
+       6 cost, inkable
+       Sing Together 6 (Any number of your or your teammates’ characters with
+       total cost 6 or more may {E} to sing this song for free.)
+       For the rest of this turn, you may play characters from your discard. If
+       you do, they enter play exerted and you can’t play characters with the
+       same name as characters you played this way this turn.
+
+       Q: If I play Remember Me and then play a card that allows me to play a character for free, can I
+       play the free character from my discard?
+       A: Yes. Remember Me allows you to play characters from your discard whenever you can play a
+       character that turn, if you so choose. But it also still requires that, if you play a character from
+       your discard with that effect, the character must enter play exerted and you can’t play characters
+       with the same name for the rest of the turn.
+
+       Q: If I somehow play Remember Me on my opponent’s turn, can I then play a character from my
+       discard?
+       A: No. Remember Me doesn’t tell you to play a character but simply allows you to play
+       characters from your discard if you’re able to play a card. That said, if you somehow played
+       Remember Me on your opponent’s turn and also somehow played a card that allowed you to play
+       a character for free during their turn, you could play a character from your discard.
+
+       Rapunzel – Outgoing Artist
+
+
+
+
+       Rapunzel – Outgoing Artist
+       Amethyst character
+       Dreamborn • Hero • Princess
+       1 cost, inkable
+       0/1/1
+
+
+
+
+©Disney
+©Disney/Pixar
+       \Picture Perfect\ Whenever this character quests, you may choose another
+       character and reveal a character card in your hand. If they have the same
+       name, draw a card.
+
+       Q: If I quest with Rapunzel – Outgoing Artist and she’s the only character in play, can I reveal
+       another character named Rapunzel from my hand?
+       A: No. Rapunzel’s Picture Perfect ability specifically says to choose “another” character, so you
+       can’t choose Rapunzel if she’s the only character in play. If you or an opponent had another
+       Rapunzel in play, then you could reveal any character card from your hand (including a
+       Rapunzel), since you could choose “another” character besides the specific copy of Rapunzel –
+       Outgoing Artist whose ability you’re using.
+
+       Yama – Notorious Criminal
+
+
+
+
+       Yama – Notorious Criminal
+       Ruby character
+       Storyborn
+       4 cost, uninkable
+       4/4/2
+       \Keep ‘Em Coming\ 6 {I} — Whenever one of your characters challenges
+       another character this turn, get 1 ink drop. (You may remove an ink drop
+       to pay 1 {I}.)
+
+       Q: If I use Yama – Notorious Criminal’s Keep ’Em Coming ability twice in the same turn, how
+       many ink drop counters do I get when one of my characters challenges another character?
+       A: You’d get 2. Each use of Yama’s ability creates a separate floating triggered ability, and all of
+       them trigger when the condition is met. In this case, if you’ve used the ability twice, then you
+       have two instances of the floating triggered ability, both of which trigger on the challenge.
+
+
+
+©Disney
+©Disney/Pixar
+       Belle – Exceptional Writer
+
+
+
+
+       Belle – Exceptional Writer
+       Emerald character
+       Dreamborn • Hero • Princess
+       5 cost, inkable
+       4/5/2
+       Shift 3 {I} (You may pay 3 {I} to play this on top of one of your
+       characters named Belle.)
+       \Hyperia City Tips\ During your turn, whenever this character exerts, you
+       pay 2 {I} less for the next action you play this turn.
+       \Hyperia City Secrets\ During your turn, whenever you play a third action,
+       gain 3 lore.
+
+       Q: If I quest with Belle – Exceptional Writer twice in the same turn, do I pay 2 ! less or 4 ! less
+       for the next action I play this turn?
+       A: You pay 4 ! less. The payment reduction stacks as many times as the triggered ability
+       resolves before playing the next action.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Miguel Rivera – Street Musician
+
+
+
+
+       Miguel Rivera – Street Musician
+       Amber character
+       Storyborn • Hero
+       1 cost, inkable
+       1/2/1
+       \Share the Music\ While you have a song card in your discard, this
+       character gets +1 {L} and gains Singer 3. (They count as cost 3 to sing
+       songs.)
+
+       Q: If I have 2 song cards in my discard, does Miguel Rivera – Street Musician get +1 # or +2 #?
+
+       A: He gets +1 #. Miguel’s condition only takes into account whether you have a song card in
+       your discard, not how many there are.
+
+       Jukebox
+
+
+
+
+©Disney
+©Disney/Pixar
+       Jukebox
+       Ruby item
+       2 cost, inkable
+       \On Repeat\ Once during your turn, whenever you play a song, if it has the
+       same name as another card in your discard, you may ready chosen character.
+       If you do, they can’t quest for the rest of this turn.
+
+       Errata: We’re issuing an errata to the printed text on Jukebox to more accurately reflect the
+       functionality of the card.
+       The printed text for the On Repeat ability reads: Once during your turn, whenever you play a
+       song, if it has the same name as a card in your discard, you may ready chosen character. If you
+       do, they can't quest for the rest of this turn.
+
+       The corrected text reads: Once during your turn, whenever you play a song, if it has the same
+       name as another card in your discard, you may ready chosen character. If you do, they can't
+       quest for the rest of this turn.
+       Adding “another” prevents a song from counting towards itself for Jukebox’s On Repeat ability
+       on the turn that you play the song.
+
+       Leaning Tower of Cheese-a
+
+
+
+
+       Leaning Tower of Cheese-a
+       Emerald item
+       1 cost, inkable
+       \Fair Trade\ When you play this item, you may draw a card, then choose and
+       discard a card.
+       \Extra Cheesy\ While you have 4 items named Leaning Tower of Cheese-a in
+       play, your items gain Ward. (Opponents can’t choose them.)
+
+
+
+
+©Disney
+©Disney/Pixar
+       Q: If I somehow have more than 4 copies of Leaning Tower of Cheese-a in play, do my items
+       still gain Ward?
+       A: No. You must have exactly 4 copies of Leaning Tower of Cheese-a in play to gain Ward. It
+       can only lean so much.
+
+       Intense Research
+
+
+
+
+       Intense Research
+       Sapphire action
+       2 cost, inkable
+       Look at the top 2 cards of your deck, then put one into your hand and the
+       rest on the bottom of your deck in any order. If you removed an ink drop
+       to play this action, look at the top 5 cards of your deck instead.
+
+       Q: If I removed an ink drop to play Intense Research, do I still put a card into my hand and the
+       rest on the bottom of my deck in any order?
+       A: Yes. The replacement effect only replaces the part that it can affect, which is how many cards
+       you can look at. The rest of the effect happens as normal.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Thomas O’Malley – Savvy Vagabond
+
+
+
+
+       Thomas O’Malley – Savvy Vagabond
+       Sapphire character
+       Storyborn • Hero
+       2 cost, inkable
+       2/3/2
+       \Lucky Break\ Whenever this character quests, each player reveals the top
+       card of their deck. Put the card with the highest cost revealed this way,
+       or each card tied for highest cost, into its player’s hand. Put the rest
+       on the bottom of their players’ decks.
+
+       Q: If I quest with Thomas O’Malley – Savvy Vagabond and the cards my opponent and I reveal
+       are both cost 5, do we both get to put the cards we revealed into our hands?
+       A: Yes. If you both revealed a cost 5 card, then the highest cost among the cards revealed is 5
+       and the cards are tied. As the card states, when there’s a tie for highest cost, you both put your
+       revealed cards into your respective hands.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Spyglass Hat
+
+
+
+
+       Spyglass Hat
+       Sapphire item
+       3 cost, inkable
+       \Hat Couture\ Whenever you play this or another item, if the item you
+       played has a different name than each other item you have in play, you may
+       put a card from your hand into your inkwell facedown and exerted.
+
+       Q: When I play an item and I have Spyglass Hat in play, what counts as a different name?
+
+       A: If the name of the item you played doesn’t exactly match any name of any other item you
+       have in play, then the triggered ability on Spyglass Hat resolves and you get to put a card from
+       your hand into your inkwell facedown and exerted. However, if you have a Spyglass Hat in play
+       and then play another Spyglass Hat during your next turn, the second would match the name of
+       an item you already have in play, so the triggered ability would resolve for no effect.
+
+       Duchess – Cosmopolitan Cat
+
+
+
+
+©Disney
+©Disney/Pixar
+       Duchess – Cosmopolitan Cat
+       Sapphire character
+       Storyborn • Hero
+       1 cost, inkable
+       1/2/1
+       \Upper Crust\ While you have a character in play with the highest cost, or
+       tied for highest cost, this character gets +1 {L}.
+       \Proper Etiquette\ Whenever this character quests, look at the top card of
+       your deck. Put that card on either the top or the bottom of your deck.
+
+       Q: If I have Duchess – Cosmopolitan Cat plus a character with cost 7 in play and my opponent
+       has an item with cost 8 in play, does my Duchess get +1 # with her Upper Crust ability?
+
+       A: Yes. That ability compares only characters in play, not items or other card types, so your
+       Duchess would get +1 #.
+
+
+       Minnie Mouse – Urban Visionary
+
+
+
+
+       Minnie Mouse – Urban Visionary
+       Sapphire character
+       Dreamborn • Hero
+       8 cost, inkable
+       6/6/3
+       Ward (Opponents can’t choose this character except to challenge.)
+       \All by Design\ At the end of your turn, if this character is exerted, you
+       may look at the cards in your inkwell and then you may return one to your
+       hand. If you do either, exert all cards in your inkwell.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Q: If I choose “no” for either “may” option in Minnie Mouse – Urban Visionary’s All by Design
+       ability, does the entire ability no longer resolve?
+       A: No. If you choose “no” for either option in that ability, only the part that’s tied to the specific
+       “may” wouldn’t happen and you’d do as much as you can for the rest. For example, you could
+       choose to look at the cards in your inkwell and not return one to your hand or you could choose
+       not to look at the cards in your inkwell and then choose to return one to your hand. Either way,
+       you exert all of the cards in your inkwell. If you choose “no” for both, the entire ability wouldn’t
+       resolve, in which case you wouldn’t exert all the cards in your inkwell.
+
+       Ariel – Collector of Oddities
+
+
+
+
+       Ariel – Collector of Oddities
+       Sapphire character
+       Dreamborn • Hero • Princess
+       5 cost, inkable
+       3/5/1
+       \One of a Kind\ Whenever you play an item, if the item you played has a
+       different name than each other item you have in play, draw a card.
+       \Personal Collection\ For each item with a different name you have in
+       play, this character gets +1 {L}.
+
+       Q: When I play an item and I have Ariel – Collector of Oddities in play, what counts as a
+       different name?
+       A: If the name of the item you played doesn’t exactly match any name of any other item you
+       have in play, then the triggered ability on Ariel resolves and you get to draw a card. For example,
+       if you have a Spyglass Hat in play and then play another Spyglass Hat during your next turn, the
+       second would match the name of an item you already have in play, so the triggered ability would
+       resolve for no effect.
+
+
+
+©Disney
+©Disney/Pixar
+       Baymax – Amped Up
+
+
+
+
+       Baymax – Amped Up
+       Sapphire character
+       Dreamborn • Super • Hero • Robot
+       7 cost, inkable
+       5/8/2
+       Shift Remove 2 ink drops (You may remove 2 ink drops to play this on top
+       of one of your characters named Baymax.)
+       \Supercharge\ If you would get an ink drop, you may put the top card of
+       your deck into your inkwell facedown and exerted instead.
+
+       Q: Does removing the ink drop counters for Baymax – Amped Up’s Shift ability count as paying
+       ink?
+       A: No. With Baymax’s Shift cost, you’re simply removing 2 ink drop counters and not using
+       those ink drops to pay for ink.
+
+
+
+
+©Disney
+©Disney/Pixar
+       Flippant Taunt
+
+
+
+
+       Flippant Taunt
+       Emerald action
+       1 cost, inkable
+       Until the start of your next turn, chosen opposing character gains
+       Reckless and, if you have 2 or more opponents, can’t challenge your
+       characters or locations. (They can’t quest and must challenge if able.)
+
+       Q: Let’s say I’m playing in a 4-person multiplayer game and an opponent chooses one of my
+       characters for Flippant Taunt but then leaves the game during their turn. Does my character still
+       have Reckless?
+       A: Yes. Static abilities generated by effects last until their stated duration ends, even if the player
+       who generated the effect has left the game. And yes, this is a little weird.
+
+       Madam Mim – Resourceful Trickster
+
+
+
+
+©Disney
+©Disney/Pixar
+       Madam Mim – Resourceful Trickster
+       Amethyst character
+       Dreamborn • Villain • Sorcerer
+       8 cost, inkable
+       7/5/3
+       \Upper Hand\ When you play this character, if you removed an ink drop to
+       play her, draw 2 cards.
+       \Bauble Game\ Once during your turn, whenever you remove an ink drop, draw
+       a card.
+
+       Q: Does Madam Mim – Resourceful Trickster’s ability Bauble Game trigger if I used ink drop
+       counters to play her?
+       A: No. Madam Mim needs to be in play for the second ability to trigger, and the ink drops used
+       to play her were removed before she was in play.
+
+
+
+
+                                  Have further questions about any cards?
+            Join the community at discord.gg/disneylorcana and ask away! We’re a friendly bunch.
+
+
+
+
+©Disney
+©Disney/Pixar
+

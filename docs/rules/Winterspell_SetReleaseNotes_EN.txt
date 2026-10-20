@@ -1,0 +1,236 @@
+Disney Lorcana TCG Set Release Notes:
+Winterspell
+Hello, Illumineers! Welcome to the Disney Lorcana TCG set release notes for Winterspell. These release notes go over any rules changes, new mechanics,
+and features of the game introduced with this set and offer context for why the adjustments are necessary.
+For more detailed game information beyond these release notes, visit DisneyLorcana.com/Resources to check out the Comprehensive Rules, tournament
+rules, and more. Newer to the game? Check out the Disney Lorcana TCG Companion app, where you can learn how to play, track your cards, build a
+wishlist, and even use our digital lore counter to play.
+
+
+Compehensive Rules 2.0
+The Disney Lorcana Comprehensive Rules is a technical document covering the intricate details and nuances of the game. It serves as the foundation for
+Disney Lorcana gameplay, and with every release, we update it to address the new cards, abilities, effects, and mechanics we’ve introduced and how they
+interact with our other cards. You can think of the rules system as the engine that powers the game, so it’s important for it to get regular tune-ups!
+In addition to those regular updates, our internal rules team has spent the past year doing a top-to-bottom review of the document with the goal of
+making it more streamlined and straightforward for players and judges alike. This was a massive undertaking, and we’re very excited to present this “2.0”
+version, which incorporates the new card mechanics of our latest release, Winterspell.
+There are far too many changes to list here, but we wanted to give you a preview of some of the updates.
+
+Drawing from an empty deck won’t automatically lose the game
+Previously, if a player tried to draw a card from an empty deck, that player lost the game right then and there, with no ability to stage a last-minute
+comeback. This caused some end-of-game condition timing issues, such as when both players would draw cards at the same time from empty decks.
+To that end, we’re updating this rule.
+Now, if a player ends their turn with no cards in their deck, they lose the game. This encourages players to try to utilize every resource they have to close
+out the game. It also provides a clearer solution to the awkward timing issue of players thinking they’re losing the game simultaneously.
+
+
+
+
+disneylorcana.com
+©Disney
+Turn action processes are more clearly ordered
+We wanted to more clearly define the process and order for turn actions (like questing and playing a card). For example, challenging with a character is a
+two-step process, but the previous list layout made it seem like it was one step. After some revamping, now each turn action is laid out in its own section.
+
+Resolving cards and effects is more detailed
+As our game has grown and introduced more complex cards, we’ve discovered some things that needed to be more explicitly stated. One of these is
+how to resolve cards and effects. The brief instructions we had for this simply weren’t meeting expectations anymore.
+Now, we have a brand-new rules section that details the step-by-step process of how cards and effects resolve. While this might sound technical and
+scary, everything still works like it did before. All we did was make sure the process is explicitly stated and the game logic checks out.
+
+And much more!
+The team tried to be as thorough as possible, but we know things will come up that we didn’t foresee. We’ll continue to address potential areas of
+clarification as we encounter them and to give you updates on new mechanics and interactions with each release. If you ever have any questions, please
+ask away at discord.gg/disneylorcana. Our community has fun discussions over there, and it’s a helpful way for us to spot things that we could clarify.
+To see all of the adjustments to the Comprehensive Rules, we encourage you to go take a look at the document on our resources page.
+
+
+Underdog
+
+
+
+
+Angel – Siren Singer
+Amber character
+Storyborn • Ally • Alien
+2 cost, inkable
+2/2/1
+\Underdog\ If this is your first turn and you're not the first player, you pay 1 {I} less to
+play this character.
+Singer 3 (This character counts as cost 3 to sing songs.)
+
+
+It’s fun to go first, but someone has to go second, right? That’s why we’re introducing the Underdog keyword ability, shown here on Angel – Siren Singer.
+Now, if you go after the first player, you have a better chance to stage that triumphant comeback underdogs are known for.
+How it works is pretty simple. Is it your first turn of the game? If the answer is yes, awesome. Are you the starting player? If the answer is no, you can take
+advantage of the Underdog ability and pay 1 {I} less to play the card. That’s all there is to it!
+
+
+disneylorcana.com
+©Disney
+Quality-of-Life Updates
+These updates are adjustments to language and word usage within the rules and on the cards to be clear, concise, and consistent.
+
+Two cards, Belle – Strange but Special and Sail the Azurite Sea, previously used the wording, “you may put an additional card from your hand into your
+inkwell facedown.” We’re updating these cards to use the current language for the turn action of “inking a card,” but the way you play them is the same.
+      •   Belle – Strange but Special’s ability Read a Book now reads, “During your turn, you may ink an additional card.”
+      •   Sail the Azurite Sea now reads, “This turn, you may ink an additional card. Draw a card.”
+
+
+Card-Specific Notes
+The following are answers to a few questions that might come up when playing specific cards from this new set. This isn’t meant to be an exhaustive list,
+but we hope it’s a helpful guide for some of the more complex cards.
+
+Elisa Maza – Transformed Gargoyle
+
+
+
+
+Elisa Maza – Transformed Gargoyle
+Ruby character
+Storyborn • Hero • Gargoyle • Detective
+3 cost, inkable
+4/4/1
+\Forever Strong\ Your characters' {S} can't be reduced below their printed value.
+\Stone by Day\ If you have 3 or more cards in your hand, this character can’t ready.
+
+
+Q: What does “printed value” mean?
+A: The printed value of a card’s characteristic is what’s physically printed on the card, regardless of any adjustments that may apply. For example, if Elisa
+Maza is given +1 {S} from an effect, her {S} value becomes 5, but the card’s printed value is still 4.
+
+
+
+
+disneylorcana.com
+©Disney
+Anna – Soothing Sister / Flynn Rider – His Own Biggest Fan
+
+
+
+
+Anna – Soothing Sister
+Amethyst character
+Floodborn • Hero • Queen
+5 cost, inkable
+5/5/1
+\Unusual Transformation\ If a card left a player's discard this turn, this card gains
+Shift 0 {I}. (You may pay 0 {I} to play this on top of one of your characters named Anna.)
+\Warm Heart\ Whenever this character quests, you may gain lore equal to the {L} of a char-
+acter card in your discard. If you do, put that card on the bottom of your deck.
+
+Flynn Rider – His Own Biggest Fan
+Emerald character
+Floodborn • Hero • Prince
+4 cost, uninkable
+2/3/4
+Shift 2 (You may pay 2 {I} to play this on top of one of your characters named Flynn Rid-
+er.)
+Evasive (Only characters with Evasive can challenge this character.)
+\One Last, Big Score\ This character gets -1 {L} for each card in your opponents' hands.
+
+
+Q: If I quest with Anna – Soothing Sister and choose Flynn Rider – His Own Biggest Fan from my discard for Anna’s Warm Heart ability, how much lore do
+I gain?
+A: You gain 1 lore from questing with Anna and 4 lore from Flynn, for a total of 5 lore! Flynn’s One Last, Big Score ability doesn’t apply when he’s not in
+play, so his {L} isn’t reduced.
+
+
+
+
+disneylorcana.com
+©Disney
+Grandmother Willow – Ancient Advisor
+
+
+
+
+Grandmother Willow – Ancient Advisor
+Amber character
+Storyborn • Mentor
+2 cost, uninkable
+1/2/1
+\Smooth the Way\ Once during your turn, you pay 1 {I} less for the next character you play
+this turn.
+
+
+Q: Can I choose when to use Grandmother Willow’s Smooth the Way ability?
+A: No, because there’s no “may” in the ability. If you play Grandmother Willow, the discount applies to the very next character you play that turn. On later
+turns when you have Grandmother Willow already in play, you pay 1 {I} less for the first character you play each turn.
+
+Lilo – Bundled Up
+
+
+
+
+Lilo – Bundled Up
+Steel character
+Dreamborn • Hero
+
+
+disneylorcana.com
+©Disney
+2 cost, uninkable
+1/2/2
+\Extra Layers\ During each opponent's turn, the first time this character would take dam-
+age, she takes no damage instead.
+
+
+Q: Does Lilo’s ability prevent all damage to her during her opponents’ turns?
+A: No. It applies only the first time that she would take damage during each opponent’s turn. It doesn’t apply to damage she would take after that.
+
+Mickey Mouse – Bob Cratchit
+
+
+
+
+Mickey Mouse – Bob Cratchit
+Sapphire character
+Storyborn • Hero
+2 cost, inkable
+3/2/1
+\Hard Work\ Whenever this character quests, put the top card of your deck facedown under
+him.
+\A Giving Heart\ When this character is banished in a challenge, you may put all cards
+that were under him under another chosen character or location of yours.
+
+
+Q: If Mickey Mouse is banished in a challenge, are the cards that were under him moved to another character or location faceup or facedown?
+A: Faceup. The triggered effect resolves after Mickey Mouse and all cards that were under him are put into the discard, where the facedown cards turn
+faceup. When the ability resolves, those cards are moved from the discard to the chosen character or location, but they remain faceup.
+
+
+
+
+disneylorcana.com
+©Disney
+Colors of the Wind
+
+
+
+
+Colors of the Wind
+Amethyst action
+Song
+4 cost, inkable
+(A character with cost 4 or more can {E} to sing this song for free.)
+Each player reveals the top card of their deck. Draw a card for each different ink type of
+cards revealed this way.
+
+
+Q: How can I tell what the ink type of a card is?
+A: Each ink type has an ink type symbol, which appears on the cards on the left end of the classification line. For example, the ink type of Colors of the
+Wind is Amethyst. A card with multiple ink type symbols on this line counts as each of those ink types.
+When everyone reveals the top card of their deck, count the number of unique ink type symbols, not the total number. If you and your opponent both
+reveal Amethyst cards, you’ll draw only 1 card. However, if you reveal one Amethyst card and one card that’s both Amethyst and Steel, you’ll draw 2 cards—1
+for Amethyst and 1 for Steel.
+
+
+Have further questions about any cards? Join the community at discord.gg/disneylorcana and ask away! We’re a friendly bunch.
+
+
+
+
+disneylorcana.com
+©Disney
+
