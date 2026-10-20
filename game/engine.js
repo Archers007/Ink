@@ -14,8 +14,11 @@
 //   Support [8.13] · Boost [8.4] · Reckless [8.7] · game state check: 20 lore, banish [1.8]
 //   deck-out at end of turn [1.8.1.2] · concede [2.3.3.4]
 //
-// What's manual (logged + visible to both players, like a real table): card
-// abilities/effects text. The engine offers primitive "effect" actions (damage,
+// Card abilities: the common, unambiguous patterns ("When you play this
+// character, deal 2 damage to chosen character", most simple actions/songs —
+// see effects.js) resolve automatically through an effect queue (s.fx), with
+// target choices as a pending prompt. Everything else stays manual (logged +
+// visible to both players, like a real table). The engine offers primitive "effect" actions (damage,
 // lore, exert/ready, move cards between zones, draw, look at top N, stat
 // modifiers) so any card can be resolved by hand.
 
@@ -25,6 +28,7 @@ import {
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker,
   shiftOptions, shiftTargetOk, parseActivatedCost, prettyText,
 } from '../public/js/play/rules.js';
+import { parseAbility, describeTarget, HARMFUL, KEYWORD_ONLY } from './effects.js';
 
 export class RuleError extends Error {}
 const RE = (msg) => new RuleError(msg);
@@ -219,6 +223,10 @@ function startTurn(s, seat, ev) {
   // Ready step (3.2.1)
   for (const iid of p.play) s.cards[iid].exerted = false;
   for (const iid of p.inkwell) s.cards[iid].exerted = false;
+  for (const pl of s.players) for (const iid of pl.play) {           // "until the start of your next turn"
+    const c = s.cards[iid];
+    if (c.mods.length) c.mods = c.mods.filter((m) => !(m.until === 'sot' && m.by === seat));
+  }
   // Set step (3.2.2): drying ends, locations give lore
   let locLore = 0;
   for (const iid of p.play) {
@@ -261,6 +269,7 @@ export function newGame({ players, seed, starting = null }) {
     cards: {},
     defs: {},
     pending: null,
+    fx: [],
     winner: null,
     endReason: '',
     log: [],
@@ -385,6 +394,262 @@ H.ink = (s, seat, a, ev) => {
   log(s, `${nameOf(s, seat)} inked ${cardLabel(d)} (${p.inkwell.length} ink).`, { seat });
 };
 
+
+// ---------- automated card abilities (effect queue) ----------
+
+const parsedCache = new Map();
+function parsedAbility(d, i) {
+  const k = `${d.id}#${i}`;
+  if (!parsedCache.has(k)) parsedCache.set(k, parseAbility(d.abilities[i], d.type));
+  return parsedCache.get(k);
+}
+// Run (or remind) the abilities of `d` whose trigger matches. Returns true if any were queued.
+function triggerAbilities(s, c, d, trigger, rx, prefix = '') {
+  let any = false;
+  d.abilities.forEach((ab, i) => {
+    if ((!ab.name && KEYWORD_ONLY.test(ab.text)) || !rx.test(ab.text)) return;   // keyword reminders: keywords are automated
+    const pa = parsedAbility(d, i);
+    if (pa && pa.trigger === trigger && pa.steps.length) {
+      queueEffect(s, c.owner, c.iid, `${cardLabel(d)}${ab.name ? ' — ' + ab.name : ''}`, pa.steps);
+      any = true;
+    } else {
+      log(s, `↳ ${prefix}${ab.name ? ab.name + ': ' : ''}${prettyText(ab.text)}`, { kind: 'effect' });
+    }
+  });
+  return any;
+}
+function queueEffect(s, seat, src, label, steps) {
+  s.fx ||= [];
+  s.fx.push({ seat, src, label, steps: steps.map((x) => ({ ...x })), i: 0 });
+}
+
+function targetOk(s, f, c, ctl, src) {
+  if (!c || c.zone !== 'play') return false;
+  const d = D(s, c);
+  if (!f.kinds.has(d.type === 'song' ? 'action' : d.type)) return false;
+  if (f.side === 'opp' && c.owner === ctl) return false;
+  if (f.side === 'mine' && c.owner !== ctl) return false;
+  if (f.another && c.iid === src) return false;
+  if (f.damaged && !c.damage) return false;
+  if (f.exerted && !c.exerted) return false;
+  if (f.ready && c.exerted) return false;
+  if (c.owner !== ctl && hasKw(c, d, 'ward')) return false;      // 8.15: opponents can't choose
+  const stat = f.stat === 'wp' ? effWp(c, d) : effStr(c, d);
+  if (f.max != null && !(stat <= f.max)) return false;
+  if (f.min != null && !(stat >= f.min)) return false;
+  if (f.maxCost != null && !(d.cost <= f.maxCost)) return false;
+  if (f.minCost != null && !(d.cost >= f.minCost)) return false;
+  return true;
+}
+function legalTargets(s, f, ctl, src) {
+  const out = [];
+  for (const p of s.players) for (const iid of p.play) if (targetOk(s, f, s.cards[iid], ctl, src)) out.push(iid);
+  return out;
+}
+
+const STAT_ICON = { str: '⚔️', wp: '🛡️', lore: '◆' };
+const untilTxt = (s, st, ctl) => (st.until === 'sot' ? `until the start of ${nameOf(s, ctl)}'s next turn` : 'this turn');
+
+function applyStep(s, job, st, ev, target) {
+  const ctl = job.seat;
+  const who = nameOf(s, ctl);
+  const t = target ? s.cards[target] : null;
+  const tl = t ? `${nameOf(s, t.owner)}'s ${cardLabel(D(s, t))}` : '';
+  switch (st.op) {
+    case 'draw': {
+      const { names } = drawCards(s, ctl, st.n, ev);
+      log(s, `↳ ${who} drew ${names.length} card${names.length === 1 ? '' : 's'}.`, { seat: ctl, kind: 'effect', priv: names.length ? { seat: ctl, text: `↳ You drew ${names.join(', ')}.` } : undefined });
+      break;
+    }
+    case 'gainLore':
+      gainLore(s, ctl, st.n, ev);
+      log(s, `↳ ${who} gained ${st.n} lore (${P(s, ctl).lore}/${LORE_TO_WIN}).`, { seat: ctl, kind: 'effect' });
+      break;
+    case 'oppLoseLore':
+      for (const o of opponentsOf(s, ctl)) {
+        const before = P(s, o).lore;
+        gainLore(s, o, -st.n, ev);
+        log(s, `↳ ${nameOf(s, o)} lost ${before - P(s, o).lore} lore.`, { seat: o, kind: 'effect' });
+      }
+      break;
+    case 'allMod':
+      for (const iid of P(s, ctl).play) {
+        const c = s.cards[iid];
+        if (D(s, c).type !== 'character') continue;
+        c.mods.push({ stat: st.stat, delta: st.n, until: st.until, by: ctl, src: job.label });
+        ev.push({ k: 'mod', iid, stat: st.stat, delta: st.n });
+      }
+      log(s, `↳ ${who}'s characters get ${st.n > 0 ? '+' : ''}${st.n} ${STAT_ICON[st.stat]} ${untilTxt(s, st, ctl)}.`, { seat: ctl, kind: 'effect' });
+      break;
+    case 'randomDiscard': {
+      const p = P(s, ctl);
+      const gone = [];
+      for (let k = 0; k < st.n && p.hand.length; k++) {
+        const iid = p.hand[Math.floor(rand(s) * p.hand.length)];
+        gone.push(cardLabel(D(s, s.cards[iid])));
+        moveTo(s, iid, 'discard', ev);
+      }
+      log(s, `↳ ${who} discarded ${gone.join(', ') || 'nothing'} at random.`, { seat: ctl, kind: 'effect' });
+      break;
+    }
+    case 'damage': {
+      const d = D(s, t);
+      const n = Math.max(0, st.n - kwVal(t, d, 'resist'));            // Resist applies to all damage (8.8)
+      t.damage += n;
+      if (n) ev.push({ k: 'damage', iid: t.iid, n });
+      log(s, `↳ Dealt ${n} damage to ${tl}.`, { seat: ctl, kind: 'effect' });
+      break;
+    }
+    case 'heal': {
+      const n = Math.min(st.n, t.damage);
+      t.damage -= n;
+      if (n) ev.push({ k: 'damage', iid: t.iid, n: -n });
+      log(s, `↳ Removed ${n} damage from ${tl}.`, { seat: ctl, kind: 'effect' });
+      break;
+    }
+    case 'banish': banish(s, t.iid, ev, job.label); break;
+    case 'bounce':
+      log(s, `↳ Returned ${tl} to their hand.`, { seat: ctl, kind: 'effect' });
+      moveTo(s, t.iid, 'hand', ev, { reveal: true });            // whole stack moves together (5.1.1.7)
+      break;
+    case 'tuck':
+      log(s, `↳ Put ${tl} on the bottom of their deck.`, { seat: ctl, kind: 'effect' });
+      moveTo(s, t.iid, 'deckBottom', ev);
+      break;
+    case 'exert':
+      t.exerted = true; ev.push({ k: 'exert', iid: t.iid });
+      log(s, `↳ Exerted ${tl}.`, { seat: ctl, kind: 'effect' });
+      break;
+    case 'ready':
+      t.exerted = false; ev.push({ k: 'ready', iid: t.iid });
+      log(s, `↳ Readied ${tl}.`, { seat: ctl, kind: 'effect' });
+      break;
+    case 'mod':
+      t.mods.push({ stat: st.stat, delta: st.n, until: st.until, by: ctl, src: job.label });
+      ev.push({ k: 'mod', iid: t.iid, stat: st.stat, delta: st.n });
+      log(s, `↳ ${tl} gets ${st.n > 0 ? '+' : ''}${st.n} ${STAT_ICON[st.stat]} ${untilTxt(s, st, ctl)}.`, { seat: ctl, kind: 'effect' });
+      break;
+    case 'grant':
+      for (const [kw, n] of st.kws) t.mods.push({ stat: 'kw', kw, delta: n, until: st.until, by: ctl, src: job.label });
+      ev.push({ k: 'mod', iid: t.iid, stat: 'kw', delta: 1 });
+      log(s, `↳ ${tl} gains ${st.kws.map(([k, n]) => KEYWORD_LABEL[k] + (['resist', 'challenger', 'singer'].includes(k) ? ` +${n}` : '')).join(' and ')} ${untilTxt(s, st, ctl)}.`, { seat: ctl, kind: 'effect' });
+      break;
+    default:
+      throw new Error('unknown effect op ' + st.op);
+  }
+}
+// Choices that belong to someone other than "chosen <thing>" targeting
+function handChoice(s, job, st) {
+  if (st.op === 'selfDiscard') return { chooser: job.seat, valid: [...P(s, job.seat).hand], prompt: `${job.label}: choose a card to discard.`, n: st.n };
+  return null;
+}
+
+// Resolve queued effects until one needs a choice (→ s.pending) or the queue is empty.
+function pumpEffects(s, ev) {
+  s.fx ||= [];
+  for (let guard = 0; guard < 200 && !s.pending && s.fx.length && s.status === 'playing'; guard++) {
+    const job = s.fx[0];
+    const st = job.steps[job.i];
+    if (!st) { s.fx.shift(); continue; }
+    const step = { job, st };
+    if (st.target) {
+      let valid = legalTargets(s, st.target, job.seat, job.src);
+      if (st.op === 'heal') valid = valid.filter((iid) => s.cards[iid].damage > 0);   // healing an undamaged card is a no-op
+      if (!valid.length) { log(s, `↳ ${job.label}: no valid ${describeTarget(st.target)} — skipped.`, { kind: 'effect' }); job.i++; continue; }
+      s.pending = { type: 'choose', seat: job.seat, valid, optional: !!st.optional, src: job.src, op: st.op,
+        prompt: `${job.label}: ${promptFor(st)} — choose ${describeTarget(st.target)}.`, harmful: HARMFUL.has(st.op) };
+      return;
+    }
+    if (st.op === 'oppDiscard' || st.op === 'oppBanish' || st.op === 'oppExert') {
+      // each opponent chooses one of their own (queue one sub-choice per opponent × n)
+      const subs = [];
+      for (const o of opponentsOf(s, job.seat)) for (let k = 0; k < (st.n || 1); k++) subs.push(o);
+      job.i++;
+      s.fx.splice(1, 0, ...subs.map((o) => ({ seat: o, src: job.src, label: job.label, owner: job.seat, steps: [{ op: st.op + 'Pick' }], i: 0 })));
+      continue;
+    }
+    if (st.op.endsWith('Pick')) {
+      const p = P(s, job.seat);
+      const base = st.op.replace(/Pick$/, '');
+      const valid = base === 'oppDiscard' ? [...p.hand]
+        : p.play.filter((iid) => D(s, s.cards[iid]).type === 'character' && (base !== 'oppExert' || !s.cards[iid].exerted));
+      if (!valid.length) { log(s, `↳ ${nameOf(s, job.seat)} has nothing to ${base === 'oppDiscard' ? 'discard' : base === 'oppBanish' ? 'banish' : 'exert'}.`, { kind: 'effect' }); job.i++; continue; }
+      s.pending = { type: 'choose', seat: job.seat, valid, optional: false, src: job.src, op: st.op,
+        prompt: `${job.label}: choose ${base === 'oppDiscard' ? 'a card to discard' : base === 'oppBanish' ? 'one of your characters to banish' : 'one of your ready characters to exert'}.`, harmful: true };
+      return;
+    }
+    const hc = handChoice(s, job, st);
+    if (hc) {
+      if (!hc.valid.length) { job.i++; continue; }
+      s.pending = { type: 'choose', seat: hc.chooser, valid: hc.valid, optional: !!st.optional, src: job.src, op: st.op, prompt: hc.prompt, harmful: false };
+      return;
+    }
+    if (st.optional) {
+      s.pending = { type: 'choose', seat: job.seat, valid: [], optional: true, confirm: true, src: job.src, op: st.op, prompt: `${job.label}: ${promptFor(st)}?` };
+      return;
+    }
+    applyStep(s, job, st, ev, null);
+    job.i++;
+    gameStateCheck(s, ev);
+  }
+}
+function promptFor(st) {
+  switch (st.op) {
+    case 'draw': return `draw ${st.n} card${st.n > 1 ? 's' : ''}`;
+    case 'gainLore': return `gain ${st.n} lore`;
+    case 'damage': return `deal ${st.n} damage`;
+    case 'heal': return `remove up to ${st.n} damage`;
+    case 'banish': return 'banish';
+    case 'bounce': return 'return to hand';
+    case 'tuck': return 'put on the bottom of the deck';
+    case 'exert': return 'exert';
+    case 'ready': return 'ready';
+    case 'mod': return `${st.n > 0 ? '+' : ''}${st.n} ${STAT_ICON[st.stat]} ${st.until === 'sot' ? 'until the start of your next turn' : 'this turn'}`;
+    case 'grant': return `gain ${st.kws.map(([k]) => KEYWORD_LABEL[k]).join(' + ')}`;
+    case 'selfDiscard': return 'discard a card';
+    default: return st.op;
+  }
+}
+
+H.choose = (s, seat, a, ev) => {
+  needPlaying(s);
+  const pend = s.pending;
+  if (!pend || pend.type !== 'choose' || pend.seat !== seat) throw RE('There is nothing for you to choose right now.');
+  const job = s.fx[0];
+  const st = job.steps[job.i];
+  if (a.skip) {
+    if (!pend.optional) throw RE("This isn't optional — pick one of the highlighted cards.");
+    log(s, `↳ ${nameOf(s, seat)} chose not to (${job.label}).`, { seat, kind: 'effect' });
+    s.pending = null;
+    job.i++;
+    while (job.steps[job.i]?.linked) job.i++;      // "…, then …" clauses go with the declined one
+    return;
+  }
+  if (pend.confirm) {
+    s.pending = null;
+    applyStep(s, job, st, ev, null);
+    job.i++;
+    return;
+  }
+  if (!pend.valid.includes(a.target)) throw RE('Pick one of the highlighted cards.');
+  s.pending = null;
+  if (st.op === 'selfDiscard' || st.op === 'oppDiscardPick') {
+    const c = s.cards[a.target];
+    if (c.zone !== 'hand' || c.owner !== seat) throw RE('Pick a card from your hand.');
+    moveTo(s, c.iid, 'discard', ev);
+    log(s, `↳ ${nameOf(s, seat)} discarded ${cardLabel(D(s, c))}.`, { seat, kind: 'effect' });
+  } else if (st.op === 'oppBanishPick') {
+    banish(s, a.target, ev, job.label);
+  } else if (st.op === 'oppExertPick') {
+    s.cards[a.target].exerted = true; ev.push({ k: 'exert', iid: a.target });
+    log(s, `↳ ${nameOf(s, seat)} exerted ${cardLabel(D(s, s.cards[a.target]))}.`, { seat, kind: 'effect' });
+  } else {
+    if (!targetOk(s, st.target, s.cards[a.target], job.seat, job.src)) throw RE("That card isn't a legal choice anymore.");
+    applyStep(s, job, st, ev, a.target);
+  }
+  job.i++;
+};
+
 H.play = (s, seat, a, ev) => {
   needMain(s, seat);
   const c = ownCard(s, seat, a.iid, 'hand');
@@ -448,6 +713,11 @@ H.play = (s, seat, a, ev) => {
     moveTo(s, c.iid, 'discard', ev);
     ev.push({ k: 'reveal', seat, iid: c.iid, cardId: d.id });
     log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
+    const parsed = d.abilities.map((_, i) => parsedAbility(d, i));
+    if (parsed.length && parsed.every((x) => x && x.trigger === 'action') && parsed.some((x) => x.steps.length)) {
+      queueEffect(s, seat, c.iid, cardLabel(d), parsed.flatMap((x) => x.steps));
+      return;
+    }
     for (const ab of d.abilities) {
       const text = prettyText(ab.text).replace(/^\s*Sing Together \d+\s*\([^)]*\)\s*/i, '').replace(/^\s*\([^)]*sing this song[^)]*\)\s*/i, '');
       if (text) log(s, `↳ ${text}`, { kind: 'effect' });
@@ -481,7 +751,7 @@ H.play = (s, seat, a, ev) => {
   }
   ev.push({ k: 'move', iid: c.iid, cardId: c.cardId, from: { seat, zone: 'hand' }, to: { seat, zone: 'play' } });
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${c.exerted ? ' (entered exerted)' : ''}.`, { seat, kind: 'play' });
-  reminders(s, d, /\bwhen(ever)? you play this\b/i);
+  triggerAbilities(s, c, d, 'play', /\bwhen(ever)? you play this\b/i);
 };
 
 H.quest = (s, seat, a, ev) => {
@@ -495,7 +765,7 @@ H.quest = (s, seat, a, ev) => {
   gainLore(s, seat, gain, ev);
   ev.push({ k: 'quest', iid: c.iid, lore: gain });
   log(s, `${nameOf(s, seat)} quested with ${cardLabel(d)} for ${gain} lore (${P(s, seat).lore}/${LORE_TO_WIN}).`, { seat, kind: 'quest' });
-  reminders(s, d, /\bwhen(ever)? this character quests\b/i);
+  triggerAbilities(s, c, d, 'quest', /\bwhen(ever)? this character quests\b/i);
   if (hasKw(c, d, 'support')) {
     const others = P(s, seat).play.some((id) => id !== c.iid && D(s, s.cards[id]).type === 'character');
     if (others) s.pending = { type: 'support', seat, from: c.iid };
@@ -843,6 +1113,8 @@ export function applyAction(s, seat, a) {
   try {
     handler(s, seat, a, ev);
     gameStateCheck(s, ev);
+    pumpEffects(s, ev);
+    gameStateCheck(s, ev);
     return { ok: true, events: ev };
   } catch (e) {
     for (const k of Object.keys(s)) delete s[k];
@@ -883,7 +1155,7 @@ export function viewFor(s, seat) {
     starting: s.starting,
     winner: s.winner,
     endReason: s.endReason,
-    pending: s.pending ? { ...s.pending } : null,
+    pending: s.pending ? { ...s.pending, valid: s.pending.seat === seat ? s.pending.valid : undefined } : null,
     players: s.players.map((p, i) => ({
       seat: i,
       name: p.name,

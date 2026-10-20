@@ -154,7 +154,10 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       if (!act) return;
       let r = applyAction(room.game, botSeat, act);
       if (!r.ok && room.game.active === botSeat) r = applyAction(room.game, botSeat, { type: 'endTurn', force: true });
-      if (!r.ok && room.game.pending?.seat === botSeat) r = applyAction(room.game, botSeat, { type: 'support' });
+      if (!r.ok && room.game.pending?.seat === botSeat) {
+        r = applyAction(room.game, botSeat, room.game.pending.type === 'support' ? { type: 'support' } : { type: 'choose', skip: true });
+        if (!r.ok && room.game.pending?.valid?.length) r = applyAction(room.game, botSeat, { type: 'choose', target: room.game.pending.valid[0] });
+      }
       if (r.ok) sendGame(room, r.events);
       touch(room);
       scheduleBot(room);

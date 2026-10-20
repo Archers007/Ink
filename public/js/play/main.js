@@ -169,12 +169,29 @@ function validateUi() {
       .filter((c) => D(c.cardId)?.type === 'character' && c.iid !== pend.from && (p.seat === you() || !hasKw(c, D(c.cardId), 'ward')))
       .map((c) => c.iid)));
     startTargeting({
+      pendKey: 'support',
       prompt: `Support — ${from ? cardLabel(from.def) : 'your character'} quested. Add its ⚔️ ${from?.c.eff?.str ?? ''} to another character this turn?`,
       valid, skipLabel: 'Skip Support',
       onPick: (iid) => { clearTargeting(); act({ type: 'support', target: iid }); },
       onCancel: () => act({ type: 'support' }),
     });
   }
+  // Automated card abilities: the server sends the legal choices
+  const key = pend?.type === 'choose' ? `${pend.src}|${pend.op}|${pend.prompt}|${(pend.valid || []).join(',')}` : null;
+  if (S.targeting?.pendKey?.startsWith('choose') && S.targeting.pendKey !== 'choose:' + key) clearTargeting();
+  if (key && pend.seat === you() && !S.targeting && !pend.confirm) {
+    startTargeting({
+      pendKey: 'choose:' + key,
+      prompt: pend.prompt,
+      valid: new Set(pend.valid),
+      color: pend.harmful ? 0xff6a5a : 0x58ff8a,
+      skipLabel: pend.optional ? 'Skip' : null,
+      mandatory: !pend.optional,
+      onPick: (iid) => { clearTargeting(); act({ type: 'choose', target: iid }); },
+      onCancel: () => act({ type: 'choose', skip: true }),
+    });
+  }
+  if (key && pend.seat === you() && pend.confirm) renderBanner();
   board.setUi({ selected: S.selected });
 }
 
@@ -412,7 +429,7 @@ function renderInspector() {
       ${stats ? `<div class="insp-stats">${stats}</div>` : ''}
       ${status ? `<div class="insp-status">${status}</div>` : ''}
       ${Object.keys(kws || {}).length ? `<div class="insp-kw">${Object.entries(kws).map(([k, v]) => `<span class="kw" title="${esc(KEYWORD_HELP[k] || '')}">${KEYWORD_LABEL[k] || k}${typeof v === 'number' && !['evasive', 'rush', 'ward', 'support', 'bodyguard', 'reckless', 'alert', 'vanish'].includes(k) ? ` ${['challenger', 'resist'].includes(k) ? '+' : ''}${v}` : ''}</span>`).join('')}</div>` : ''}
-      ${def.abilities.length ? `<div class="insp-text">${def.abilities.map((a) => `<p>${a.name ? `<b>${esc(a.name)}</b> ` : ''}${esc(prettyText(a.text))}</p>`).join('')}</div>` : ''}
+      ${def.abilities.length ? `<div class="insp-text">${def.abilities.map((a, i) => `<p${def.auto?.[i] ? ' class="auto" title="Resolved automatically by the game"' : ''}>${def.auto?.[i] ? '<i class="auto-tag">⚡ auto</i> ' : ''}${a.name ? `<b>${esc(a.name)}</b> ` : ''}${esc(prettyText(a.text))}</p>`).join('')}</div>` : ''}
       <div class="insp-owner">${esc(zone)} · ${esc(owner)}</div>
       ${primary.length ? `<div class="acts">${primary.map((a, i) => `<button class="act ${a.hot ? 'hot' : ''}" data-p="${i}" ${a.reason ? 'disabled' : ''} title="${esc(a.reason || a.title || '')}">${esc(a.label)}${a.reason ? `<small>${esc(a.reason)}</small>` : ''}</button>`).join('')}</div>` : ''}
       ${manual.length && V().status === 'playing' && you() >= 0 ? `<details class="manual" ${S.manualOpen ? 'open' : ''}><summary>Effects &amp; manual tools</summary><div class="mgrid">${manual.map((a, i) => `<button class="${a.small ? 'sm' : ''}" data-m="${i}" ${a.disabled ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}</div></details>` : ''}
@@ -504,17 +521,25 @@ function renderBanner() {
   if (t) {
     el.innerHTML = `<span>${esc(t.prompt)}</span>${t.status ? `<b>${esc(t.status(t.picked))}</b>` : ''}<span id="bannerPreview" class="pv"></span>
       ${t.multi ? `<button id="tDone" ${t.picked.size ? '' : 'disabled'}>${esc(t.doneLabel || 'Done')}</button>` : ''}
-      <button id="tCancel" class="ghost">${esc(t.skipLabel || 'Cancel')} <kbd>Esc</kbd></button>`;
+      ${t.mandatory ? '' : `<button id="tCancel" class="ghost">${esc(t.skipLabel || 'Cancel')} <kbd>Esc</kbd></button>`}`;
     el.hidden = false;
-    $('#tCancel').onclick = cancelTargeting;
+    $('#tCancel')?.addEventListener('click', cancelTargeting);
     $('#tDone')?.addEventListener('click', () => { const picked = new Set(t.picked); clearTargeting(); t.onDone(picked); });
     return;
   }
-  if (v?.pending && v.pending.seat !== you()) { el.innerHTML = `<span>Waiting for ${esc(v.players[v.pending.seat].name)} to choose…</span>`; el.hidden = false; return; }
+  if (v?.pending?.type === 'choose' && v.pending.confirm && v.pending.seat === you()) {
+    el.innerHTML = `<span>${esc(v.pending.prompt)}</span><button id="pYes">Yes</button><button id="pNo" class="ghost">No</button>`;
+    el.hidden = false;
+    $('#pYes').onclick = () => act({ type: 'choose', confirm: true });
+    $('#pNo').onclick = () => act({ type: 'choose', skip: true });
+    return;
+  }
+  if (v?.pending && v.pending.seat !== you()) { el.innerHTML = `<span>Waiting for ${esc(v.players[v.pending.seat].name)} to choose…${v.pending.prompt ? ` <span class="muted">(${esc(v.pending.prompt)})</span>` : ''}</span>`; el.hidden = false; return; }
   el.hidden = true;
 }
 function cancelTargeting() {
   const t = S.targeting;
+  if (t?.mandatory) { toast('You have to choose one — pick a glowing card.'); return; }
   clearTargeting();
   t?.onCancel?.();
 }
