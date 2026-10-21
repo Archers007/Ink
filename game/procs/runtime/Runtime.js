@@ -45,6 +45,7 @@ export class Runtime {
   // ------------------------------------------------------------ helpers the building blocks share
   log(...a) { return this.E.log(...a); }
   effect(fn) { const E = EFFECT[fn]; if (!E) throw new Error(`no effect "${fn}"`); return E; }
+  statOf(s, c, stat) { const d = this.E.D(s, c); return stat === 'str' ? this.E.effStr(c, d) : stat === 'wp' ? this.E.effWp(c, d) : stat === 'lore' ? this.E.effLore(c, d) : 0; }
   procsOf(s, c, which = 'all') {
     const own = this.E.D(s, c).procs || [];
     const g = c.zone === 'play' ? c.mods.filter((m) => m.stat === 'grant') : c.leftGrants || [];
@@ -70,8 +71,11 @@ export class Runtime {
     const c = s.cards[iid];
     const u = st.dur ? { until: DURATIONS[st.dur].until, by: st.dur === 'theirNext' ? c.owner : job.seat, setTurn: s.turn } : { until: 'static' };
     for (const m of st.mods || []) {
-      c.mods.push({ stat: m.stat, delta: m.n * mult, ...u, src: job.label });
-      if (ev) ev.push({ k: 'mod', iid, stat: m.stat, delta: m.n * mult });
+      // nOf: the size comes from a stat, read once as the effect resolves ("equal to this character's {lore}")
+      const of = m.nOf && s.cards[m.nOf.of === 'target' ? iid : job.src];
+      const base = m.nOf ? (of ? m.n * Math.max(0, this.statOf(s, of, m.nOf.stat)) : 0) : m.n;
+      c.mods.push({ stat: m.stat, delta: base * mult, ...u, src: job.label });
+      if (ev) ev.push({ k: 'mod', iid, stat: m.stat, delta: base * mult });
     }
     for (const k of st.kws || []) {
       if (k.kw === 'grant') {

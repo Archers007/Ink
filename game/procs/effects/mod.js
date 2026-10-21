@@ -44,6 +44,11 @@ export class Mod extends Effect {
     [/^(.+?) (?:gets?|gains?) ([+-]\d+) \{(strength|willpower|lore)\} and gains? (.+)$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2), kws: kwList(m[4], P) ?? P.miss(`keywords: "${m[4]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:gains?|gets?) (${KWS})$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: kwList(m[2], P) ?? P.miss(`keywords: "${m[2]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:can't|cannot) (${VERBS})(?: or (${VERBS}))?$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [m[2], m[3]].filter(Boolean).map((x) => ({ kw: CANT[x.toLowerCase()] })) })],
+    // "loses {strength} equal to this character's {lore}" · "gets +{strength} equal to their {willpower}"
+    [/^(.+?) (loses |gets \+|gains \+)\{(strength|willpower|lore)\} equal to (this character's|her|his|their|its) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({
+      fn: 'mod', sel: P.sel(m[1]),
+      mods: [{ stat: STAT[m[3]], n: /^loses/i.test(m[2]) ? -1 : 1, nOf: { stat: STAT[m[5]], of: /^(their|its)$/i.test(m[4]) ? 'target' : 'self' } }],
+    })],
     // damage prevention
     [/^(.+?) takes? no damage from (?:the )?challenges?$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noChallengeDamage' }], ...(/the challenge$/i.test(m[0]) ? { dur: 'turn' } : P.dur ? { dur: P.dur } : {}) })],
     [/^(.+?) takes? no damage while challenging$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamageChallenging' }] })],
@@ -60,20 +65,20 @@ export class Mod extends Effect {
     const mult = st.per ? Amount.count(rt, s, st.per, job.seat, job.src) : 1;
     job.ctx.it = ids;
     return rt.each(ids, (iid) => {
-      rt.addMods(s, job, st, iid, ev, mult);
+      rt.addMods(s, job, st, iid, ev, st.per?.count?.damageOnRef ? s.cards[iid].damage : mult);
       rt.log(s, `↳ ${rt.tl(s, iid)} ${st.kws && !st.mods ? 'gains' : 'gets'} ${Mod.text(rt, s, job, st)}.`, { seat: job.seat, kind: 'effect' });
     });
   }
   static text(rt, s, job, st) {
     const what = [
-      ...(st.mods || []).map((m) => `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`),
+      ...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)),
       ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : kwLabel(k.kw, k.n))),
     ].join(' and ');
     return what + (st.dur === 'next' ? ` until the start of ${rt.E.nameOf(s, job.seat)}'s next turn` : st.dur === 'theirNext' ? ' during their next turn' : st.dur ? ' this turn' : '');
   }
   static verb(rt, s, job, st) { return Mod.text(rt, s, job, st); }
   static say(st) {
-    const what = [...(st.mods || []).map((m) => `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`), ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : kwLabel(k.kw, k.n)))].join(', ');
+    const what = [...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)), ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : kwLabel(k.kw, k.n)))].join(', ');
     return `${Selector.say(st.sel)} ${(st.kws || []).every((k) => RESTRICTIONS[k.kw]) && !st.mods ? '' : st.mods ? 'gets ' : 'gains '}${what}${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''} ${st.dur ? Duration.say(st.dur) : '(while in play)'}`;
   }
   static check(st, missing, SUPPORT) {

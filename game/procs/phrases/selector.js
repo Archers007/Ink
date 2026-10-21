@@ -8,7 +8,7 @@ export class Selector {
     const p = phrase.trim().replace(/^the /i, '');
     if (/^this (character|item|location|card)$/i.test(p)) return { self: true };
     if (/^(he|she|him|her)$/i.test(p)) return { ref: true, pron: true };
-    if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|each of them|both of them)$/i.test(p)) return { ref: true };
+    if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|discarded character|each of them|both of them)$/i.test(p)) return { ref: true };
     let m;
     if ((m = p.match(new RegExp(String.raw`^up to ${NUM} (?:other )?chosen (.+)$`, 'i')))) {
       const F = filter(m[2], at); if (/^up to \S+ other/i.test(p)) F.other = true;

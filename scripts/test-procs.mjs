@@ -77,7 +77,7 @@ test('support: every supported fn has a runtime executor; every runnable proc on
 });
 
 // ---------- runtime scenarios ----------
-const vanilla = (f) => all.find((d) => d.type === 'character' && d.abilities.length === 0 && f(d));
+const vanilla = (f) => all.find((d) => d.type === 'character' && d.abilities.length === 0 && !Object.keys(d.kw || {}).length && f(d));
 
 test('triggered "whenever this character challenges" resolves before challenge damage', () => {
   const hook = byName('Captain Hook - Conniving Pirate');
@@ -562,6 +562,36 @@ test('"For each 1 damage on opposing characters, you pay 1 {ink} less"', () => {
   s.cards[ids.play1[0]].damage = 2; s.cards[ids.play1[1]].damage = 1;
   ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
   assert.equal(s.cards[ids.hand0[0]].zone, 'play');
+});
+test('amounts: "equal to the number of X", "for each 1 damage on them", "equal to the discarded character\'s {lore}"', () => {
+  const mickey = byName('Mickey Mouse - Playful Sorcerer');             // damage = # Broom characters you have
+  const broom = all.find((d) => d.type === 'character' && (d.classes || []).includes('broom'));
+  const foe = vanilla((d) => d.wp >= 5);
+  { const { s, ids } = setup({ hand0: [mickey], play0: [broom, broom], play1: [foe] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].damage, 2); }
+  const sword = byName('Sword in the Stone');
+  { const pal = vanilla(() => true);
+    const { s, ids } = setup({ play0: [sword, pal] }); s.cards[ids.play0[1]].damage = 2;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(sword) }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] })); drain(s);
+    assert.equal(viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[1]).eff.str, pal.str + 2); }
+  const queen = byName('The Queen - Disguised Peddler');
+  { const fodder = vanilla((d) => d.lore >= 2);
+    const { s, ids } = setup({ play0: [queen], hand0: [fodder] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(queen) }));
+    if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[0] }));
+    drain(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'discard');
+    assert.equal(s.players[0].lore, fodder.lore); }
+  const minnie = byName('Minnie Mouse - Storyteller');                  // loses {strength} equal to her {lore} (printed 0)
+  { const foe2 = vanilla((d) => d.str >= 3);
+    const { s, ids } = setup({ play0: [minnie], play1: [foe2] }); unready(s, ids.play0);
+    s.cards[ids.play0[0]].mods.push({ stat: 'lore', delta: 2, until: 'eot', src: 'test' });
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(viewFor(s, 0).players[1].play[0].eff.str, Math.max(0, foe2.str - 2)); }
 });
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
