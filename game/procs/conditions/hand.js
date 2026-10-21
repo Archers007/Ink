@@ -19,3 +19,10 @@ export class MoreCards extends Condition {
   static test(rt, s, C, env) { const P = rt.E.P; return rt.E.opponentsOf(s, env.ctl).every((o) => P(s, env.ctl).hand.length > P(s, o).hand.length); }
   static say() { return 'you have more cards in hand than each opponent'; }
 }
+// "chosen opponent has more cards in their hand than you" (2-player: any opponent with more)
+export class OppMoreCards extends Condition {
+  static key = 'oppMoreCards';
+  static rules = [[/^(?:chosen|an) opponent has more cards in their hand than you$/i, () => ({ oppMoreCards: true })]];
+  static test(rt, s, C, env) { const P = rt.E.P; return rt.E.opponentsOf(s, env.ctl).some((o) => P(s, o).hand.length > P(s, env.ctl).hand.length); }
+  static say() { return 'an opponent has more cards in hand than you'; }
+}

@@ -64,3 +64,26 @@ export class ToInkwell extends Move {
   static verb() { return 'put into the inkwell'; }
   static say(st) { return `put ${Selector.say(st.sel)} into its inkwell${st.exerted ? ' exerted' : ''}`; }
 }
+
+// "put all cards from under her into your hand" · "… from under chosen character, item, or location on the
+// bottom of their player's deck in a random order"
+export class FromUnder extends Effect {
+  static fn = 'fromUnder';
+  static rules = [
+    [/^put all cards from under (her|him|them|it|this character|this location|this item) into your hand$/i, () => ({ fn: 'fromUnder', sel: { self: true }, to: 'hand' })],
+    [/^put all cards from under (.+?) on the bottom of their player's deck in a random order$/i, (m, P) => ({ fn: 'fromUnder', sel: P.sel(m[1]), to: 'deckBottom' })],
+  ];
+  static run(rt, s, job, st, ev) {
+    const ids = rt.targets(s, job, st, st.sel);
+    if (!ids) return null;
+    let n = 0;
+    for (const iid of ids) {
+      const c = s.cards[iid];
+      const under = rt.E.shuffleArr ? rt.E.shuffleArr(s, [...(c?.under || [])]) : [...(c?.under || [])];
+      for (const u of under) { rt.E.moveTo(s, u, st.to, ev, { fromUnder: true }); n++; }
+    }
+    rt.log(s, `↳ ${n} card${n === 1 ? '' : 's'} from under ${ids.length ? rt.E.cardLabel(rt.E.D(s, s.cards[ids[0]])) : 'it'} went ${st.to === 'hand' ? 'into its owner\'s hand' : "to the bottom of its owner's deck"}.`, { kind: 'effect' });
+    return n > 0;
+  }
+  static say(st, step, X) { return `put all cards from under ${st.sel.self ? 'this card' : 'the chosen card'} ${st.to === 'hand' ? 'into your hand' : "on the bottom of their owner's deck (random order)"}`; }
+}

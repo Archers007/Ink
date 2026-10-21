@@ -1,9 +1,9 @@
 // Effect registry. Order = clause parse priority (first rule that matches wins), so the more
 // specific phrasings come first: fromDiscard before toHand, inkTop before toInkwell.
-import { Draw } from './draw.js';
+import { Draw, DrawUntil } from './draw.js';
 import { GainLore, LoseLore } from './lore.js';
 import { Damage, Heal, MoveDamage } from './damage.js';
-import { Banish, ToHand, ToDeckBottom, ShuffleIn, ToInkwell } from './zones.js';
+import { Banish, ToHand, ToDeckBottom, ShuffleIn, ToInkwell, FromUnder } from './zones.js';
 import { InkTop, Mill, Shuffle, Search } from './deck.js';
 import { PlayBan, SelfBan } from './playBan.js';
 import { Exert, Ready } from './exert.js';
@@ -23,7 +23,7 @@ export const EFFECTS = [
   Choose, EachPlayer, Delayed, Reveal, RevealHandDiscard, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, ToHand, ToDeckBottom, ShuffleIn,
   InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, Exert, Ready, Discard, OppChoose, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
-  Search, PlayBan, SelfBan, ChooseOne, SelfCost, Enters, ChallengeDamage, EndTurn,
+  Search, DrawUntil, PlayBan, SelfBan, FromUnder, ChooseOne, SelfCost, Enters, ChallengeDamage, EndTurn,
 ];
 export const EFFECT = Object.fromEntries(EFFECTS.map((C) => [C.fn, C]));
 export { Look, Mod };

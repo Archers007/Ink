@@ -3,14 +3,14 @@ import { miss } from '../phrases/text.js';
 import { AnyOf, AllOf, NotCond } from './any.js';
 import { Have } from './have.js';
 import { SelfIs } from './self.js';
-import { HandSize, MoreCards } from './hand.js';
+import { HandSize, MoreCards, OppMoreCards } from './hand.js';
 import { OppMoreLore, YouMoreLore, LoreAmount } from './lore.js';
 import { YourTurn, PlayedThisTurn } from './turn.js';
 import { Shifted, RefIs } from './card.js';
 import { History } from './history.js';
 import { Inkwell, Compare, FewerInHand, FirstTurnSecond, HasInkDrop } from './player.js';
 
-export const CONDITIONS = [AnyOf, NotCond, HasInkDrop, History, Inkwell, Compare, FewerInHand, FirstTurnSecond, HandSize, MoreCards, OppMoreLore, YouMoreLore, LoreAmount,
+export const CONDITIONS = [AnyOf, NotCond, HasInkDrop, History, Inkwell, Compare, FewerInHand, FirstTurnSecond, HandSize, MoreCards, OppMoreCards, OppMoreLore, YouMoreLore, LoreAmount,
   Have, SelfIs, PlayedThisTurn, YourTurn, Shifted, RefIs, AllOf];
 const BY_KEY = new Map(CONDITIONS.map((C) => [C.key, C]));
 

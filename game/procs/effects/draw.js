@@ -26,3 +26,19 @@ export class Draw extends Effect {
   static verb(rt, s, job, st) { return st.upTo != null ? `draw up to ${st.upTo} cards in hand` : `draw ${plural(Amount.value(rt, s, job, st.n), 'card')}`; }
   static say(st) { return st.upTo != null ? `draw until you have ${st.upTo} cards in hand` : `${WHO[st.who] || 'draw'} ${Amount.say(st.n)}`; }
 }
+
+// "draw cards until you have the same number" (as the opponent with the most cards in hand)
+export class DrawUntil extends Effect {
+  static fn = 'drawUntil';
+  static rules = [[/^draw cards until you have the same number(?: of cards in your hand as (?:that|chosen) opponent)?$/i, () => ({ fn: 'drawUntil' })]];
+  static run(rt, s, job, st, ev) {
+    const { E } = rt;
+    const most = Math.max(0, ...E.opponentsOf(s, job.seat).map((o) => E.P(s, o).hand.length));
+    const n = most - E.P(s, job.seat).hand.length;
+    if (n <= 0) return false;
+    E.drawCards(s, job.seat, n, ev);
+    rt.log(s, `↳ ${E.nameOf(s, job.seat)} drew ${plural(n, 'card')} to match.`, { kind: 'effect' });
+    return true;
+  }
+  static say() { return "draw until your hand matches the opponent's"; }
+}

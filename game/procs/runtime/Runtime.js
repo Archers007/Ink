@@ -82,7 +82,7 @@ export class Runtime {
         if (!c.mods.some((m) => m.stat === 'grant' && m.proc === k.proc && m.until === u.until)) c.mods.push({ stat: 'grant', proc: k.proc, ...u, src: job.label });
         continue;
       }
-      c.mods.push({ stat: 'kw', kw: k.kw, delta: k.n ?? 1, ...u, src: job.label });
+      c.mods.push({ stat: 'kw', kw: k.kw, delta: k.n ?? 1, ...(k.by ? { by: k.by } : {}), ...u, src: job.label });
       if (ev) ev.push({ k: 'mod', iid, stat: 'kw', delta: 1 });
     }
   }

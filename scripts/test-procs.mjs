@@ -738,6 +738,26 @@ test('play bans: "opponents can\'t play actions until the start of your next tur
   { const { s, ids } = setup({ hand0: [mira], play0: [v, v, v, v, v], ink0: 9 });
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); }
 });
+test('"can\'t be challenged by Pirate characters"; "draw cards until you have the same number"; "put all cards from under her into your hand"', () => {
+  const amelia = byName('Captain Amelia - Commander of the Legacy');
+  const pirate = vanilla((d) => (d.classes || []).includes('pirate'));
+  const other = vanilla((d) => !(d.classes || []).includes('pirate'));
+  { const { s, ids } = setup({ play0: [pirate, other], play1: [amelia] }); ok(applyAction(s, 0, { type: 'endTurn', force: true })); drain(s); ok(applyAction(s, 1, { type: 'endTurn', force: true })); drain(s);
+    unready(s, ids.play0); s.cards[ids.play1[0]].exerted = true;
+    assert.equal(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] }).ok, false, 'pirates bounce off');
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] })); }
+  const ryr = byName('Remember Who You Are');
+  { const { s, ids } = setup({ hand0: [ryr] });
+    s.players[1].hand.push(...s.players[1].deck.splice(0, 4));
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].hand.length, s.players[1].hand.length); }
+  const alice = byName('Alice - Well-Read Whisper');
+  { const { s, ids } = setup({ play0: [alice] }); unready(s, ids.play0);
+    const a = s.cards[ids.play0[0]]; const u = s.players[0].deck.shift();
+    a.under.push(u); s.cards[u].zone = 'under'; s.cards[u].parent = a.iid; s.cards[u].faceDown = true;
+    ok(applyAction(s, 0, { type: 'quest', iid: a.iid })); drain(s);
+    assert.equal(s.cards[u].zone, 'hand'); assert.equal(a.under.length, 0); }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
