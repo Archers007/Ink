@@ -12,7 +12,8 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { compileCard } from './procs/index.js';
+import { compileCard, KINDS } from './procs/index.js';
+const Base = KINDS.base;
 
 const INK_BITS = [[1, 'amber'], [2, 'amethyst'], [4, 'emerald'], [8, 'ruby'], [16, 'sapphire'], [32, 'steel']];
 export const INK_ORDER = INK_BITS.map(([, n]) => n);
@@ -174,6 +175,9 @@ function attachProcs(def, built) {
     def.procs = compileCard(def);
     def.rulesSource = 'db';
   }
+  // the printed-card proc (cost · inkable · quest/challenge/willpower): the engine's stats come from it
+  def.base = entry?.base || Base.build(def);
+  Object.assign(def, Base.stats(def.base));
   // keywords printed at the end of another ability ("…less to play this character. Evasive")
   for (const p of def.procs) for (const k of p.also || []) { def.kw ||= {}; def.kw[k.kw] ??= k.n ?? true; }
   // Shift variants (CR 8.10.8): "Floodborn Shift 7" is a classification shift, "Temporary Shift 4" shifts by name

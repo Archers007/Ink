@@ -25,6 +25,11 @@ export function parseTrigger(head, P) {
     const a = parseTrigger(g[1], P), b = a && parseTrigger(g[2], P);
     if (a && b) return [...a, ...b];
   }
+  // "when" and "whenever" are the same trigger word (CR 7.4) — retry with the other spelling
+  if (!P.swapped) {
+    const alt = /^when /i.test(head) ? head.replace(/^when /i, 'whenever ') : /^whenever /i.test(head) ? head.replace(/^whenever /i, 'when ') : null;
+    if (alt) { const r = parseTrigger(alt, { ...P, swapped: true }); if (r) return r; }
+  }
   const m = head.match(/^(.+?) while (?:he|she|it|they|this character) ((?:has|have|is|are) .+)$/i);
   if (m) {
     const on = parseTrigger(m[1], P);

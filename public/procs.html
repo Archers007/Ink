@@ -89,7 +89,7 @@ async function runSearch() {
   const { total, results } = await api(`/api/procs/search?q=${encodeURIComponent(q)}&limit=100`);
   $('#list').innerHTML = `<div class="meta">${total} card${total === 1 ? '' : 's'}${total > results.length ? ` · showing ${results.length}` : ''}</div>`
     + results.map((r) => `<div class="r ${r.full === sel ? 'sel' : ''}" data-full="${esc(r.full)}" title="${esc(STATUS[r.status])}">
-        <span class="dot ${r.status}"></span><span class="n">${esc(r.full)}</span><span class="t">${r.type} · ${r.runnable}/${r.abilities}</span></div>`).join('');
+        <span class="dot ${r.status}"></span><span class="n">${esc(r.full)}</span><span class="t">${r.type} · ${r.abilities ? `${r.runnable}/${r.abilities}` : "vanilla"}</span></div>`).join('');
   for (const el of document.querySelectorAll('.r')) el.onclick = () => show(el.dataset.full);
   if (!sel && results[0] && q) show(results[0].full, { quiet: true });
 }
@@ -115,10 +115,14 @@ async function show(full, { quiet } = {}) {
     <div>
       <h2>${esc(c.full)}</h2>
       <div class="sub">${c.cost} ⬡ ${esc(c.type)}${c.inkable ? ' · inkable' : ''} · ${esc((c.inks || []).join('/'))}${stats ? ' · ' + stats : ''}${c.classes?.length ? ` · ${esc(c.classes.join(', '))}` : ''}</div>
-      <span class="pill s-${c.status}">${STATUS[c.status]} · ${c.runnable}/${c.abilities.length}</span>
+      <span class="pill s-${c.status}">${STATUS[c.status]} · ${c.abilities.length ? `${c.runnable}/${c.abilities.length}` : 'base proc'}</span>
       <span class="pill" title="Where the rules text came from (tools/card-scan)">text: ${esc(c.rulesSource || 'db')}</span>
       <span class="pill" title="Printings that share these rules">${c.printings.length} printing${c.printings.length === 1 ? '' : 's'}</span>
-      ${c.abilities.length ? '' : '<p class="hint">No rules text — nothing to compile.</p>'}
+      ${c.base ? `<div class="ab ok base">
+        <div class="txt"><b>Printed card</b> <span class="hint">${c.abilities.length ? 'what every copy does before its abilities' : 'no rules text — this is the whole card'}</span></div>
+        <div class="rb">${c.baseExplain.map((l) => icons(l)).join('\n')}</div>
+        <details><summary>proc JSON</summary><pre class="json">${highlight(c.base)}</pre></details>
+      </div>` : ''}
       ${c.abilities.map((a, i) => `<div class="ab ${a.proc?.exec ? 'ok' : 'no'}">
         <div class="txt">${a.name ? `<b>${esc(a.name)}</b> ` : ''}${icons(a.text)}</div>
         <div class="rb">${a.explain.map((l) => (/^why/.test(l) ? `<span class="why">${icons(l)}</span>` : icons(l))).join('\n')}</div>
@@ -138,11 +142,11 @@ async function showStats() {
   $('#detail').innerHTML = `<div class="stats">
     <h2>Coverage</h2>
     <div class="sub">${s.runnable}/${s.abilities} abilities run automatically (${s.pct}%) across ${s.cards} unique cards.</div>
-    <div class="bar">${seg('auto', s.auto)}${seg('partial', s.partial)}${seg('manual', s.manual)}${seg('vanilla', s.vanilla)}</div>
+    <div class="bar">${seg('auto', s.auto)}${seg('partial', s.partial)}${seg('manual', s.manual)}</div>
     <div class="hint"><span class="dot auto" style="display:inline-block"></span> ${s.auto} fully automatic ·
       <span class="dot partial" style="display:inline-block"></span> ${s.partial} partial ·
       <span class="dot manual" style="display:inline-block"></span> ${s.manual} manual ·
-      <span class="dot vanilla" style="display:inline-block"></span> ${s.vanilla} vanilla</div>
+      (incl. ${s.vanilla} vanilla — just the base proc)</div>
     <h3>Proc kinds</h3><table>${Object.entries(s.kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<tr><td class="n">${n}</td><td>${esc(k)}</td></tr>`).join('')}</table>
     <h3>Building blocks in use</h3><table>${s.fns.map(([k, n]) => `<tr class="miss" data-q="fn:${esc(k)}"><td class="n">${n}</td><td>${esc(k)}</td></tr>`).join('')}</table>
     <h3>Why abilities stay manual (biggest first — build these next)</h3>

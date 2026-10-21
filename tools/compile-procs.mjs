@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compileCard } from '../game/procs/index.js';
+import { compileCard, KINDS } from '../game/procs/index.js';
 import { canon, unknownIcons, mergeSplitNames } from '../game/procs/normalize.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -59,7 +59,8 @@ for (const full of names) {
     if (v && (!a.text.trim() || /,\s*$|\s,/.test(a.text))) errors.push(`${full}: suspicious text "${a.text}" (empty / dangling comma — missing icon?)`);
   }
   const procs = compileCard({ type, abilities });
-  cards[full] = { type, source, abilities, procs };
+  const base = KINDS.base.build({ type, cost: r?.cost, inkable: Number(r?.ink) === 1, lore: r?.lore, str: r?.strength, wp: r?.willpower, move: r?.movement });
+  cards[full] = { type, source, base, abilities, procs };
   stats.cards++;
   stats.sources[source] = (stats.sources[source] || 0) + 1;
   let all = true;

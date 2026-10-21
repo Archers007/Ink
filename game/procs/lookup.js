@@ -20,7 +20,7 @@ function canonicalDefs(index) {
 }
 const status = (d) => {
   const ps = d.procs || [];
-  if (!ps.length) return 'vanilla';
+  if (!ps.length) return 'auto';                                   // vanilla: the base proc is the whole card
   if (ps.every((p) => p.exec)) return 'auto';
   if (ps.some((p) => p.exec && RUNS.has(p.kind))) return 'partial';
   return 'manual';
@@ -82,6 +82,7 @@ export function card(index, full) {
   return {
     ...row(d), title: d.title, name: d.name, str: d.str, wp: d.wp, lore: d.lore, move: d.move, inkable: d.inkable,
     classes: d.classes, kw: d.kw, rulesSource: d.rulesSource, printings,
+    base: d.base || null, baseExplain: d.base ? explain(d.base) : [],
     abilities: d.abilities.map((a, i) => ({ name: a.name, text: a.text, proc: d.procs?.[i] || null, explain: d.procs?.[i] ? explain(d.procs[i]) : [] })),
   };
 }
@@ -97,6 +98,7 @@ export function stats(index) {
   let runnable = 0;
   for (const d of defs) {
     by[status(d)]++;
+    if (!(d.procs || []).length) by.vanilla++;                       // counted in auto too (base proc only)
     for (const p of d.procs || []) {
       abilities++;
       kinds[p.kind] = (kinds[p.kind] || 0) + 1;
