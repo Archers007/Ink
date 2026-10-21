@@ -771,6 +771,20 @@ test('grouped trigger: "When you play this character and whenever you play a loc
   ok(applyAction(s, 0, { type: 'choose', target: ids.play1[1] })); drain(s);
   assert.equal(s.cards[ids.play1[0]].exerted && s.cards[ids.play1[1]].exerted, true);
 });
+test('"When this character quests, banish him." (when = whenever)', () => {
+  const abu = byName('Abu - Wise Sultan');
+  const { s, ids } = setup({ play0: [abu] }); unready(s, ids.play0);
+  ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+  assert.equal(s.players[0].lore, abu.lore); assert.equal(s.cards[ids.play0[0]].zone, 'discard');
+});
+test('base proc: every card has one; the engine\'s stats come from it (Abu - Mischievous Monkey)', () => {
+  for (const d of all) { assert.equal(d.base?.kind, 'base', d.full); assert.equal(d.base.cost, d.cost, d.full); assert.equal(d.base.inkable, d.inkable, d.full); }
+  const abu = byName('Abu - Mischievous Monkey');
+  assert.deepEqual(abu.base, { kind: 'base', type: 'character', cost: 3, inkable: true, quest: { do: [{ fn: 'gainLore', n: 2 }] }, challenge: { damage: 3 }, willpower: 2, exec: true });
+  const { s, ids } = setup({ play0: [abu] }); unready(s, ids.play0);
+  ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+  assert.equal(s.players[0].lore, abu.base.quest.do[0].n);
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
