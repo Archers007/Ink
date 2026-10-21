@@ -15,11 +15,11 @@ import { PayInk, CostMod, SelfCost, Enters, InkDrop } from './ink.js';
 import { ChooseOne } from './chooseOne.js';
 import { Reveal, ToDeckTop, ToDiscard, PutInHand, PlayIt, RevealHandDiscard, PeekHand } from './reveal.js';
 import { PutUnder, MoveFree } from './board.js';
-import { Choose, EachPlayer } from './meta.js';
+import { Choose, EachPlayer, Delayed } from './meta.js';
 import { ChallengeDamage, EndTurn } from './internal.js';
 
 export const EFFECTS = [
-  Choose, EachPlayer, Reveal, RevealHandDiscard, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
+  Choose, EachPlayer, Delayed, Reveal, RevealHandDiscard, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, ToHand, ToDeckBottom, ShuffleIn,
   InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, Exert, Ready, Discard, OppChoose, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
   ChooseOne, SelfCost, Enters, ChallengeDamage, EndTurn,

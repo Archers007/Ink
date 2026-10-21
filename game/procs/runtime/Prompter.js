@@ -70,6 +70,7 @@ export class Prompter {
     const { rt } = this;
     if (T.vanished) return T.acc;
     T.vanished = true;
+    for (const iid of T.acc) if (s.cards[iid] && s.cards[iid].owner !== job.seat) rt.fire(s, 'chosenByOpp', { iid });
     const src = s.cards[job.src];
     const type = src && rt.E.D(s, src).type;
     if (type !== 'action' && type !== 'song') return T.acc;

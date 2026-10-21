@@ -9,7 +9,7 @@ export class Exert extends Effect {
     const ids = rt.targets(s, job, st, st.sel, 'sel', { keep: (iid) => !s.cards[iid].exerted && rt.E.D(s, s.cards[iid]).type !== 'location' });
     if (!ids) return null;
     job.ctx.it = ids;
-    return rt.each(ids, (iid) => { s.cards[iid].exerted = true; ev.push({ k: 'exert', iid }); rt.log(s, `↳ Exerted ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' }); });
+    return rt.each(ids, (iid) => { rt.E.exertCard(s, s.cards[iid]); ev.push({ k: 'exert', iid }); rt.log(s, `↳ Exerted ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' }); });
   }
   static verb() { return 'exert'; }
   static say(st) { return `exert ${Selector.say(st.sel)}`; }

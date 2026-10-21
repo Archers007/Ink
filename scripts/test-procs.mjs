@@ -593,6 +593,70 @@ test('amounts: "equal to the number of X", "for each 1 damage on them", "equal t
     ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
     assert.equal(viewFor(s, 0).players[1].play[0].eff.str, Math.max(0, foe2.str - 2)); }
 });
+test('delayed triggers: "Whenever one of your characters quests this turn, gain 1 lore" — this turn only', () => {
+  const pups = byName('99 Puppies');
+  const a = vanilla((d) => d.lore >= 1); const b = vanilla((d) => d.lore >= 1 && d.full !== a.full);
+  const { s, ids } = setup({ hand0: [pups], play0: [a, b] }); unready(s, ids.play0);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+  ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+  assert.equal(s.players[0].lore, a.lore + 1);
+  ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[1] })); drain(s);
+  assert.equal(s.players[0].lore, a.lore + b.lore + 2);
+  ok(applyAction(s, 0, { type: 'endTurn' })); drain(s); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+  const l = s.players[0].lore;
+  ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+  assert.equal(s.players[0].lore, l + a.lore, 'expired');
+  assert.equal((s.delayed || []).length, 0);
+});
+test('trigger: "whenever this character exerts" fires on quest; "an opposing character becomes exerted"', () => {
+  const md = byName('Maleficent & Diablo - Evil Incarnate');
+  { const { s, ids } = setup({ play0: [md] }); unready(s, ids.play0);
+    const h = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+    assert.equal(s.players[0].hand.length, h + 1); }
+  const gri = byName('Grimorum Arcanorum');
+  const exerter = all.find((d) => d.type === 'action' && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1 && d.procs[0].do[0].fn === 'exert' && d.procs[0].do[0].sel?.chosen);
+  const foe = vanilla(() => true);
+  { const { s, ids } = setup({ hand0: [exerter], play0: [gri], play1: [foe] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.players[0].lore, 1, exerter.full); }
+});
+test('trigger: "When you play a Floodborn character on this card" (shift onto)', () => {
+  const hiro = byName('Hiro Hamada - Future Champion');
+  const flood = all.find((d) => d.type === 'character' && (d.classes || []).includes('floodborn') && d.name === hiro.name && d.kw?.shift != null);
+  const { s, ids } = setup({ hand0: [flood], play0: [hiro] });
+  const h = s.players[0].hand.length;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', target: ids.play0[0] })); drain(s);
+  assert.equal(s.players[0].hand.length, h - 1 + 1);
+});
+test('trigger: "whenever one or more of your characters sings a song, you may ready those characters"', () => {
+  const alma = byName('Alma Madrigal - Accepting Grandmother');
+  const song = all.find((d) => d.type === 'song' && d.cost <= 2 && d.procs.every((p) => p.exec));
+  const singer = vanilla((d) => d.cost >= song.cost);
+  const { s, ids } = setup({ hand0: [song], play0: [alma, singer] }); unready(s, ids.play0);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'sing', singers: [ids.play0[1]] }));
+  for (let k = 0; k < 6 && s.pending; k++) {
+    const pd = s.pending;
+    if (pd.op === 'confirm' || pd.optional && /ready/i.test(pd.prompt)) ok(applyAction(s, 0, { type: 'choose', confirm: true }));
+    else if (pd.valid?.length) ok(applyAction(s, pd.seat ?? 0, { type: 'choose', target: pd.valid[0] }));
+    else ok(applyAction(s, pd.seat ?? 0, { type: 'choose', skip: true }));
+  }
+  drain(s);
+  assert.equal(s.cards[ids.play0[1]].exerted, false, 'the singer was readied');
+});
+test('trigger: "Whenever an opponent chooses this character for an action or ability"', () => {
+  const arch = byName('Archimedes - Exceptional Owl');
+  const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1
+    && d.procs[0].do[0].fn === 'mod' && d.procs[0].do[0].sel?.chosen && !d.procs[0].do[0].sel.chosen.owner);
+  const { s, ids } = setup({ hand0: [zap], play1: [arch] });
+  const h = s.players[1].hand.length;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] }));
+  if (s.pending?.seat === 1) ok(applyAction(s, 1, { type: 'choose', confirm: true }));
+  drain(s);
+  assert.equal(s.players[1].hand.length, h + 1);
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
