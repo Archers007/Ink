@@ -10,7 +10,9 @@
 //     classes: ['storyborn','hero'], abilities: [{ name, text }],
 //     rarity, set, num, franchise, img }
 
-import { parseAbility, KEYWORD_ONLY } from './effects.js';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { compileCard } from './procs/compile.js';
 
 const INK_BITS = [[1, 'amber'], [2, 'amethyst'], [4, 'emerald'], [8, 'ruby'], [16, 'sapphire'], [32, 'steel']];
 export const INK_ORDER = INK_BITS.map(([, n]) => n);
@@ -147,16 +149,35 @@ export function rowToDef(r) {
   };
 }
 
-// Is every rule on this card handled by the engine? Keywords, plus abilities
-// whose text effects.js can parse into automated steps.
+// Is every rule on this card handled by the engine? Every ability has a runnable proc.
 export function isFullyAutomated(def) {
-  const parsed = def.abilities.map((a) => parseAbility(a, def.type));
-  if (def.type === 'action' || def.type === 'song') {
-    return parsed.length > 0 && parsed.every((p) => p?.trigger === 'action') && parsed.some((p) => p.steps.length);
-  }
-  return def.abilities.every((a, i) => (!a.name && KEYWORD_ONLY.test(a.text)) || (parsed[i] && parsed[i].trigger !== 'action'));
+  const procs = def.procs || [];
+  if (def.type === 'action' || def.type === 'song') return procs.some((p) => p.kind === 'action') && procs.every((p) => p.exec);
+  return procs.every((p) => p.exec);
 }
-export const hasAutomatedText = (def) => def.abilities.some((a) => !KEYWORD_ONLY.test(a.text) && parseAbility(a, def.type));
+const RUNS_ITSELF = new Set(['triggered', 'activated', 'static', 'action']);
+export const hasAutomatedText = (def) => (def.procs || []).some((p) => p.exec && RUNS_ITSELF.has(p.kind));
+
+// cache/procs.json (built by tools/compile-procs.mjs from the verified scan text) — or compile the DB text now
+export function loadProcs(dbFile) {
+  const file = path.join(path.dirname(dbFile), 'procs.json');
+  if (!existsSync(file)) return null;
+  try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+}
+function attachProcs(def, built) {
+  const entry = built?.cards?.[def.full];
+  if (entry) {
+    def.abilities = entry.abilities.map((a) => ({ name: a.name || '', text: a.text }));
+    def.procs = entry.procs;
+    def.rulesSource = entry.source;
+  } else {
+    def.procs = compileCard(def);
+    def.rulesSource = 'db';
+  }
+  const spell = def.type === 'action' || def.type === 'song';
+  const whole = spell && isFullyAutomated(def);
+  def.auto = def.procs.map((p) => (spell ? whole && p.kind !== 'reminder' : p.exec && RUNS_ITSELF.has(p.kind)));
+}
 
 // ---------- index ----------
 
@@ -185,12 +206,10 @@ export async function loadCardIndex(dbFile) {
     if (!byName.has(nk) || score(def) < score(byName.get(nk))) byName.set(nk, def);
   }
   const index = { byId, byFull, byName, size: byId.size, loadedAt: Date.now() };
-  // Which ability texts the engine resolves on its own (shown as ⚡ in the client)
-  for (const d of index.byFull.values()) {
-    const spell = d.type === 'action' || d.type === 'song';
-    const whole = spell && isFullyAutomated(d);
-    d.auto = d.abilities.map((a) => (spell ? whole : !KEYWORD_ONLY.test(a.text) && !!parseAbility(a, d.type)));
-  }
+  // Link every printing to its compiled procs (shown as ⚡ in the client)
+  const built = loadProcs(dbFile);
+  index.procs = built;
+  for (const d of byId.values()) attachProcs(d, built);
   index.demoDecks = buildDemoDecks(index);
   return index;
 }

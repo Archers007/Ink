@@ -4,6 +4,7 @@
 // they're rejected atomically.
 //
 //   node scripts/sim-games.mjs [games=50] [seed=1]
+//   node scripts/sim-games.mjs 200 1 --chaos    random 60-card piles of every card with a runnable proc (stress-tests the proc runtime)
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,7 @@ import { botDecide } from '../game/bot.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GAMES = Number(process.argv[2] || 50);
 const SEED = Number(process.argv[3] || 1);
+const CHAOS = process.argv.includes('--chaos');
 
 const index = await loadCardIndex(path.join(__dirname, '..', 'cache', 'cards.db'));
 console.log(`cards: ${index.size}, demo decks: ${index.demoDecks.map((d) => d.name).join(' | ')}`);
@@ -26,6 +28,13 @@ const FUZZ = ['ink', 'play', 'quest', 'challenge', 'move', 'boost', 'endTurn', '
 let rngState = SEED;
 const rnd = () => ((rngState = (rngState * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 
+const RUNNABLE = [...index.byFull.values()].filter((d) => d.procs.some((p) => p.exec && ['triggered', 'activated', 'static', 'action'].includes(p.kind)));
+function chaosDeck() {
+  const out = [];
+  while (out.length < 60) { const d = RUNNABLE[Math.floor(rnd() * RUNNABLE.length)]; for (let k = 0; k < 4 && out.length < 60; k++) out.push(d); }
+  return out;
+}
+if (CHAOS) console.log(`chaos mode: ${RUNNABLE.length} cards with runnable procs`);
 const fx = { auto: 0, manual: 0, skipped: 0, ops: {} };
 const stats = { games: 0, wins: [0, 0], reasons: {}, turns: [], actions: 0, rejected: 0 };
 for (let g = 0; g < GAMES; g++) {
@@ -34,8 +43,8 @@ for (let g = 0; g < GAMES; g++) {
   const s = newGame({
     seed: SEED * 1000 + g,
     players: [
-      { name: 'Bot A', deck: resolveDeck(index, da).defs },
-      { name: 'Bot B', deck: resolveDeck(index, db).defs },
+      { name: 'Bot A', deck: CHAOS ? chaosDeck() : resolveDeck(index, da).defs },
+      { name: 'Bot B', deck: CHAOS ? chaosDeck() : resolveDeck(index, db).defs },
     ],
   });
   checkInvariants(s);
@@ -74,7 +83,7 @@ for (let g = 0; g < GAMES; g++) {
         const v = viewFor(s, viewer);
         for (const p of v.players) if (p.seat !== viewer && p.hand) throw new Error('hand leaked');
         for (const e of eventsFor(r.events || [], viewer)) {
-          if (e.k === 'move' && e.from?.zone === 'deck' && e.to?.zone === 'hand' && e.from.seat !== viewer && e.cardId) throw new Error('draw leaked');
+          if (e.k === 'move' && e.from?.zone === 'deck' && e.to?.zone === 'hand' && e.from.seat !== viewer && e.cardId && !e.revealed) throw new Error('draw leaked');
         }
       }
       checkInvariants(s);

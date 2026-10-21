@@ -1,64 +1,9 @@
-// Scenario tests for automated card abilities (game/effects.js + engine effect queue).
+// Scenario tests for automated card abilities (compiled procs + engine effect queue).
 //   node scripts/test-effects.mjs
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { loadCardIndex } from '../game/cards.js';
-import { newGame, applyAction, checkInvariants, viewFor } from '../game/engine.js';
-import { parseEffect, parseAbility } from '../game/effects.js';
+import { applyAction, checkInvariants, viewFor } from '../game/engine.js';
+import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
 
-const DB = process.env.CARDS_DB || 'cache/cards.db';
-if (!existsSync(DB)) { console.error(`no ${DB} — start the server once to download it`); process.exit(1); }
-const index = await loadCardIndex(DB);
-const all = [...index.byFull.values()];
-const byName = (full) => { const d = all.find((x) => x.full === full); assert(d, `card not found: ${full}`); return d; };
-let passed = 0;
-const test = (name, fn) => { try { fn(); passed++; console.log('ok -', name); } catch (e) { console.error('FAIL -', name); throw e; } };
-
-// ---------- parser ----------
-test('parser: unknown sentence → whole ability manual', () => {
-  assert.equal(parseEffect('Draw a card. Then, choose up to 3 cards from chosen opponent\'s discard and shuffle them into their deck.'), null);
-});
-test('parser: targets, filters, durations', () => {
-  const [st] = parseEffect('Banish chosen opposing character with 2 strength or less.');
-  assert.equal(st.op, 'banish'); assert.equal(st.target.side, 'opp'); assert.equal(st.target.max, 2);
-  const [m] = parseEffect('Chosen character gets -2 strength until the start of your next turn.');
-  assert.deepEqual([m.op, m.n, m.stat, m.until], ['mod', -2, 'str', 'sot']);
-  const g = parseEffect('Chosen character gains Rush and Challenger +2 this turn.')[0];
-  assert.deepEqual(g.kws, [['rush', 1], ['challenger', 2]]);
-});
-test('parser: "you may X, then Y" is one optional unit', () => {
-  const st = parseEffect('you may draw a card, then choose and discard a card.');
-  assert.equal(st[0].optional, true); assert.equal(st[1].linked, true);
-});
-test('parser: name baked into text', () => {
-  assert.equal(parseAbility({ text: "I'M A FAST LEARNER When you play this character, remove up to 1 damage from chosen character." }, 'character').trigger, 'play');
-});
-
-// ---------- engine scenarios ----------
-// Builds a game where seat 0 is active in its main phase, with given cards in hand / play.
-const FILLER = all.find((d) => d.type === 'character' && d.abilities.length === 0 && d.cost === 1 && d.wp >= 1);
-function setup({ hand0 = [], play0 = [], play1 = [], hand1 = [], ink0 = 10 } = {}) {
-  const deck = (extra) => [...extra, ...Array(60 - extra.length).fill(FILLER)];
-  const s = newGame({ seed: 1, starting: 0, players: [
-    { name: 'P0', deck: deck([...hand0, ...play0]) },
-    { name: 'P1', deck: deck([...hand1, ...play1]) },
-  ] });
-  for (const seat of [0, 1]) assert.ok(applyAction(s, seat, { type: 'mulligan', iids: [] }).ok);
-  const grab = (seat, def, zone) => {
-    const p = s.players[seat];
-    const iid = [...p.deck, ...p.hand].find((id) => s.cards[id].cardId === def.id && s.cards[id].zone !== zone);
-    for (const z of ['deck', 'hand']) { const i = p[z].indexOf(iid); if (i >= 0) p[z].splice(i, 1); }
-    s.cards[iid].zone = zone;
-    p[zone].push(iid);
-    return iid;
-  };
-  const ids = { hand0: hand0.map((d) => grab(0, d, 'hand')), play0: play0.map((d) => grab(0, d, 'play')),
-    play1: play1.map((d) => grab(1, d, 'play')), hand1: hand1.map((d) => grab(1, d, 'hand')) };
-  for (let k = 0; k < ink0; k++) { const iid = s.players[0].deck.pop(); s.cards[iid].zone = 'inkwell'; s.cards[iid].faceDown = true; s.players[0].inkwell.push(iid); }
-  checkInvariants(s);
-  return { s, ids };
-}
-const ok = (r) => { assert.ok(r.ok, r.error); return r; };
 
 const DMG3 = byName('Vincenzo Santorini - The Explosives Expert');        // you may deal 3 damage to chosen character
 test('ETB damage: optional prompt, banish on lethal, Ward blocks, Resist reduces', () => {
@@ -152,4 +97,4 @@ test('a rejected choice rolls back atomically', () => {
   assert.equal(JSON.stringify(s), before);
 });
 
-console.log(`ALL OK (${passed} tests)`);
+done();

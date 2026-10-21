@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ink · Card procs</title>
+<style>
+  :root { --bg: #0f1117; --panel: #171a23; --panel2: #1e2230; --line: #2a3042; --fg: #e6e8ef; --mute: #8a90a6;
+    --auto: #3ddc84; --partial: #ffc857; --manual: #ff6a5a; --vanilla: #7a8199; --accent: #7aa2ff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  header { display: flex; gap: 14px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 16px; margin: 0; white-space: nowrap; }
+  header a { color: var(--mute); text-decoration: none; } header a:hover { color: var(--fg); }
+  #q { flex: 1; max-width: 640px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-size: 14px; }
+  #cov { color: var(--mute); font-size: 12px; white-space: nowrap; cursor: pointer; }
+  main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 53px); }
+  #list { overflow: auto; border-right: 1px solid var(--line); }
+  #list .meta { padding: 8px 12px; color: var(--mute); font-size: 12px; border-bottom: 1px solid var(--line); }
+  .r { display: flex; gap: 8px; align-items: center; padding: 7px 12px; cursor: pointer; border-bottom: 1px solid #1b1f2b; }
+  .r:hover, .r.sel { background: var(--panel2); }
+  .r .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .r .t { color: var(--mute); font-size: 11px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .auto { background: var(--auto); } .partial { background: var(--partial); } .manual { background: var(--manual); } .vanilla { background: var(--vanilla); }
+  #detail { overflow: auto; padding: 18px 22px; }
+  .card { display: grid; grid-template-columns: 250px 1fr; gap: 22px; align-items: start; }
+  .card img { width: 250px; border-radius: 12px; box-shadow: 0 8px 30px #0008; }
+  .card img.land { width: 250px; }
+  h2 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color: var(--mute); margin-bottom: 12px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; margin-right: 6px; border: 1px solid var(--line); background: var(--panel2); }
+  .pill.s-auto { color: var(--auto); border-color: #2d6b48; } .pill.s-partial { color: var(--partial); border-color: #6d5a2a; }
+  .pill.s-manual { color: var(--manual); border-color: #6b302b; } .pill.s-vanilla { color: var(--vanilla); }
+  .ab { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--vanilla); border-radius: 10px; padding: 12px 14px; margin: 12px 0; }
+  .ab.ok { border-left-color: var(--auto); } .ab.no { border-left-color: var(--manual); }
+  .ab .txt { margin-bottom: 8px; } .ab .txt b { letter-spacing: .02em; }
+  .ab .rb { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfd6ff; background: #121521; border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; }
+  .ab .rb .why { color: var(--manual); }
+  details { margin-top: 8px; } summary { cursor: pointer; color: var(--mute); font-size: 12px; user-select: none; }
+  pre.json { margin: 6px 0 0; padding: 10px; border-radius: 6px; background: #0b0d13; overflow: auto; font: 12px/1.5 ui-monospace, Menlo, monospace; }
+  .k { color: #9cdcfe; } .s { color: #ce9178; } .nm { color: #b5cea8; } .b { color: #569cd6; }
+  button.copy { float: right; font-size: 11px; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--panel2); color: var(--mute); cursor: pointer; }
+  button.copy:hover { color: var(--fg); }
+  .stats h3 { margin: 18px 0 8px; }
+  .bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 6px 0 4px; max-width: 640px; }
+  .bar > div { height: 100%; }
+  table { border-collapse: collapse; } td { padding: 3px 10px 3px 0; vertical-align: top; }
+  td.n { text-align: right; color: var(--mute); font-variant-numeric: tabular-nums; }
+  .miss { cursor: pointer; } .miss:hover td:nth-child(2) { color: var(--accent); }
+  .ex { color: var(--mute); font-size: 12px; }
+  .hint { color: var(--mute); font-size: 12px; margin: 10px 0; } .hint code { color: #cfd6ff; }
+  .ico { font-style: normal; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; height: auto; } #list { max-height: 40vh; } .card { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ Card procs</h1>
+  <input id="q" placeholder="Search a card… (try: hades · fn:draw · kind:static · ev:quest · status:manual · why:&quot;reveal&quot;)" autocomplete="off" autofocus>
+  <span id="cov" title="Coverage — click for stats"></span>
+  <a href="/play">▶ Play</a><a href="/">Deck builder</a>
+</header>
+<main>
+  <section id="list"><div class="meta">loading…</div></section>
+  <section id="detail"></section>
+</main>
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const IMG = (id) => `https://cdn.dreamborn.ink/images/en/cards/${id}`;
+const ICON = { ink: '⬡', strength: '⚔️', willpower: '🛡️', lore: '◆', exert: '⟳', inkable: '◉' };
+const icons = (t) => esc(t).replace(/\{(\w+)\}/g, (m, k) => (ICON[k] ? `<i class="ico" title="${k}">${ICON[k]}</i>` : m));
+const STATUS = { auto: 'runs itself', partial: 'partly automated', manual: 'manual', vanilla: 'no abilities' };
+const api = async (u) => { const r = await fetch(u); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText); return r.json(); };
+
+function highlight(obj) {
+  return esc(JSON.stringify(obj, null, 2))
+    .replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)/g, '<span class="k">$1</span>$2')
+    .replace(/(:\s*|\[\s*|,\s*)(&quot;(?:[^&]|&(?!quot;))*?&quot;)/g, '$1<span class="s">$2</span>')
+    .replace(/\b(-?\d+(?:\.\d+)?)\b(?![^<]*<\/span>)/g, '<span class="nm">$1</span>')
+    .replace(/\b(true|false|null)\b/g, '<span class="b">$1</span>');
+}
+
+let sel = null;
+let timer = 0;
+async function runSearch() {
+  const q = $('#q').value.trim();
+  const { total, results } = await api(`/api/procs/search?q=${encodeURIComponent(q)}&limit=100`);
+  $('#list').innerHTML = `<div class="meta">${total} card${total === 1 ? '' : 's'}${total > results.length ? ` · showing ${results.length}` : ''}</div>`
+    + results.map((r) => `<div class="r ${r.full === sel ? 'sel' : ''}" data-full="${esc(r.full)}" title="${esc(STATUS[r.status])}">
+        <span class="dot ${r.status}"></span><span class="n">${esc(r.full)}</span><span class="t">${r.type} · ${r.runnable}/${r.abilities}</span></div>`).join('');
+  for (const el of document.querySelectorAll('.r')) el.onclick = () => show(el.dataset.full);
+  if (!sel && results[0] && q) show(results[0].full, { quiet: true });
+}
+$('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(runSearch, 120); });
+$('#q').addEventListener('keydown', (e) => {
+  const rows = [...document.querySelectorAll('.r')];
+  const i = rows.findIndex((r) => r.dataset.full === sel);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const n = rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+    if (n) { show(n.dataset.full); n.scrollIntoView({ block: 'nearest' }); }
+  }
+});
+
+async function show(full, { quiet } = {}) {
+  sel = full;
+  for (const el of document.querySelectorAll('.r')) el.classList.toggle('sel', el.dataset.full === full);
+  if (!quiet) history.replaceState(null, '', `?card=${encodeURIComponent(full)}`);
+  const c = await api(`/api/procs/card?full=${encodeURIComponent(full)}`);
+  const stats = c.type === 'character' ? `${c.str ?? '–'} ⚔️ · ${c.wp ?? '–'} 🛡️ · ${c.lore ?? 0} ◆` : c.type === 'location' ? `${c.wp ?? '–'} 🛡️ · ${c.lore ?? 0} ◆ · move ${c.move ?? '–'}` : '';
+  $('#detail').innerHTML = `<div class="card">
+    <img src="${IMG(c.id)}" alt="${esc(c.full)}" class="${c.type === 'location' ? 'land' : ''}">
+    <div>
+      <h2>${esc(c.full)}</h2>
+      <div class="sub">${c.cost} ⬡ ${esc(c.type)}${c.inkable ? ' · inkable' : ''} · ${esc((c.inks || []).join('/'))}${stats ? ' · ' + stats : ''}${c.classes?.length ? ` · ${esc(c.classes.join(', '))}` : ''}</div>
+      <span class="pill s-${c.status}">${STATUS[c.status]} · ${c.runnable}/${c.abilities.length}</span>
+      <span class="pill" title="Where the rules text came from (tools/card-scan)">text: ${esc(c.rulesSource || 'db')}</span>
+      <span class="pill" title="Printings that share these rules">${c.printings.length} printing${c.printings.length === 1 ? '' : 's'}</span>
+      ${c.abilities.length ? '' : '<p class="hint">No rules text — nothing to compile.</p>'}
+      ${c.abilities.map((a, i) => `<div class="ab ${a.proc?.exec ? 'ok' : 'no'}">
+        <div class="txt">${a.name ? `<b>${esc(a.name)}</b> ` : ''}${icons(a.text)}</div>
+        <div class="rb">${a.explain.map((l) => (/^why/.test(l) ? `<span class="why">${icons(l)}</span>` : icons(l))).join('\n')}</div>
+        <details ${a.proc && !a.proc.exec ? '' : ''}><summary>proc JSON</summary>
+          <button class="copy" data-i="${i}">copy</button><pre class="json">${highlight(a.proc)}</pre></details>
+      </div>`).join('')}
+      <p class="hint">⚡ = the engine runs it · ✋ = players resolve it by hand (logged for both). Compiled by <code>tools/compile-procs.mjs</code> → <code>cache/procs.json</code>.</p>
+    </div></div>`;
+  for (const b of document.querySelectorAll('button.copy')) b.onclick = () => { navigator.clipboard.writeText(JSON.stringify(c.abilities[+b.dataset.i].proc, null, 2)); b.textContent = 'copied'; };
+}
+
+async function showStats() {
+  sel = null;
+  history.replaceState(null, '', '?stats');
+  const s = await api('/api/procs/stats');
+  const seg = (k, n) => `<div class="${k}" style="width:${(100 * n) / s.cards}%" title="${STATUS[k]}: ${n}"></div>`;
+  $('#detail').innerHTML = `<div class="stats">
+    <h2>Coverage</h2>
+    <div class="sub">${s.runnable}/${s.abilities} abilities run automatically (${s.pct}%) across ${s.cards} unique cards.</div>
+    <div class="bar">${seg('auto', s.auto)}${seg('partial', s.partial)}${seg('manual', s.manual)}${seg('vanilla', s.vanilla)}</div>
+    <div class="hint"><span class="dot auto" style="display:inline-block"></span> ${s.auto} fully automatic ·
+      <span class="dot partial" style="display:inline-block"></span> ${s.partial} partial ·
+      <span class="dot manual" style="display:inline-block"></span> ${s.manual} manual ·
+      <span class="dot vanilla" style="display:inline-block"></span> ${s.vanilla} vanilla</div>
+    <h3>Proc kinds</h3><table>${Object.entries(s.kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<tr><td class="n">${n}</td><td>${esc(k)}</td></tr>`).join('')}</table>
+    <h3>Building blocks in use</h3><table>${s.fns.map(([k, n]) => `<tr class="miss" data-q="fn:${esc(k)}"><td class="n">${n}</td><td>${esc(k)}</td></tr>`).join('')}</table>
+    <h3>Why abilities stay manual (biggest first — build these next)</h3>
+    <table>${s.misses.map((m) => `<tr class="miss" data-q='why:"${esc(m.why.replace(/"/g, '').slice(0, 40))}"'><td class="n">${m.n}</td><td>${esc(m.why)}<div class="ex">${esc(m.examples.join(' · '))}</div></td></tr>`).join('')}</table>
+  </div>`;
+  for (const el of document.querySelectorAll('.miss')) el.onclick = () => { $('#q').value = el.dataset.q; sel = null; runSearch(); };
+}
+$('#cov').onclick = showStats;
+
+api('/api/procs/stats').then((s) => { $('#cov').textContent = `⚡ ${s.pct}% of abilities · ${s.auto}/${s.cards} cards automatic`; }).catch(() => {});
+const params = new URLSearchParams(location.search);
+if (params.has('card')) { $('#q').value = params.get('card'); runSearch().then(() => show(params.get('card'))); }
+else if (params.has('stats')) { runSearch(); showStats(); }
+else runSearch().then(showStats);
+</script>
+</body>
+</html>

@@ -18,7 +18,7 @@ Online Disney Lorcana for two players at `/play`. Host a room, send the invite l
 
 Automated: setup + mulligan, ready/set/draw, drying, 1 ink per turn, paying costs, playing every card type, singing + Sing Together, Shift (incl. Puppy/Universal), questing, challenges (Evasive, Alert, Bodyguard, Challenger, Resist, Rush, Reckless), locations (move cost, start-of-turn lore, being challenged), Support, Boost, damage → banish, 20 lore win, deck-out, concede.
 
-Card text (`game/effects.js`): when **every** sentence of an ability matches a known pattern, the engine resolves it on its own through an effect queue, and target choices show up as prompts for the right player. If any sentence isn't recognised, the whole ability stays manual, so a card never gets half-resolved. Automated abilities are marked **⚡ auto** in the card panel.
+Card text is compiled into **procs** at build time (`game/procs/`, see [game/procs/README.md](../game/procs/README.md)). When **every** clause of an ability compiles, the engine runs it through an effect queue, and choices show up as prompts for the right player. If any clause isn't recognised, the whole ability stays manual, so a card never gets half-resolved. Automated abilities are marked **⚡ auto** in the card panel. Look up any card's proc at **`/procs`**.
 
 - Triggers: "When you play this …", "Whenever this character quests …", plus actions and songs
 - Effects: draw N · gain / opponents lose lore · deal N damage (Resist applies) · remove up to N damage · banish / return to hand / bottom of deck / exert / ready *chosen …* · ±N ⚔️🛡️◆ and keyword grants "this turn" or "until the start of your next turn" · discard (chosen, at random, or *each opponent chooses*) · each opponent banishes or exerts one of theirs

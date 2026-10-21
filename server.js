@@ -16,6 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
 import { loadCardIndex } from './game/cards.js';
+import * as procLookup from './game/procs/lookup.js';
 import { attachLobby } from './game/lobby.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -141,7 +142,8 @@ let cardIndex = null;
 async function refreshCardIndex() {
   try {
     const file = await ensureCached('cards.db', CARDS_DB_URL);
-    const mtime = (await fs.stat(file)).mtimeMs;
+    const procsMtime = await fs.stat(path.join(CACHE_DIR, 'procs.json')).then((x) => x.mtimeMs).catch(() => 0);
+    const mtime = (await fs.stat(file)).mtimeMs + procsMtime;    // rebuild on a new DB or a recompiled procs.json
     if (cardIndex && cardIndex.mtime === mtime) return;
     const idx = await loadCardIndex(file);
     idx.mtime = mtime;
@@ -527,6 +529,22 @@ app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), { maxAge: '7d' }));
 
 // Demo decks for Play mode (also sent over the socket; handy for curl/debugging)
+// Card → compiled proc lookup (public/procs.html)
+app.get('/api/procs/search', (req, res) => {
+  if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
+  res.json(procLookup.search(cardIndex, String(req.query.q || '').slice(0, 200), Math.min(100, Number(req.query.limit) || 40)));
+});
+app.get('/api/procs/card', (req, res) => {
+  if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
+  const c = procLookup.card(cardIndex, String(req.query.full || ''));
+  if (!c) return res.status(404).json({ error: 'no such card' });
+  res.json(c);
+});
+app.get('/api/procs/stats', (req, res) => {
+  if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
+  res.json(procLookup.stats(cardIndex));
+});
+
 app.get('/api/play/demo-decks', (req, res) => {
   if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
   res.json(cardIndex.demoDecks);

@@ -119,6 +119,10 @@ i.hx { display: inline-block; width: 11px; height: 12px; vertical-align: -1px; c
 #banner { top: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: var(--panel2);
   border: 1px solid var(--gold); border-radius: 12px; padding: 8px 12px; box-shadow: 0 8px 30px rgba(0,0,0,.5); max-width: min(760px, 70vw); }
 #banner .pv { color: #ffb0b0; font-size: 13px; }
+#banner .pick { display: flex; gap: 6px; flex-wrap: wrap; max-width: 70vw; }
+#banner .pick img { width: 72px; border-radius: 5px; display: block; }
+#banner .pick .pc { padding: 0; border: 2px solid transparent; background: none; cursor: pointer; }
+#banner .pick .pc:hover { border-color: #58ff8a; transform: translateY(-3px); }
 
 #controls { right: 14px; bottom: 14px; display: flex; gap: 8px; }
 #endTurn { min-width: 150px; }
@@ -216,3 +220,6 @@ i.hx { display: inline-block; width: 11px; height: 12px; vertical-align: -1px; c
 
 .insp-text p.auto { border-left: 2px solid #58ff8a88; padding-left: 8px; }
 .auto-tag { font-style: normal; font-size: 11px; color: #58ff8a; background: #58ff8a1a; border-radius: 6px; padding: 1px 6px; margin-right: 2px; }
+
+.insp-proc { float: right; font-size: 11px; color: #8a90a6; text-decoration: none; border: 1px solid #2a3042; border-radius: 5px; padding: 1px 6px; }
+.insp-proc:hover { color: #e6e8ef; }

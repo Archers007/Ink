@@ -112,7 +112,8 @@ function chooseSupport(s, seat) {
 // when forced to pick our own card to lose, give up the cheapest.
 function chooseEffect(s, seat) {
   const pend = s.pending;
-  if (pend.confirm) return { type: 'choose', confirm: true };
+  if (pend.choices) return { type: 'choose', option: 0 };
+  if (pend.confirm) return pend.op === 'scry' ? { type: 'choose', skip: true } : { type: 'choose', confirm: true };
   const cards = pend.valid.map((iid) => s.cards[iid]);
   const value = (c) => D(s, c).cost + (D(s, c).lore || 0);
   let pool;
