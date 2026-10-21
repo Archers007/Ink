@@ -348,6 +348,17 @@ function actionsFor(found) {
         else if (cost.ink > readyInk()) reason = `Needs ${cost.ink} ink.`;
         P(`Use ${ab.name || 'ability'}  ·  ${parts}`, () => act({ type: 'useAbility', iid: c.iid, index: i }), reason, { title: prettyText(ab.text) });
       });
+      // abilities granted by other cards ("your characters gain \"{exert} — Draw a card\" this turn")
+      for (const g of c.granted || []) {
+        const cost = g.kind === 'activated' && parseActivatedCost(g.text);
+        if (!cost) continue;
+        const parts = [cost.exert ? '⟳' : '', cost.ink ? `${cost.ink} ⬡` : ''].filter(Boolean).join(' + ');
+        let reason = null;
+        if (cost.exert && c.exerted) reason = 'Exerted.';
+        else if (cost.exert && isChar && c.drying) reason = 'Still drying.';
+        else if (cost.ink > readyInk()) reason = `Needs ${cost.ink} ink.`;
+        P(`Use granted: ${prettyText(cost.effect).slice(0, 40)}  ·  ${parts}`, () => act({ type: 'useAbility', iid: c.iid, index: g.index }), reason, { title: `From ${g.src}: ${prettyText(g.text)}` });
+      }
     }
     if (!mine && turn) {
       const attackers = new Set(myChars().filter((a) => !attackerBlocker(a, D(a.cardId)) && !defenderBlocker(a, D(a.cardId), c, def, sideOf(seat))).map((a) => a.iid));
@@ -413,6 +424,7 @@ function renderInspector() {
     c.drying ? '<span class="chip dry">Drying</span>' : '',
     c.damage ? `<span class="chip dmg">${c.damage} damage</span>` : '',
     c.under?.length ? `<span class="chip">${c.under.length} card${c.under.length > 1 ? 's' : ''} under</span>` : '',
+    ...(c.granted || []).map((g) => `<span class="chip mod" title="${esc(g.src || '')}">+“${esc(prettyText(g.text))}”${g.until === 'eot' ? ' (turn)' : ''}</span>`),
     ...(c.mods || []).map((m) => `<span class="chip mod">${m.stat === 'kw' ? `${m.delta > 0 ? '+' : '−'}${KEYWORD_LABEL[m.kw]}` : `${m.delta > 0 ? '+' : ''}${m.delta} ${{ str: '⚔️', wp: '🛡️', lore: '◆', sing: '♪' }[m.stat]}`}${m.until === 'eot' ? ' (turn)' : ''}</span>`),
   ].join('') : '';
   const { primary, manual } = actionsFor(f);

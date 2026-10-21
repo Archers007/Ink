@@ -54,9 +54,9 @@ export class Static extends Kind {
       const c = s.cards[iid];
       if (c.mods.some((m) => m.until === 'static')) c.mods = c.mods.filter((m) => m.until !== 'static');
     }
-    for (const p of s.players) for (const iid of p.play) {
+    for (const which of ['own+temp', 'granted-static']) for (const p of s.players) for (const iid of p.play) {
       const c = s.cards[iid];
-      for (const proc of rt.procsOf(s, c)) {
+      for (const proc of rt.procsOf(s, c, which)) {
         if (proc.kind !== 'static' || proc.effect.fn !== 'mod' || !Static.active(rt, s, proc, c.owner, c.iid)) continue;
         const st = proc.effect;
         const job = { seat: c.owner, src: c.iid, label: rt.labelOf(s, c, proc), ctx: { it: [] }, tmp: {} };

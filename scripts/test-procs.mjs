@@ -470,6 +470,45 @@ test('"whenever you ready this character" fires from the ready step', () => {
   drain(s);
   assert.equal(s.players[0].hand.length, h + 1);
 });
+test('grants: "your other characters gain \"{exert} — Draw a card\" this turn" — usable, then gone', () => {
+  const donald = byName('Donald Duck - Coin Collector');
+  const pal = vanilla(() => true);
+  const { s, ids } = setup({ hand0: [donald], play0: [pal] }); unready(s, ids.play0);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+  const v = viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[0]);
+  assert.equal(v.granted.length, 1);
+  const h = s.players[0].hand.length;
+  ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: v.granted[0].index })); drain(s);
+  assert.equal(s.players[0].hand.length, h + 1);
+  assert.equal(s.cards[ids.play0[0]].exerted, true);
+  assert.equal(viewFor(s, 0).players[0].play.find((c) => c.iid === ids.hand0[0]).granted.length, 0, 'Donald himself is not "other"');
+  ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+  assert.equal(viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[0]).granted.length, 0, 'this-turn grant expired');
+});
+test('grants: "gains \"When this character is banished in a challenge, return this card to your hand\"" survives leaving play', () => {
+  const aid = byName('Magical Aid');
+  const mine = vanilla((d) => d.str >= 1 && d.wp <= 3);
+  const foe = vanilla((d) => d.str >= 4 && d.wp >= 6);
+  const { s, ids } = setup({ hand0: [aid], play0: [mine], play1: [foe] }); unready(s, ids.play0);
+  s.cards[ids.play1[0]].exerted = true;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); drain(s);
+  ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+  assert.equal(s.cards[ids.play0[0]].zone, 'hand');
+});
+test('grants: location static "Characters gain \"{exert} — Draw a card\" while here"', () => {
+  const lab = byName('The Great Illuminary - Abandoned Laboratory');
+  const pal = vanilla(() => true);
+  const { s, ids } = setup({ play0: [lab, pal] }); unready(s, ids.play0);
+  const g = () => viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[1]).granted;
+  ok(applyAction(s, 0, { type: 'endTurn' })); drain(s); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+  assert.equal(g().length, 0, 'not while elsewhere');
+  ok(applyAction(s, 0, { type: 'move', iid: ids.play0[1], location: ids.play0[0] })); drain(s);
+  assert.equal(g().length, 1);
+  const h = s.players[0].hand.length;
+  ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[1], index: g()[0].index })); drain(s);
+  assert.equal(s.players[0].hand.length, h + 1);
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));

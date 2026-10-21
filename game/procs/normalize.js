@@ -28,6 +28,7 @@ export function canon(text) {
     .replace(/\s+/g, ' ')
     .trim();
   t = t.replace(/\s+[-–—]\s+/g, ' — ');                       // every spaced dash is a separator
+  t = t.replace(/\{exert\} "(,\s*\d+ \{ink\})?\s*—/g, '"{exert}$1 —');   // OCR put the quote after the {exert} icon
   t = t.replace(/(choose one:)\s*(?:[•—]\s*)?/i, '$1 • ');     // first bullet right after "Choose one:"
   const co = t.search(/choose one: • /i);
   if (co >= 0) t = t.slice(0, co) + t.slice(co).replace(/ — (?=[A-Z])/g, ' • ').replace(/\s*•\s*/g, ' • ');

@@ -543,6 +543,7 @@ export class Board {
     const eff = c.eff || {};
     const chips = [];
     if (c.drying && d.type === 'character') chips.push(['DRYING', '#3a4a8a']);
+    if (c.granted?.length) chips.push([`+${c.granted.length} ability`, '#1d6b3a']);
     for (const m of c.mods || []) if (m.stat === 'kw') chips.push([`${m.delta > 0 ? '+' : '−'}${KEYWORD_LABEL[m.kw] || m.kw}`, m.delta > 0 ? '#1d6b3a' : '#7a1d1d']);
     if (c.under?.length) chips.push([`STACK ×${c.under.length + 1}`, '#5a2d82']);
     if (c.atLocation) chips.push(['@ LOCATION', '#6b4d12']);
