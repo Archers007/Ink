@@ -19,6 +19,12 @@ export function parseTrigger(head, P) {
     const m = head.match(rx);
     if (m) return f(m, P);
   }
+  // grouping: "When you play this character and whenever you play a location" = either trigger fires it
+  const g = head.match(/^((?:when|whenever|at) .+?) and ((?:when|whenever|at) .+)$/i);
+  if (g) {
+    const a = parseTrigger(g[1], P), b = a && parseTrigger(g[2], P);
+    if (a && b) return [...a, ...b];
+  }
   const m = head.match(/^(.+?) while (?:he|she|it|they|this character) ((?:has|have|is|are) .+)$/i);
   if (m) {
     const on = parseTrigger(m[1], P);
