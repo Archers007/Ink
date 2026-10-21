@@ -36,7 +36,7 @@ export const KEYWORD_LABEL = {
   reckless: 'Reckless', resist: 'Resist', rush: 'Rush', shift: 'Shift', puppyShift: 'Puppy Shift',
   universalShift: 'Universal Shift', classShift: 'Shift', tempShift: 'Temporary Shift', vanish: 'Vanish', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
-  cantQuest: "Can't quest", cantChallenge: "Can't challenge", cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
+  cantQuest: "Can't quest", cantChallenge: "Can't challenge", mustQuest: 'Must quest if able', adventurous: 'Adventurous', cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
   noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged",
   cantSing: "Can't sing", challengeReady: 'Can challenge ready characters',
 };
@@ -114,6 +114,7 @@ export function attackerBlocker(card, def) {
   if (card.exerted) return 'Already exerted.';
   if (card.drying && !hasKw(card, def, 'rush')) return 'Still drying — only characters with Rush can challenge the turn they\'re played.';
   if (hasKw(card, def, 'cantChallenge')) return 'An ability says this character can\'t challenge.';
+  if (hasKw(card, def, 'adventurous')) return 'Adventurous characters can\'t challenge.';
   return null;
 }
 
