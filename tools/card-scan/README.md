@@ -45,3 +45,23 @@ Outputs (gitignored, in `cache/scan/`):
 | `mismatch` | OCR or layout trouble, or a real DB difference — manual review  |
 
 Only `match` / `icon-fix` cards should feed the ability compiler automatically.
+
+## Corrections
+
+`corrections.json` settles the cards the scan can't (close / mismatch / db-suspect). Keyed by card full name:
+
+| why | meaning | rules.json gets |
+|---|---|---|
+| `errata` | official text change (set release notes in `docs/rules/`) | the official `abilities` |
+| `db-fix` | the DB text is wrong (typo, old wording, missing icon/ability) | the fixed `abilities` (or `replace` pairs) |
+| `ocr` | the DB is right, the scan misread it | the DB text, stamped reviewed |
+
+`ocrNoise: true` = the scan only disagrees by a misread digit/letter, checked by hand.
+
+Draft new entries with lorcanajson as the tie-breaker (hand edits are kept):
+
+    curl -sLo /tmp/allCards.json https://lorcanajson.org/files/current/en/allCards.json
+    python3 tools/card-scan/make_corrections.py /tmp/allCards.json
+
+`summary.json → corrections` lists unknown card names, unused `replace` pairs and db-fixes the scan doesn't back up.
+`rules.json` entries carry `source` (db · db+icons · errata · corrected · reviewed · scan) and `verified`.
