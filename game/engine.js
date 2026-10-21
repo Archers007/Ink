@@ -70,6 +70,7 @@ function newCard(iid, cardId, owner) {
 function resetCard(c) {
   c.exerted = false; c.damage = 0; c.drying = false; c.atLocation = null; c.mods = [];
   c.faceDown = false; c.boostedTurn = 0; c.parent = null; c.under = [];
+  c.shifted = false; c.tempShift = null;
 }
 
 function log(s, text, opt = {}) {
@@ -259,7 +260,14 @@ function startTurn(s, seat, ev) {
   ev.push({ k: 'turn', seat, turn: s.turn });
   log(s, `── Turn ${s.turn}: ${nameOf(s, seat)} ──`, { kind: 'turn', seat });
   // Ready step (3.2.1)
-  for (const iid of p.play) { const c = s.cards[iid]; if (!hasKw(c, D(s, c), 'cantReady') && !hasKw(c, D(s, c), 'skipReady')) c.exerted = false; }
+  const readied = [];
+  for (const iid of p.play) {
+    const c = s.cards[iid];
+    if (hasKw(c, D(s, c), 'cantReady') || hasKw(c, D(s, c), 'skipReady')) continue;
+    if (c.exerted) readied.push(iid);
+    c.exerted = false;
+  }
+  for (const iid of readied) R.fire(s, 'ready', { iid });
   for (const iid of p.inkwell) s.cards[iid].exerted = false;
   for (const pl of s.players) for (const iid of pl.play) {           // "until the start of your next turn"
     const c = s.cards[iid];
@@ -551,6 +559,7 @@ H.play = (s, seat, a, ev) => {
     t.zone = 'under'; t.parent = c.iid; t.under = []; t.exerted = false; t.damage = 0; t.mods = []; t.atLocation = null; t.drying = false;
     for (const u of c.under) s.cards[u].parent = c.iid;
     c.shifted = true;
+    if (d.kw?.tempShift) c.tempShift = s.turn;                     // 8.10.8.5: back to hand at end of turn
     ev.push({ k: 'shift', iid: c.iid, onto: t.iid });
   } else {
     c.exerted = d.type === 'character' && !!a.enterExerted && hasKw(c, d, 'bodyguard');  // 8.3.2
@@ -706,7 +715,25 @@ H.endTurn = (s, seat, a, ev) => {
   if ((s.fx || []).length > before) { R.queue(s, seat, null, 'End of turn', [{ fn: '_endTurn', seat }]); return; }
   finishEndTurn(s, seat, ev);
 };
+// Temporary Shift (8.10.8.5): remove all damage and return only the top card — the one under it stays in play
+function returnTopOnly(s, iid, ev) {
+  const c = s.cards[iid];
+  const p = P(s, c.owner);
+  const under = c.under; c.under = []; c.damage = 0;
+  const prev = under.pop();
+  if (prev != null) {
+    const t = s.cards[prev];
+    t.zone = 'play'; t.parent = null; t.under = under; t.exerted = c.exerted; t.atLocation = c.atLocation; t.drying = false; t.damage = 0; t.mods = [];
+    for (const u of under) s.cards[u].parent = t.iid;
+    p.play.splice(p.play.indexOf(iid) + 1, 0, t.iid);
+    ev.push({ k: 'move', iid: t.iid, cardId: t.cardId, from: { seat: c.owner, zone: 'under' }, to: { seat: c.owner, zone: 'play' } });
+  }
+  log(s, `↳ Temporary Shift: ${cardLabel(D(s, c))} returned to ${nameOf(s, c.owner)}'s hand.`, { kind: 'effect' });
+  moveTo(s, iid, 'hand', ev);
+}
+
 function finishEndTurn(s, seat, ev) {
+  for (const iid of [...P(s, seat).play]) if (s.cards[iid].tempShift != null) { s.cards[iid].tempShift = null; returnTopOnly(s, iid, ev); }
   // End-of-turn phase (3.4): "this turn" effects end.
   R.endOfTurnCleanup(s, seat);
   const p = P(s, seat);

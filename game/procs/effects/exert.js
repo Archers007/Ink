@@ -24,7 +24,9 @@ export class Ready extends Effect {
     return rt.each(ids, (iid) => {
       const c = s.cards[iid];
       if (rt.E.hasKw(c, rt.E.D(s, c), 'cantReady')) return;            // "this character can't ready" (not the start-of-turn-only kind)
-      c.exerted = false; ev.push({ k: 'ready', iid }); rt.log(s, `↳ Readied ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
+      const was = c.exerted;
+      c.exerted = false;
+      if (was) rt.fire(s, 'ready', { iid }); ev.push({ k: 'ready', iid }); rt.log(s, `↳ Readied ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
     });
   }
   static verb() { return 'ready'; }

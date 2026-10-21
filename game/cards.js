@@ -174,6 +174,14 @@ function attachProcs(def, built) {
     def.procs = compileCard(def);
     def.rulesSource = 'db';
   }
+  // Shift variants (CR 8.10.8): "Floodborn Shift 7" is a classification shift, "Temporary Shift 4" shifts by name
+  for (const p of def.procs) for (const k of p.kind === 'keyword' ? p.kws : []) {
+    if (k.kw !== 'classShift' || k.n == null) continue;
+    def.kw ||= {};
+    if (/^temporary$/i.test(k.cls)) { def.kw.shift = k.n; def.kw.tempShift = true; }
+    else if (!/^(duo|combo|potato)$/i.test(k.cls)) { delete def.kw.shift; def.kw.classShift = { cls: k.cls.toLowerCase(), n: k.n }; }
+    else delete def.kw.shift;                                         // unique variants stay manual
+  }
   const spell = def.type === 'action' || def.type === 'song';
   const whole = spell && isFullyAutomated(def);
   def.auto = def.procs.map((p) => (spell ? whole && p.kind !== 'reminder' : p.exec && RUNS_ITSELF.has(p.kind)));

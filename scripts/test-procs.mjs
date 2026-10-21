@@ -427,6 +427,49 @@ test('damage prevention: "she takes no damage from the challenge"; "can\'t be de
   assert.equal(s.cards[ids.play0[0]].damage, 0, 'Raya took no damage');
   assert.equal(s.cards[ids.play1[0]].damage, 1 + raya.str);
 });
+test('Shift variants: Floodborn Shift (classification), Temporary Shift (back to hand at end of turn)', () => {
+  const vine = byName('The Vine - Towering Stalk');                     // Floodborn Shift 7
+  const flood = all.find((d) => d.type === 'character' && (d.classes || []).includes('floodborn') && d.full !== vine.full);
+  const plain = vanilla((d) => !(d.classes || []).includes('floodborn'));
+  {
+    const { s, ids } = setup({ hand0: [vine], play0: [plain, flood] });
+    assert.equal(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', shiftKind: 'classShift', target: ids.play0[0] }).ok, false, 'not onto a non-Floodborn');
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', shiftKind: 'classShift', target: ids.play0[1] }));
+    assert.deepEqual(s.cards[ids.hand0[0]].under, [ids.play0[1]]);
+    assert.equal(s.players[0].inkwell.filter((i) => s.cards[i].exerted).length, 7);
+  }
+  const wu = byName('Grandma Wu - Fierce Red Panda');                    // Temporary Shift 4
+  const base = all.find((d) => d.type === 'character' && d.name === wu.name && d.full !== wu.full);
+  {
+    const { s, ids } = setup({ hand0: [wu], play0: [base] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', target: ids.play0[0] })); drain(s);
+    s.cards[ids.hand0[0]].damage = 2;
+    ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'hand', 'the Temporary Shift card goes back to hand');
+    assert.equal(s.cards[ids.play0[0]].zone, 'play', 'the card under it stays');
+    assert.equal(s.cards[ids.play0[0]].damage, 0);
+    assert.ok(!s.cards[ids.hand0[0]].shifted, 'leaving play clears "used Shift"');
+  }
+});
+test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
+  const abu = byName('Abu - Illusory Pachyderm');
+  const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1
+    && d.procs[0].do[0].fn === 'mod' && d.procs[0].do[0].sel?.chosen && !d.procs[0].do[0].sel.chosen.owner);
+  const { s, ids } = setup({ hand0: [zap], play1: [abu] });
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+  assert.equal(s.cards[ids.play1[0]].zone, 'discard', `${zap.full} chose Abu → Vanish`);
+});
+test('"whenever you ready this character" fires from the ready step', () => {
+  const pino = byName('Pinocchio - Strings Attached');                  // once during your turn, may draw
+  const { s, ids } = setup({ play0: [pino] }); unready(s, ids.play0);
+  s.cards[ids.play0[0]].exerted = true;
+  ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+  ok(applyAction(s, 1, { type: 'endTurn' }));
+  const h = s.players[0].hand.length;
+  drain(s);
+  assert.equal(s.players[0].hand.length, h + 1);
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));

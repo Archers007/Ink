@@ -25,7 +25,10 @@ export class KeywordLine extends Kind {
     return kws.length ? { kind: 'keyword', kws } : null;
   }
   static check(p, missing, S) {
-    for (const k of p.kws) if (!S.kw.has(k.kw) || (k.cost && !/^\d+$/.test(k.cost))) missing.add(`keyword ${k.kw}${k.cost ? ': ' + k.cost : ''}`);
+    for (const k of p.kws) {
+      if (k.kw === 'classShift' && /^(duo|combo|potato)$/i.test(k.cls)) { missing.add(`keyword ${k.cls} Shift`); continue; }
+      if (!S.kw.has(k.kw) || (k.cost && !/^\d+$/.test(k.cost))) missing.add(`keyword ${k.kw}${k.cost ? ': ' + k.cost : ''}`);
+    }
   }
   static explain(p, X) {
     return [X.tag('keyword'), p.kws.map((k) => `${k.kw === 'classShift' ? `${k.cls} Shift${k.n != null ? ` ${k.n}` : ''}` : kwLabel(k.kw, k.n)}${k.cost ? ` (${k.cost})` : ''}`).join(', ')];
