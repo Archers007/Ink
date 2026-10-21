@@ -2,6 +2,7 @@ import { Trigger, other } from './Trigger.js';
 import { Query } from '../query.js';
 
 export class Quest extends Trigger {
+  static selfSubject = true;
   static ev = 'quest';
   static rules = [
     [/^whenever (?:this character|he|she|they) quests?$/i, () => [{ ev: 'quest' }]],

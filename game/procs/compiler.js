@@ -142,6 +142,29 @@ export class Compiler {
     return null;
   }
 
+  // "Chosen character gets +2 {strength}. If a Pirate character is chosen, they get +3 {strength} instead."
+  // → the previous step gets  instead: { cond, step }  (swapped in when the step starts). A condition about the
+  //   chosen card splits the step into choose + "that character" so the choice is made before the check.
+  instead(steps, condText, altText, ctx, at) {
+    const cond = parseCondition(condText, at);
+    let alt;
+    for (const t of [altText, `${altText} to that character`, `${altText} from that character`]) {
+      try { alt = this.clause(t, ctx); break; } catch (e) { if (!(e instanceof Miss)) throw e; }
+    }
+    if (!alt) miss(`instead: "${altText}"`, at);
+    let target = steps[steps.length - 1];
+    if (JSON.stringify(cond).includes('"refIs"') && target.sel?.chosen) {
+      const { may, cond: c0, ifDid, linked, otherwise, ...rest } = target;
+      const gate = { ...(c0 ? { cond: c0 } : {}), ...(ifDid ? { ifDid } : {}), ...(linked ? { linked } : {}), ...(otherwise ? { otherwise } : {}) };
+      target = { ...rest, sel: { ref: true }, linked: true };
+      steps.splice(-1, 1, { fn: 'choose', sel: rest.sel, ...(may ? { may: true } : {}), ...gate }, target);
+    }
+    const step = { ...alt };
+    if (!step.sel || step.sel.ref) delete step.sel;                  // same target as the original
+    delete step.may;
+    target.instead = { cond, step };
+  }
+
   // sentences that modify the step before them
   tail(sentence, last) {
     const t = sentence.replace(/[.!]$/, '').trim();
@@ -170,6 +193,7 @@ export class Compiler {
       let m;
       if ((m = s.match(/^then,? (.+)$/i))) s = m[1];
       if ((m = s.match(/^if you do,? (.+)$/i))) { ifDid = true; s = m[1]; }
+      if ((m = s.match(/^if (.+?), (.+?) instead$/i)) && steps.length) { this.instead(steps, m[1], m[2], ctx, at); continue; }
       if ((m = s.match(/^if (.+?), (.+)$/i)) && !/^if you do/i.test(s)) { cond = parseCondition(m[1], at); s = m[2]; }
       if ((m = s.match(/^otherwise,? (.+)$/i))) {
         const st = this.effects(m[1], ctx);

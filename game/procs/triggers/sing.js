@@ -7,6 +7,7 @@ import { Query } from '../query.js';
 
 const songQuery = (F) => (F.with || F.owner || F.other ? { song: F } : {});
 export class Sings extends Trigger {
+  static selfSubject = true;
   static ev = 'sings';
   static rules = [[new RegExp(String.raw`^whenever ${SUBJECT} sings (?:a|an) (.+)$`, 'i'), (m, P) => [{ ev: 'sings', ...songQuery(P.filter(m[1])) }]]];
   static say(o) { return `this character sings ${o.song ? Query.describe(o.song) : 'a song'}`; }

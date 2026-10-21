@@ -19,7 +19,8 @@ export class Damage extends Effect {
     job.ctx.it = ids;
     return rt.each(ids, (iid) => {
       const c = s.cards[iid]; const d = rt.E.D(s, c);
-      const n = st.put || st.noResist ? n0 : Math.max(0, n0 - rt.E.kwVal(c, d, 'resist'));          // Resist (8.8) — not for "put damage"
+      const safe = !st.put && (rt.E.hasKw(c, d, 'noDamage') || rt.E.hasKw(c, d, 'noEffectDamage'));
+      const n = safe ? 0 : st.put || st.noResist ? n0 : Math.max(0, n0 - rt.E.kwVal(c, d, 'resist'));          // Resist (8.8) — not for "put damage"
       c.damage += n;
       if (n) { ev.push({ k: 'damage', iid, n }); rt.fire(s, 'damaged', { iid, n, by: job.src }); }
       rt.log(s, `↳ ${st.put ? 'Put' : 'Dealt'} ${n} damage ${st.put ? 'on' : 'to'} ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });

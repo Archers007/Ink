@@ -13,17 +13,20 @@ export class MoveHere extends Trigger {
   static say() { return 'a character moves here'; }
 }
 export class Moves extends Trigger {
+  static selfSubject = true;
   static ev = 'moves';
   static rules = [[/^when(?:ever)? (?:this character|he|she|they) moves? to a location$/i, () => [{ ev: 'moves' }]]];
   static say() { return 'this character moves to a location'; }
 }
 export class Readied extends Trigger {
+  static selfSubject = true;
   static ev = 'ready';
   static runs = false;
   static rules = [[/^whenever you ready this character$/i, () => [{ ev: 'ready' }]]];
   static say() { return 'you ready this character'; }
 }
 export class PutUnder extends Trigger {
+  static selfSubject = true;
   static ev = 'putUnder';
   static rules = [[/^whenever you put a card under this (?:character|location)$/i, () => [{ ev: 'putUnder' }]]];
   static say() { return 'you put a card under this'; }
@@ -51,6 +54,7 @@ export class DamagedAny extends Trigger {
   static say(o) { return `${Query.describe(o.filter)} is dealt damage`; }
 }
 export class DealtDamage extends Trigger {
+  static selfSubject = true;
   static ev = 'dealtDamage';
   static rules = [[/^whenever (?:this character|he|she|they) (?:is|are) dealt damage$/i, () => [{ ev: 'dealtDamage' }]]];
   static say() { return 'this character is dealt damage'; }

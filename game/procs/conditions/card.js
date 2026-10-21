@@ -13,7 +13,11 @@ export class RefIs extends Condition {
   static key = 'refIs';
   static rules = [
     [/^(?:a|an) (.+?) (?:was|is) chosen$/i, (m, a) => ({ refIs: filter(m[1], a) })],
-    [/^(?:it is|that card is|that character is|the chosen character is) (?:a|an) (.+?)$/i, (m, a) => ({ refIs: filter(m[1], a) })],
+    [/^(?:it is|it's|that card is|that character is|the chosen character is|they're|he's|she's|the moved character is) (?:a|an) (.+?)$/i, (m, a) => ({ refIs: filter(m[1], a) })],
+    [/^(?:the chosen character|that character|the moved character|the challenging character|that item) is named (.+)$/i, (m) => ({ refIs: { with: [{ named: [m[1].trim()] }] } })],
+    [/^(?:that character|the chosen character|they) (?:has|have) damage$/i, () => ({ refIs: { with: [{ damaged: true }] } })],
+    [/^(?:that item|that card|it) costs (\d+) or less$/i, (m) => ({ refIs: { with: [{ cost: { lte: +m[1] } }] } })],
+    [/^(?:the challenging character|that character) has (\d+) \{strength\} or more$/i, (m) => ({ refIs: { with: [{ str: { gte: +m[1] } }] } })],
   ];
   static test(rt, s, C, env) {
     const id = (env.job?.ctx.it || [])[0];

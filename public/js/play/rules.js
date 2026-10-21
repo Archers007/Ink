@@ -36,7 +36,8 @@ export const KEYWORD_LABEL = {
   reckless: 'Reckless', resist: 'Resist', rush: 'Rush', shift: 'Shift', puppyShift: 'Puppy Shift',
   universalShift: 'Universal Shift', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
-  cantQuest: "Can't quest", cantChallenge: "Can't challenge", cantReady: "Can't ready", cantMove: "Can't move", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged",
+  cantQuest: "Can't quest", cantChallenge: "Can't challenge", cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
+  noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged",
   cantSing: "Can't sing", challengeReady: 'Can challenge ready characters',
 };
 
@@ -138,9 +139,10 @@ export function defenderBlocker(att, attDef, tgt, tgtDef, defenderSide) {
 // Challenge damage (4.6.6 + Challenger 8.5 + Resist 8.8). Negative strength deals 0.
 export function challengeDamage(att, attDef, tgt, tgtDef) {
   const atk = Math.max(0, effStr(att, attDef) + kwVal(att, attDef, 'challenger'));
-  const toDefender = Math.max(0, atk - kwVal(tgt, tgtDef, 'resist'));
+  const safe = (c, d, ...k) => ['noDamage', 'noChallengeDamage', ...k].some((x) => hasKw(c, d, x));   // "takes no damage from challenges"
+  const toDefender = safe(tgt, tgtDef) ? 0 : Math.max(0, atk - kwVal(tgt, tgtDef, 'resist'));
   const back = tgtDef.type === 'character' ? Math.max(0, effStr(tgt, tgtDef)) : 0;  // locations deal no damage
-  const toAttacker = Math.max(0, back - kwVal(att, attDef, 'resist'));
+  const toAttacker = safe(att, attDef, 'noDamageChallenging') ? 0 : Math.max(0, back - kwVal(att, attDef, 'resist'));
   return { toDefender, toAttacker };
 }
 
