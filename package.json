@@ -14,7 +14,8 @@
     "test:chaos": "node scripts/sim-games.mjs 200 1 --chaos",
     "test": "node scripts/test-procs.mjs && node scripts/test-effects.mjs && node scripts/sim-games.mjs 60 && node scripts/sim-games.mjs 100 1 --chaos",
     "scan:cards": "uv run tools/card-scan/scan.py --jobs 12",
-    "build:procs": "node tools/compile-procs.mjs"
+    "build:procs": "node tools/compile-procs.mjs",
+    "gaps": "node scripts/gaps.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
