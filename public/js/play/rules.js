@@ -36,6 +36,8 @@ export const KEYWORD_LABEL = {
   reckless: 'Reckless', resist: 'Resist', rush: 'Rush', shift: 'Shift', puppyShift: 'Puppy Shift',
   universalShift: 'Universal Shift', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
+  cantQuest: "Can't quest", cantChallenge: "Can't challenge", cantReady: "Can't ready", cantBeChallenged: "Can't be challenged",
+  cantSing: "Can't sing", challengeReady: 'Can challenge ready characters',
 };
 
 export function cardLabel(def) {
@@ -102,6 +104,7 @@ export function questBlocker(card, def) {
   if (card.exerted) return 'Already exerted.';
   if (card.drying) return 'Still drying — characters can quest the turn after they\'re played.';
   if (hasKw(card, def, 'reckless')) return 'Reckless characters can\'t quest.';
+  if (hasKw(card, def, 'cantQuest')) return 'An ability says this character can\'t quest.';
   return null;
 }
 
@@ -109,6 +112,7 @@ export function attackerBlocker(card, def) {
   if (def.type !== 'character') return 'Only characters can challenge.';
   if (card.exerted) return 'Already exerted.';
   if (card.drying && !hasKw(card, def, 'rush')) return 'Still drying — only characters with Rush can challenge the turn they\'re played.';
+  if (hasKw(card, def, 'cantChallenge')) return 'An ability says this character can\'t challenge.';
   return null;
 }
 
@@ -120,7 +124,8 @@ function evasiveBlocks(att, attDef, tgt, tgtDef) {
 export function defenderBlocker(att, attDef, tgt, tgtDef, defenderSide) {
   if (tgtDef.type === 'location') return null;                                 // 4.6.8 — locations can always be challenged
   if (tgtDef.type !== 'character') return 'You can only challenge characters and locations.';
-  if (!tgt.exerted) return 'Only exerted characters can be challenged.';       // 4.6.4.2
+  if (hasKw(tgt, tgtDef, 'cantBeChallenged')) return 'An ability says this character can\'t be challenged.';
+  if (!tgt.exerted && !hasKw(att, attDef, 'challengeReady')) return 'Only exerted characters can be challenged.';       // 4.6.4.2
   if (evasiveBlocks(att, attDef, tgt, tgtDef)) return 'Evasive — only characters with Evasive (or Alert) can challenge it.';
   if (!hasKw(tgt, tgtDef, 'bodyguard')) {
     const guard = defenderSide.find(({ card, def }) => def.type === 'character' && card.exerted
@@ -143,6 +148,7 @@ export function singerBlocker(card, def, songDef) {
   if (def.type !== 'character') return 'Only characters can sing.';
   if (card.exerted) return 'Already exerted.';
   if (card.drying) return 'Still drying.';
+  if (hasKw(card, def, 'cantSing')) return 'An ability says this character can\'t sing.';
   if (songDef && singValue(card, def) < songDef.cost) return `Needs cost ${songDef.cost}+ to sing this song.`;
   return null;
 }

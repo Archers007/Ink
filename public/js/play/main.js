@@ -179,7 +179,8 @@ function validateUi() {
   // Automated card abilities: the server sends the legal choices
   const key = pend?.type === 'choose' ? `${pend.src}|${pend.op}|${pend.prompt}|${(pend.valid || []).join(',')}` : null;
   if (S.targeting?.pendKey?.startsWith('choose') && S.targeting.pendKey !== 'choose:' + key) clearTargeting();
-  if (key && pend.seat === you() && !S.targeting && !pend.confirm) {
+  // options ("Choose one") and off-board picks (deck / discard / hand) use the banner, not 3D targeting
+  if (key && pend.seat === you() && !S.targeting && !pend.confirm && !pend.choices && !pend.cards) {
     startTargeting({
       pendKey: 'choose:' + key,
       prompt: pend.prompt,
@@ -191,7 +192,7 @@ function validateUi() {
       onCancel: () => act({ type: 'choose', skip: true }),
     });
   }
-  if (key && pend.seat === you() && pend.confirm) renderBanner();
+  if (key && pend.seat === you() && (pend.confirm || pend.choices || pend.cards)) renderBanner();
   board.setUi({ selected: S.selected });
 }
 
@@ -429,6 +430,7 @@ function renderInspector() {
       ${stats ? `<div class="insp-stats">${stats}</div>` : ''}
       ${status ? `<div class="insp-status">${status}</div>` : ''}
       ${Object.keys(kws || {}).length ? `<div class="insp-kw">${Object.entries(kws).map(([k, v]) => `<span class="kw" title="${esc(KEYWORD_HELP[k] || '')}">${KEYWORD_LABEL[k] || k}${typeof v === 'number' && !['evasive', 'rush', 'ward', 'support', 'bodyguard', 'reckless', 'alert', 'vanish'].includes(k) ? ` ${['challenger', 'resist'].includes(k) ? '+' : ''}${v}` : ''}</span>`).join('')}</div>` : ''}
+      ${def.abilities.length ? `<a class="insp-proc" href="/procs?card=${encodeURIComponent(def.full)}" target="_blank" rel="noopener" title="How the engine runs this card">⚡ proc</a>` : ''}
       ${def.abilities.length ? `<div class="insp-text">${def.abilities.map((a, i) => `<p${def.auto?.[i] ? ' class="auto" title="Resolved automatically by the game"' : ''}>${def.auto?.[i] ? '<i class="auto-tag">⚡ auto</i> ' : ''}${a.name ? `<b>${esc(a.name)}</b> ` : ''}${esc(prettyText(a.text))}</p>`).join('')}</div>` : ''}
       <div class="insp-owner">${esc(zone)} · ${esc(owner)}</div>
       ${primary.length ? `<div class="acts">${primary.map((a, i) => `<button class="act ${a.hot ? 'hot' : ''}" data-p="${i}" ${a.reason ? 'disabled' : ''} title="${esc(a.reason || a.title || '')}">${esc(a.label)}${a.reason ? `<small>${esc(a.reason)}</small>` : ''}</button>`).join('')}</div>` : ''}
@@ -527,8 +529,23 @@ function renderBanner() {
     $('#tDone')?.addEventListener('click', () => { const picked = new Set(t.picked); clearTargeting(); t.onDone(picked); });
     return;
   }
-  if (v?.pending?.type === 'choose' && v.pending.confirm && v.pending.seat === you()) {
-    el.innerHTML = `<span>${esc(v.pending.prompt)}</span><button id="pYes">Yes</button><button id="pNo" class="ghost">No</button>`;
+  const pd = v?.pending;
+  if (pd?.type === 'choose' && pd.seat === you() && pd.choices) {
+    el.innerHTML = `<span>${esc(pd.prompt)}</span>${pd.choices.map((c, i) => `<button data-opt="${i}">${esc(prettyText(c))}</button>`).join('')}`;
+    el.hidden = false;
+    el.querySelectorAll('[data-opt]').forEach((b) => { b.onclick = () => act({ type: 'choose', option: +b.dataset.opt }); });
+    return;
+  }
+  if (pd?.type === 'choose' && pd.seat === you() && pd.cards && !pd.confirm) {
+    el.innerHTML = `<span>${esc(pd.prompt)}</span><div class="pick">${pd.cards.map((c) => `<button class="pc" data-pick="${c.iid}" title="${esc(cardLabel(D(c.cardId)))}"><img src="${IMG(c.cardId)}" alt="${esc(cardLabel(D(c.cardId)))}"></button>`).join('')}</div>
+      ${pd.optional ? '<button id="pNo" class="ghost">Skip</button>' : ''}`;
+    el.hidden = false;
+    el.querySelectorAll('[data-pick]').forEach((b) => { b.onclick = () => act({ type: 'choose', target: b.dataset.pick }); });
+    $('#pNo')?.addEventListener('click', () => act({ type: 'choose', skip: true }));
+    return;
+  }
+  if (pd?.type === 'choose' && pd.confirm && pd.seat === you()) {
+    el.innerHTML = `<span>${esc(pd.prompt)}</span>${pd.cards ? `<div class="pick">${pd.cards.map((c) => `<img src="${IMG(c.cardId)}" alt="">`).join('')}</div>` : ''}<button id="pYes">Yes</button><button id="pNo" class="ghost">No</button>`;
     el.hidden = false;
     $('#pYes').onclick = () => act({ type: 'choose', confirm: true });
     $('#pNo').onclick = () => act({ type: 'choose', skip: true });

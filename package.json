@@ -10,7 +10,11 @@
     "test:engine": "node scripts/sim-games.mjs 60",
     "test:lobby": "node scripts/test-lobby.mjs",
     "test:effects": "node scripts/test-effects.mjs",
-    "scan:cards": "uv run tools/card-scan/scan.py --jobs 12"
+    "test:procs": "node scripts/test-procs.mjs",
+    "test:chaos": "node scripts/sim-games.mjs 200 1 --chaos",
+    "test": "node scripts/test-procs.mjs && node scripts/test-effects.mjs && node scripts/sim-games.mjs 60 && node scripts/sim-games.mjs 100 1 --chaos",
+    "scan:cards": "uv run tools/card-scan/scan.py --jobs 12",
+    "build:procs": "node tools/compile-procs.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
