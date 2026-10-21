@@ -134,6 +134,7 @@ function moveTo(s, iid, to, ev, opt = {}) {
   for (const id of stack) {
     const k = s.cards[id];
     const wasFaceDown = k.faceDown;
+    k.leftGrants = from === 'play' && id === iid ? k.mods.filter((m) => m.stat === 'grant') : [];
     resetCard(k);
     k.zone = to;
     if (to === 'deckTop' || to === 'deckBottom') k.zone = 'deck';
@@ -680,9 +681,9 @@ H.useAbility = (s, seat, a, ev) => {
   needMain(s, seat);
   const C = ownCard(s, seat, a.iid, 'play');
   const Cd = D(s, C);
+  if (R.activate(s, seat, C, clampInt(a.index, 0, 50, -1), ev)) return;      // own or granted ability
   const ab = Cd.abilities[clampInt(a.index, 0, 50, -1)];
   if (!ab) throw RE('No such ability.');
-  if (R.activate(s, seat, C, clampInt(a.index, 0, 50, -1), ev)) return;
   const cost = parseActivatedCost(ab.text);
   const paid = [];
   if (cost) {
@@ -990,7 +991,9 @@ function publicCard(s, c) {
     atLocation: c.atLocation,
     enteredTurn: c.enteredTurn,
     boostedTurn: c.boostedTurn,
-    mods: c.mods.map((m) => ({ stat: m.stat, delta: m.delta, until: m.until, kw: m.kw, src: m.src })),
+    mods: c.mods.filter((m) => m.stat !== 'grant').map((m) => ({ stat: m.stat, delta: m.delta, until: m.until, kw: m.kw, src: m.src })),
+    // abilities other cards gave it; `index` is what useAbility takes (after the card's own abilities)
+    granted: c.mods.filter((m) => m.stat === 'grant').map((m, k) => ({ text: m.proc.text, kind: m.proc.kind, src: m.src, until: m.until, index: (d.procs || []).length + k })),
     under: c.under.map((u) => (s.cards[u].faceDown ? { faceDown: true } : { iid: u, cardId: s.cards[u].cardId })),
     eff: isUnit ? { str: d.type === 'character' ? effStr(c, d) : null, wp: effWp(c, d), lore: effLore(c, d) } : null,
     kw: effectiveKeywords(c, d),

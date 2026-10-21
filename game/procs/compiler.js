@@ -41,6 +41,7 @@ export class Compiler {
       filter: (x) => filter(x, at),
       forEach: (x) => Amount.forEach(x, at),
       miss: (why) => miss(why, at),
+      ability: (tok) => this.ability({ text: unquote(tok) }, 'character'),
       D: (o) => (dur ? { ...o, dur } : ctx.static ? o : miss('needs a duration (this turn / until …)', at)),
     };
   }
@@ -279,7 +280,7 @@ export class Compiler {
     if (name) text = text.replace(/^(?:[!?.,…]+\s*|,?\s*[A-Z][A-Z'\- ]*[!?]\s+|\.\.\.\s*)+(?=[A-Z{])/, '').replace(/^(?:[A-Z][A-Z']+ ){1,5}(?=(?:When|Whenever|While|During|Once|At|Your|This|If|You)\b)/, '');
     const base = { name, text };
     try {
-      const proc = this.text(text, cardType, !!name);
+      const proc = this.text(quote(text), cardType, !!name);
       return { ...base, ...proc, ...this.check(proc) };
     } catch (e) {
       if (!(e instanceof Miss)) throw e;
@@ -287,6 +288,11 @@ export class Compiler {
     }
   }
 }
+
+// A quoted ability ("…gain \"{exert} — Draw a card\" this turn") is one token to every other rule: no sentence,
+// comma or "and" splits inside it. A grant rule decodes it with unquote() and compiles it as a nested proc.
+const quote = (t) => t.replace(/"([^"]+)"/g, (_, q) => `"q${Buffer.from(q).toString('hex')}"`);
+export const unquote = (tok) => Buffer.from(tok.replace(/^"q|"$/g, ''), 'hex').toString();
 
 function walk(proc, visit) {
   const seen = (st) => {

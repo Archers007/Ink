@@ -54,7 +54,7 @@ for (let g = 0; g < GAMES; g++) {
     // occasionally throw garbage at the engine from a random seat
     if (rnd() < 0.15) {
       const all = Object.keys(s.cards);
-      const a = { type: FUZZ[Math.floor(rnd() * FUZZ.length)], iid: all[Math.floor(rnd() * all.length)], target: all[Math.floor(rnd() * all.length)], attacker: all[Math.floor(rnd() * all.length)], location: all[Math.floor(rnd() * all.length)], delta: 1, to: 'hand', stat: 'str', index: 0 };
+      const a = { type: FUZZ[Math.floor(rnd() * FUZZ.length)], iid: all[Math.floor(rnd() * all.length)], target: all[Math.floor(rnd() * all.length)], attacker: all[Math.floor(rnd() * all.length)], location: all[Math.floor(rnd() * all.length)], delta: 1, to: 'hand', stat: 'str', index: Math.floor(rnd() * 4) };
       const before = JSON.stringify(s);
       const r = applyAction(s, Math.floor(rnd() * 2), a);
       if (!r.ok) {

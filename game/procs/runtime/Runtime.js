@@ -45,7 +45,14 @@ export class Runtime {
   // ------------------------------------------------------------ helpers the building blocks share
   log(...a) { return this.E.log(...a); }
   effect(fn) { const E = EFFECT[fn]; if (!E) throw new Error(`no effect "${fn}"`); return E; }
-  procsOf(s, c) { return this.E.D(s, c).procs || []; }
+  procsOf(s, c, which = 'all') {
+    const own = this.E.D(s, c).procs || [];
+    const g = c.zone === 'play' ? c.mods.filter((m) => m.stat === 'grant') : c.leftGrants || [];
+    if (!g.length) return which === 'granted-static' ? [] : own;
+    if (which === 'own+temp') return [...own, ...g.filter((m) => m.until !== 'static').map((m) => m.proc)];
+    if (which === 'granted-static') return g.filter((m) => m.until === 'static').map((m) => m.proc);
+    return [...own, ...g.map((m) => m.proc)];
+  }
   labelOf(s, c, proc) { return `${this.E.cardLabel(this.E.D(s, c))}${proc?.name ? ' — ' + proc.name : ''}`; }
   inPlay(s, seat) { return this.E.P(s, seat).play.map((id) => s.cards[id]); }
   tl(s, iid) { const c = s.cards[iid]; return `${this.E.nameOf(s, c.owner)}'s ${this.E.cardLabel(this.E.D(s, c))}`; }
@@ -67,6 +74,10 @@ export class Runtime {
       if (ev) ev.push({ k: 'mod', iid, stat: m.stat, delta: m.n * mult });
     }
     for (const k of st.kws || []) {
+      if (k.kw === 'grant') {
+        if (!c.mods.some((m) => m.stat === 'grant' && m.proc === k.proc && m.until === u.until)) c.mods.push({ stat: 'grant', proc: k.proc, ...u, src: job.label });
+        continue;
+      }
       c.mods.push({ stat: 'kw', kw: k.kw, delta: k.n ?? 1, ...u, src: job.label });
       if (ev) ev.push({ k: 'mod', iid, stat: 'kw', delta: 1 });
     }
