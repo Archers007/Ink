@@ -16,6 +16,12 @@ export class Static extends Kind {
     let cond = null;
     let m;
     if ((m = t.match(/^(?:while|if|as long as) (.+?), (.+)$/i))) { cond = c.condition(m[1], t); t = m[2]; }
+    if ((m = t.match(/^(.+?) unless (.+)$/i))) { const u = { not: c.condition(m[2], t) }; cond = cond ? { all: [cond, u] } : u; t = m[1]; }
+    // "this character may enter play exerted [to X]" = when you play it, you may exert it [to X]
+    if ((m = t.match(/^this character may enter play exerted(?: to (.+))?$/i))) {
+      const steps = [{ fn: 'exert', sel: { self: true }, may: true }, ...(m[1] ? c.effects(m[1]).map((x, i) => (i === 0 ? { ...x, ifDid: true } : x)) : [])];
+      return { kind: 'triggered', ...mods, on: [{ ev: 'play' }], ...(cond ? { cond } : {}), do: steps };
+    }
     const wrap = (effect) => ({ kind: 'static', ...mods, ...(cond ? { cond } : {}), effect });
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to play this (?:character|item|location)$/i))) return wrap({ fn: 'selfCost', n: +m[1] });

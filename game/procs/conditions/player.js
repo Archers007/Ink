@@ -47,3 +47,9 @@ export class FirstTurnSecond extends Condition {
   static test(rt, s, C, env) { return s.starting !== env.ctl && (rt.E.P(s, env.ctl).turnsTaken || 0) === 1 && s.active === env.ctl; }
   static say() { return "it's your first turn and you went second"; }
 }
+export class HasInkDrop extends Condition {
+  static key = 'inkDrop';
+  static rules = [[/^you have an ink drop$/i, () => ({ inkDrop: true })]];
+  static test(rt, s, C, env) { return (rt.E.P(s, env.ctl).inkDrops || 0) > 0; }
+  static say() { return 'you have an ink drop'; }
+}

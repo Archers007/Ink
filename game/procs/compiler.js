@@ -25,6 +25,13 @@ const SONG_REMINDER = /^\(?(?:a|an) character with cost \d+ or more can \{exert\
 const SING_TOGETHER = /^sing together \d+\s*/i;
 const COST_THEN = /^(you may )?(pay \d+ \{ink\}|exert .+?|banish .+?|discard a card|choose and discard a card|put .+? into your inkwell facedown|return .+? to your hand) to (.+)$/i;
 
+// "draws 2 cards and gains 2 lore" → "draw 2 cards and gain 2 lore"; their → your
+const VERB3 = /\b(draws|loses|gains|puts|discards|chooses|exerts|shuffles|reveals|pays|returns|deals|banishes|readies|plays|removes|moves|looks|gets|takes|mills)\b/gi;
+export function secondPerson(t) {
+  return t.replace(VERB3, (v) => (/ies$/i.test(v) ? v.slice(0, -3) + 'y' : /(sh|ch|ss|x)es$/i.test(v) ? v.slice(0, -2) : v.slice(0, -1)))
+    .replace(/\btheir\b/gi, 'your').replace(/\bthey have\b/gi, 'you have').replace(/\bthey\b/gi, 'you');
+}
+
 export class Compiler {
   // phrase helpers handed to every rule:  P.sel("chosen character"), P.filter("Hero character"), P.D(step)…
   P(at, ctx = {}, dur = null) {
@@ -66,6 +73,17 @@ export class Compiler {
       const st = f(mm, P);
       if (st) return may ? { ...st, may: true } : st;
     }
+    // "each player draws 2 cards and gains 2 lore" → the clause in the 2nd person, run once per player as them
+    let ep;
+    if ((ep = s.match(/^(each player|each opponent|each opposing player)(?: (may))? (.+)$/i))) {
+      const steps = this.effects(`${ep[2] ? 'you may ' : ''}${secondPerson(ep[3])}`, ctx);
+      return { fn: 'eachPlayer', who: /^each player$/i.test(ep[1]) ? 'each' : 'opp', do: steps, ...(may ? { may: true } : {}) };
+    }
+    // "<effect> unless <condition>"
+    if ((ep = s.match(/^(.+?) unless (.+)$/i))) {
+      const st = this.clause(ep[1], ctx);
+      return { ...st, cond: { not: this.condition(ep[2], raw) }, ...(may ? { may: true } : {}) };
+    }
     miss(`effect: "${s}"`, raw);
   }
 
@@ -73,6 +91,8 @@ export class Compiler {
   compound(part, ctx) {
     try { return [this.clause(part, ctx)]; } catch (e) {
       if (!(e instanceof Miss)) throw e;
+      const eq = this.equalTo(part, ctx);
+      if (eq) return eq;
       const s = part.replace(/[.!]$/, '');
       const may = /^you may /i.test(s) ? 'you may ' : '';
       for (const m of s.matchAll(/,? and /gi)) {
@@ -88,6 +108,38 @@ export class Compiler {
       }
       throw e;
     }
+  }
+
+  // "gain lore equal to the {lore} of chosen opposing character" → [choose, gain {stat of it}]
+  //  "draw cards equal to that location's {lore}" · "deal damage equal to her {strength} to chosen character"
+  equalTo(part, ctx) {
+    const s = part.replace(/[.!]$/, '').trim();
+    const m = s.match(/^(.*?)\b(lore|cards|damage) equal to (.+?)(?:, to a maximum of (\d+)(?: lore| cards?)?(?: each)?)?( to .+)?$/i);
+    if (!m) return null;
+    const STAT = { '{lore}': 'lore', '{strength}': 'str', '{willpower}': 'wp', cost: 'cost', damage: 'damage' };
+    let r = m[3].trim(); let stat; let sel;
+    let k;
+    if ((k = r.match(/^the (\{lore\}|\{strength\}|\{willpower\}|cost) of (.+)$/i))) { stat = STAT[k[1].toLowerCase()]; sel = k[2]; }
+    else if ((k = r.match(/^the (?:damage|number of damage counters) on (.+)$/i))) { stat = 'damage'; sel = k[1]; }
+    else if ((k = r.match(/^(.+?)'s? (\{lore\}|\{strength\}|\{willpower\}|cost)$/i))) { stat = STAT[k[2].toLowerCase()]; sel = k[1]; }
+    else return null;
+    sel = sel.trim();
+    const noun = m[2].toLowerCase() === 'cards' ? '1 card' : `1 ${m[2].toLowerCase()}`;
+    let st;
+    try { st = this.clause(`${m[1]}${noun}${m[5] || ''}`, ctx); } catch (e) { if (e instanceof Miss) return null; throw e; }
+    if (st.n !== 1) return null;
+    const max = m[4] ? { max: +m[4] } : {};
+    if (/^(her|his|this character|this card|this location)$/i.test(sel)) return [{ ...st, n: { stat, of: 'self', ...max } }];
+    if (/^(that|the) location$/i.test(sel)) return [{ ...st, n: { stat, of: 'loc', ...max } }];
+    let S;
+    try { S = this.P(part, ctx).sel(sel); } catch (e) { if (e instanceof Miss) return null; throw e; }
+    if (S.self) return [{ ...st, n: { stat, of: 'self', ...max } }];
+    if (S.ref) return [{ ...st, n: { stat, of: 'ref', ...max } }];
+    if (S.chosen || S.yours) {
+      const { may, ...rest } = st;                              // "you may draw cards equal to … of chosen X" → may choose
+      return [{ fn: 'choose', sel: S, ...(may ? { may: true } : {}) }, { ...rest, n: { stat, of: 'ref', ...max }, linked: true }];
+    }
+    return null;
   }
 
   // sentences that modify the step before them

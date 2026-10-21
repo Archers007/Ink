@@ -18,3 +18,11 @@ export class AllOf extends Condition {
   static test(rt, s, C, env) { return C.all.every((x) => rt.test(s, x, env.ctl, env.src, env.job)); }
   static say(C, sayOne) { return C.all.map(sayOne).join(' and '); }
 }
+
+// "… unless you have a Captain character in play" → the inner condition must fail
+export class NotCond extends Condition {
+  static key = 'not';
+  static rules = [];                                   // built by "unless" in the compiler / static kind
+  static test(rt, s, C, env) { return !rt.test(s, C.not, env.ctl, env.src, env.job); }
+  static say(C, sayOne) { return `not (${sayOne(C.not)})`; }
+}

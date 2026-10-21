@@ -21,11 +21,13 @@ export class CostMod extends Effect {
   static fn = 'costMod';
   static rules = [[/^you pay (\d+) \{ink\} less (?:for the next (.+?) you play|to play (.+?))$/i, (m, P) => ({ fn: 'costMod', n: +m[1], filter: P.filter(m[2] || m[3]), next: !!m[2] || undefined, ...(P.dur ? { dur: P.dur } : {}) })]];
   static run(rt, s, job, st) {
-    rt.E.P(s, job.seat).costMods.push({ n: st.n, filter: st.filter, next: !!st.next, turn: s.turn, src: job.label });
-    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} pays ${st.n} ink less for the next ${Query.describe(st.filter)} this turn.`, { seat: job.seat, kind: 'effect' });
+    const n = Amount.value(rt, s, job, st.n);
+    if (!n) return false;
+    rt.E.P(s, job.seat).costMods.push({ n, filter: st.filter, next: !!st.next, turn: s.turn, src: job.label });
+    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} pays ${n} ink less for the next ${Query.describe(st.filter)} this turn.`, { seat: job.seat, kind: 'effect' });
     return true;
   }
-  static say(st) { return `pay ${st.n} {ink} less for ${st.next ? 'the next' : 'each'} ${Query.describe(st.filter)}${st.dur ? ` ${Duration.say(st.dur)}` : ''}`; }
+  static say(st) { return `pay ${Amount.say(st.n)} {ink} less for ${st.next ? 'the next' : 'each'} ${Query.describe(st.filter)}${st.dur ? ` ${Duration.say(st.dur)}` : ''}`; }
 }
 // static-only: "you pay 2 {ink} less to play this character [for each X]"
 export class SelfCost extends Effect {

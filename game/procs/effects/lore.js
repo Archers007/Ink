@@ -25,9 +25,11 @@ export class LoseLore extends Effect {
     [/^(?:each|chosen) opponent loses lore equal to (?:that|their|his|her|its) (?:character's )?\{lore\}$/i, () => ({ fn: 'loseLore', n: { stat: 'lore', of: 'ref' }, who: 'opp' })],
   ];
   static run(rt, s, job, st, ev) {
+    job.ctx.n = 0;
     for (const o of rt.who(s, job, 'opp')) {
       const before = rt.E.P(s, o).lore;
       rt.E.gainLore(s, o, -Amount.value(rt, s, job, st.n), ev);
+      job.ctx.n += before - rt.E.P(s, o).lore;
       rt.log(s, `↳ ${rt.E.nameOf(s, o)} lost ${before - rt.E.P(s, o).lore} lore.`, { seat: o, kind: 'effect' });
     }
     return true;
