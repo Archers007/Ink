@@ -8,12 +8,13 @@ const COSTS = {
   ink: [/^(\d+) \{ink\}$/, (m) => +m[1], true, (v) => `${v} {ink}`],
   banishSelf: [/^banish this (?:item|character|location)$/i, () => true, true, () => 'banish this'],
   discard: [/^(?:choose and )?discard (?:a|an) (.+)$/i, (m, c, at) => (m[1].toLowerCase() === 'card' ? {} : c.filter(m[1], at)), true, (v) => `discard a ${Query.describe(v)}`],
-  exertOther: [/^exert (?:one of your|an?) (.+)$/i, (m, c, at) => c.filter(m[1], at), false, (v) => `exert a ${Query.describe(v)}`],
+  exertOther: [/^\{exert\} (?:one of your|an?) (.+)$|^exert (?:one of your|an?) (.+)$/i, (m, c, at) => { const F = c.filter(`your ${m[1] || m[2]}`, at); return { ...F, with: [...(F.with || []), { ready: true }] }; }, true, (v) => `exert a ${Query.describe(v)}`],
+  banishOther: [/^banish one of your (.+)$/i, (m, c, at) => c.filter(`your ${m[1]}`, at), true, (v) => `banish a ${Query.describe(v)}`],
   healSelf: [/^remove (\d+) damage from this character$/i, (m) => +m[1], false, (v) => `remove ${v} damage from this`],
   inkSelf: [/^put this (?:character|item) into your inkwell facedown$/i, () => true, false, () => 'put this into your inkwell'],
 };
 export const COST_SUPPORT = new Set(Object.entries(COSTS).filter(([, v]) => v[2]).map(([k]) => k));
-const HEAD = /^((?:\{exert\}|\d+ \{ink\}|banish this (?:item|character|location)|choose and discard (?:a|an?) (?:\w+ )?card|discard (?:a|an?) (?:\w+ )?card|exert (?:one of your|an?|\d+) [^—]+?|put [^—]+? into your inkwell facedown|remove \d+ damage from this character|[, ]+)+) — (.+)$/i;
+const HEAD = /^((?:\{exert\}|\d+ \{ink\}|banish this (?:item|character|location)|choose and discard (?:a|an?) (?:\w+ )?card|discard (?:a|an?) (?:\w+ )?card|(?:exert|\{exert\}) (?:one of your|an?|\d+) [^—]+?|banish one of your [^—]+?|put [^—]+? into your inkwell facedown|remove \d+ damage from this character|[, ]+)+) — (.+)$/i;
 
 export class Activated extends Kind {
   static kind = 'activated';
@@ -51,6 +52,7 @@ export class Activated extends Kind {
       if (c.exerted) throw E.RE('It is exerted — this ability costs ⟳.');
       if (d.type === 'character' && c.drying) throw E.RE("Characters can't ⟳ the turn they're played (drying).");
     }
+    for (const k of ['banishOther', 'exertOther']) if (cost[k] && !rt.candidates(s, cost[k], seat, c.iid).length) throw E.RE(`You have no ${Query.describe(cost[k])} to ${k === 'banishOther' ? 'banish' : 'exert'} for this cost.`);
     if (cost.discard && !E.P(s, seat).hand.some((iid) => rt.matches(s, { ...cost.discard, zone: 'hand' }, s.cards[iid], seat, c.iid))) throw E.RE('You have no card to discard for this cost.');
     E.payInk(s, seat, cost.ink || 0);
     const paid = [];
@@ -59,7 +61,12 @@ export class Activated extends Kind {
     if (proc.once) c.once[index] = s.turn;
     rt.log(s, `${E.nameOf(s, seat)} used ${E.cardLabel(d)}'s ${proc.name || 'ability'}${paid.length ? ` (paid ${paid.join(' + ')})` : ''}.`, { seat, kind: 'play' });
     ev.push({ k: 'ability', iid: c.iid, index });
-    const steps = [...(cost.discard ? [{ fn: 'discard', who: 'you', n: 1, filter: cost.discard }] : []), ...proc.do];
+    const steps = [
+      ...(cost.discard ? [{ fn: 'discard', who: 'you', n: 1, filter: cost.discard }] : []),
+      ...(cost.exertOther ? [{ fn: 'exert', sel: { chosen: cost.exertOther }, cost: true }] : []),
+      ...(cost.banishOther ? [{ fn: 'banish', sel: { chosen: cost.banishOther }, cost: true }] : []),
+      ...proc.do,
+    ];
     if (cost.banishSelf) { rt.log(s, `↳ ${E.cardLabel(d)} was banished to pay for it.`, { kind: 'effect' }); E.banish(s, c.iid, ev, 'cost'); }
     rt.queue(s, seat, c.iid, rt.labelOf(s, c, proc), steps);
     return true;

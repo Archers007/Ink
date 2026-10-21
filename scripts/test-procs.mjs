@@ -701,6 +701,25 @@ test('restriction: "can\'t challenge and must quest during their next turn if ab
   ok(applyAction(s, 1, { type: 'quest', iid: ids.play1[0] })); drain(s);
   ok(applyAction(s, 1, { type: 'endTurn' }));
 });
+test('cost: "{exert}, Banish one of your items — Gain 3 lore" / "{exert} one of your characters —"', () => {
+  const triton = byName('Triton - Discerning King');
+  const item = all.find((d) => d.type === 'item' && d.procs.every((p) => p.kind === 'activated'));
+  { const { s, ids } = setup({ play0: [triton] }); unready(s, ids.play0);
+    assert.equal(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }).ok, false, 'no item to banish'); }
+  { const { s, ids } = setup({ play0: [triton, item] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }));
+    assert.deepEqual(s.pending.valid, [ids.play0[1]]);
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].zone, 'discard'); assert.equal(s.players[0].lore, 3); }
+  const scrump = byName('Scrump');
+  const mine = vanilla(() => true), foe = vanilla(() => true);
+  { const { s, ids } = setup({ play0: [scrump, mine], play1: [foe] }); unready(s, ids.play0);
+    const i = scrump.procs.findIndex((p) => p.kind === 'activated');
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: i }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].exerted, true); }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
