@@ -25,7 +25,8 @@ export class Prompter {
     if (sel.self) return s.cards[job.src] ? [job.src] : [];
     if (sel.ref) {
       // "it/them" = the last thing acted on; with nothing before it, the pronoun means this card ("he gets +1 {lore}")
-      if (sel.pron && job.ctx.selfSubj && !job.ctx.picked) return s.cards[job.src] ? [job.src] : [];
+      // he/she/him/her before anything was picked: this card (always on self-subject triggers; otherwise when the event gave no card)
+      if (sel.pron && !job.ctx.picked && (job.ctx.selfSubj || !(job.ctx.it || []).some((id) => s.cards[id]))) return s.cards[job.src] ? [job.src] : [];
       const it = (job.ctx.it || []).filter((id) => s.cards[id]);
       return it.length || job.i > 0 ? it : s.cards[job.src] ? [job.src] : [];
     }

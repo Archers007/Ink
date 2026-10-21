@@ -31,7 +31,8 @@ export function filter(phrase, at = phrase) {
 }
 
 function filter1(phrase, at) {
-  let s = phrase.trim();
+  let s = phrase.trim().replace(/ each$/i, '');                  // "with cost 2 or less each"
+
   const F = {};
   const W = [];
   for (let guard = 0; guard < 8; guard++) {

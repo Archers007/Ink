@@ -46,6 +46,7 @@ export class Compiler {
     };
   }
   filter(x, at) { return filter(x, at); }
+  forEach(x, at) { return Amount.forEach(x, at); }
   condition(x, at) { return parseCondition(x, at); }
   miss(why, at) { miss(why, at); }
 
@@ -94,18 +95,39 @@ export class Compiler {
       if (!(e instanceof Miss)) throw e;
       const eq = this.equalTo(part, ctx);
       if (eq) return eq;
-      const s = part.replace(/[.!]$/, '');
-      const may = /^you may /i.test(s) ? 'you may ' : '';
-      for (const m of s.matchAll(/,? and /gi)) {
-        const a = s.slice(0, m.index); const b = s.slice(m.index + m[0].length);
-        if (!a || !b) continue;
-        let A;
-        try { A = this.clause(a, ctx); } catch (e2) { if (e2 instanceof Miss) continue; throw e2; }
-        const subj = a.replace(/^you may /i, '').match(/^(.+?) (?:gets?|gains?|can't|cannot|can|loses?|takes?|enters?|is|are)\b/i)?.[1];
-        const tries = [b, ...(subj ? [`${subj} ${b}`] : [])];
-        for (const t of tries) {
-          try { const B = this.clause(t, ctx); if (A.may) B.ifDid = true; return [A, B]; } catch (e3) { if (!(e3 instanceof Miss)) throw e3; }
+      const s0 = part.replace(/[.!]$/, '');
+      const [core] = Duration.take(s0);
+      const durTxt = core !== s0 && s0.startsWith(core) ? s0.slice(core.length) : '';
+      const s = durTxt ? core : s0;
+      const attempt = (s, durTxt) => {
+        for (const m of s.matchAll(/,? and /gi)) {
+          const a = s.slice(0, m.index); const b = s.slice(m.index + m[0].length);
+          if (!a || !b) continue;
+          let A;
+          try { A = this.clause(a + durTxt, ctx); } catch (e2) { if (e2 instanceof Miss) continue; throw e2; }
+          const subj = a.replace(/^you may /i, '').match(/^(.+?) (?:gets?|gains?|can't|cannot|can|loses?|takes?|enters?|is|are)\b/i)?.[1];
+          const tries = [b + durTxt, ...(subj ? [`${subj} ${b}${durTxt}`] : [])];
+          for (const t of tries) {
+            try {
+              const B = this.clause(t, ctx);
+              if (A.may) B.ifDid = true;
+              // "chosen character gains Rush and gets +1 {strength}" — one choice, two changes
+              if (B.sel?.chosen && A.sel?.chosen && JSON.stringify(B.sel) === JSON.stringify(A.sel)) { B.sel = { ref: true }; B.linked = true; }
+              return [A, B];
+            } catch (e3) { if (!(e3 instanceof Miss)) throw e3; }
+          }
         }
+        return null;
+      };
+      const r = attempt(s, durTxt) || (durTxt ? attempt(s0, '') : null);
+      if (r) return r;
+      // "<verb> X or <verb> Y" — the player picks one
+      for (const m of s0.matchAll(/ or (?=[a-z]+ )/g)) {
+        const a = s0.slice(0, m.index); const b = s0.slice(m.index + 4);
+        try {
+          const A = this.compound(a, ctx); const B = this.compound(b, ctx);
+          return [{ fn: 'chooseOne', labels: [a, b].map((x) => x.replace(/^\w/, (c) => c.toUpperCase())), options: [A, B] }];
+        } catch (e2) { if (!(e2 instanceof Miss)) throw e2; }
       }
       throw e;
     }
@@ -204,9 +226,11 @@ export class Compiler {
       }
       s.split(/,? then,? /i).forEach((part, i) => {
         const pm = part.match(COST_THEN);
-        if (pm) {
+        let costStep = null;
+        if (pm) { try { costStep = this.clause((pm[1] || '') + pm[2], ctx); } catch (e) { if (!(e instanceof Miss)) throw e; } }
+        if (costStep) {
           // "you may pay 2 {ink} to draw a card" — the cost, then the rest only if it was paid
-          steps.push(this.clause((pm[1] || '') + pm[2], ctx));
+          steps.push(costStep);
           const st = this.effects(pm[3], ctx);
           st.forEach((x) => { x.ifDid = true; });
           steps.push(...st);
@@ -280,7 +304,14 @@ export class Compiler {
     if (name) text = text.replace(/^(?:[!?.,…]+\s*|,?\s*[A-Z][A-Z'\- ]*[!?]\s+|\.\.\.\s*)+(?=[A-Z{])/, '').replace(/^(?:[A-Z][A-Z']+ ){1,5}(?=(?:When|Whenever|While|During|Once|At|Your|This|If|You)\b)/, '');
     const base = { name, text };
     try {
-      const proc = this.text(quote(text), cardType, !!name);
+      let also = null;
+      let body = text;
+      for (const m of text.matchAll(/[.!] (?=[A-Z])/g)) {
+        const kw = KeywordLine.parse(text.slice(m.index + 2));
+        if (kw) { also = kw.kws; body = text.slice(0, m.index + 1); break; }
+      }
+      const proc = this.text(quote(body), cardType, !!name);
+      if (also) proc.also = also;
       return { ...base, ...proc, ...this.check(proc) };
     } catch (e) {
       if (!(e instanceof Miss)) throw e;

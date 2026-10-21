@@ -17,6 +17,7 @@ export class Amount {
     if ((m = p.match(/^(.+?) card in your (discard|hand)$/i))) { const F = filter(m[1] + ' card', at); F.zone = m[2]; F.owner = 'you'; return { count: F }; }
     if (/^card under (?:this character|him|her|it)$/i.test(p)) return { count: { under: true } };
     if (/^(?:1 )?damage on (?:this character|him|her|it)$/i.test(p)) return { count: { damageOnSelf: true } };
+    if ((m = p.match(/^(?:1 )?damage on (.+)$/i))) return { count: { damageOn: filter(m[1], at) } };
     if ((m = p.match(/^lore you have$/i))) return { count: { lore: true } };
     // "for each 1 damage removed this way" · "for each damage counter moved this way" · "for each 1 lore lost this way"
     if (/^(?:1 )?(?:damage(?: counter)?|lore|card) (?:removed|moved|lost|discarded|put \w+) this way$/i.test(p)) return { count: { thisWay: true } };
@@ -46,6 +47,7 @@ export class Amount {
     const me = s.cards[src];
     if (c.under) return me ? me.under.length : 0;
     if (c.damageOnSelf) return me ? me.damage : 0;
+    if (c.damageOn) return rt.candidates(s, c.damageOn, ctl, src).reduce((n, id) => n + (s.cards[id].damage || 0), 0);
     if (c.lore) return rt.E.P(s, ctl).lore;
     if (c.size) {
       const seats = c.owner === 'opp' ? rt.E.opponentsOf(s, ctl) : [ctl];
@@ -65,6 +67,7 @@ export class Amount {
     if (c.thisWay) return 'one done this way';
     if (c.under) return 'card under this';
     if (c.damageOnSelf) return 'damage on this';
+    if (c.damageOn) return `1 damage on ${Query.describe(c.damageOn)}`;
     if (c.lore) return 'lore you have';
     if (c.size) return `card in ${c.owner === 'opp' ? "opponents'" : 'your'} ${c.zone}`;
     return Query.describe(c);

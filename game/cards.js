@@ -174,6 +174,8 @@ function attachProcs(def, built) {
     def.procs = compileCard(def);
     def.rulesSource = 'db';
   }
+  // keywords printed at the end of another ability ("…less to play this character. Evasive")
+  for (const p of def.procs) for (const k of p.also || []) { def.kw ||= {}; def.kw[k.kw] ??= k.n ?? true; }
   // Shift variants (CR 8.10.8): "Floodborn Shift 7" is a classification shift, "Temporary Shift 4" shifts by name
   for (const p of def.procs) for (const k of p.kind === 'keyword' ? p.kws : []) {
     if (k.kw !== 'classShift' || k.n == null) continue;

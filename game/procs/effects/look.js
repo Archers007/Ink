@@ -20,6 +20,7 @@ export class Look extends Effect {
     if ((m = t.match(/^put (one|\d+) (?:of them )?into your hand$/i))) { st.pick = { filter: {}, n: N(m[1]), to: 'hand' }; return true; }
     if ((m = t.match(/^put (one|\d+) (?:of them )?into your hand and the (?:other|rest) on the (bottom|top) of your deck(?: in any order)?$/i))) { st.pick = { filter: {}, n: N(m[1]), to: 'hand' }; st.rest = m[2]; return true; }
     if ((m = t.match(/^put the rest on the (bottom|top) of your deck(?: in any order)?$/i))) { st.rest = m[1]; return true; }
+    if ((m = t.match(/^put (one) into your hand and the other into your inkwell facedown and exerted$/i))) { st.pick = { filter: {}, n: 1, to: 'hand' }; st.rest = 'inkwell'; return true; }
     if (/^put the rest (?:in|into) your discard$/i.test(t)) { st.rest = 'discard'; return true; }
     if (/^put (?:it|them) on either the top or the bottom of your deck$/i.test(t) || /^put it on (?:either )?the top or (?:the )?bottom of your deck$/i.test(t)) { st.scry = true; return true; }
     if (/^put one on the top of your deck and the other on the bottom$/i.test(t)) { st.scry = true; return true; }
@@ -65,6 +66,7 @@ export class Look extends Effect {
     const rest = T.cards.filter((iid) => !picked.includes(iid) && s.cards[iid].zone === 'deck');
     if (st.rest === 'bottom') for (const iid of rest) E.moveTo(s, iid, 'deckBottom', ev);
     if (st.rest === 'discard') for (const iid of rest) E.moveTo(s, iid, 'discard', ev);
+    if (st.rest === 'inkwell') for (const iid of rest) E.moveTo(s, iid, 'inkwell', ev, { exerted: true });
     job.ctx.it = picked;
     return picked.length > 0 || !st.pick;
   }

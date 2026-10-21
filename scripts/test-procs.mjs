@@ -509,6 +509,60 @@ test('grants: location static "Characters gain \"{exert} — Draw a card\" while
   ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[1], index: g()[0].index })); drain(s);
   assert.equal(s.players[0].hand.length, h + 1);
 });
+test('a keyword printed after another ability still counts ("…less to play this character. Evasive")', () => {
+  assert.equal(byName('Vixey - Forest Friend').kw.evasive, true);
+  assert.equal(byName('Judy Hopps - Snowball Patrol').kw.resist, 1);
+});
+test('"They gain Rush and get +1 {strength} this turn" — one target, both changes', () => {
+  const vit = byName('Vitalisphere');                                  // chosen character gains Rush and gets +2 {strength}
+  const pal = vanilla(() => true);
+  const { s, ids } = setup({ play0: [vit, pal] });
+  ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(vit) }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] })); drain(s);
+  assert.equal(s.pending, null, 'no second prompt');
+  const v = viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[1]);
+  assert.equal(v.eff.str, pal.str + 2); assert.ok(v.kw.rush);
+});
+test('"banish her or return another chosen character": only the possible option is offered (CR 1.7.7)', () => {
+  const mim = byName('Madam Mim - Fox');
+  { const { s, ids } = setup({ hand0: [mim] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'discard', 'alone → she banishes herself'); }
+  { const pal = vanilla(() => true);
+    const { s, ids } = setup({ hand0: [mim], play0: [pal] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.equal(s.pending?.op, 'chooseOne');
+    ok(applyAction(s, 0, { type: 'choose', option: 1 }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].zone, 'hand'); assert.equal(s.cards[ids.hand0[0]].zone, 'play'); }
+});
+test('"whenever you play a second action in a turn" counts this turn\'s plays', () => {
+  const owl = byName('Owl Island - Secluded Entrance');
+  const zap = all.find((d) => d.type === 'action' && d.cost <= 2 && d.procs.every((p) => p.exec) && /^draw a card\.?$/i.test(d.abilities.map((a) => a.text).join(' ').trim()))
+    || all.find((d) => d.type === 'action' && d.cost <= 2 && d.procs.length === 1 && d.procs[0].do?.length === 1 && d.procs[0].do[0].fn === 'draw');
+  const { s, ids } = setup({ hand0: [zap, zap, zap], play0: [owl] });
+  const lore = () => s.players[0].lore;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s); assert.equal(lore(), 0);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] })); drain(s); assert.equal(lore(), 3);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[2] })); drain(s); assert.equal(lore(), 3, 'only the second');
+});
+test('"Put one into your hand and the other into your inkwell facedown and exerted"', () => {
+  const song = byName("How Far I'll Go");
+  const { s, ids } = setup({ hand0: [song] });
+  const top = s.players[0].deck.slice(0, 2); const ink = s.players[0].inkwell.length;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  ok(applyAction(s, 0, { type: 'choose', target: top[1] })); drain(s);
+  assert.equal(s.cards[top[1]].zone, 'hand'); assert.equal(s.cards[top[0]].zone, 'inkwell'); assert.equal(s.cards[top[0]].exerted, true);
+  assert.equal(s.players[0].inkwell.length, ink + 1);
+});
+test('"For each 1 damage on opposing characters, you pay 1 {ink} less"', () => {
+  const robin = byName('Robin Hood - Timely Contestant');
+  const foe = vanilla((d) => d.wp >= 4);
+  const { s, ids } = setup({ hand0: [robin], play1: [foe, foe], ink0: robin.cost - 3 });
+  s.cards[ids.play1[0]].damage = 2; s.cards[ids.play1[1]].damage = 1;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  assert.equal(s.cards[ids.hand0[0]].zone, 'play');
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
