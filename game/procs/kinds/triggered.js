@@ -1,6 +1,6 @@
 // "<trigger>, [if <cond>,] effect"   { kind:'triggered', on:[{ev,…}], once?, during?, cond?, do:[step] }
 import { Kind, sayDuring } from './Kind.js';
-import { parseTrigger, sayTrigger } from '../triggers/index.js';
+import { parseTrigger, sayTrigger, TRIGGER } from '../triggers/index.js';
 
 export class Triggered extends Kind {
   static kind = 'triggered';
@@ -40,7 +40,8 @@ export class Triggered extends Kind {
         if (c.once[k] === s.turn) return;
         c.once[k] = s.turn;
       }
-      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [] }, { cond: proc.cond || null });
+      // self-subject triggers ('whenever this character moves, he gets +3'): he/she = this card until a step picks something
+      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}) }, { cond: proc.cond || null });
     });
   }
 }

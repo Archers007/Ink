@@ -37,6 +37,11 @@ export class Mod extends Effect {
     [/^(.+?) (?:gets?|gains?) ([+-]\d+) \{(strength|willpower|lore)\} and gains? (.+)$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2), kws: kwList(m[4]) ?? P.miss(`keywords: "${m[4]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:gains?|gets?) (${KWS})$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: kwList(m[2]) ?? P.miss(`keywords: "${m[2]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:can't|cannot) (${VERBS})(?: or (${VERBS}))?$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [m[2], m[3]].filter(Boolean).map((x) => ({ kw: CANT[x.toLowerCase()] })) })],
+    // damage prevention
+    [/^(.+?) takes? no damage from (?:the )?challenges?$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noChallengeDamage' }], ...(/the challenge$/i.test(m[0]) ? { dur: 'turn' } : P.dur ? { dur: P.dur } : {}) })],
+    [/^(.+?) takes? no damage while challenging$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamageChallenging' }] })],
+    [/^(.+?) can't be dealt damage unless (?:he's|she's|they're|it's) being challenged$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noEffectDamage' }] })],
+    [/^(.+?) can't be dealt damage$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamage' }] })],
     // "can't ready at the start of their next turn" = skip their next ready step
     [/^(.+?) (?:can't|cannot) ready at the start of (?:their|its|his|her|its player's) next turn$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReady' }], dur: 'theirNext' })],
     [/^(.+?) (?:can't|cannot) ready at the start of your turn$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReady' }] })],

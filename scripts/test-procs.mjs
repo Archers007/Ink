@@ -398,6 +398,35 @@ test('"can\'t quest unless …" and "may enter play exerted to …"', () => {
     assert.equal(s.cards[ids.hand0[0]].exerted, true); assert.equal(s.players[0].hand.length, h);   // -1 played +1 drawn
   }
 });
+test('pronouns: "whenever this character moves to a location, he gets +3" means him, not the location', () => {
+  const cubby = byName('Cubby - Mighty Lost Boy');
+  const loc = all.find((d) => d.type === 'location' && (d.move ?? 0) <= 2 && d.procs.every((p) => p.kind !== 'static'));
+  const { s, ids } = setup({ play0: [cubby, loc] }); unready(s, ids.play0);
+  const str = () => viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[0]).eff.str;
+  ok(applyAction(s, 0, { type: 'move', iid: ids.play0[0], location: ids.play0[1] })); drain(s);
+  assert.equal(str(), cubby.str + 3);
+});
+test('"If a Princess character is chosen, banish her instead" — decided after the choice', () => {
+  const apple = byName('Poisoned Apple');
+  const princess = all.find((d) => d.type === 'character' && (d.classes || []).includes('princess') && d.abilities.length === 0) || all.find((d) => d.type === 'character' && (d.classes || []).includes('princess') && !d.kw?.ward);
+  const plain = vanilla((d) => !(d.classes || []).includes('princess'));
+  for (const [who, zone] of [[princess, 'discard'], [plain, 'play']]) {
+    const { s, ids } = setup({ play0: [apple], play1: [who] });
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(apple) }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].zone, zone, who.full);
+    if (zone === 'play') assert.equal(s.cards[ids.play1[0]].exerted, true);
+  }
+});
+test('damage prevention: "she takes no damage from the challenge"; "can\'t be dealt damage"', () => {
+  const raya = byName('Raya - Leader of Heart');                      // whenever she challenges a damaged character
+  const foe = vanilla((d) => d.str >= 1 && d.wp >= raya.str + 2);
+  const { s, ids } = setup({ play0: [raya], play1: [foe] }); unready(s, ids.play0);
+  s.cards[ids.play1[0]].exerted = true; s.cards[ids.play1[0]].damage = 1;
+  ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+  assert.equal(s.cards[ids.play0[0]].damage, 0, 'Raya took no damage');
+  assert.equal(s.cards[ids.play1[0]].damage, 1 + raya.str);
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));

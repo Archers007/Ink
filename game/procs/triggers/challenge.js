@@ -2,6 +2,7 @@ import { Trigger, other, SUBJECT } from './Trigger.js';
 import { Query } from '../query.js';
 
 export class Challenges extends Trigger {
+  static selfSubject = true;
   static ev = 'challenges';
   static rules = [
     [new RegExp(String.raw`^whenever ${SUBJECT} challenges(?: another character| a character)?$`, 'i'), () => [{ ev: 'challenges' }]],
@@ -10,6 +11,7 @@ export class Challenges extends Trigger {
   static say(o) { return `this character challenges${o.filter ? ` ${Query.describe(o.filter)}` : ''}`; }
 }
 export class Challenged extends Trigger {
+  static selfSubject = true;
   static ev = 'challenged';
   static rules = [
     [/^whenever (?:this (?:character|location)|he|she|they) (?:is|are) challenged$/i, () => [{ ev: 'challenged' }]],

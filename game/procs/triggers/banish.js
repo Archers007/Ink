@@ -2,6 +2,7 @@ import { Trigger, other } from './Trigger.js';
 import { Query } from '../query.js';
 
 export class Banished extends Trigger {
+  static selfSubject = true;
   static ev = 'banished';
   static rules = [
     [/^when(?:ever)? this (?:character|item|location) is banished$/i, () => [{ ev: 'banished' }]],
@@ -25,6 +26,7 @@ export class BanishedSome extends Trigger {
 }
 // "when this character leaves play" · "when you play this character and when he leaves play"
 export class Leaves extends Trigger {
+  static selfSubject = true;
   static ev = 'leaves';
   static rules = [
     [/^when(?:ever)? this (?:character|item|location) leaves play$/i, () => [{ ev: 'leaves' }]],
@@ -33,6 +35,7 @@ export class Leaves extends Trigger {
   static say() { return 'this leaves play'; }
 }
 export class BanishOther extends Trigger {
+  static selfSubject = true;
   static ev = 'banishOther';
   static rules = [[/^whenever (?:this character|he|she|they) banishes (?:another|a) character in a challenge$/i, () => [{ ev: 'banishOther' }]], [/^whenever a character banishes another character in a challenge while here$/i, () => [{ ev: 'banishOtherHere' }]]];
   static say() { return 'this banishes another character in a challenge'; }

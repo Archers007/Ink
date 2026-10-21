@@ -116,6 +116,12 @@ export class Runtime {
       // gates
       if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || (st.otherwise && job.ctx.did)) { job.ctx.did = false; skip(); continue; }
       if (st.cond && !this.test(s, st.cond, job.seat, job.src, job)) { job.ctx.did = false; job.ctx.declined = false; skip(); continue; }
+      // "… If X, <bigger version> instead" — decided once, as the step starts
+      if (st.instead) {
+        const { instead, ...base } = st;
+        job.steps[job.i] = this.test(s, instead.cond, job.seat, job.src, job) ? { ...base, ...instead.step } : base;
+        continue;
+      }
       // "you may …" without a target choice → yes/no first
       if (st.may && !E.chooses(st) && !job.tmp.mayOk) {
         if (job.answer?.key === 'may') {
@@ -128,8 +134,10 @@ export class Runtime {
           return;
         }
       }
+      const before = JSON.stringify(job.ctx.it);
       const r = E.run(this, s, job, st, ev);
       if (r === null) return;                                  // waiting on a choice
+      if (JSON.stringify(job.ctx.it) !== before) job.ctx.picked = true;
       const declined = st.may && E.chooses(st) && Object.values(job.tmp).some((t) => t && t.done && !t.acc?.length);
       job.ctx.did = !!r;
       job.ctx.declined = declined;
