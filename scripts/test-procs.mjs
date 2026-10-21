@@ -758,6 +758,19 @@ test('"can\'t be challenged by Pirate characters"; "draw cards until you have th
     ok(applyAction(s, 0, { type: 'quest', iid: a.iid })); drain(s);
     assert.equal(s.cards[u].zone, 'hand'); assert.equal(a.under.length, 0); }
 });
+test('grouped trigger: "When you play this character and whenever you play a location" fires on both', () => {
+  const elsa = byName('Elsa - Ice Artisan');
+  const loc = all.find((d) => d.type === 'location' && d.cost <= 3 && !d.procs.length);
+  const foe = vanilla((d) => (d.str ?? 0) <= 3);
+  const { s, ids } = setup({ hand0: [elsa, loc], play1: [foe, foe], ink0: 12 });
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  if (s.pending?.confirm) ok(applyAction(s, 0, { type: 'choose', confirm: true }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] }));
+  if (s.pending?.confirm) ok(applyAction(s, 0, { type: 'choose', confirm: true }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play1[1] })); drain(s);
+  assert.equal(s.cards[ids.play1[0]].exerted && s.cards[ids.play1[1]].exerted, true);
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
