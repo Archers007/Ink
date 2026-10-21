@@ -25,6 +25,7 @@ export function canon(text) {
     .replace(/[\u2018\u2019\u02bc`´]/g, "'")
     .replace(/[\u201c\u201d]/g, '"')
     .replace(/\u00a0/g, ' ')
+    .replace(/\bcharacterin\b/g, 'character in')
     .replace(/\s+/g, ' ')
     .trim();
   t = t.replace(/\s+[-–—]\s+/g, ' — ');                       // every spaced dash is a separator

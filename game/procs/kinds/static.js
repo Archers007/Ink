@@ -74,7 +74,7 @@ export class Static extends Kind {
       if (proc.kind === 'static' && proc.exec && proc.effect.fn === 'selfCost' && rt.test(s, proc.cond, seat, c.iid)) {
         delta -= proc.effect.n * (proc.effect.per ? Amount.count(rt, s, proc.effect.per, seat, c.iid) : 1);
       }
-      if (proc.kind === 'action' && proc.playCost && proc.exec && rt.test(s, proc.playCost.cond, seat, c.iid)) delta -= proc.playCost.n;
+      if (proc.kind === 'action' && proc.playCost && proc.exec && rt.test(s, proc.playCost.cond, seat, c.iid)) delta -= proc.playCost.n * (proc.playCost.per ? Amount.count(rt, s, proc.playCost.per, seat, c.iid) : 1);
     }
     for (const iid of rt.E.P(s, seat).play) {
       const src = s.cards[iid];
