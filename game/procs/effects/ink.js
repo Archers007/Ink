@@ -39,3 +39,25 @@ export class Enters extends Effect {
   static staticOnly = true;
   static say(st) { return `enters play ${st.exerted ? 'exerted' : `with ${st.damage} damage`}`; }
 }
+
+// "get 1 ink drop" — an ink drop counter (CR 1.13.1.2): spend it to pay 1 {ink} toward any cost
+export class InkDrop extends Effect {
+  static fn = 'inkDrop';
+  static rules = [
+    [/^(?:you )?gets? (\d+|an?|one) ink drops?$/i, (m) => ({ fn: 'inkDrop', n: /^\d+$/.test(m[1]) ? +m[1] : 1 })],
+    [/^you and another chosen player each get (\d+|an?) ink drops?$/i, (m) => ({ fn: 'inkDrop', n: /^\d+$/.test(m[1]) ? +m[1] : 1, who: 'youAndOne' })],
+    [/^each player gets (\d+|an?) ink drops?$/i, (m) => ({ fn: 'inkDrop', n: /^\d+$/.test(m[1]) ? +m[1] : 1, who: 'each' })],
+  ];
+  static run(rt, s, job, st) {
+    // 2-player: "you and another chosen player" = you and your opponent
+    const seats = st.who === 'youAndOne' ? [job.seat, ...rt.E.opponentsOf(s, job.seat).slice(0, 1)] : rt.who(s, job, st.who);
+    for (const seat of seats) {
+      const p = rt.E.P(s, seat);
+      p.inkDrops = (p.inkDrops || 0) + Amount.value(rt, s, job, st.n);
+      rt.log(s, `↳ ${rt.E.nameOf(s, seat)} got ${st.n} ink drop${st.n === 1 ? '' : 's'} (${p.inkDrops} 💧).`, { seat, kind: 'effect' });
+    }
+    return true;
+  }
+  static verb(rt, s, job, st) { return `get ${st.n} ink drop${st.n === 1 ? '' : 's'}`; }
+  static say(st) { return `${st.who === 'youAndOne' ? 'you and another chosen player each get' : st.who === 'each' ? 'each player gets' : 'get'} ${st.n} ink drop${st.n === 1 ? '' : 's'}`; }
+}

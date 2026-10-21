@@ -4,7 +4,7 @@ import { Amount } from '../phrases/amount.js';
 export class GainLore extends Effect {
   static fn = 'gainLore';
   static rules = [
-    [/^gain (\d+) lore$/i, (m) => ({ fn: 'gainLore', n: +m[1] })],
+    [/^(?:you )?gain (\d+) lore$/i, (m) => ({ fn: 'gainLore', n: +m[1] })],
     [/^gain lore equal to (?:the|that|their|his|her|its) (?:character's |chosen character's )?\{lore\}$/i, () => ({ fn: 'gainLore', n: { stat: 'lore', of: 'ref' } })],
     [/^gain lore equal to (?:the damage removed|the amount of damage removed)$/i, () => ({ fn: 'gainLore', n: { healed: true } })],
     [/^gain (\d+) lore for each (.+)$/i, (m, P) => ({ fn: 'gainLore', n: { n: +m[1], per: Amount.forEach(m[2], P.at) } })],
@@ -16,7 +16,7 @@ export class GainLore extends Effect {
     return true;
   }
   static verb(rt, s, job, st) { return `gain ${Amount.value(rt, s, job, st.n)} lore`; }
-  static say(st) { return `gain ${Amount.say(st.n)} lore`; }
+  static say(st) { return st.n?.per ? `gain ${st.n.n} lore for each ${Amount.sayPer(st.n.per)}` : `gain ${Amount.say(st.n)} lore`; }
 }
 export class LoseLore extends Effect {
   static fn = 'loseLore';

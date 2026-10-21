@@ -1,0 +1,104 @@
+// "reveal the top card of your deck" (+ "if it's a X, put it into your hand / play it for free; otherwise, put it on the bottom")
+// The revealed cards become `it` for the following steps.  Also: reveal / look at an opponent's hand.
+import { Effect } from './Effect.js';
+import { N, NUM, plural, HAND, DECK } from '../phrases/text.js';
+import { Selector } from '../phrases/selector.js';
+import { Query } from '../query.js';
+
+export class Reveal extends Effect {
+  static fn = 'reveal';
+  static rules = [
+    [new RegExp(String.raw`^reveal the top (?:${NUM} )?cards? of your deck$`, 'i'), (m) => ({ fn: 'reveal', n: N(m[1] || '1') })],
+    [/^reveal the top card$/i, () => ({ fn: 'reveal', n: 1 })],
+  ];
+  static run(rt, s, job, st, ev) {
+    const p = rt.E.P(s, job.seat);
+    const top = p.deck.slice(0, st.n);
+    job.ctx.it = top;
+    for (const iid of top) ev.push({ k: 'reveal', seat: job.seat, iid, cardId: s.cards[iid].cardId });
+    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} revealed ${top.map((iid) => rt.E.cardLabel(rt.E.D(s, s.cards[iid]))).join(', ') || 'nothing'} from the top of their deck.`, { seat: job.seat, kind: 'effect' });
+    return top.length > 0;
+  }
+  static verb(rt, s, job, st) { return `reveal the top ${plural(st.n, 'card')} of your deck`; }
+  static say(st) { return `reveal the top ${plural(st.n, 'card')} of your deck`; }
+}
+// "put it on the top of your deck" (keeps a revealed card where it is) · "put it into your discard"
+export class ToDeckTop extends Effect {
+  static fn = 'toDeckTop';
+  static rules = [[new RegExp(String.raw`^put (.+?) on (?:the )?top of ${DECK}$`, 'i'), (m, P) => ({ fn: 'toDeckTop', sel: P.sel(m[1]) })]];
+  static run(rt, s, job, st, ev) {
+    const ids = rt.targets(s, job, st, st.sel);
+    if (!ids) return null;
+    return rt.each(ids, (iid) => { rt.E.moveTo(s, iid, 'deckTop', ev); rt.log(s, `↳ Put ${rt.tl(s, iid)} on top of their deck.`, { seat: job.seat, kind: 'effect' }); });
+  }
+  static say(st) { return `put ${Selector.say(st.sel)} on top of its deck`; }
+}
+export class ToDiscard extends Effect {
+  static fn = 'toDiscard';
+  static rules = [[/^put (.+?) (?:into|in) (?:your|their|its player's|their player's) discard$/i, (m, P) => ({ fn: 'toDiscard', sel: P.sel(m[1]) })]];
+  static run(rt, s, job, st, ev) {
+    const ids = rt.targets(s, job, st, st.sel);
+    if (!ids) return null;
+    return rt.each(ids, (iid) => { rt.E.moveTo(s, iid, 'discard', ev); rt.log(s, `↳ Put ${rt.tl(s, iid)} into their discard.`, { seat: job.seat, kind: 'effect' }); });
+  }
+  static say(st) { return `put ${Selector.say(st.sel)} into its discard`; }
+}
+// "put it / them / that card into your hand" (from wherever it is — usually a revealed card)
+export class PutInHand extends Effect {
+  static fn = 'putInHand';
+  static rules = [[new RegExp(String.raw`^put (it|them|that card|those cards|the revealed card|the chosen card) into ${HAND}$`, 'i'), () => ({ fn: 'putInHand', sel: { ref: true } })]];
+  static run(rt, s, job, st, ev) {
+    const ids = rt.targets(s, job, st, st.sel).filter((iid) => s.cards[iid].zone !== 'hand');
+    return rt.each(ids, (iid) => { rt.E.moveTo(s, iid, 'hand', ev, { reveal: true }); rt.log(s, `↳ ${rt.E.nameOf(s, s.cards[iid].owner)} put ${rt.E.cardLabel(rt.E.D(s, s.cards[iid]))} into their hand.`, { kind: 'effect' }); });
+  }
+  static verb() { return 'put it into your hand'; }
+  static say() { return 'put that card into its owner\'s hand'; }
+}
+// "play it / that character / the revealed card for free [and it enters play exerted]"
+export class PlayIt extends Effect {
+  static fn = 'playIt';
+  static rules = [[/^play (it|that character|that item|that song|that action|that card|the revealed card|them) for free(?: and (?:it|they|he|she) enters? play exerted)?$/i, (m) => ({ fn: 'playIt', ...(/exerted$/i.test(m[0]) ? { exerted: true } : {}) })]];
+  static run(rt, s, job, st, ev) {
+    const ids = (job.ctx.it || []).filter((iid) => s.cards[iid] && s.cards[iid].zone !== 'play' && s.cards[iid].owner === job.seat);
+    return rt.each(ids.slice(0, 1), (iid) => { rt.E.playFree(s, job.seat, iid, ev); if (st.exerted && s.cards[iid].zone === 'play') s.cards[iid].exerted = true; });
+  }
+  static verb() { return 'play it for free'; }
+  static say(st) { return `play that card for free${st.exerted ? ' (enters exerted)' : ''}`; }
+}
+// "chosen opponent reveals their hand and discards a non-character card of your choice"
+export class RevealHandDiscard extends Effect {
+  static fn = 'revealHandDiscard';
+  static harmful = true;
+  static chooses() { return true; }
+  static rules = [
+    [/^(?:chosen|each) opponent reveals their hand and discards (?:a|an) (.+?) of your choice$/i, (m, P) => ({ fn: 'revealHandDiscard', filter: P.filter(m[1]) })],
+  ];
+  static run(rt, s, job, st, ev) {
+    const o = rt.E.opponentsOf(s, job.seat)[0];
+    if (o == null) return false;
+    const hand = rt.E.P(s, o).hand;
+    if (!job.tmp.shown) {
+      job.tmp.shown = true;
+      for (const iid of hand) ev.push({ k: 'reveal', seat: o, iid, cardId: s.cards[iid].cardId });
+      rt.log(s, `↳ ${rt.E.nameOf(s, o)} revealed their hand: ${hand.map((iid) => rt.E.cardLabel(rt.E.D(s, s.cards[iid]))).join(', ') || 'empty'}.`, { kind: 'effect' });
+    }
+    const valid = hand.filter((iid) => rt.matches(s, { ...st.filter, zone: 'hand' }, s.cards[iid], job.seat, job.src));
+    if (!valid.length) return false;
+    const picked = rt.pickFrom(s, job, st, 'rhd', valid, { n: 1, optional: false, prompt: `choose ${Query.describe(st.filter)} for them to discard.` });
+    if (!picked) return null;
+    return rt.each(picked, (iid) => { rt.E.moveTo(s, iid, 'discard', ev); rt.log(s, `↳ ${rt.E.nameOf(s, o)} discarded ${rt.E.cardLabel(rt.E.D(s, s.cards[iid]))}.`, { kind: 'effect' }); });
+  }
+  static say(st) { return `chosen opponent reveals their hand and discards ${Query.describe(st.filter)} of your choice`; }
+}
+// "look at chosen opponent's hand" — private to you
+export class PeekHand extends Effect {
+  static fn = 'peekHand';
+  static rules = [[/^look at (?:chosen|each|an) opponent's hand$/i, () => ({ fn: 'peekHand' })]];
+  static run(rt, s, job) {
+    const o = rt.E.opponentsOf(s, job.seat)[0];
+    const names = rt.E.P(s, o).hand.map((iid) => rt.E.cardLabel(rt.E.D(s, s.cards[iid])));
+    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} looked at ${rt.E.nameOf(s, o)}'s hand.`, { seat: job.seat, kind: 'effect', priv: { seat: job.seat, text: `↳ Their hand: ${names.join(', ') || 'empty'}.` } });
+    return true;
+  }
+  static say() { return "look at chosen opponent's hand"; }
+}

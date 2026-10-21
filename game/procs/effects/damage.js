@@ -19,14 +19,14 @@ export class Damage extends Effect {
     job.ctx.it = ids;
     return rt.each(ids, (iid) => {
       const c = s.cards[iid]; const d = rt.E.D(s, c);
-      const n = st.put ? n0 : Math.max(0, n0 - rt.E.kwVal(c, d, 'resist'));          // Resist (8.8) — not for "put damage"
+      const n = st.put || st.noResist ? n0 : Math.max(0, n0 - rt.E.kwVal(c, d, 'resist'));          // Resist (8.8) — not for "put damage"
       c.damage += n;
-      if (n) ev.push({ k: 'damage', iid, n });
+      if (n) { ev.push({ k: 'damage', iid, n }); rt.fire(s, 'damaged', { iid, n, by: job.src }); }
       rt.log(s, `↳ ${st.put ? 'Put' : 'Dealt'} ${n} damage ${st.put ? 'on' : 'to'} ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
     });
   }
   static verb(rt, s, job, st) { return `deal ${typeof st.n === 'number' ? st.n : 'that much'} damage`; }
-  static say(st) { return `${st.put ? 'put' : 'deal'} ${Amount.say(st.n)} damage ${st.put ? 'on' : 'to'} ${Selector.say(st.sel)}`; }
+  static say(st) { return `${st.put ? 'put' : 'deal'} ${Amount.say(st.n)} damage ${st.put ? 'on' : 'to'} ${Selector.say(st.sel)}${st.noResist ? " (Resist can't reduce it)" : ''}`; }
 }
 export class Heal extends Effect {
   static fn = 'heal';
@@ -44,7 +44,7 @@ export class Heal extends Effect {
       const c = s.cards[iid];
       const n = Math.min(Amount.value(rt, s, job, st.n), c.damage);
       c.damage -= n; job.ctx.healed += n;
-      if (n) ev.push({ k: 'damage', iid, n: -n });
+      if (n) { ev.push({ k: 'damage', iid, n: -n }); rt.fire(s, 'healed', { iid, n, seat: job.seat }); }
       rt.log(s, `↳ Removed ${n} damage from ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
     });
   }

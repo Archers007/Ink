@@ -20,9 +20,14 @@ export class Static extends Kind {
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to play this (?:character|item|location)$/i))) return wrap({ fn: 'selfCost', n: +m[1] });
     if ((m = t.match(/^this (?:character|item|location) enters play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', ...(m[2] ? { damage: +m[2] } : { exerted: true }) });
+    // location statics: "characters get +2 {strength} while here" → the characters at this location
+    let here = false;
+    if ((m = t.match(/^(.+?) while here$/i))) { here = true; t = m[1]; }
     const parts = sentences(t);
     if (parts.length === 1) {
       const eff = c.clause(parts[0], { static: true });
+      if (here && eff.sel?.all) (eff.sel.all.with ||= []).push({ here: true });
+      else if (here) c.miss('static: "while here" without a group', t);
       if (eff.sel?.ref) eff.sel = { self: true };            // static "he/she/it gets …" = this card
       if (eff.fn === 'mod' || eff.fn === 'costMod') {
         if (eff.dur) c.miss('static with a duration', t);

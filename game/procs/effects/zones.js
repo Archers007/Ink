@@ -12,7 +12,7 @@ class Move extends Effect {
   static run(rt, s, job, st, ev) {
     const ids = rt.targets(s, job, st, st.sel, 'sel', { keep: this.keep(s) });
     if (!ids) return null;
-    job.ctx.it = ids;
+    if (!(this.fn === 'banish' && st.sel?.self)) job.ctx.it = ids;
     return rt.each(ids, (iid) => { rt.log(s, `↳ ${this.past.replace('$', rt.tl(s, iid))}.`, { seat: job.seat, kind: 'effect' }); this.move(rt, s, iid, ev, st); });
   }
 }

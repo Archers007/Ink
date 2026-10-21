@@ -6,7 +6,7 @@ export class Play extends Trigger {
   static rules = [
     [/^when you play this (?:character|item|location) and whenever (?:he|she|it|they|this character) quests?$/i, () => [{ ev: 'play' }, { ev: 'quest' }]],
     [/^when you play this (?:character|item|location)$/i, () => [{ ev: 'play' }]],
-    [/^whenever you play this character or another (.+)$/i, (m, P) => [{ ev: 'play' }, { ev: 'playCard', filter: other(P.filter(m[1]), true) }]],
+    [/^whenever you play this (?:character )?or another (.+)$/i, (m, P) => [{ ev: 'play' }, { ev: 'playCard', filter: other(P.filter(m[1]), true) }]],
   ];
   static say() { return 'you play this card'; }
 }

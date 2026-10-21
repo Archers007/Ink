@@ -23,7 +23,7 @@ export class Ready extends Effect {
     job.ctx.it = ids;
     return rt.each(ids, (iid) => {
       const c = s.cards[iid];
-      if (rt.E.hasKw(c, rt.E.D(s, c), 'cantReady')) return;
+      if (rt.E.hasKw(c, rt.E.D(s, c), 'cantReady')) return;            // "this character can't ready" (not the start-of-turn-only kind)
       c.exerted = false; ev.push({ k: 'ready', iid }); rt.log(s, `↳ Readied ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
     });
   }

@@ -219,6 +219,121 @@ test('Sing Together: every singer "sings" (CR 8.12.3); "with Sing Together" only
     assert.ok(!s.log.some((l) => /P0 drew 1 card/.test(l.text)), `no draw for a song without Sing Together (${plain.full})`);
   }
 });
+// ---------- coverage-push primitives ----------
+const unready = (s, ids) => { for (const id of ids) s.cards[id].drying = false; };
+const act = (d) => d.procs.findIndex((p) => p.kind === 'activated');
+test('ink drops (CR 1.13.1.2): "get 1 ink drop" pays 1 {ink} once', () => {
+  const merlin = byName('Merlin - Profoundly Curious');
+  const one = vanilla((d) => d.cost === 1);
+  const { s, ids } = setup({ hand0: [merlin, one], ink0: merlin.cost });
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  drain(s);
+  assert.equal(s.players[0].inkDrops, 1);
+  assert.equal(viewFor(s, 0).players[0].inkReady, 1, 'the drop counts as ready ink');
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] }));
+  assert.equal(s.players[0].inkDrops, 0, 'spent the drop');
+});
+test('reveal the top card: "if it\'s a character, you may put it into your hand. Otherwise, bottom"', () => {
+  const jack = byName('Monterey Jack - Watchful Ranger');
+  const char = vanilla((d) => d.cost === 2);
+  const item = all.find((d) => d.type === 'item');
+  for (const [top, where] of [[char, 'hand'], [item, 'bottom']]) {
+    const { s, ids } = setup({ hand0: [jack, top] });
+    const p = s.players[0]; const t = ids.hand0[1];
+    p.hand.splice(p.hand.indexOf(t), 1); p.deck.unshift(t); s.cards[t].zone = 'deck';
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    drain(s);
+    if (where === 'hand') assert.equal(s.cards[t].zone, 'hand');
+    else assert.equal(p.deck[p.deck.length - 1], t, 'non-character goes to the bottom');
+  }
+});
+test('"can\'t ready at the start of their next turn" skips exactly one ready step', () => {
+  const anna = byName('Anna - Ice Breaker');
+  const foe = vanilla((d) => d.cost >= 1);
+  const { s, ids } = setup({ hand0: [anna], play1: [foe] });
+  const f = ids.play1[0];
+  s.cards[f].exerted = true;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  drain(s);
+  ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+  assert.equal(s.active, 1); assert.equal(s.cards[f].exerted, true, 'stays exerted on their turn');
+  ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+  ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+  assert.equal(s.cards[f].exerted, false, 'readies the turn after');
+});
+test('move to a location for free + location statics "while here"', () => {
+  const bus = byName('Hyperia City Express');
+  const stadium = byName('Khan Stadium - State of the Art');           // characters get +2 {strength} while here
+  const guy = vanilla((d) => d.str >= 1);
+  const { s, ids } = setup({ play0: [bus, stadium, guy] });
+  const [b, loc, g] = ids.play0;
+  const str = () => viewFor(s, 0).players[0].play.find((c) => c.iid === g).eff.str;
+  assert.equal(str(), guy.str);
+  ok(applyAction(s, 0, { type: 'useAbility', iid: b, index: act(bus) }));
+  if (s.pending?.valid?.includes(g)) ok(applyAction(s, 0, { type: 'choose', target: g }));
+  if (s.pending?.valid?.includes(loc)) ok(applyAction(s, 0, { type: 'choose', target: loc }));
+  assert.equal(s.cards[g].atLocation, loc);
+  assert.equal(s.players[0].inkwell.filter((i) => s.cards[i].exerted).length, 0, 'for free');
+  assert.equal(str(), guy.str + 2, 'gets +2 while here');
+});
+test('history conditions: "if 2 or more cards were put into your discard this turn"', () => {
+  const helga = byName('Helga Sinclair - No Backup Needed');            // pay 2 less
+  const acts = all.filter((d) => d.type === 'action' && d.cost <= 2 && d.procs.every((p) => p.exec)).slice(0, 2);
+  const { s, ids } = setup({ hand0: [helga, ...acts], ink0: 20 });
+  const spent = () => s.players[0].inkwell.filter((i) => s.cards[i].exerted).length;
+  for (const a of ids.hand0.slice(1)) { ok(applyAction(s, 0, { type: 'play', iid: a })); drain(s); }
+  assert.ok(s.players[0].discard.length >= 2);
+  const before = spent();
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  assert.equal(spent() - before, helga.cost - 2);
+});
+test('reveal hand + discard of your choice; "when he leaves play"; compound "draw and gain"', () => {
+  const ludwig = byName('Ludwig von Drake - All-Around Expert');
+  const action = all.find((d) => d.type === 'action');
+  {
+    const { s, ids } = setup({ hand0: [ludwig], hand1: [action] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (let k = 0; k < 5 && s.pending && !s.pending.valid?.includes(ids.hand1[0]); k++) drain(s);
+    if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: ids.hand1[0] }));
+    assert.equal(s.cards[ids.hand1[0]].zone, 'discard');
+  }
+  const goat = byName('Merlin - Goat');                                 // play + leaves: gain 1 lore
+  {
+    const { s, ids } = setup({ hand0: [goat] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].lore, 1);
+    const ev = []; s.cards[ids.hand0[0]].damage = 99;
+    ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'discard'); void ev;
+    assert.equal(s.players[0].lore, 2, 'leaves play → +1 lore');
+  }
+  const dumbo = byName('Dumbo - Ninth Wonder of the Universe');         // {exert}, 1 {ink} — draw a card and gain 1 lore
+  {
+    const { s, ids } = setup({ play0: [dumbo] }); unready(s, ids.play0);
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(dumbo) })); drain(s);
+    assert.equal(s.players[0].hand.length, hand + 1); assert.equal(s.players[0].lore, 1);
+  }
+});
+test('putUnder (Boost) + damaged triggers', () => {
+  const john = byName('Little John - Impermanent Outlaw');              // whenever you put a card under him, ready him
+  {
+    const { s, ids } = setup({ play0: [john] }); unready(s, ids.play0);
+    s.cards[ids.play0[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'boost', iid: ids.play0[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].under.length, 1);
+    assert.equal(s.cards[ids.play0[0]].exerted, false);
+  }
+  const beast = byName('Beast - Relentless');                            // whenever an opposing character is damaged, may ready
+  const big = vanilla((d) => d.str >= 1 && d.wp >= 3);
+  const foe = vanilla((d) => d.wp >= 3 && d.str >= 0);
+  {
+    const { s, ids } = setup({ play0: [beast, big], play1: [foe] }); unready(s, ids.play0);
+    s.cards[ids.play0[0]].exerted = true; s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].exerted, false, 'Beast readied');
+  }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));

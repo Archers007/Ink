@@ -16,6 +16,7 @@ export class Query {
   // Does this card belong to the query's set? env = { E, ctl, src }. o.anyZone ignores the zone (cards being played/moved).
   static matches(F, card, def, env, o = {}) {
     if (!card || !def) return false;
+    if (F.any) return F.any.some((G) => Query.matches({ zone: F.zone, owner: F.owner, other: F.other, ...G }, card, def, env, o));
     if (!o.anyZone && card.zone !== (F.zone || 'play')) return false;
     if (F.types && !Query.typeOk(F.types, def)) return false;
     if (F.owner === 'you' && card.owner !== env.ctl) return false;
@@ -33,6 +34,7 @@ export class Query {
 
   // Human words: "other damaged opposing Villain character with cost 3 or less"
   static describe(F = {}) {
+    if (F.any) return F.any.map((G) => Query.describe({ ...G, owner: F.owner, other: F.other })).join(' or ');
     const pre = [];
     const post = [];
     if (F.other) pre.push('other');

@@ -11,7 +11,7 @@ export const KEYWORDS = [
 ];
 // restrictions/permissions effects can put on a card; they travel as keyword-style mods
 export const RESTRICTIONS = {
-  cantQuest: "can't quest", cantChallenge: "can't challenge", cantReady: "can't ready", cantBeChallenged: "can't be challenged",
+  cantQuest: "can't quest", cantChallenge: "can't challenge", cantReady: "can't ready", cantMove: "can't move to locations", skipReady: "can't ready at the start of the turn", cantBeChallenged: "can't be challenged",
   cantSing: "can't sing songs", cantMove: "can't move", challengeReady: 'can challenge ready characters',
   mustChallenge: 'must challenge if able', mustQuest: 'must quest if able',
 };

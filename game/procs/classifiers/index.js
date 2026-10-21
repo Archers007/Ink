@@ -9,11 +9,12 @@ import { Exerted, Ready } from './exerted.js';
 import { Under } from './under.js';
 import { AtLocation, Here } from './location.js';
 import { NotType } from './notType.js';
+import { Not } from './not.js';
 
 export { KEYWORDS, RESTRICTIONS, KEYWORD_ALT, keywordId, kwLabel } from './keyword.js';
 
 export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, Damaged, Undamaged,
-  Exerted, Ready, Under, AtLocation, Here, NotType];
+  Exerted, Ready, Under, AtLocation, Here, NotType, Not];
 const BY_ID = new Map(CLASSIFIERS.map((C) => [C.id, C]));
 
 export function classifierOf(x) {
@@ -35,3 +36,4 @@ export function fromAdjective(word) {
   return null;
 }
 export const ADJECTIVES = CLASSIFIERS.flatMap((C) => C.adjectives);
+Not.reg = { classify, sayClassifier };
