@@ -42,7 +42,7 @@ export class Compiler {
       forEach: (x) => Amount.forEach(x, at),
       miss: (why) => miss(why, at),
       ability: (tok) => this.ability({ text: unquote(tok) }, 'character'),
-      D: (o) => (dur ? { ...o, dur } : ctx.static ? o : miss('needs a duration (this turn / until …)', at)),
+      D: (o) => (dur ? { ...o, dur } : o.dur || ctx.static ? o : miss('needs a duration (this turn / until …)', at)),
     };
   }
   filter(x, at) { return filter(x, at); }

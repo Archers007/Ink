@@ -18,5 +18,5 @@ export class PlayedThisTurn extends Condition {
   static test(rt, s, C, env) {
     return (rt.E.P(s, env.ctl).playedThisTurn || []).some((iid) => iid !== env.src && rt.matches(s, C.playedThisTurn, s.cards[iid], env.ctl, env.src, { anyZone: true }));
   }
-  static say(C) { return `you played a ${Query.describe(C.playedThisTurn)} this turn`; }
+  static say(C) { return `you played another ${Query.describe(C.playedThisTurn)} this turn`; }
 }

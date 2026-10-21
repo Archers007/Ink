@@ -395,6 +395,11 @@ export function recklessBlockers(s, seat) {
   return out;
 }
 
+// must quest if able / Adventurous (CR 8.16.3): you can't end your turn while one is ready and can quest
+export function mustQuestBlockers(s, seat) {
+  return P(s, seat).play.filter((iid) => { const c = s.cards[iid], d = D(s, c); return d.type === 'character' && (hasKw(c, d, 'mustQuest') || hasKw(c, d, 'adventurous')) && !questBlocker(c, d); });
+}
+
 // ---------- action handlers ----------
 
 const H = {};
@@ -721,6 +726,8 @@ H.endTurn = (s, seat, a, ev) => {
   if (!a.force) {
     const r = recklessBlockers(s, seat);
     if (r.length) throw RE(`Reckless: ${r.map((id) => cardLabel(D(s, s.cards[id]))).join(', ')} must challenge if able. (Force end turn to override.)`);
+    const q = mustQuestBlockers(s, seat);
+    if (q.length) throw RE(`${q.map((id) => cardLabel(D(s, s.cards[id]))).join(', ')} must quest if able. (Force end turn to override.)`);
   }
   log(s, `${nameOf(s, seat)} ended their turn.`, { seat });
   // "at the end of your turn" abilities resolve before the turn actually ends

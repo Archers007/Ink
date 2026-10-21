@@ -43,6 +43,8 @@ export class Mod extends Effect {
     }],
     [/^(.+?) (?:gets?|gains?) ([+-]\d+) \{(strength|willpower|lore)\} and gains? (.+)$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2), kws: kwList(m[4], P) ?? P.miss(`keywords: "${m[4]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:gains?|gets?) (${KWS})$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: kwList(m[2], P) ?? P.miss(`keywords: "${m[2]}"`) })],
+    // "chosen opposing character can't challenge and must quest [during their next turn] if able"
+    [/^(.+?) can't challenge and must quest(?: during their next turn)? if able(?: during their next turn)?$/i, (m, P) => P.D(({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantChallenge' }, { kw: 'mustQuest' }], ...(/next turn/i.test(m[0]) && !P.dur ? { dur: 'theirNext' } : {}) }))],
     [new RegExp(String.raw`^(.+?) (?:can't|cannot) (${VERBS})(?: or (${VERBS}))?$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [m[2], m[3]].filter(Boolean).map((x) => ({ kw: CANT[x.toLowerCase()] })) })],
     // "loses {strength} equal to this character's {lore}" · "gets +{strength} equal to their {willpower}"
     [/^(.+?) (loses |gets \+|gains \+)\{(strength|willpower|lore)\} equal to (this character's|her|his|their|its) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({

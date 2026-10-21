@@ -689,6 +689,18 @@ test('look: "put them back in any order" lets you order them; "top card of chose
     ok(applyAction(s, 0, { type: 'choose', confirm: true })); drain(s);
     assert.equal(s.cards[top].zone, 'discard'); }
 });
+test('restriction: "can\'t challenge and must quest during their next turn if able" blocks ending that turn', () => {
+  const tgp = byName('This Growing Pressure');
+  const foe = vanilla((d) => d.lore > 0);
+  const { s, ids } = setup({ hand0: [tgp], play1: [foe] }); unready(s, ids.play1);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+  ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+  if (s.pending) ok(applyAction(s, 1, { type: 'choose', skip: true }));
+  assert.equal(applyAction(s, 1, { type: 'endTurn' }).ok, false, 'must quest first');
+  ok(applyAction(s, 1, { type: 'quest', iid: ids.play1[0] })); drain(s);
+  ok(applyAction(s, 1, { type: 'endTurn' }));
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
