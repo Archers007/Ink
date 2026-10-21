@@ -1,6 +1,7 @@
 // The top of your own deck: ink it · mill it · shuffle
 import { Effect } from './Effect.js';
 import { N, NUM, plural } from '../phrases/text.js';
+import { Query } from '../query.js';
 
 export class InkTop extends Effect {
   static fn = 'inkTop';
@@ -32,4 +33,30 @@ export class Shuffle extends Effect {
   static rules = [[/^shuffle your deck$/i, () => ({ fn: 'shuffle' })]];
   static run(rt, s, job, st, ev) { rt.E.shuffleArr(s, rt.E.P(s, job.seat).deck); ev.push({ k: 'shuffle', seat: job.seat }); return true; }
   static say() { return 'shuffle your deck'; }
+}
+
+// "search your deck for a Madrigal character card [and reveal that card to all players][, and put it into your hand]"
+export class Search extends Effect {
+  static fn = 'search';
+  static rules = [[/^search your deck for (.+?)(?:,? and reveal (?:it|that card) to all players|, reveal (?:it|that card)(?: to all players)?)?(?:,? (?:and )?put (?:it|that card) (?:in|into) your hand)?$/i, (m, P) => ({
+    fn: 'search', filter: P.filter(m[1]), reveal: /reveal/i.test(m[0]), ...(/put (?:it|that card) (?:in|into) your hand$/i.test(m[0]) ? { to: 'hand' } : {}),
+  })]];
+  static chooses() { return true; }
+  static run(rt, s, job, st, ev) {
+    const { E } = rt;
+    const p = E.P(s, job.seat);
+    const valid = p.deck.filter((iid) => rt.matches(s, { ...st.filter, zone: 'deck' }, s.cards[iid], job.seat, job.src));
+    const got = rt.pickFrom(s, job, st, 'search', valid, { n: 1, optional: true, prompt: `search your deck — choose ${Query.describe(st.filter)}.` });
+    if (!got) return null;
+    if (!got.length) { rt.log(s, `↳ ${E.nameOf(s, job.seat)} searched their deck and found nothing.`, { seat: job.seat, kind: 'effect' }); return false; }
+    const iid = got[0];
+    job.ctx.it = [iid];
+    const name = E.cardLabel(E.D(s, s.cards[iid]));
+    if (st.reveal) ev.push({ k: 'reveal', seat: job.seat, iid, cardId: s.cards[iid].cardId });
+    if (st.to === 'hand') E.moveTo(s, iid, 'hand', ev, { reveal: !!st.reveal });
+    rt.log(s, `↳ ${E.nameOf(s, job.seat)} searched their deck${st.reveal ? ` and revealed ${name}` : ''}${st.to === 'hand' ? `${st.reveal ? ',' : ''} putting ${st.reveal ? 'it' : 'a card'} into their hand` : ''}.`, { seat: job.seat, kind: 'effect', priv: { seat: job.seat, text: `↳ You found ${name}.` } });
+    return true;
+  }
+  static verb(rt, s, job, st) { return `search your deck for ${Query.describe(st.filter)}`; }
+  static say(st) { return `search your deck for ${Query.describe(st.filter)}${st.reveal ? ' (revealed)' : ''}${st.to === 'hand' ? ' → hand' : ''}`; }
 }

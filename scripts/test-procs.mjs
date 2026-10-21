@@ -657,6 +657,38 @@ test('trigger: "Whenever an opponent chooses this character for an action or abi
   drain(s);
   assert.equal(s.players[1].hand.length, h + 1);
 });
+test('search: "search your deck for a Madrigal character card … Shuffle your deck and put that card on top of it"', () => {
+  const alma = byName('Alma Madrigal - Family Matriarch');
+  const mad = all.find((d) => d.type === 'character' && (d.classes || []).includes('madrigal') && d.full !== alma.full);
+  const { s, ids } = setup({ hand0: [alma] });
+  const p = s.players[0];
+  const target = p.deck.find((iid) => s.cards[iid].cardId === FILLER.id);
+  s.cards[target].cardId = mad.id; s.defs[mad.id] = mad;                 // plant one Madrigal deep in the deck
+  p.deck.splice(p.deck.indexOf(target), 1); p.deck.push(target);
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+  if (s.pending?.confirm) ok(applyAction(s, 0, { type: 'choose', confirm: true }));
+  assert.deepEqual(s.pending.valid, [target]);
+  ok(applyAction(s, 0, { type: 'choose', target })); drain(s);
+  assert.equal(p.deck[0], target);
+});
+test('look: "put them back in any order" lets you order them; "top card of chosen player\'s deck … or into their discard"', () => {
+  const pascal = byName('Pascal - Inquisitive Pet');
+  { const { s, ids } = setup({ hand0: [pascal] });
+    const top = s.players[0].deck.slice(0, 3);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: top[2] }));
+    ok(applyAction(s, 0, { type: 'choose', target: top[0] })); drain(s);
+    assert.deepEqual(s.players[0].deck.slice(0, 3), [top[2], top[0], top[1]]); }
+  const hatter = byName('Mad Hatter - Eccentric Host');
+  { const { s, ids } = setup({ play0: [hatter] }); unready(s, ids.play0);
+    const top = s.players[1].deck[0];
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
+    if (s.pending?.confirm) ok(applyAction(s, 0, { type: 'choose', confirm: true }));
+    assert.equal(s.pending.choices.length, 2);
+    ok(applyAction(s, 0, { type: 'choose', option: 1 }));             // the opponent's deck
+    ok(applyAction(s, 0, { type: 'choose', confirm: true })); drain(s);
+    assert.equal(s.cards[top].zone, 'discard'); }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
