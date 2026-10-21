@@ -57,6 +57,7 @@ export class Compiler {
     let m;
     if ((m = s.match(/^you may (.+)$/i))) { may = true; s = m[1]; }
     s = lc(s);
+    s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
     let dur;
     [s, dur] = Duration.take(s);
     // "for each X, <clause>" → the clause's amount/mod is multiplied
@@ -136,13 +137,27 @@ export class Compiler {
   // "gain lore equal to the {lore} of chosen opposing character" → [choose, gain {stat of it}]
   //  "draw cards equal to that location's {lore}" · "deal damage equal to her {strength} to chosen character"
   equalTo(part, ctx) {
-    const s = part.replace(/[.!]$/, '').trim();
+    let s = part.replace(/[.!]$/, '').trim();
+    // "deal damage to chosen character equal to X" → "deal damage equal to X to chosen character"
+    const dm = s.match(/^(.*?\bdeal) damage (to .+?) equal to (.+)$/i);
+    if (dm) s = `${dm[1]} damage equal to ${dm[3]} ${dm[2]}`;
     const m = s.match(/^(.*?)\b(lore|cards|damage) equal to (.+?)(?:, to a maximum of (\d+)(?: lore| cards?)?(?: each)?)?( to .+)?$/i);
     if (!m) return null;
     const STAT = { '{lore}': 'lore', '{strength}': 'str', '{willpower}': 'wp', cost: 'cost', damage: 'damage' };
     let r = m[3].trim(); let stat; let sel;
     let k;
-    if ((k = r.match(/^the (\{lore\}|\{strength\}|\{willpower\}|cost) of (.+)$/i))) { stat = STAT[k[1].toLowerCase()]; sel = k[2]; }
+    const noun0 = m[2].toLowerCase() === 'cards' ? '1 card' : `1 ${m[2].toLowerCase()}`;
+    if ((k = r.match(/^the number of (.+)$/i))) {
+      // "gain lore equal to the number of Titan characters you have in play" → 1 per match
+      let st;
+      try { st = this.clause(`${m[1]}${noun0}${m[5] || ''}`, ctx); } catch (e) { if (e instanceof Miss) return null; throw e; }
+      if (st.n !== 1) return null;
+      let per;
+      try { per = Amount.forEach(k[1].replace(/s( you have in play| in play| here)?$/i, '$1').replace(/^(\S+?)ies\b/, '$1y'), part); } catch (e) { if (e instanceof Miss) return null; throw e; }
+      return [{ ...st, n: { n: 1, per, ...(m[4] ? { max: +m[4] } : {}) } }];
+    }
+    if ((k = r.match(/^(her|his|its|their) (\{lore\}|\{strength\}|\{willpower\}|cost)$/i))) { stat = STAT[k[2].toLowerCase()]; sel = k[1].toLowerCase() === 'their' ? 'them' : 'her'; }
+    else if ((k = r.match(/^the (\{lore\}|\{strength\}|\{willpower\}|cost) of (.+)$/i))) { stat = STAT[k[1].toLowerCase()]; sel = k[2]; }
     else if ((k = r.match(/^the (?:damage|number of damage counters) on (.+)$/i))) { stat = 'damage'; sel = k[1]; }
     else if ((k = r.match(/^(.+?)'s? (\{lore\}|\{strength\}|\{willpower\}|cost)$/i))) { stat = STAT[k[2].toLowerCase()]; sel = k[1]; }
     else return null;
