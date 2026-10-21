@@ -490,6 +490,8 @@ H.play = (s, seat, a, ev) => {
   let shiftTarget = null;
   let paid = null;                                                  // ink paid to play it (for "pay 2 or less to play")
   let sungBy = [];
+  const banned = R.playBlocked(s, seat, c);
+  if (banned) throw RE(banned);
 
   if (mode === 'ink') {
     const auto = R.costDelta(s, seat, c, true);                   // "you pay N {ink} less …"
