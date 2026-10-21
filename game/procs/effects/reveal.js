@@ -25,7 +25,10 @@ export class Reveal extends Effect {
 // "put it on the top of your deck" (keeps a revealed card where it is) · "put it into your discard"
 export class ToDeckTop extends Effect {
   static fn = 'toDeckTop';
-  static rules = [[new RegExp(String.raw`^put (.+?) on (?:the )?top of ${DECK}$`, 'i'), (m, P) => ({ fn: 'toDeckTop', sel: P.sel(m[1]) })]];
+  static rules = [
+    [new RegExp(String.raw`^put (.+?) on (?:the )?top of ${DECK}$`, 'i'), (m, P) => ({ fn: 'toDeckTop', sel: P.sel(m[1]) })],
+    [/^put (?:that card|it) on top of it$/i, () => ({ fn: 'toDeckTop', sel: { ref: true } })],
+  ];
   static run(rt, s, job, st, ev) {
     const ids = rt.targets(s, job, st, st.sel);
     if (!ids) return null;

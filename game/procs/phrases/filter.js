@@ -17,8 +17,9 @@ const NAME_WORD = String.raw`(?:[\p{Lu}0-9][\p{L}\p{N}'.!-]*|of|the|and|de|la|in
 const NAMED = new RegExp(String.raw`^named (${NAME_WORD}(?: ${NAME_WORD})*?)(?= or | (?:in|of|with|from|at|this|to|you|they|that|and|is|are|gets?|gains?)\b|$|\s*[,.])\s*`, 'u');
 
 export function filter(phrase, at = phrase) {
+  phrase = phrase.trim().replace(/^(?:a|an) (?=\S)/i, '');
   // "a character card with Singer or a song card" — either query
-  const alt = phrase.trim().match(/^(.+?),? or (?:a|an) (.+)$/i);
+  const alt = phrase.match(/^(.+?),? or (?:a|an) (.+)$/i);
   if (alt) {
     const A = tryFilter(alt[1]); const B = tryFilter(alt[2]);
     if (A && B) {
