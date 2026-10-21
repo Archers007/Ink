@@ -36,7 +36,7 @@ export const KEYWORD_LABEL = {
   reckless: 'Reckless', resist: 'Resist', rush: 'Rush', shift: 'Shift', puppyShift: 'Puppy Shift',
   universalShift: 'Universal Shift', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
-  cantQuest: "Can't quest", cantChallenge: "Can't challenge", cantReady: "Can't ready", cantBeChallenged: "Can't be challenged",
+  cantQuest: "Can't quest", cantChallenge: "Can't challenge", cantReady: "Can't ready", cantMove: "Can't move", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged",
   cantSing: "Can't sing", challengeReady: 'Can challenge ready characters',
 };
 

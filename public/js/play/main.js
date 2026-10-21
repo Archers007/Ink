@@ -465,13 +465,13 @@ function plate(p, isMe) {
   if (!p) return '';
   const active = V().status === 'playing' && V().active === p.seat;
   const pips = Array.from({ length: LORE_TO_WIN }, (_, i) => `<i class="${i < p.lore ? 'on' : ''} ${i >= 15 ? 'hi' : ''}"></i>`).join('');
-  const inks = Array.from({ length: p.inkTotal }, (_, i) => `<i class="${i < p.inkReady ? 'on' : ''}"></i>`).join('');
+  const inks = Array.from({ length: p.inkTotal }, (_, i) => `<i class="${i < p.inkReady - (p.inkDrops || 0) ? 'on' : ''}"></i>`).join('');
   return `
     <div class="pl-head"><span class="pl-name">${esc(p.name)}</span>${active ? '<span class="turn-tag">TURN</span>' : ''}${V().starting === p.seat ? '<span class="first" title="Went first">1st</span>' : ''}</div>
     <div class="lore-row" title="Lore — first to ${LORE_TO_WIN} wins"><span class="lore-num">${p.lore}</span><span class="lore-of">/ ${LORE_TO_WIN} ◆</span></div>
     <div class="pips">${pips}</div>
     <div class="counts">
-      <span title="Ink ready / total"><i class="hx"></i> <b>${p.inkReady}</b>/${p.inkTotal}${isMe && active ? (p.inkedThisTurn >= p.inkLimit ? ' <em class="ok">✓ inked</em>' : ' <em>ink 1 card</em>') : ''}</span>
+      <span title="Ink ready / total"><i class="hx"></i> <b>${p.inkReady}</b>/${p.inkTotal}${p.inkDrops ? ` <em title="Ink drops — each pays 1 ink">+${p.inkDrops}💧</em>` : ''}${isMe && active ? (p.inkedThisTurn >= p.inkLimit ? ' <em class="ok">✓ inked</em>' : ' <em>ink 1 card</em>') : ''}</span>
       <span title="Cards in hand">✋ <b>${p.handCount}</b></span>
       <span title="Cards left in deck" class="${p.deckCount <= 5 ? 'warn' : ''}">🂠 <b>${p.deckCount}</b></span>
       <span title="Discard pile" class="click" data-discard="${p.seat}">🗑 <b>${p.discard.length}</b></span>

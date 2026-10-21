@@ -79,13 +79,18 @@ function log(s, text, opt = {}) {
 }
 
 export function readyInk(s, seat) {
-  return P(s, seat).inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0);
+  return P(s, seat).inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0) + (P(s, seat).inkDrops || 0);
 }
+// Ink drop counters (CR 1.13.1.2) pay 1 ink each; ready inkwell cards are spent first.
 function payInk(s, seat, n) {
   if (n <= 0) return;
-  const ready = P(s, seat).inkwell.filter((iid) => !s.cards[iid].exerted);
-  if (ready.length < n) throw RE(`Not enough ink — need ${n}, you have ${ready.length} ready.`);
-  for (let i = 0; i < n; i++) s.cards[ready[ready.length - 1 - i]].exerted = true;
+  const p = P(s, seat);
+  const ready = p.inkwell.filter((iid) => !s.cards[iid].exerted);
+  const drops = p.inkDrops || 0;
+  if (ready.length + drops < n) throw RE(`Not enough ink — need ${n}, you have ${ready.length + drops} ready.`);
+  const cards = Math.min(n, ready.length);
+  for (let i = 0; i < cards; i++) s.cards[ready[ready.length - 1 - i]].exerted = true;
+  if (n > cards) { p.inkDrops = drops - (n - cards); p.usedDropTurn = s.turn; }
 }
 
 function listOf(s, c) {
@@ -140,9 +145,33 @@ function moveTo(s, iid, to, ev, opt = {}) {
     const toZ = { seat: c.owner, zone: k.zone };
     const visibleBefore = PUBLIC_ZONES.has(from) && !wasFaceDown;
     const visibleAfter = PUBLIC_ZONES.has(k.zone);
+    if (id === iid && k.zone === 'discard') (s.turnLog ||= []).push({ ev: 'toDiscard', seat: c.owner, iid });
     if (visibleBefore || visibleAfter || opt.reveal) ev.push({ k: 'move', iid: id, cardId: k.cardId, from: fromZ, to: toZ, parent: id !== iid ? iid : undefined, revealed: (opt.reveal && !visibleBefore && !visibleAfter) || undefined });
     else ev.push(privateMove(s, id, fromZ, toZ, c.owner));
   }
+  if (from === 'play' && to !== 'play') R.fire(s, 'leaves', { iid, to });
+}
+
+// "put the top card of your deck facedown under X" — Boost (8.4) and effects share this
+function putUnder(s, seat, iid, ev) {
+  const C = s.cards[iid];
+  const p = P(s, seat);
+  if (!p.deck.length) return false;
+  const top = p.deck.shift();
+  const u = s.cards[top];
+  u.zone = 'under'; u.parent = C.iid; u.faceDown = true;
+  C.under.push(top);
+  ev.push({ k: 'move', from: { seat, zone: 'deck' }, to: { seat, zone: 'under' }, parent: C.iid });
+  R.fire(s, 'putUnder', { iid: C.iid, seat });
+  return true;
+}
+// a character moves to a location (4.7) — the move action and "move … for free" effects share this
+function moveChar(s, iid, loc, ev) {
+  const C = s.cards[iid];
+  C.atLocation = loc;
+  ev.push({ k: 'moveTo', iid, location: loc });
+  R.fire(s, 'moves', { iid, at: loc });
+  R.fire(s, 'moveHere', { iid, at: loc });
 }
 
 function drawCards(s, seat, n, ev) {
@@ -158,6 +187,7 @@ function drawCards(s, seat, n, ev) {
     ev.push(privateMove(s, iid, { seat, zone: 'deck' }, { seat, zone: 'hand' }, seat));
     names.push(cardLabel(D(s, c)));
     drawn++;
+    if (s.status === 'playing') R.fire(s, 'draw', { seat, iid });
   }
   return { drawn, names };
 }
@@ -188,8 +218,9 @@ function banish(s, iid, ev, why = '') {
   const cx = s.challengeCtx;
   const inChallenge = !!cx && (cx.a === iid || cx.t === iid);
   const by = inChallenge ? (cx.a === iid ? cx.t : cx.a) : null;
+  const at = c.atLocation;
   moveTo(s, iid, 'discard', ev);
-  R.fire(s, 'banished', { iid, inChallenge, defending: inChallenge && cx.t === iid, by: by && s.cards[by] && D(s, s.cards[by]).type === 'character' ? by : null });
+  R.fire(s, 'banished', { iid, at, inChallenge, defending: inChallenge && cx.t === iid, by: by && s.cards[by] && D(s, s.cards[by]).type === 'character' ? by : null });
 }
 
 // Game state check (CR 1.8): win at 20 lore, banish anything with lethal damage; repeat until stable.
@@ -223,10 +254,12 @@ function startTurn(s, seat, ev) {
   p.extraInk = 0;
   p.playedThisTurn = [];
   p.costMods = [];
+  p.turnsTaken = (p.turnsTaken || 0) + 1;
+  s.turnLog = [];
   ev.push({ k: 'turn', seat, turn: s.turn });
   log(s, `── Turn ${s.turn}: ${nameOf(s, seat)} ──`, { kind: 'turn', seat });
   // Ready step (3.2.1)
-  for (const iid of p.play) { const c = s.cards[iid]; if (!hasKw(c, D(s, c), 'cantReady')) c.exerted = false; }
+  for (const iid of p.play) { const c = s.cards[iid]; if (!hasKw(c, D(s, c), 'cantReady') && !hasKw(c, D(s, c), 'skipReady')) c.exerted = false; }
   for (const iid of p.inkwell) s.cards[iid].exerted = false;
   for (const pl of s.players) for (const iid of pl.play) {           // "until the start of your next turn"
     const c = s.cards[iid];
@@ -597,6 +630,8 @@ function challengeDamageStep(s, a, t, ev) {
   log(s, `↳ ${cardLabel(Ad)} dealt ${toDefender}, took ${toAttacker}.`, { kind: 'challenge' });
   if (toDefender) { T.damage += toDefender; ev.push({ k: 'damage', iid: T.iid, n: toDefender }); }
   if (toAttacker) { A.damage += toAttacker; ev.push({ k: 'damage', iid: A.iid, n: toAttacker }); }
+  if (toDefender) R.fire(s, 'damaged', { iid: T.iid, n: toDefender, inChallenge: true, by: A.iid });
+  if (toAttacker) R.fire(s, 'damaged', { iid: A.iid, n: toAttacker, inChallenge: true, by: T.iid });
   s.challengeCtx = { a, t };
   try { gameStateCheck(s, ev); } finally { s.challengeCtx = null; }
 }
@@ -606,16 +641,15 @@ H.move = (s, seat, a, ev) => {
   const C = ownCard(s, seat, a.iid, 'play');
   const Cd = D(s, C);
   if (Cd.type !== 'character') throw RE('Only characters can move to locations.');
+  if (hasKw(C, Cd, 'cantMove')) throw RE(`${cardLabel(Cd)} can't move to locations.`);
   const L = s.cards[a.location];
   if (!L || L.owner !== seat || L.zone !== 'play' || D(s, L).type !== 'location') throw RE('Choose one of your locations.');
   const Ld = D(s, L);
   if (C.atLocation === L.iid) throw RE(`${cardLabel(Cd)} is already at ${cardLabel(Ld)}.`);
   const cost = Math.max(0, (Ld.move ?? 0) + clampInt(a.costAdjust, -20, 20));
   payInk(s, seat, cost);
-  C.atLocation = L.iid;
-  ev.push({ k: 'moveTo', iid: C.iid, location: L.iid });
   log(s, `${nameOf(s, seat)} moved ${cardLabel(Cd)} to ${cardLabel(Ld)} for ${cost} ink.`, { seat });
-  R.fire(s, 'moveHere', { iid: C.iid, at: L.iid });
+  moveChar(s, C.iid, L.iid, ev);
 };
 
 H.boost = (s, seat, a, ev) => {
@@ -628,12 +662,8 @@ H.boost = (s, seat, a, ev) => {
   const p = P(s, seat);
   if (!p.deck.length) throw RE('Your deck is empty.');
   payInk(s, seat, n);
-  const top = p.deck.shift();
-  const u = s.cards[top];
-  u.zone = 'under'; u.parent = C.iid; u.faceDown = true;
-  C.under.push(top);
   C.boostedTurn = s.turn;
-  ev.push({ k: 'move', from: { seat, zone: 'deck' }, to: { seat, zone: 'under' }, parent: C.iid });
+  putUnder(s, seat, C.iid, ev);
   log(s, `${nameOf(s, seat)} used Boost ${n} on ${cardLabel(Cd)} — the top card of their deck went facedown under it.`, { seat });
 };
 
@@ -890,7 +920,7 @@ H.clearMods = (s, seat, a, ev) => {
 const R = createRuntime({
   D, P, nameOf, log, cardLabel, prettyText, KEYWORD_LABEL, LORE_TO_WIN, RE,
   effStr, effWp, effLore, kwVal, hasKw, rand, shuffleArr, readyInk, payInk, opponentsOf,
-  moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, finishEndTurn,
+  moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, finishEndTurn, putUnder, moveChar,
 });
 
 // ---------- public API ----------
@@ -959,7 +989,8 @@ export function viewFor(s, seat) {
       handCount: p.hand.length,
       hand: i === seat ? p.hand.map((iid) => ({ iid, cardId: s.cards[iid].cardId })) : null,
       inkTotal: p.inkwell.length,
-      inkReady: p.inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0),
+      inkReady: readyInk(s, p.seat),
+      inkDrops: p.inkDrops || 0,
       inkedThisTurn: p.inkedThisTurn,
       inkLimit: INKS_PER_TURN + p.extraInk,
       mulliganDone: p.mulligan.done,

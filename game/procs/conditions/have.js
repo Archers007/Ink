@@ -18,6 +18,10 @@ export class Have extends Condition {
     [/^you have (?:a|an) (.+?) in your (discard|hand)$/i, (m, a) => ({ have: at(filter(m[1], a), m[2], 'you'), n: 1 })],
     [new RegExp(String.raw`^you have ${NUM} or more (.+?) in your (discard|hand)$`, 'i'), (m, a) => ({ have: at(filter(m[2], a), m[3], 'you'), n: N(m[1]) })],
     [/^you have (?:a|an|another) (.+?)$/i, (m, a) => ({ have: filter(m[1], a), n: 1 })],
+    [/^you have any (.+?) in play( .+)?$/i, (m, a) => ({ have: filter(m[1] + (m[2] || ''), a), n: 1 })],
+    [new RegExp(String.raw`^you have ${NUM} or more (other )?(.+?) in play (with .+)$`, 'i'), (m, a) => { const F = filter(`${m[3]} ${m[4]}`, a); if (m[2]) F.other = true; return { have: F, n: N(m[1]) }; }],
+    [new RegExp(String.raw`^you have ${NUM} or more (.+?) (?:here|at this location)$`, 'i'), (m, a) => { const F = filter(m[2], a); (F.with ||= []).push({ here: true }); return { have: F, n: N(m[1]) }; }],
+    [new RegExp(String.raw`^you have ${NUM} (.+?) in play$`, 'i'), (m, a) => ({ have: filter(m[2], a), n: N(m[1]) })],
   ];
   static test(rt, s, C, env) {
     const F = { ...C.have, owner: C.have.owner || 'you' };

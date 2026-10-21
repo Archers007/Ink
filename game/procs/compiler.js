@@ -50,6 +50,15 @@ export class Compiler {
     s = lc(s);
     let dur;
     [s, dur] = Duration.take(s);
+    // "for each X, <clause>" → the clause's amount/mod is multiplied
+    const fe = s.match(/^for each (.+?), (.+)$/i);
+    if (fe) {
+      const st = this.clause(fe[2], ctx);
+      const per = Amount.forEach(fe[1], raw);
+      if (st.fn === 'mod') return { ...st, per, ...(may ? { may: true } : {}) };
+      if (typeof st.n === 'number') return { ...st, n: { n: st.n, per }, ...(may ? { may: true } : {}) };
+      miss(`for each: "${s}"`, raw);
+    }
     const P = this.P(raw, ctx, dur);
     for (const E of EFFECTS) for (const [rx, f] of E.rules) {
       const mm = s.match(rx);
@@ -58,6 +67,34 @@ export class Compiler {
       if (st) return may ? { ...st, may: true } : st;
     }
     miss(`effect: "${s}"`, raw);
+  }
+
+  // "draw a card and gain 1 lore" · "this character gains Bodyguard and can't quest" → one step per half
+  compound(part, ctx) {
+    try { return [this.clause(part, ctx)]; } catch (e) {
+      if (!(e instanceof Miss)) throw e;
+      const s = part.replace(/[.!]$/, '');
+      const may = /^you may /i.test(s) ? 'you may ' : '';
+      for (const m of s.matchAll(/,? and /gi)) {
+        const a = s.slice(0, m.index); const b = s.slice(m.index + m[0].length);
+        if (!a || !b) continue;
+        let A;
+        try { A = this.clause(a, ctx); } catch (e2) { if (e2 instanceof Miss) continue; throw e2; }
+        const subj = a.replace(/^you may /i, '').match(/^(.+?) (?:gets?|gains?|can't|cannot|can|loses?|takes?|enters?|is|are)\b/i)?.[1];
+        const tries = [b, ...(subj ? [`${subj} ${b}`] : [])];
+        for (const t of tries) {
+          try { const B = this.clause(t, ctx); if (A.may) B.ifDid = true; return [A, B]; } catch (e3) { if (!(e3 instanceof Miss)) throw e3; }
+        }
+      }
+      throw e;
+    }
+  }
+
+  // sentences that modify the step before them
+  tail(sentence, last) {
+    const t = sentence.replace(/[.!]$/, '').trim();
+    if (/^this damage can't be reduced by resist$/i.test(t) && last.fn === 'damage') { last.noResist = true; return true; }
+    return false;
   }
 
   // effect text → steps
@@ -82,7 +119,12 @@ export class Compiler {
       if ((m = s.match(/^then,? (.+)$/i))) s = m[1];
       if ((m = s.match(/^if you do,? (.+)$/i))) { ifDid = true; s = m[1]; }
       if ((m = s.match(/^if (.+?), (.+)$/i)) && !/^if you do/i.test(s)) { cond = parseCondition(m[1], at); s = m[2]; }
-      if ((m = s.match(/^otherwise,? (.+)$/i))) { const st = this.effects(m[1], ctx); st[0].otherwise = true; steps.push(...st); continue; }
+      if ((m = s.match(/^otherwise,? (.+)$/i))) {
+        const st = this.effects(m[1], ctx);
+        // "otherwise, put it on …" only has an antecedent after a reveal / look
+        if (st[0].sel?.ref && st[0].fn !== 'mod' && !steps.some((x) => x.fn === 'reveal' || x.fn === 'look')) miss(`otherwise: "${m[1]}" has nothing to refer to`, s);
+        st[0].otherwise = true; steps.push(...st); continue;
+      }
       s.split(/,? then,? /i).forEach((part, i) => {
         const pm = part.match(COST_THEN);
         if (pm) {
@@ -93,11 +135,12 @@ export class Compiler {
           steps.push(...st);
           return;
         }
-        const st = this.clause(part, ctx);
-        if (i > 0) st.linked = true;
-        if (i === 0 && ifDid) st.ifDid = true;
-        if (i === 0 && cond) st.cond = cond;
-        steps.push(st);
+        if (steps.length && this.tail(part, steps[steps.length - 1])) return;
+        const sts = this.compound(part, ctx);
+        if (i > 0) sts[0].linked = true;
+        if (i === 0 && ifDid) sts.forEach((x) => { x.ifDid = true; });
+        if (i === 0 && cond) sts.forEach((x) => { x.cond = cond; });
+        steps.push(...sts);
       });
     }
     if (!steps.length) miss('no effect', at);
@@ -156,6 +199,8 @@ export class Compiler {
     const name = ab.name || null;
     let text = canon(ab.text ?? ab.description ?? '');
     text = text.replace(/^[A-Z0-9][A-Z0-9'!?,.\- ]{2,}\s+(?=[A-Z][a-z])/, (h) => (name && h.trim().toUpperCase() === name.toUpperCase() ? '' : h));
+    // leftovers of a name split across the text ("! When you play…", ", DUMBO! While…", "... Once during…", "I TRUST YOU Whenever…")
+    if (name) text = text.replace(/^(?:[!?.,…]+\s*|,?\s*[A-Z][A-Z'\- ]*[!?]\s+|\.\.\.\s*)+(?=[A-Z{])/, '').replace(/^(?:[A-Z][A-Z']+ ){1,5}(?=(?:When|Whenever|While|During|Once|At|Your|This|If|You)\b)/, '');
     const base = { name, text };
     try {
       const proc = this.text(text, cardType, !!name);

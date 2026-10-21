@@ -353,7 +353,7 @@ export class Board {
     if (p.discardN !== dn) { p.discardN = dn; p.discardLabel.material.map = pillTex(String(dn)); p.discardLabel.material.needsUpdate = true; }
     p.discardLabel.position.set(L.discardX, dn * 0.04 + 0.3, sign * L.rowZ);
     p.discardLabel.visible = dn > 0;
-    const inkKey = `INK ${pl.inkReady}/${pl.inkTotal}`;
+    const inkKey = `INK ${pl.inkReady}/${pl.inkTotal}${pl.inkDrops ? ` +${pl.inkDrops}💧` : ''}`;
     if (p.inkKey !== inkKey) { p.inkKey = inkKey; p.inkLabel.material.map = pillTex(inkKey, '#1d3f73'); p.inkLabel.material.needsUpdate = true; }
     p.inkLabel.position.set(L.inkX + L.inkW / 2 - 2.5, 0.05, sign * (L.rowZ + (H + 3) / 2 + 1.3));
     // lore dial
@@ -441,7 +441,7 @@ export class Board {
         o.info = { zone: 'inkwell', seat, slot: i };
         o.dimmed = false;
         o.setBadges('', () => {});
-        const exerted = i >= pl.inkReady;
+        const exerted = i >= pl.inkReady - (pl.inkDrops || 0);
         put(o, { x: L.inkX + i * L.inkStep, y: 0.05 + i * 0.03, z: sign * L.rowZ + (exerted ? 0.6 : 0), yaw: exerted ? -Math.PI / 2 : 0, tilt: 0, flip: Math.PI, scale: 0.92 });
       }
 

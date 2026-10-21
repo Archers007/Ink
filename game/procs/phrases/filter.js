@@ -13,10 +13,24 @@ const TYPES = new RegExp(String.raw`^${TYPE}(?:(?:,|,? or|,? and) ${TYPE})*(?: c
 const OWNER_ADJ = /^(other|another|opposing|your|their|its|chosen opponent's|an opponent's|each opponent's|opponent's)\s+/i;
 const ADJ = new RegExp(String.raw`^(${ADJECTIVES.join('|')})\s+`, 'i');
 const CLASSES = new RegExp(String.raw`^((?:[A-Z][\w'.-]*)(?:(?: |, |,? or |,? and )(?!${TYPE}\b)[A-Z][\w'.-]*)*) (?=${TYPE}\b)`);
-const NAME_WORD = String.raw`(?:[A-Z0-9][\w'.-]*|of|the|and|de|la|in|a)`;
-const NAMED = new RegExp(String.raw`^named (${NAME_WORD}(?: ${NAME_WORD})*?)(?= or named | (?:in|of|with|from|at|this|to)\b|$|\s*[,.])\s*`);
+const NAME_WORD = String.raw`(?:[\p{Lu}0-9][\p{L}\p{N}'.!-]*|of|the|and|de|la|in|a)`;
+const NAMED = new RegExp(String.raw`^named (${NAME_WORD}(?: ${NAME_WORD})*?)(?= or | (?:in|of|with|from|at|this|to|you|they|that|and|is|are|gets?|gains?)\b|$|\s*[,.])\s*`, 'u');
 
 export function filter(phrase, at = phrase) {
+  // "a character card with Singer or a song card" — either query
+  const alt = phrase.trim().match(/^(.+?),? or (?:a|an) (.+)$/i);
+  if (alt) {
+    const A = tryFilter(alt[1]); const B = tryFilter(alt[2]);
+    if (A && B) {
+      const shared = {};
+      for (const k of ['zone', 'owner', 'other']) if (A[k] != null || B[k] != null) { shared[k] = A[k] ?? B[k]; delete A[k]; delete B[k]; }
+      return { ...shared, any: [A, B] };
+    }
+  }
+  return filter1(phrase, at);
+}
+
+function filter1(phrase, at) {
   let s = phrase.trim();
   const F = {};
   const W = [];
@@ -28,6 +42,8 @@ export function filter(phrase, at = phrase) {
       else if (w === 'opposing' || /opponent's$/.test(w)) F.owner = 'opp';
       else if (w === 'your') F.owner = 'you';
     } else if ((m = s.match(ADJ))) W.push(fromAdjective(m[1]));
+    else if ((m = s.match(/^non-(character|item|location|action|song)\s+/i))) W.push({ notType: [m[1].toLowerCase()] });
+    else if ((m = s.match(/^(?:any|all)\s+/i))) { /* "any character" */ }
     else break;
     s = s.slice(m[0].length);
   }
@@ -40,7 +56,21 @@ export function filter(phrase, at = phrase) {
   s = s.slice(tm[0].length).trim();
   for (let guard = 0; guard < 8 && s; guard++) {
     let m;
-    if ((m = s.match(/^(?:of yours|you have in play|you control|of your own)\b\s*/i))) F.owner = 'you';
+    if ((m = s.match(/^(?:of yours|you have in play|you have|you control|of your own|in play you have)\b\s*/i))) F.owner = 'you';
+    else if ((m = s.match(/^(?:opponents have in play|your opponents have in play|of theirs)\b\s*/i))) F.owner = 'opp';
+    else if ((m = s.match(/^(?:in|from|into) (your|their|an opponent's|chosen opponent's|chosen player's|any|a player's) (discard|hand|inkwell)s?\b\s*/i))) {
+      F.zone = m[2].toLowerCase();
+      const o = m[1].toLowerCase();
+      if (o === 'your') F.owner = 'you'; else if (/opponent/.test(o)) F.owner = 'opp';
+    }
+    else if ((m = s.match(/^(?:at|in) (?:a |any )?locations?\b\s*/i))) W.push({ atLocation: true });
+    else if ((m = s.match(/^(?:that|who) (?:has|have) (?:a card|one or more cards) under (?:it|them|him|her)\b\s*/i))) W.push({ under: true });
+    else if ((m = s.match(/^without (?:an? )?/i))) {
+      const r = parseWith(s.slice(m[0].length));
+      if (!r) miss(`filter: "${s}"`, at);
+      W.push({ not: r[0] }); m[0] += s.slice(m[0].length, m[0].length + r[1]);
+    }
+    else if ((m = s.match(new RegExp(String.raw`^not ${NAMED.source.slice(1)}`, 'u')))) W.push({ not: { named: [m[1].trim()] } });
     else if ((m = s.match(/^in play\b\s*/i))) { /* default zone */ }
     else if ((m = s.match(/^(?:in|from) (your|their|an opponent's|chosen opponent's) (discard|hand)\b\s*/i))) {
       F.zone = m[2].toLowerCase();

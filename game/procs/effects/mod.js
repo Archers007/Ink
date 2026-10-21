@@ -19,7 +19,7 @@ export function kwList(s) {
   return out.length ? out : null;
 }
 const KWS = String.raw`(?:${KEYWORD_ALT})(?: \+?\d+)?(?:(?:,|,? and) (?:${KEYWORD_ALT})(?: \+?\d+)?)*`;
-const CANT = { quest: 'cantQuest', challenge: 'cantChallenge', ready: 'cantReady', 'be challenged': 'cantBeChallenged', 'sing songs': 'cantSing', move: 'cantMove', 'exert to sing songs': 'cantSing' };
+const CANT = { quest: 'cantQuest', challenge: 'cantChallenge', ready: 'cantReady', 'be challenged': 'cantBeChallenged', 'sing songs': 'cantSing', move: 'cantMove', 'move to locations': 'cantMove', 'exert to sing songs': 'cantSing', '{exert} to sing songs': 'cantSing' };
 const VERBS = Object.keys(CANT).sort((a, b) => b.length - a.length).join('|');
 const mods2 = (m, i) => [{ stat: STAT[m[i + 1]], n: +m[i] }];
 
@@ -37,7 +37,10 @@ export class Mod extends Effect {
     [/^(.+?) (?:gets?|gains?) ([+-]\d+) \{(strength|willpower|lore)\} and gains? (.+)$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2), kws: kwList(m[4]) ?? P.miss(`keywords: "${m[4]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:gains?|gets?) (${KWS})$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: kwList(m[2]) ?? P.miss(`keywords: "${m[2]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:can't|cannot) (${VERBS})(?: or (${VERBS}))?$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [m[2], m[3]].filter(Boolean).map((x) => ({ kw: CANT[x.toLowerCase()] })) })],
-    [/^(.+?) can challenge ready characters$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'challengeReady' }] })],
+    // "can't ready at the start of their next turn" = skip their next ready step
+    [/^(.+?) (?:can't|cannot) ready at the start of (?:their|its|his|her|its player's) next turn$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReady' }], dur: 'theirNext' })],
+    [/^(.+?) (?:can't|cannot) ready at the start of your turn$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReady' }] })],
+    [/^(.+?) (?:can|may) challenge ready characters$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'challengeReady' }] })],
   ];
   static run(rt, s, job, st, ev) {
     const ids = rt.targets(s, job, st, st.sel);

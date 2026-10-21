@@ -50,7 +50,10 @@ export class Runtime {
   inPlay(s, seat) { return this.E.P(s, seat).play.map((id) => s.cards[id]); }
   tl(s, iid) { const c = s.cards[iid]; return `${this.E.nameOf(s, c.owner)}'s ${this.E.cardLabel(this.E.D(s, c))}`; }
   each(ids, f) { ids.forEach(f); return ids.length > 0; }
-  who(s, job, w) { return w === 'each' ? s.players.filter((p) => !p.out).map((p) => p.seat) : w === 'opp' ? this.E.opponentsOf(s, job.seat) : [job.seat]; }
+  who(s, job, w) {
+    if (w === 'refOwner') return [s.cards[(job.ctx.it || [])[0]]?.owner].filter((x) => x != null);
+    return w === 'each' ? s.players.filter((p) => !p.out).map((p) => p.seat) : w === 'opp' ? this.E.opponentsOf(s, job.seat) : [job.seat];
+  }
   duringOk(s, proc, owner) { return !proc.during || (proc.during === 'yours' ? s.active === owner : s.active !== owner); }
   ask(s, job, spec) { return this.prompter.ask(s, job, spec); }
   targets(s, job, st, sel, key, o) { return this.prompter.targets(s, job, st, sel, key, o); }
@@ -70,7 +73,7 @@ export class Runtime {
   }
 
   // ------------------------------------------------------------ queries & conditions
-  matches(s, F, c, ctl, src, o = {}) { return !!c && Query.matches(F, c, this.E.D(s, c), { E: this.E, ctl, src }, o); }
+  matches(s, F, c, ctl, src, o = {}) { return !!c && Query.matches(F, c, this.E.D(s, c), { E: this.E, s, ctl, src }, o); }
   pool(s, F, ctl) {
     const zone = F.zone || 'play';
     const seats = F.owner === 'you' ? [ctl] : F.owner === 'opp' ? this.E.opponentsOf(s, ctl) : s.players.map((p) => p.seat);
@@ -92,6 +95,8 @@ export class Runtime {
       }
     };
     if (info.iid && !s.cards[info.iid]) return;
+    // per-turn history for "this turn" conditions (conditions/history.js)
+    (s.turnLog ||= []).push({ ev, seat: info.seat ?? s.cards[info.iid]?.owner, iid: info.iid, ...(info.inChallenge ? { inChallenge: true } : {}) });
     EVENTS[ev]?.(this, s, info, fireOn);
   }
 
