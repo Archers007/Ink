@@ -23,8 +23,11 @@ test('normalize: icons, tags, quotes, dashes, bullets, keyword braces', () => {
 
 // ---------- compiler ----------
 test('compile: unknown sentence → whole ability unparsed (all-or-nothing)', () => {
-  const p = C("Draw a card. Then, choose up to 3 cards from chosen opponent's discard and shuffle them into their deck.", 'action');
+  const p = C('Draw a card. Then, each player plays with the top card of their deck face up.', 'action');
   assert.equal(p.kind, 'unparsed'); assert.equal(p.exec, false); assert.ok(p.why);
+  const q = C("Draw a card. Then, choose up to 3 cards from chosen opponent's discard and shuffle them into their deck.", 'action');
+  assert.deepEqual(q.do.map((x) => x.fn), ['draw', 'choose', 'shuffleIn']);
+  assert.deepEqual(q.do[1].sel, { chosen: { zone: 'discard', owner: 'opp' }, upTo: 3 });
 });
 test('compile: triggers, selectors, filters, durations', () => {
   const p = C('When you play this character, chosen opposing character gets -2 {strength} until the start of your next turn.');
@@ -332,6 +335,67 @@ test('putUnder (Boost) + damaged triggers', () => {
     s.cards[ids.play0[0]].exerted = true; s.cards[ids.play1[0]].exerted = true;
     ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] })); drain(s);
     assert.equal(s.cards[ids.play0[0]].exerted, false, 'Beast readied');
+  }
+});
+test('eachPlayer: inner steps run as each player (their prompts, their "you")', () => {
+  const world = byName('A Whole New World');                         // each player discards their hand and draws 7
+  {
+    const { s, ids } = setup({ hand0: [world] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].hand.length, 7); assert.equal(s.players[1].hand.length, 7);
+  }
+  const kuzco = byName('Kuzco - Impulsive Llama');                    // each opponent chooses one of their characters → bottom; then may draw
+  const foe = vanilla((d) => d.cost >= 1);
+  {
+    const { s, ids } = setup({ hand0: [kuzco], play1: [foe] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.equal(s.pending?.seat, 1, 'the opponent makes the choice');
+    ok(applyAction(s, 1, { type: 'choose', target: ids.play1[0] }));
+    assert.equal(s.players[1].deck[s.players[1].deck.length - 1], ids.play1[0]);
+    const h = s.players[1].hand.length;
+    assert.equal(s.pending?.seat, 1); ok(applyAction(s, 1, { type: 'choose', confirm: true }));
+    assert.equal(s.players[1].hand.length, h + 1);
+  }
+});
+test('amounts: "equal to the damage on chosen X" and "for each 1 damage removed this way"', () => {
+  const mad = byName("Most Everyone's Mad Here");                      // gain lore = damage on chosen character, then banish them
+  const tough = vanilla((d) => d.wp >= 5);
+  {
+    const { s, ids } = setup({ hand0: [mad], play1: [tough] });
+    s.cards[ids.play1[0]].damage = 3;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.players[0].lore, 3); assert.equal(s.cards[ids.play1[0]].zone, 'discard');
+  }
+  const ohana = byName('Ohana Means Family');                          // remove all damage; draw 1 per damage removed
+  {
+    const { s, ids } = setup({ hand0: [ohana], play0: [tough] });
+    s.cards[ids.play0[0]].damage = 3;
+    const h = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].damage, 0); assert.equal(s.players[0].hand.length, h - 1 + 3);
+  }
+});
+test('"can\'t quest unless …" and "may enter play exerted to …"', () => {
+  const bashful = byName('Bashful - Hopeless Romantic');
+  const dwarf = all.find((d) => d.type === 'character' && d.full !== bashful.full && (d.classes || []).includes('seven dwarfs'));
+  {
+    const { s, ids } = setup({ play0: [bashful] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' }));   // statics apply at the first GSC
+    assert.equal(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }).ok, false, 'alone → can\'t quest');
+  }
+  {
+    const { s, ids } = setup({ play0: [bashful, dwarf] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' }));
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
+  }
+  const merida = byName('Merida - Wisp Conjurer');                     // may enter play exerted to draw a card
+  {
+    const { s, ids } = setup({ hand0: [merida] });
+    const h = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', confirm: true })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].exerted, true); assert.equal(s.players[0].hand.length, h);   // -1 played +1 drawn
   }
 });
 test('demo decks are built only from fully-runnable cards', () => {

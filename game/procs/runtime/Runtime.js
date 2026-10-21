@@ -83,6 +83,7 @@ export class Runtime {
   test(s, C, ctl, src, job) { return testCondition(this, s, C, { ctl, src, job }); }
 
   // ------------------------------------------------------------ the bag
+  makeJob(seat, src, label, steps, ctx = {}, extra = {}) { return Job.make(seat, src, label, steps, ctx, extra); }
   queue(s, seat, src, label, steps, ctx = {}, extra = {}) { (s.fx ||= []).push(Job.make(seat, src, label, steps, ctx, extra)); }
 
   // engine event → every listening trigger queues

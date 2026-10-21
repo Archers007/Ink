@@ -1,0 +1,41 @@
+// Structural effects that wrap other steps:
+//   choose       "choose an opposing character" — pick, remember as `it` for the next steps
+//   eachPlayer   "each player draws 2 cards" · "each opponent chooses and discards a card" — the inner steps run
+//                once per player, as that player (their choices, their "you"), before the rest of this ability
+import { Effect } from './Effect.js';
+import { Selector } from '../phrases/selector.js';
+
+export class Choose extends Effect {
+  static fn = 'choose';
+  static rules = [
+    [/^choose (an?|another|up to \d+|one of your|one of their) (.+)$/i, (m, P) => {
+      const w = m[1].toLowerCase();
+      const phrase = w === 'one of your' || w === 'one of their' ? `one of your ${m[2]}` : /^up to/.test(w) ? `${w} chosen ${m[2]}` : `${w === 'another' ? 'another' : 'a'} chosen ${m[2]}`;
+      return { fn: 'choose', sel: P.sel(phrase) };
+    }],
+  ];
+  static chooses() { return true; }
+  static run(rt, s, job, st) {
+    const ids = rt.targets(s, job, st, st.sel);
+    if (!ids) return null;
+    job.ctx.it = ids;
+    return ids.length > 0;
+  }
+  static verb() { return 'choose'; }
+  static say(st) { return `choose ${Selector.say(st.sel).replace(/^chosen /, '')}`; }
+}
+
+const WHO = { each: 'each player', opp: 'each opponent' };
+export class EachPlayer extends Effect {
+  static fn = 'eachPlayer';
+  static rules = [];                                  // built by the compiler (it needs to compile the inner clause)
+  static run(rt, s, job, st) {
+    const seats = rt.who(s, job, st.who);
+    // turn order from the active player (CR 1.6.2)
+    const order = [...seats].sort((a, b) => ((a - s.active + s.players.length) % s.players.length) - ((b - s.active + s.players.length) % s.players.length));
+    const jobs = order.map((seat) => rt.makeJob(seat, job.src, job.label, st.do, { it: job.ctx.it }));
+    s.fx.splice(0, 0, ...jobs);                       // ahead of this job → they resolve before its next step
+    return true;
+  }
+  static say(st, sayStep) { return `${WHO[st.who] || st.who}: ${st.do.map(sayStep).join(', then ')}`; }
+}

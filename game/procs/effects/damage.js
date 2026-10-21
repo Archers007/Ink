@@ -43,7 +43,7 @@ export class Heal extends Effect {
     return rt.each(ids, (iid) => {
       const c = s.cards[iid];
       const n = Math.min(Amount.value(rt, s, job, st.n), c.damage);
-      c.damage -= n; job.ctx.healed += n;
+      c.damage -= n; job.ctx.healed += n; job.ctx.n = job.ctx.healed;
       if (n) { ev.push({ k: 'damage', iid, n: -n }); rt.fire(s, 'healed', { iid, n, seat: job.seat }); }
       rt.log(s, `↳ Removed ${n} damage from ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
     });
@@ -62,13 +62,19 @@ export class MoveDamage extends Effect {
     const to = rt.targets(s, job, st, st.to, 'to', { keep: (iid) => !from.includes(iid), verb: `move ${st.n} damage to` });
     if (!to) return null;
     if (!to.length) return false;
-    const a = s.cards[from[0]]; const b = s.cards[to[0]];
-    const n = Math.min(st.n, a.damage);
-    a.damage -= n; b.damage += n;
-    ev.push({ k: 'damage', iid: a.iid, n: -n }, { k: 'damage', iid: b.iid, n });
-    rt.log(s, `↳ Moved ${n} damage from ${rt.tl(s, a.iid)} to ${rt.tl(s, b.iid)}.`, { seat: job.seat, kind: 'effect' });
+    const b = s.cards[to[0]];
+    job.ctx.n = 0;
+    for (const id of from.filter((x) => x !== b.iid)) {       // "from each damaged character …" moves from all of them
+      const a = s.cards[id];
+      const n = Math.min(st.n, a.damage);
+      if (!n) continue;
+      a.damage -= n; b.damage += n;
+      ev.push({ k: 'damage', iid: a.iid, n: -n }, { k: 'damage', iid: b.iid, n });
+      rt.log(s, `↳ Moved ${n} damage from ${rt.tl(s, a.iid)} to ${rt.tl(s, b.iid)}.`, { seat: job.seat, kind: 'effect' });
+      job.ctx.n += n;
+    }
     job.ctx.it = [b.iid];
-    return true;
+    return job.ctx.n > 0;
   }
   static say(st) { return `move ${st.n} damage from ${Selector.say(st.from)} to ${Selector.say(st.to)}`; }
 }
