@@ -43,6 +43,8 @@ export class Mod extends Effect {
     }],
     [/^(.+?) (?:gets?|gains?) ([+-]\d+) \{(strength|willpower|lore)\} and gains? (.+)$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2), kws: kwList(m[4], P) ?? P.miss(`keywords: "${m[4]}"`) })],
     [new RegExp(String.raw`^(.+?) (?:gains?|gets?) (${KWS})$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: kwList(m[2], P) ?? P.miss(`keywords: "${m[2]}"`) })],
+    // "this character can't be challenged by Pirate characters / by characters with 2 {strength} or greater"
+    [/^(.+?) can't be challenged by (?:(\w+) characters|characters with (\d+) \{strength\} or (?:greater|more))$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantBeChallengedBy', by: m[2] ? { class: m[2].toLowerCase() } : { strGte: +m[3] } }] })],
     // "chosen opposing character can't challenge and must quest [during their next turn] if able"
     [/^(.+?) can't challenge and must quest(?: during their next turn)? if able(?: during their next turn)?$/i, (m, P) => P.D(({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantChallenge' }, { kw: 'mustQuest' }], ...(/next turn/i.test(m[0]) && !P.dur ? { dur: 'theirNext' } : {}) }))],
     [new RegExp(String.raw`^(.+?) (?:can't|cannot) (${VERBS})(?: or (${VERBS}))?$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [m[2], m[3]].filter(Boolean).map((x) => ({ kw: CANT[x.toLowerCase()] })) })],
@@ -80,7 +82,7 @@ export class Mod extends Effect {
   }
   static verb(rt, s, job, st) { return Mod.text(rt, s, job, st); }
   static say(st) {
-    const what = [...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)), ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : kwLabel(k.kw, k.n)))].join(', ');
+    const what = [...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)), ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : k.by ? `can't be challenged by ${k.by.class ? `${k.by.class} characters` : `characters with ${k.by.strGte}+ {strength}`}` : kwLabel(k.kw, k.n)))].join(', ');
     return `${Selector.say(st.sel)} ${(st.kws || []).every((k) => RESTRICTIONS[k.kw]) && !st.mods ? '' : st.mods ? 'gets ' : 'gains '}${what}${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''} ${st.dur ? Duration.say(st.dur) : '(while in play)'}`;
   }
   static check(st, missing, SUPPORT) {

@@ -132,7 +132,7 @@ function moveTo(s, iid, to, ev, opt = {}) {
   const c = s.cards[iid];
   const p = P(s, c.owner);
   const from = c.zone;
-  if (from === 'under') throw RE('Cards under another card move together with it.');
+  if (from === 'under' && !opt.fromUnder) throw RE('Cards under another card move together with it.');
   const stack = from === 'play' ? [...c.under, iid] : [iid];
   detach(s, c);
   if (from === 'play' && D(s, c).type === 'location') {

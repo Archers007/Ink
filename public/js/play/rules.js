@@ -37,7 +37,7 @@ export const KEYWORD_LABEL = {
   universalShift: 'Universal Shift', classShift: 'Shift', tempShift: 'Temporary Shift', vanish: 'Vanish', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
   cantQuest: "Can't quest", cantChallenge: "Can't challenge", mustQuest: 'Must quest if able', adventurous: 'Adventurous', cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
-  noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged",
+  noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
   cantSing: "Can't sing", challengeReady: 'Can challenge ready characters',
 };
 
@@ -127,6 +127,8 @@ export function defenderBlocker(att, attDef, tgt, tgtDef, defenderSide) {
   if (tgtDef.type === 'location') return null;                                 // 4.6.8 — locations can always be challenged
   if (tgtDef.type !== 'character') return 'You can only challenge characters and locations.';
   if (hasKw(tgt, tgtDef, 'cantBeChallenged')) return 'An ability says this character can\'t be challenged.';
+  for (const m of tgt.mods || []) if (m.stat === 'kw' && m.kw === 'cantBeChallengedBy' && m.by
+    && (m.by.class ? (attDef.classes || []).map((x) => x.toLowerCase()).includes(m.by.class) : effStr(att, attDef) >= m.by.strGte)) return 'An ability says this character can\'t be challenged by that character.';
   if (!tgt.exerted && !hasKw(att, attDef, 'challengeReady')) return 'Only exerted characters can be challenged.';       // 4.6.4.2
   if (evasiveBlocks(att, attDef, tgt, tgtDef)) return 'Evasive — only characters with Evasive (or Alert) can challenge it.';
   if (!hasKw(tgt, tgtDef, 'bodyguard')) {
