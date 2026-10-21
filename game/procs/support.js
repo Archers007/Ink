@@ -1,27 +1,26 @@
-// What game/procs/runtime.js can execute. The compiler marks a proc `exec:false` (with the reason)
-// when it uses anything not listed here, so the engine never half-runs an ability.
-// Add a name here only together with its implementation in runtime.js (scripts/test-procs.mjs checks).
+// What the engine can run — the contract between the compiler and the runtime.
+// Derived from the registries: a building block is supported when its class can run it.
+// The compiler marks a proc exec:false (with the reason) if it uses anything outside this, so the
+// engine never half-runs an ability. Only `kw` is hand-listed: those keywords live in the engine itself.
+
+import { EFFECTS } from './effects/index.js';
+import { TRIGGERS } from './triggers/index.js';
+import { CONDITIONS } from './conditions/index.js';
+import { COST_SUPPORT, STATIC_FNS } from './kinds/index.js';
+import { DURATIONS } from './phrases/duration.js';
 
 export const SUPPORT = {
-  fn: new Set([
-    'draw', 'gainLore', 'loseLore', 'damage', 'heal', 'moveDamage', 'banish', 'toHand', 'toDeckBottom', 'shuffleIn',
-    'toInkwell', 'inkTop', 'exert', 'ready', 'discard', 'oppChoose', 'fromDiscard', 'look', 'mod', 'payInk',
-    'chooseOne', 'playFree', 'costMod', 'shuffle', 'mill',
-  ]),
-  trigger: new Set([
-    'play', 'quest', 'challenges', 'challenged', 'banished', 'banishOther', 'turnStart', 'turnEnd',
-    'playCard', 'oppPlayCard', 'questAny', 'banishedAny', 'challengesAny', 'sings', 'singsAny', 'questHere',
-    'banishOtherAny', 'inked', 'moveHere',
-  ]),
-  cost: new Set(['exert', 'ink', 'banishSelf', 'discard']),
-  static: new Set(['mod', 'selfCost', 'costMod', 'enters']),
-  cond: new Set(['have', 'self', 'hand', 'moreCardsThanOpp', 'oppMoreLore', 'youMoreLore', 'playedThisTurn', 'yourTurn', 'shifted', 'refIs', 'any', 'count', 'under', 'damageOnSelf']),
+  fn: new Set(EFFECTS.filter((E) => !E.staticOnly && !E.fn.startsWith('_')).map((E) => E.fn)),
+  trigger: new Set(TRIGGERS.filter((T) => T.runs).map((T) => T.ev)),
+  cost: COST_SUPPORT,
+  static: STATIC_FNS,
+  cond: new Set(CONDITIONS.filter((C) => C.runs).map((C) => C.key)),
   kw: new Set([
-    // keyword lines the engine already handles
+    // keywords the engine (game/engine.js + public/js/play/rules.js) implements
     'evasive', 'ward', 'rush', 'reckless', 'bodyguard', 'support', 'alert', 'challenger', 'resist', 'singer',
     'boost', 'shift', 'puppyShift', 'universalShift', 'singTogether',
     // restrictions / grants procs can put on a card
     'cantQuest', 'cantChallenge', 'cantReady', 'cantBeChallenged', 'cantSing', 'challengeReady',
   ]),
-  dur: new Set(['turn', 'next', 'theirNext']),
+  dur: new Set(Object.keys(DURATIONS)),
 };

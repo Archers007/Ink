@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compileCard } from '../game/procs/compile.js';
+import { compileCard } from '../game/procs/index.js';
 import { canon, unknownIcons, mergeSplitNames } from '../game/procs/normalize.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
