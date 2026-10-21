@@ -200,6 +200,7 @@ export class Runtime {
 
   // ------------------------------------------------------------ per-kind hooks
   statics(s) { Static.apply(this, s); }
+  playBlocked(s, seat, c) { return Static.playBlocked(this, s, seat, c); }
   costDelta(s, seat, c, consume = false) { return Static.costDelta(this, s, seat, c, consume); }
   onEnter(s, c) { Static.onEnter(this, s, c); }
   activate(s, seat, c, index, ev) { return Activated.activate(this, s, seat, c, index, ev); }

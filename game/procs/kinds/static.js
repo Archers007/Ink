@@ -6,8 +6,10 @@
 import { Kind, sayDuring } from './Kind.js';
 import { sentences } from '../phrases/text.js';
 import { Amount } from '../phrases/amount.js';
+import { Query } from '../query.js';
+import { PlayBan } from '../effects/playBan.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan']);
 
 export class Static extends Kind {
   static kind = 'static';
@@ -23,6 +25,8 @@ export class Static extends Kind {
       return { kind: 'triggered', ...mods, on: [{ ev: 'play' }], ...(cond ? { cond } : {}), do: steps };
     }
     const wrap = (effect) => ({ kind: 'static', ...mods, ...(cond ? { cond } : {}), effect });
+    // "You can't play this character unless …" (the unless is already folded into cond as a not)
+    if (/^you can't play this (?:character|action|item|location|song)$/i.test(t)) return wrap({ fn: 'selfBan' });
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to play this (?:character|item|location)$/i))) return wrap({ fn: 'selfCost', n: +m[1] });
     if ((m = t.match(/^this (?:character|item|location) enters play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', ...(m[2] ? { damage: +m[2] } : { exerted: true }) });
@@ -35,7 +39,7 @@ export class Static extends Kind {
       if (here && eff.sel?.all) (eff.sel.all.with ||= []).push({ here: true });
       else if (here) c.miss('static: "while here" without a group', t);
       if (eff.sel?.ref) eff.sel = { self: true };            // static "he/she/it gets …" = this card
-      if (eff.fn === 'mod' || eff.fn === 'costMod') {
+      if (eff.fn === 'mod' || eff.fn === 'costMod' || eff.fn === 'playBan') {
         if (eff.dur) c.miss('static with a duration', t);
         return wrap(eff);
       }
@@ -65,6 +69,25 @@ export class Static extends Kind {
         for (const id of ids) rt.addMods(s, job, st, id, null, mult);
       }
     }
+  }
+
+  // runtime: why `seat` can't play hand card `c` right now (or null) — its own "can't play unless",
+  // static bans on the board, and timed bans from effects
+  static playBlocked(rt, s, seat, c) {
+    const { E } = rt;
+    for (const proc of rt.procsOf(s, c)) if (proc.kind === 'static' && proc.exec && proc.effect.fn === 'selfBan' && rt.test(s, proc.cond, seat, c.iid)) return "You can't play this card yet — its condition isn't met.";
+    for (const proc of rt.procsOf(s, c)) if (proc.kind === 'action' && proc.exec && proc.playIf && !rt.test(s, proc.playIf, seat, c.iid)) return "You can't play this action yet — its condition isn't met.";
+    const hit = (F, ctl) => Query.matches(F, c, E.D(s, c), { E, s, ctl, src: null }, { anyZone: true });
+    for (const p of s.players) for (const iid of p.play) {
+      const src = s.cards[iid];
+      for (const proc of rt.procsOf(s, src)) {
+        if (proc.kind !== 'static' || proc.effect.fn !== 'playBan' || !Static.active(rt, s, proc, src.owner, src.iid)) continue;
+        const st = proc.effect;
+        if ((st.who === 'you') === (seat === src.owner) && hit(st.filter, src.owner)) return `${E.cardLabel(E.D(s, src))} stops you playing that.`;
+      }
+    }
+    for (const b of s.playBans || []) if (b.seat === seat && PlayBan.live(s, b) && hit(b.filter, b.by)) return `${s.cards[b.src] ? E.cardLabel(E.D(s, s.cards[b.src])) : 'An effect'} stops you playing that right now.`;
+    return null;
   }
 
   // runtime: ink cost change for playing `c` from hand (its own selfCost, board costMods, one-shot costMods)

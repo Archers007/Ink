@@ -720,6 +720,24 @@ test('cost: "{exert}, Banish one of your items — Gain 3 lore" / "{exert} one o
     ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
     assert.equal(s.cards[ids.play0[1]].exerted, true); }
 });
+test('play bans: "opponents can\'t play actions until the start of your next turn"; "can\'t play this character unless"', () => {
+  const pete = byName('Pete - Games Referee');
+  const act = all.find((d) => d.type === 'action' && d.cost <= 2 && !d.sing);
+  { const { s, ids } = setup({ hand0: [pete], hand1: [act], ink0: 7 }); s.players[1].inkwell.push(...s.players[1].deck.splice(0, 5));
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'endTurn', force: true })); drain(s);
+    if (s.pending) ok(applyAction(s, s.pending.seat, { type: 'choose', skip: true }));
+    const r = applyAction(s, 1, { type: 'play', iid: ids.hand1[0] });
+    assert.equal(r.ok, false, 'banned during their turn');
+    ok(applyAction(s, 1, { type: 'endTurn', force: true })); drain(s);
+    assert.equal(s.playBans.some((x) => s.turn === x.turn || !(s.active === x.by && s.turn > x.turn)), false, 'ban over at the start of your next turn'); }
+  const mira = byName('Mirabel Madrigal - Family Gatherer');
+  const v = vanilla(() => true);
+  { const { s, ids } = setup({ hand0: [mira], play0: [v, v, v, v], ink0: 9 });
+    assert.equal(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }).ok, false, 'only 4 characters'); }
+  { const { s, ids } = setup({ hand0: [mira], play0: [v, v, v, v, v], ink0: 9 });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
