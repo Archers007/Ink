@@ -18,7 +18,7 @@ export const SUPPORT = {
   kw: new Set([
     // keywords the engine (game/engine.js + public/js/play/rules.js) implements
     'evasive', 'ward', 'rush', 'reckless', 'bodyguard', 'support', 'alert', 'challenger', 'resist', 'singer',
-    'boost', 'shift', 'puppyShift', 'universalShift', 'singTogether',
+    'boost', 'shift', 'puppyShift', 'universalShift', 'classShift', 'singTogether', 'vanish',
     // restrictions / grants procs can put on a card
     'cantQuest', 'cantChallenge', 'cantReady', 'skipReady', 'cantBeChallenged', 'cantSing', 'cantMove', 'noDamage', 'noChallengeDamage', 'noDamageChallenging', 'noEffectDamage', 'challengeReady',
   ]),

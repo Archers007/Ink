@@ -33,14 +33,14 @@ export class Prompter {
     if (!sel.chosen) return [];
     this.take(job, key, T);
     const max = sel.upTo || 1;
-    if (T.done || T.acc.length >= max) return T.acc;
+    if (T.done || T.acc.length >= max) return this.vanish(s, job, T);
     let valid = rt.candidates(s, sel.chosen, job.seat, job.src)
       .filter((iid) => !T.acc.includes(iid))
       .filter((iid) => s.cards[iid].owner === job.seat || !rt.E.hasKw(s.cards[iid], rt.E.D(s, s.cards[iid]), 'ward'));   // Ward (8.15)
     if (o.keep) valid = valid.filter(o.keep);
     if (!valid.length) {
       if (!T.acc.length) rt.log(s, `↳ ${job.label}: no valid ${Query.describe(sel.chosen)} — skipped.`, { kind: 'effect' });
-      return T.acc;
+      return this.vanish(s, job, T);
     }
     job.waitKey = key;
     const E = rt.effect(st.fn);
@@ -62,6 +62,21 @@ export class Prompter {
     if (!v.length) return T.acc;
     job.waitKey = key;
     return this.ask(s, job, { ...spec, valid: v, cards: v.map((iid) => ({ iid, cardId: s.cards[iid].cardId })), op: spec.op || st.fn });
+  }
+
+  // Vanish (CR 8.14): an opponent's action chose this character → banish it after the action resolves (the bag)
+  vanish(s, job, T) {
+    const { rt } = this;
+    if (T.vanished) return T.acc;
+    T.vanished = true;
+    const src = s.cards[job.src];
+    const type = src && rt.E.D(s, src).type;
+    if (type !== 'action' && type !== 'song') return T.acc;
+    for (const iid of T.acc) {
+      const c = s.cards[iid];
+      if (c && c.owner !== job.seat && rt.E.hasKw(c, rt.E.D(s, c), 'vanish')) rt.queue(s, c.owner, iid, `${rt.E.cardLabel(rt.E.D(s, c))} — Vanish`, [{ fn: 'banish', sel: { self: true } }]);
+    }
+    return T.acc;
   }
 
   take(job, key, T) {

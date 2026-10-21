@@ -21,7 +21,6 @@ export class Moves extends Trigger {
 export class Readied extends Trigger {
   static selfSubject = true;
   static ev = 'ready';
-  static runs = false;
   static rules = [[/^whenever you ready this character$/i, () => [{ ev: 'ready' }]]];
   static say() { return 'you ready this character'; }
 }
@@ -62,6 +61,7 @@ export class DealtDamage extends Trigger {
 
 export const events = {
   inked(rt, s, info, fireOn) { for (const c of rt.inPlay(s, info.seat)) fireOn(c, 'inked'); },
+  ready(rt, s, info, fireOn) { fireOn(s.cards[info.iid], 'ready'); },
   moves(rt, s, info, fireOn) { fireOn(s.cards[info.iid], 'moves', null, [info.at]); },
   putUnder(rt, s, info, fireOn) {
     const c = s.cards[info.iid];

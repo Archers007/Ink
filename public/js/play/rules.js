@@ -34,7 +34,7 @@ export const KEYWORD_HELP = {
 export const KEYWORD_LABEL = {
   alert: 'Alert', bodyguard: 'Bodyguard', boost: 'Boost', challenger: 'Challenger', evasive: 'Evasive',
   reckless: 'Reckless', resist: 'Resist', rush: 'Rush', shift: 'Shift', puppyShift: 'Puppy Shift',
-  universalShift: 'Universal Shift', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
+  universalShift: 'Universal Shift', classShift: 'Shift', tempShift: 'Temporary Shift', vanish: 'Vanish', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
   cantQuest: "Can't quest", cantChallenge: "Can't challenge", cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
   noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged",
@@ -161,6 +161,7 @@ export function shiftOptions(def) {
   if (def.kw?.shift != null) out.push({ kind: 'shift', cost: def.kw.shift });
   if (def.kw?.puppyShift != null) out.push({ kind: 'puppyShift', cost: def.kw.puppyShift });
   if (def.kw?.universalShift != null) out.push({ kind: 'universalShift', cost: def.kw.universalShift });
+  if (def.kw?.classShift) out.push({ kind: 'classShift', cost: def.kw.classShift.n, cls: def.kw.classShift.cls });
   return out;
 }
 
@@ -168,6 +169,7 @@ export function shiftTargetOk(kind, shifterDef, tgtDef) {
   if (tgtDef.type !== 'character') return false;
   if (kind === 'universalShift') return true;
   if (kind === 'puppyShift') return (tgtDef.classes || []).includes('puppy');
+  if (kind === 'classShift') return (tgtDef.classes || []).includes(shifterDef.kw?.classShift?.cls);
   return sharesName(shifterDef, tgtDef);
 }
 
