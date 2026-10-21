@@ -54,7 +54,7 @@ export class Activated extends Kind {
     if (cost.discard && !E.P(s, seat).hand.some((iid) => rt.matches(s, { ...cost.discard, zone: 'hand' }, s.cards[iid], seat, c.iid))) throw E.RE('You have no card to discard for this cost.');
     E.payInk(s, seat, cost.ink || 0);
     const paid = [];
-    if (cost.exert) { c.exerted = true; paid.push('⟳'); }
+    if (cost.exert) { E.exertCard(s, c); paid.push('⟳'); }
     if (cost.ink) paid.push(`${cost.ink} ink`);
     if (proc.once) c.once[index] = s.turn;
     rt.log(s, `${E.nameOf(s, seat)} used ${E.cardLabel(d)}'s ${proc.name || 'ability'}${paid.length ? ` (paid ${paid.join(' + ')})` : ''}.`, { seat, kind: 'play' });

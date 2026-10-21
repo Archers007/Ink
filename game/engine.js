@@ -67,6 +67,13 @@ function newCard(iid, cardId, owner) {
     mods: [], under: [], faceDown: false, enteredTurn: 0, boostedTurn: 0, parent: null,
   };
 }
+// a ready card in play becoming exerted (quest, challenge, sing, {exert} costs, exert effects) — not entering play exerted
+function exertCard(s, c) {
+  if (c.exerted) return;
+  c.exerted = true;
+  if (c.zone === 'play') R.fire(s, 'exerts', { iid: c.iid });
+}
+
 function resetCard(c) {
   c.exerted = false; c.damage = 0; c.drying = false; c.atLocation = null; c.mods = [];
   c.faceDown = false; c.boostedTurn = 0; c.parent = null; c.under = [];
@@ -91,7 +98,7 @@ function payInk(s, seat, n) {
   if (ready.length + drops < n) throw RE(`Not enough ink — need ${n}, you have ${ready.length + drops} ready.`);
   const cards = Math.min(n, ready.length);
   for (let i = 0; i < cards; i++) s.cards[ready[ready.length - 1 - i]].exerted = true;
-  if (n > cards) { p.inkDrops = drops - (n - cards); p.usedDropTurn = s.turn; }
+  if (n > cards) { p.inkDrops = drops - (n - cards); p.usedDropTurn = s.turn; R.fire(s, 'inkDropUsed', { seat }); }
 }
 
 function listOf(s, c) {
@@ -148,6 +155,7 @@ function moveTo(s, iid, to, ev, opt = {}) {
     const visibleBefore = PUBLIC_ZONES.has(from) && !wasFaceDown;
     const visibleAfter = PUBLIC_ZONES.has(k.zone);
     if (id === iid && k.zone === 'discard') (s.turnLog ||= []).push({ ev: 'toDiscard', seat: c.owner, iid });
+    if (id === iid && from === 'discard' && s.status === 'playing') R.fire(s, 'leavesDiscard', { iid, seat: c.owner });
     if (visibleBefore || visibleAfter || opt.reveal) ev.push({ k: 'move', iid: id, cardId: k.cardId, from: fromZ, to: toZ, parent: id !== iid ? iid : undefined, revealed: (opt.reveal && !visibleBefore && !visibleAfter) || undefined });
     else ev.push(privateMove(s, id, fromZ, toZ, c.owner));
   }
@@ -475,6 +483,7 @@ H.play = (s, seat, a, ev) => {
   const adjust = clampInt(a.costAdjust, -20, 20);
   let how = '';
   let shiftTarget = null;
+  let paid = null;                                                  // ink paid to play it (for "pay 2 or less to play")
   let sungBy = [];
 
   if (mode === 'ink') {
@@ -483,6 +492,7 @@ H.play = (s, seat, a, ev) => {
     payInk(s, seat, cost);
     const notes = [auto ? `${auto} from abilities` : '', adjust ? `adjusted ${adjust > 0 ? '+' : ''}${adjust}` : ''].filter(Boolean).join(', ');
     how = `for ${cost} ink${notes ? ` (cost ${d.cost}, ${notes})` : ''}`;
+    paid = cost;
   } else if (mode === 'free') {
     how = 'for free';
   } else if (mode === 'shift') {
@@ -498,6 +508,7 @@ H.play = (s, seat, a, ev) => {
       const cost = Math.max(0, opt.cost + adjust);
       payInk(s, seat, cost);
       how = `by shifting onto ${cardLabel(D(s, t))} for ${cost} ink`;
+      paid = cost;
     } else {
       how = `by shifting onto ${cardLabel(D(s, t))} (shift cost: ${opt.cost} — resolve by hand)`;
     }
@@ -521,7 +532,7 @@ H.play = (s, seat, a, ev) => {
       }
       if (total < need) throw RE(`Your singers total cost ${total}; Sing Together needs ${need}.`);
     }
-    for (const x of singers) x.exerted = true;
+    for (const x of singers) exertCard(s, x);
     how = `— sung by ${singers.map((x) => cardLabel(D(s, x))).join(' + ')}`;
     ev.push({ k: 'sing', singers: singers.map((x) => x.iid), cardId: d.id });
     sungBy = singers.map((x) => x.iid);
@@ -537,7 +548,7 @@ H.play = (s, seat, a, ev) => {
     if (!R.castAction(s, seat, c)) manualActionText(s, d);
     // each singer "sings the song" (CR 8.12.3); their triggers join the bag after the song's effect
     for (const iid of sungBy) R.fire(s, 'sings', { iid, song: c.iid });
-    R.fire(s, 'play', { iid: c.iid });
+    R.fire(s, 'play', { iid: c.iid, paid, singers: sungBy });
     return;
   }
 
@@ -571,7 +582,8 @@ H.play = (s, seat, a, ev) => {
   if (!shiftTarget) R.onEnter(s, c);                                // "enters play exerted / with damage"
   p.playedThisTurn.push(c.iid);
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${c.exerted ? ' (entered exerted)' : ''}.`, { seat, kind: 'play' });
-  R.fire(s, 'play', { iid: c.iid });
+  R.fire(s, 'play', { iid: c.iid, paid });
+  if (shiftTarget) R.fire(s, 'shiftedOnto', { iid: shiftTarget.iid, by: c.iid });
 };
 
 H.quest = (s, seat, a, ev) => {
@@ -580,7 +592,7 @@ H.quest = (s, seat, a, ev) => {
   const d = D(s, c);
   const why = questBlocker(c, d);
   if (why) throw RE(why);
-  c.exerted = true;
+  exertCard(s, c);
   const gain = Math.max(0, effLore(c, d));
   gainLore(s, seat, gain, ev);
   ev.push({ k: 'quest', iid: c.iid, lore: gain });
@@ -607,6 +619,7 @@ H.support = (s, seat, a, ev) => {
     t.mods.push({ stat: 'str', delta: amt, until: 'eot', src: 'Support' });
     ev.push({ k: 'mod', iid: t.iid, stat: 'str', delta: amt });
     log(s, `${cardLabel(D(s, from))} supported ${cardLabel(td)} (+${amt} ⚔️ this turn).`, { seat });
+    R.fire(s, 'supported', { iid: t.iid, by: from.iid });
   } else {
     log(s, `${nameOf(s, seat)} skipped Support.`, { seat });
   }
@@ -624,7 +637,7 @@ H.challenge = (s, seat, a, ev) => {
   const Td = D(s, T);
   why = defenderBlocker(A, Ad, T, Td, sideOf(s, T.owner));
   if (why) throw RE(why);
-  A.exerted = true;
+  exertCard(s, A);
   log(s, `⚔️ ${nameOf(s, seat)}'s ${cardLabel(Ad)} challenged ${cardLabel(Td)}.`, { seat, kind: 'challenge' });
   // "whenever this character challenges / is challenged" resolve first, then challenge damage (CR 4.6.5–4.6.6)
   R.fire(s, 'challenges', { iid: A.iid, other: T.iid });
@@ -693,7 +706,7 @@ H.useAbility = (s, seat, a, ev) => {
       if (Cd.type === 'character' && C.drying) throw RE("Characters can't ⟳ the turn they're played (drying).");
     }
     payInk(s, seat, cost.ink);
-    if (cost.exert) { C.exerted = true; paid.push('⟳'); }
+    if (cost.exert) { exertCard(s, C); paid.push('⟳'); }
     if (cost.ink) paid.push(`${cost.ink} ink`);
   }
   log(s, `${nameOf(s, seat)} used ${cardLabel(Cd)}'s ${ab.name || 'ability'}${paid.length ? ` (paid ${paid.join(' + ')})` : ''}.`, { seat, kind: 'play' });
@@ -948,7 +961,7 @@ H.clearMods = (s, seat, a, ev) => {
 const R = createRuntime({
   D, P, nameOf, log, cardLabel, prettyText, KEYWORD_LABEL, LORE_TO_WIN, RE,
   effStr, effWp, effLore, kwVal, hasKw, rand, shuffleArr, readyInk, payInk, opponentsOf,
-  moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, finishEndTurn, putUnder, moveChar,
+  moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, finishEndTurn, putUnder, moveChar, exertCard,
 });
 
 // ---------- public API ----------

@@ -230,6 +230,12 @@ export class Compiler {
       let cond = null;
       let m;
       if ((m = s.match(/^then,? (.+)$/i))) s = m[1];
+      // delayed trigger: "Whenever one of your characters quests this turn, …" · "For the rest of this turn, whenever …"
+      if ((m = s.match(/^(?:for the rest of this turn, |this turn, )(whenever .+)$/i)) || (m = s.match(/^(whenever [^,]+?) this turn(, .+)$/i))) {
+        const t = m[2] ? `${m[1]}${m[2]}` : m[1];
+        const proc = Triggered.parse(t, this, {});
+        if (proc) { steps.push({ fn: 'delayed', text: t, proc: { ...proc, ...this.check(proc) } }); continue; }
+      }
       if ((m = s.match(/^if you do,? (.+)$/i))) { ifDid = true; s = m[1]; }
       if ((m = s.match(/^if (.+?), (.+?) instead$/i)) && steps.length) { this.instead(steps, m[1], m[2], ctx, at); continue; }
       if ((m = s.match(/^if (.+?), (.+)$/i)) && !/^if you do/i.test(s)) { cond = parseCondition(m[1], at); s = m[2]; }

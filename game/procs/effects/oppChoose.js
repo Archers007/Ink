@@ -21,7 +21,7 @@ export class OppChoose extends Effect {
       const a = job.answer; job.answer = null;
       const iid = a.target; const c = s.cards[iid]; const lbl = E.cardLabel(E.D(s, c)); const who = E.nameOf(s, c.owner);
       if (st.act === 'banish') E.banish(s, iid, ev, job.label);
-      else if (st.act === 'exert') { c.exerted = true; ev.push({ k: 'exert', iid }); rt.log(s, `↳ ${who} exerted ${lbl}.`, { kind: 'effect' }); }
+      else if (st.act === 'exert') { rt.E.exertCard(s, c); ev.push({ k: 'exert', iid }); rt.log(s, `↳ ${who} exerted ${lbl}.`, { kind: 'effect' }); }
       else if (st.act === 'toHand') { rt.log(s, `↳ ${who} returned ${lbl} to their hand.`, { kind: 'effect' }); E.moveTo(s, iid, 'hand', ev, { reveal: true }); }
       else if (st.act === 'damage') { const n = Math.max(0, st.n - E.kwVal(c, E.D(s, c), 'resist')); c.damage += n; if (n) ev.push({ k: 'damage', iid, n }); rt.log(s, `↳ ${who} dealt ${n} damage to their ${lbl}.`, { kind: 'effect' }); }
       T.any = true; T.queue.shift();

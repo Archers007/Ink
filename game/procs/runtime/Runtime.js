@@ -114,6 +114,19 @@ export class Runtime {
     // per-turn history for "this turn" conditions (conditions/history.js)
     (s.turnLog ||= []).push({ ev, seat: info.seat ?? s.cards[info.iid]?.owner, iid: info.iid, ...(info.inChallenge ? { inChallenge: true } : {}) });
     EVENTS[ev]?.(this, s, info, fireOn);
+    // delayed triggers: the same event, heard by each player's "this turn" triggers (once per event)
+    const live = (s.delayed || []).filter((d) => d.turn === s.turn);
+    if (live.length && EVENTS[ev]) {
+      const heard = new Set();
+      EVENTS[ev](this, s, info, (c, name, pass, it) => {
+        for (const d of live) {
+          if (!c || c.owner !== d.seat || heard.has(d)) continue;
+          if (!d.proc.on.some((o) => o.ev === name && (!pass || pass(o)))) continue;
+          heard.add(d);
+          this.queue(s, d.seat, d.src, d.label, d.proc.do, { it: it || [] }, { cond: d.proc.cond || null });
+        }
+      });
+    }
   }
 
   pump(s, ev) {
@@ -193,6 +206,7 @@ export class Runtime {
   castAction(s, seat, c) { return Action.cast(this, s, seat, c); }
 
   endOfTurnCleanup(s, seat) {
+    if (s.delayed?.length) s.delayed = s.delayed.filter((d) => d.turn > s.turn);
     for (const p of s.players) for (const iid of p.play) {
       const c = s.cards[iid];
       if (c.mods.length) c.mods = c.mods.filter((m) => m.until !== 'eot' && !(m.until === 'theirNext' && m.by === seat && s.turn > m.setTurn));

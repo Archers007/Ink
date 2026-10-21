@@ -39,3 +39,17 @@ export class EachPlayer extends Effect {
   }
   static say(st, sayStep) { return `${WHO[st.who] || st.who}: ${st.do.map(sayStep).join(', then ')}`; }
 }
+
+// "Whenever one of your characters quests this turn, gain 1 lore." — a trigger that lives on the player until
+// end of turn; Runtime.fire offers every event to it as if one of the player's cards were listening.
+export class Delayed extends Effect {
+  static fn = 'delayed';
+  static rules = [];                                  // built by the compiler (it needs to compile the inner trigger)
+  static run(rt, s, job, st) {
+    (s.delayed ||= []).push({ seat: job.seat, src: job.src, label: job.label, proc: st.proc, turn: s.turn });
+    rt.log(s, `↳ ${job.label}: for the rest of this turn, ${rt.E.prettyText(st.text || '')}`, { seat: job.seat, kind: 'effect' });
+    return true;
+  }
+  static check(st, missing) { if (!st.proc.exec) missing.add(`delayed trigger: ${(st.proc.why || '').replace(/^engine can't run: /, '')}`); }
+  static say(st, sayStep) { return `for the rest of this turn: ${st.text}`; }
+}
