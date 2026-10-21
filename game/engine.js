@@ -15,7 +15,7 @@
 //   deck-out at end of turn [1.8.1.2] · concede [2.3.3.4]
 //
 // Card abilities run as compiled procs (game/procs/: text → JSON at build time, executed by
-// procs/runtime.js): triggered, activated and static abilities, actions and songs, cost
+// procs/runtime/Runtime.js): triggered, activated and static abilities, actions and songs, cost
 // reductions. They resolve through an effect queue (s.fx) with choices as a pending prompt.
 // Anything the compiler couldn't turn into a runnable proc stays manual (logged +
 // visible to both players, like a real table). The engine offers primitive "effect" actions (damage,
@@ -28,7 +28,7 @@ import {
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker,
   shiftOptions, shiftTargetOk, parseActivatedCost, prettyText,
 } from '../public/js/play/rules.js';
-import { createRuntime } from './procs/runtime.js';
+import { createRuntime } from './procs/index.js';
 
 export class RuleError extends Error {}
 const RE = (msg) => new RuleError(msg);
@@ -392,7 +392,7 @@ H.ink = (s, seat, a, ev) => {
 
 
 // ---------- automated card abilities (procs) ----------
-// The building blocks live in procs/runtime.js; the engine hands it the primitives it needs.
+// The building blocks live in procs/ (see procs/README.md); the engine hands it the primitives it needs.
 
 H.choose = (s, seat, a, ev) => {
   needPlaying(s);
@@ -433,6 +433,7 @@ H.play = (s, seat, a, ev) => {
   const adjust = clampInt(a.costAdjust, -20, 20);
   let how = '';
   let shiftTarget = null;
+  let sungBy = [];
 
   if (mode === 'ink') {
     const auto = R.costDelta(s, seat, c, true);                   // "you pay N {ink} less …"
@@ -481,7 +482,7 @@ H.play = (s, seat, a, ev) => {
     for (const x of singers) x.exerted = true;
     how = `— sung by ${singers.map((x) => cardLabel(D(s, x))).join(' + ')}`;
     ev.push({ k: 'sing', singers: singers.map((x) => x.iid), cardId: d.id });
-    for (const x of singers) R.fire(s, 'sings', { iid: x.iid, song: c.iid });
+    sungBy = singers.map((x) => x.iid);
   } else {
     throw RE('Unknown way to play a card.');
   }
@@ -492,6 +493,8 @@ H.play = (s, seat, a, ev) => {
     log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
     p.playedThisTurn.push(c.iid);
     if (!R.castAction(s, seat, c)) manualActionText(s, d);
+    // each singer "sings the song" (CR 8.12.3); their triggers join the bag after the song's effect
+    for (const iid of sungBy) R.fire(s, 'sings', { iid, song: c.iid });
     R.fire(s, 'play', { iid: c.iid });
     return;
   }

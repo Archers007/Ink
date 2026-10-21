@@ -12,7 +12,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { compileCard } from './procs/compile.js';
+import { compileCard } from './procs/index.js';
 
 const INK_BITS = [[1, 'amber'], [2, 'amethyst'], [4, 'emerald'], [8, 'ruby'], [16, 'sapphire'], [32, 'steel']];
 export const INK_ORDER = INK_BITS.map(([, n]) => n);

@@ -2,10 +2,10 @@
 //   node scripts/test-procs.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { compileAbility, compileCard } from '../game/procs/compile.js';
+import { compileAbility, compileCard } from '../game/procs/index.js';
 import { canon, mergeSplitNames, unknownIcons } from '../game/procs/normalize.js';
-import { SUPPORT } from '../game/procs/support.js';
-import { createRuntime } from '../game/procs/runtime.js';
+import { SUPPORT } from '../game/procs/index.js';
+import { createRuntime } from '../game/procs/index.js';
 import { applyAction, checkInvariants, viewFor } from '../game/engine.js';
 import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
 
@@ -31,7 +31,16 @@ test('compile: triggers, selectors, filters, durations', () => {
   assert.equal(p.kind, 'triggered'); assert.deepEqual(p.on, [{ ev: 'play' }]);
   assert.deepEqual(p.do, [{ fn: 'mod', sel: { chosen: { owner: 'opp', types: ['character'] } }, mods: [{ stat: 'str', n: -2 }], dur: 'next' }]);
   const b = C('Banish chosen opposing character with 2 {strength} or less.', 'action');
-  assert.deepEqual(b.do[0].sel.chosen, { owner: 'opp', types: ['character'], str: { lte: 2 } });
+  assert.deepEqual(b.do[0].sel.chosen, { owner: 'opp', types: ['character'], with: [{ str: { lte: 2 } }] });
+});
+test('compile: "with" is a query over classifiers (keywords, classes, cost, stats, damage)', () => {
+  const t = C('Whenever this character sings a song with Sing Together, draw a card.', 'character', 'Star Performance');
+  assert.deepEqual(t.on, [{ ev: 'sings', song: { types: ['song'], with: [{ kw: 'singTogether' }] } }]);
+  assert.equal(t.exec, true);
+  const q = C('Banish chosen damaged Villain character with Evasive and cost 3 or less.', 'action');
+  assert.deepEqual(q.do[0].sel.chosen, { types: ['character'], with: [{ damaged: true }, { class: ['villain'] }, { kw: 'evasive' }, { cost: { lte: 3 } }] });
+  const s = C('While this character has no damage, he gets +2 {lore}.', 'character', 'X');
+  assert.deepEqual(s.cond, { self: [{ undamaged: true }] }); assert.deepEqual(s.effect.sel, { self: true });
 });
 test('compile: "you may X, then Y" is linked; "If you do" gates on did', () => {
   const p = C('When you play this character, you may draw a card, then choose and discard a card.');
@@ -180,6 +189,36 @@ test('activated item ability: pays ⟳, targets, can\'t reuse, "this turn" expir
   assert.equal(str(), guy.str);
 });
 
+// resolve every prompt: take the first option / first card / yes
+const drain = (s) => { for (let k = 0; k < 20 && s.pending; k++) { const p = s.pending; ok(applyAction(s, p.seat, { type: 'choose', ...(p.choices ? { option: 0 } : p.confirm ? {} : p.valid.length ? { target: p.valid[0] } : { skip: true }) })); } };
+test('Sing Together: every singer "sings" (CR 8.12.3); "with Sing Together" only matches those songs; triggers after the song', () => {
+  const town = byName('4*Town - Hottest Band of the Year');
+  const buddy = vanilla((d) => d.cost >= 4);
+  const together = byName('Nobody Like U');                               // Sing Together 5
+  const plain = all.find((d) => d.type === 'song' && !d.kw?.singTogether && d.procs.every((p) => p.exec) && d.cost <= 5 && /draw/i.test(JSON.stringify(d.procs)) === false);
+  {
+    const { s, ids } = setup({ play0: [town, buddy], hand0: [together] });
+    for (const id of ids.play0) s.cards[id].drying = false;
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'singTogether', singers: ids.play0 }));
+    drain(s);
+    assert.ok(ids.play0.every((id) => s.cards[id].exerted), 'both singers exerted');
+    void hand;
+    assert.equal(s.log.filter((l) => /Star Performance/.test(l.text) || /P0 drew 1 card/.test(l.text)).length >= 1, true, '4*Town drew');
+    const song = s.log.findIndex((l) => /played Nobody Like U/.test(l.text));
+    const draw = s.log.findIndex((l) => /drew 1 card/.test(l.text));
+    assert.ok(song >= 0 && draw > song, 'draw resolves after the song is played');
+  }
+  {
+    const { s, ids } = setup({ play0: [town], hand0: [plain] });
+    s.cards[ids.play0[0]].drying = false;
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'sing', singers: ids.play0 }));
+    drain(s);
+    void hand;
+    assert.ok(!s.log.some((l) => /P0 drew 1 card/.test(l.text)), `no draw for a song without Sing Together (${plain.full})`);
+  }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
