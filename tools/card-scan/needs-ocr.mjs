@@ -119,6 +119,24 @@ export function checkPatterns() {
   return bad;
 }
 
+// every unique card in cards.db → { flags: [{ id, icon, why, match }], texts: [each printing's DB text] }
+export async function flagCards(dbFile) {
+  const { DatabaseSync } = await import('node:sqlite');
+  const db = new DatabaseSync(dbFile, { readOnly: true });
+  const cards = new Map();
+  for (const r of db.prepare("SELECT name, title, type, abilities FROM cards WHERE language = 'en' ORDER BY id").all()) {
+    const full = r.title ? `${r.name} - ${r.title}` : r.name;
+    let abs = [];
+    try { abs = (JSON.parse(r.abilities || '[]') || []).map((a) => a.description ?? a.text ?? ''); } catch {}
+    const c = cards.get(full) || cards.set(full, { flags: [], texts: [] }).get(full);
+    c.texts.push(abs.join(' / '));
+    // any printing's text can be the broken one (Beast's Mirror: set 1 lost its whole cost, set 9 only the icons)
+    for (const f of needsOcr(abs, r.type)) if (!c.flags.some((x) => x.id === f.id)) c.flags.push(f);
+  }
+  db.close();
+  return cards;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const arg = (k) => { const i = process.argv.indexOf(k); return i < 0 ? null : process.argv[i + 1] ?? ''; };
   const bad = checkPatterns();
@@ -126,19 +144,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv.includes('--check')) { console.log(`✓ ${PATTERNS.length} patterns match their examples`); process.exit(0); }
 
   const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-  const { DatabaseSync } = await import('node:sqlite');
-  const db = new DatabaseSync(path.join(ROOT, 'cache/cards.db'), { readOnly: true });
-  const seen = new Map();            // card → [{ id, icon, why, match }]
-  const texts = new Map();           // card → every printing's DB text
-  for (const r of db.prepare("SELECT name, title, type, abilities FROM cards WHERE language = 'en' ORDER BY id").all()) {
-    const full = r.title ? `${r.name} - ${r.title}` : r.name;
-    let abs = [];
-    try { abs = (JSON.parse(r.abilities || '[]') || []).map((a) => a.description ?? a.text ?? ''); } catch {}
-    (texts.get(full) || texts.set(full, []).get(full)).push(abs.join(' / '));
-    // any printing's text can be the broken one (Beast's Mirror: set 1 lost its whole cost, set 9 only the icons)
-    const f = needsOcr(abs, r.type), prev = seen.get(full) || [];
-    seen.set(full, [...prev, ...f.filter((x) => !prev.some((p) => p.id === x.id))]);
-  }
+  const all = await flagCards(path.join(ROOT, 'cache/cards.db'));
+  const seen = new Map([...all].map(([k, c]) => [k, c.flags]));      // card → [{ id, icon, why, match }]
+  const texts = new Map([...all].map(([k, c]) => [k, c.texts]));     // card → every printing's DB text
   const RESULTS = path.join(ROOT, 'cache/scan/results.jsonl');
   const scan = existsSync(RESULTS) ? new Map(readFileSync(RESULTS, 'utf8').trim().split('\n').map(JSON.parse).map((r) => [r.full, r])) : null;
   const isFix = (k) => scan?.get(k)?.status === 'icon-fix';

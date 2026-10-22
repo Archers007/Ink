@@ -40,6 +40,7 @@ const abilitiesOf = (json) => {
 };
 // Keyword-only cards ship no ability text, just the `keywords` column — turn it back into printed keyword
 // lines ("Shift 3 {ink}", "Challenger +3", "Evasive") so they compile to keyword procs like every other card.
+const FULL_ART = new Set(['enchanted', 'iconic', 'promo', 'epic']);
 const KW_SIGN = new Set(['challenger', 'resist']);
 const keywordLines = (r) => {
   let kw;
@@ -99,7 +100,9 @@ const errors = [];
 const stats = { cards: 0, rulings: 0, sources: {} };
 out.exec('BEGIN');
 for (const [full, printings] of [...byFull].sort((a, b) => a[0].localeCompare(b[0]))) {
-  const r = printings[0];
+  // same printing the scan reads: one with text, standard frame before full art, newest set first
+  const r = [...printings].sort((a, b) => (abilitiesOf(b.abilities).length > 0) - (abilitiesOf(a.abilities).length > 0)
+    || FULL_ART.has(a.rarity) - FULL_ART.has(b.rarity) || String(b.setId).localeCompare(String(a.setId)) || String(b.id).localeCompare(String(a.id)))[0];
   const scan = results.get(full);
   const rules = scan?.rules;
   const dbAb = abilitiesOf(r.abilities);

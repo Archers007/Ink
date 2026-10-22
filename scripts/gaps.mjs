@@ -5,23 +5,17 @@
 //   node scripts/gaps.mjs              ranked families + examples
 //   node scripts/gaps.mjs <family>     every card + miss in one family
 //   node scripts/gaps.mjs --other      the misses no family claims (to grow the list below)
-//   (every form scans + recompiles first; add --no-scan to reuse cache/rulings.db + proc.db)
+//   (every form runs scripts/build-cards.mjs first — scans flagged / stuck cards, rebuilds rulings + procs;
+//    --no-scan reuses cache/rulings.db + proc.db, --all rescans every card)
 
 import { DatabaseSync } from 'node:sqlite';
 import { spawnSync } from 'node:child_process';
 
-// Always refresh first: OCR scan (card image vs DB text) → rulings.db → recompile procs, so gaps reflect verified text.
-// `--no-scan` skips straight to the existing cache/rulings.db + cache/proc.db.
 if (!process.argv.includes('--no-scan')) {
-  const run = (cmd, args) => {
-    const r = spawnSync(cmd, args, { cwd: new URL('..', import.meta.url), stdio: ['ignore', 'ignore', 'inherit'] });
-    if (r.status !== 0) { console.error(`gaps: \`${cmd} ${args.join(' ')}\` failed — fix it or pass --no-scan`); process.exit(1); }
-  };
-  console.error('gaps: scanning card images (OCR + icons vs DB text)…');
-  run('uv', ['run', 'tools/card-scan/scan.py', '--jobs', '12']);
-  console.error('gaps: building rulings + recompiling procs…');
-  run('node', ['tools/build-rulings.mjs']);
-  run('node', ['tools/compile-procs.mjs']);
+  console.error('gaps: building cards (scan what needs it → rulings → procs)…');
+  const r = spawnSync('node', ['scripts/build-cards.mjs', ...(process.argv.includes('--all') ? ['--all'] : [])],
+    { cwd: new URL('..', import.meta.url), stdio: ['ignore', 'ignore', 'inherit'] });
+  if (r.status !== 0) { console.error('gaps: scripts/build-cards.mjs failed — fix it or pass --no-scan'); process.exit(1); }
 }
 
 // card → { procs: [{ kind, exec, why, text }] } from cache/rulings.db + cache/proc.db
@@ -86,7 +80,7 @@ for (const [full, c] of Object.entries(P)) {
   if (fs.size === 1) fam[[...fs][0]].finishes.add(full);
 }
 
-const arg = process.argv[2];
+const arg = process.argv.slice(2).find((a) => a === '--other' || !a.startsWith('--'));
 const short = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 if (arg && arg !== '--other' ? fam[arg] : arg === '--other') {
   const F = fam[arg === '--other' ? 'other' : arg];
