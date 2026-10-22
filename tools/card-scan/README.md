@@ -20,6 +20,13 @@ Outputs (gitignored, in `cache/scan/`):
 - `icon-fixes.json` — card id → DB abilities with the missing icons patched in
 - `summary.json` — counts per status
 
+## Which cards need the scan?
+
+`node tools/card-scan/needs-ocr.mjs` flags cards whose DB text lost an icon, from the text alone (`+1 this turn`,
+`pay 2 to`, a cost that starts with `—`, …). Against the last full scan it catches all 164 icon-fix cards; the other
+50 it flags are printings the scan didn't read. close / mismatch cards are OCR trouble, which the DB text can't
+predict, so the full scan still runs.
+
 ## Pipeline
 
 1. one normal-frame printing per card (skips enchanted / epic / iconic / promo full-art)
