@@ -27,6 +27,12 @@ Outputs (gitignored, in `cache/scan/`):
 50 it flags are printings the scan didn't read. close / mismatch cards are OCR trouble, which the DB text can't
 predict, so the full scan still runs.
 
+Each pattern lives in `PATTERNS` with real card text it must flag and must pass. To add or tune one:
+
+    pnpm needs-ocr --missed            # icon-fix cards nothing catches: DB text + where the icon went
+    pnpm needs-ocr --pattern stat-mod  # what one pattern flags, matched words in [brackets], ✓ = scan agrees
+    pnpm needs-ocr --check             # every pattern vs its examples (runs in pnpm test)
+
 ## Pipeline
 
 1. one normal-frame printing per card (skips enchanted / epic / iconic / promo full-art)
