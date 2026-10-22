@@ -97,6 +97,28 @@ const insPrint = out.prepare('INSERT INTO printings VALUES (?,?,?,?,?)');
 const insRuling = out.prepare('INSERT INTO rulings (card_key, idx, name, text, db_text, scan_text) VALUES (?,?,?,?,?,?)');
 const n = (x) => (x == null || x === '' ? null : Number(x));
 
+// Glued words: a word that's rare across all card text but splits into two common ones lost its space
+// ("another characteris banished" → "character is"). Real words that happen to split go in REAL_WORDS.
+const REAL_WORDS = new Set(['forget', 'forward', 'inkable']);
+const wordCount = new Map();
+for (const r of rows) for (const a of abilitiesOf(r.abilities)) for (const w of a.text.toLowerCase().match(/[a-z']+/g) || []) wordCount.set(w, (wordCount.get(w) || 0) + 1);
+const common = (w) => (wordCount.get(w) || 0) >= 15;
+const gluedFixes = new Map();      // "characteris" → { split: "character is", cards: Set }
+function unglue(text, full) {
+  return text.replace(/[A-Za-z']{5,}/g, (w) => {
+    const lw = w.toLowerCase();
+    if (REAL_WORDS.has(lw) || (wordCount.get(lw) || 0) > 3) return w;
+    for (let i = 2; i <= w.length - 2; i++) {
+      if (common(lw.slice(0, i)) && common(lw.slice(i))) {
+        const split = `${w.slice(0, i)} ${w.slice(i)}`;
+        (gluedFixes.get(lw) || gluedFixes.set(lw, { split, cards: new Set() }).get(lw)).cards.add(full);
+        return split;
+      }
+    }
+    return w;
+  });
+}
+
 const errors = [];
 const stats = { cards: 0, rulings: 0, sources: {} };
 out.exec('BEGIN');
@@ -113,7 +135,7 @@ for (const [full, printings] of [...byFull].sort((a, b) => a[0].localeCompare(b[
   let abilities = rules ? rules.abilities.map((a) => ({ name: a.name || '', text: a.description ?? a.text ?? '' })) : dbAb;
   let source = rules ? rules.source : dbAb.length ? 'db' : 'none';
   if (!abilities.length) { abilities = keywordLines(r); if (abilities.length) source = 'keywords'; }
-  abilities = mergeSplitNames(abilities.map((a) => ({ name: canon(a.name || ''), text: canon(a.text) })));
+  abilities = mergeSplitNames(abilities.map((a) => ({ name: canon(a.name || ''), text: unglue(canon(a.text), full) })));
   for (const a of abilities) {
     const bad = unknownIcons(a.text);
     if (bad.length) errors.push(`${full}: unknown icon {${bad.join('}, {')}} in "${a.text}"`);
@@ -139,6 +161,10 @@ console.log(`rulings → ${path.relative(ROOT, OUT)}`);
 console.log(`  cards:     ${stats.cards} unique (${rows.length} printings)`);
 console.log(`  rulings:   ${stats.rulings}`);
 console.log(`  sources:   ${Object.entries(stats.sources).map(([k, v]) => `${k} ${v}`).join(' · ')}`);
+if (gluedFixes.size) {
+  console.log(`\n  glued words split (add real words to REAL_WORDS in tools/build-rulings.mjs):`);
+  for (const [w, g] of gluedFixes) console.log(`    ${w} → ${g.split}   ${[...g.cards].join(' | ')}`);
+}
 if (errors.length) {
   console.log(`\n⚠ ${errors.length} text problems (fix in tools/card-scan/corrections.json):`);
   for (const e of errors.slice(0, 20)) console.log('  ' + e);
