@@ -39,6 +39,19 @@ const dbAbilities = (r) => {
     return a.map((x) => ({ name: x.name || x.title || '', text: x.text || x.description || x.effect || '' })).filter((x) => x.text);
   } catch { return []; }
 };
+// Keyword-only cards ship no ability text, just the `keywords` column — turn it back into printed keyword
+// lines ("Shift 3 {ink}", "Challenger +3", "Evasive") so they compile to keyword procs like every other card.
+const KW_SIGN = new Set(['challenger', 'resist']);
+const keywordLines = (r) => {
+  let kw;
+  try { kw = JSON.parse(r?.keywords || '{}') || {}; } catch { return []; }
+  return Object.entries(kw).map(([k, v]) => {
+    const label = k.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    if (v === true) return /shift|singer|boost/.test(k) ? null : `${label}${KW_SIGN.has(k) ? ' +1' : ''}`; // Kronk ships `challenger: true` = +1
+    if (typeof v === 'string' && !/^\d+$/.test(v)) return `${label}: ${v}`; // non-ink shift cost
+    return `${label} ${KW_SIGN.has(k) ? '+' : ''}${v}${/shift|boost/.test(k) ? ' {ink}' : ''}`;
+  }).filter(Boolean).map((text) => ({ name: '', text: canon(text) }));
+};
 
 const cards = {};
 const errors = [];
@@ -53,6 +66,7 @@ for (const full of names) {
   const abilities = (v ? v.abilities.map((a) => ({ name: a.name || '', text: a.description ?? a.text ?? '' })) : dbAbilities(r))
     .map((a) => ({ name: canon(a.name || ''), text: canon(a.text) }));
   abilities.splice(0, abilities.length, ...mergeSplitNames(abilities));
+  if (!abilities.length) abilities.push(...keywordLines(r));
   for (const a of abilities) {
     const bad = unknownIcons(a.text);
     if (bad.length) errors.push(`${full}: unknown icon {${bad.join('}, {')}} in "${a.text}"`);
