@@ -52,6 +52,23 @@ const keywordLines = (r) => {
   }).filter(Boolean).map((text) => ({ name: '', text }));
 };
 
+// which source line this ability came from: same name, else most words in common (abilities can be merged or
+// reordered between sources, so the list index isn't enough)
+const words = (t) => new Set(canon(t).toLowerCase().match(/[a-z0-9{}]+/g) || []);
+function sourceText(a, list) {
+  const named = a.name && list.find((x) => x.name && canon(x.name).toLowerCase() === a.name.toLowerCase());
+  if (named) return named.text;
+  const A = words(a.text);
+  let best = null, score = 0;
+  for (const x of list) {
+    const B = words(x.text);
+    const common = [...A].filter((w) => B.has(w)).length;
+    const sc = common / Math.max(1, Math.min(A.size, B.size));
+    if (sc > score) { best = x; score = sc; }
+  }
+  return score >= 0.5 ? best.text : null;
+}
+
 rmSync(OUT, { force: true });
 const out = new DatabaseSync(OUT);
 out.exec(`
@@ -99,9 +116,11 @@ for (const [full, printings] of [...byFull].sort((a, b) => a[0].localeCompare(b[
   insCard.run(full, r.name, r.title || null, type, n(r.cost), Number(r.ink) === 1 ? 1 : 0, n(r.lore), n(r.strength), n(r.willpower), n(r.movement),
     r.keywords || null, source, scan?.status ?? null, scan?.id ?? null, rules?.verified ? 1 : 0);
   for (const p of printings) insPrint.run(p.id, full, p.setId ?? null, p.number ?? null, p.rarity ?? null);
+  // the scan's own DB version lines up with what it read; else the first printing's DB text
+  const dbSide = scan?.db?.length ? abilitiesOf(JSON.stringify(scan.db)) : dbAb;
+  const scanSide = (scan?.scanned || []).map((x) => ({ name: x.name || '', text: x.text || '' }));
   abilities.forEach((a, i) => {
-    const d = dbAb[i], s = scan?.scanned?.[i];
-    insRuling.run(full, i, a.name || null, a.text, d ? d.text : null, s ? s.text : null);
+    insRuling.run(full, i, a.name || null, a.text, sourceText(a, dbSide), sourceText(a, scanSide));
   });
   stats.cards++; stats.rulings += abilities.length;
   stats.sources[source] = (stats.sources[source] || 0) + 1;
