@@ -18,6 +18,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { splitDbAbilities } from '../../game/procs/normalize.js';
 
 // permanentsOnly: skip actions and songs (their text is all commands, no costs)
 export const PATTERNS = [
@@ -44,6 +45,12 @@ export const PATTERNS = [
     rx: /\bcharacters' (?!\{)/,
     flags: ["Your characters' can't be reduced below their printed value."],
     passes: ["Your characters' {strength} can't be reduced"],
+  },
+  {
+    id: 'stat-possessive-end', icon: 'stat', why: "character's ___ (nothing after the possessive)",
+    rx: /\b(?:character|opponent|player|item|location)'s\s*(?:[.,;]|$)/,
+    flags: ["gain lore equal to another chosen exerted character's."],
+    passes: ["gain lore equal to another chosen exerted character's {lore}.", "that character's controller"],
   },
   {
     id: 'ink-pay', icon: 'ink', why: 'pay N, no {ink}',
@@ -90,7 +97,7 @@ const INLINE_NAME = /^(?:[A-Z0-9][A-Z0-9'’!?.&-]* )+(?=[—,-]|\d|\?|\{|[A-Z][
 // …and sometimes runs two abilities into one string: "…gains Evasive. GROUNDED 3 — Return this item…"
 const MERGED = /\s(?=(?:[A-Z][A-Z'’!?.&-]+ )+(?:\d+ ?)?[—-]\s)/;
 const stripName = (t) => { const m = t.match(INLINE_NAME); return m && m[0].trim().length >= 3 ? t.slice(m[0].length) : t; };
-export const abilityParts = (texts) => texts.flatMap((t) => String(t ?? '').replace(/\([^)]*\)/g, '').split(MERGED)).map((t) => stripName(t.trim()));
+export const abilityParts = (texts) => texts.flatMap((t) => splitDbAbilities('', t).map((a) => a.text)).flatMap((t) => t.replace(/\([^)]*\)/g, '').split(MERGED)).map((t) => stripName(t.trim()));
 
 // ability texts + card type → [{ id, icon, why, match }] (empty = the DB text looks complete)
 export function needsOcr(texts, type = '') {
