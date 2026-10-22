@@ -10,7 +10,7 @@
 //     classes: ['storyborn','hero'], abilities: [{ name, text }],
 //     rarity, set, num, franchise, img }
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { compileCard, KINDS } from './procs/index.js';
 const Base = KINDS.base;
@@ -159,11 +159,27 @@ export function isFullyAutomated(def) {
 const RUNS_ITSELF = new Set(['triggered', 'activated', 'static', 'action']);
 export const hasAutomatedText = (def) => (def.procs || []).some((p) => p.exec && RUNS_ITSELF.has(p.kind));
 
-// cache/procs.json (built by tools/compile-procs.mjs from the verified scan text) — or compile the DB text now
-export function loadProcs(dbFile) {
-  const file = path.join(path.dirname(dbFile), 'procs.json');
-  if (!existsSync(file)) return null;
-  try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+// cache/rulings.db + cache/proc.db (built by tools/build-rulings.mjs → tools/compile-procs.mjs from the verified
+// scan text) — or compile the DB text now
+export function loadProcs(dbFile, DatabaseSync) {
+  const dir = path.dirname(dbFile);
+  const rulingsFile = path.join(dir, 'rulings.db'), procFile = path.join(dir, 'proc.db');
+  if (!existsSync(rulingsFile) || !existsSync(procFile)) return null;
+  let db;
+  try {
+    db = new DatabaseSync(rulingsFile, { readOnly: true });
+    db.exec(`ATTACH DATABASE '${procFile.replace(/'/g, "''")}' AS p`);
+    const cards = {};
+    for (const c of db.prepare('SELECT card_key, source FROM cards').all()) cards[c.card_key] = { source: c.source, abilities: [], procs: [] };
+    for (const r of db.prepare('SELECT r.card_key, r.name, r.text, p.json FROM rulings r LEFT JOIN p.procs p USING (proc_id) ORDER BY r.card_key, r.idx').all()) {
+      const e = cards[r.card_key];
+      e.abilities.push({ name: r.name || '', text: r.text });
+      if (r.json) e.procs.push({ name: r.name || null, text: r.text, ...JSON.parse(r.json) });
+    }
+    // a ruling without a proc (compile never ran on it) → compile this card's DB text at load instead
+    for (const [k, e] of Object.entries(cards)) if (e.procs.length !== e.abilities.length) delete cards[k];
+    return { cards };
+  } catch { return null; } finally { db?.close(); }
 }
 function attachProcs(def, built) {
   const entry = built?.cards?.[def.full];
@@ -221,7 +237,7 @@ export async function loadCardIndex(dbFile) {
   }
   const index = { byId, byFull, byName, size: byId.size, loadedAt: Date.now() };
   // Link every printing to its compiled procs (shown as ⚡ in the client)
-  const built = loadProcs(dbFile);
+  const built = loadProcs(dbFile, DatabaseSync);
   index.procs = built;
   for (const d of byId.values()) attachProcs(d, built);
   index.demoDecks = buildDemoDecks(index);

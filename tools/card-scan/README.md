@@ -18,7 +18,6 @@ uv run tools/card-scan/scan.py --name "Webby" --debug   # one card, annotated cr
 Outputs (gitignored, in `cache/scan/`):
 - `results.jsonl` — one row per card: status, icons found, banners, scanned text, diff problems
 - `icon-fixes.json` — card id → DB abilities with the missing icons patched in
-- `rules.json` — card id → clean rules text for the ability compiler (flavour cut; `abilities: null` = DB text is already right)
 - `summary.json` — counts per status
 
 ## Pipeline
@@ -50,7 +49,7 @@ Only `match` / `icon-fix` cards should feed the ability compiler automatically.
 
 `corrections.json` settles the cards the scan can't (close / mismatch / db-suspect). Keyed by card full name:
 
-| why | meaning | rules.json gets |
+| why | meaning | the ruling gets |
 |---|---|---|
 | `errata` | official text change (set release notes in `docs/rules/`) | the official `abilities` |
 | `db-fix` | the DB text is wrong (typo, old wording, missing icon/ability) | the fixed `abilities` (or `replace` pairs) |
@@ -64,4 +63,5 @@ Draft new entries with lorcanajson as the tie-breaker (hand edits are kept):
     python3 tools/card-scan/make_corrections.py /tmp/allCards.json
 
 `summary.json → corrections` lists unknown card names, unused `replace` pairs and db-fixes the scan doesn't back up.
-`rules.json` entries carry `source` (db · db+icons · errata · corrected · reviewed · scan) and `verified`.
+Each row's `rules` (clean text for the ability compiler, flavour cut) carries `source` (db · db+icons · errata · corrected · reviewed · scan)
+and `verified`. `node tools/build-rulings.mjs` combines it with `cards.db` into `cache/rulings.db`, one `rulings` row per ability.

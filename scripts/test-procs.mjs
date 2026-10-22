@@ -1,7 +1,7 @@
 // Proc compiler + runtime tests.
 //   node scripts/test-procs.mjs
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { compileAbility, compileCard } from '../game/procs/index.js';
 import { canon, mergeSplitNames, unknownIcons } from '../game/procs/normalize.js';
 import { SUPPORT } from '../game/procs/index.js';
@@ -68,12 +68,16 @@ test('compile: deterministic — same text, same proc', () => {
 test('support: every supported fn has a runtime executor; every runnable proc only uses supported parts', () => {
   const R = createRuntime({});                        // throws if support.js lists a fn runtime.js lacks
   for (const f of SUPPORT.fn) assert.equal(typeof R.FN[f], 'function', f);
-  const built = JSON.parse(readFileSync('cache/procs.json', 'utf8'));
+  const db = new DatabaseSync('cache/rulings.db', { readOnly: true });
+  db.exec("ATTACH DATABASE 'cache/proc.db' AS p");
   const fns = new Set();
   const walk = (x) => { if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') { if (x.fn) fns.add(x.fn); Object.values(x).forEach(walk); } };
-  for (const c of Object.values(built.cards)) for (const p of c.procs) if (p.exec && p.kind !== 'static') walk(p.do || []);
+  for (const r of db.prepare("SELECT json FROM p.procs WHERE exec = 1 AND kind != 'static'").all()) walk(JSON.parse(r.json).do || []);
   for (const f of fns) assert.ok(SUPPORT.fn.has(f) || f === 'chooseOne', `runnable proc uses unsupported fn ${f}`);
-  assert.ok(built.coverage.pctAbilities > 50, `coverage dropped to ${built.coverage.pctAbilities}%`);
+  const { n, ok } = db.prepare('SELECT count(*) n, sum(p.exec) ok FROM rulings r JOIN p.procs p USING (proc_id)').get();
+  db.close();
+  const pct = (100 * ok) / n;
+  assert.ok(pct > 50, `coverage dropped to ${pct.toFixed(1)}%`);
 });
 
 // ---------- runtime scenarios ----------
