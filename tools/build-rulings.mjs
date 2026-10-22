@@ -13,7 +13,8 @@ import { readFileSync, existsSync, rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { canon, unknownIcons, mergeSplitNames } from '../game/procs/normalize.js';
+import { canon, unknownIcons, mergeSplitNames, splitDbAbilities } from '../game/procs/normalize.js';
+import { needsOcr } from './card-scan/needs-ocr.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DB = path.join(ROOT, 'cache/cards.db');
@@ -35,7 +36,7 @@ for (const r of rows) (byFull.get(fullOf(r)) || byFull.set(fullOf(r), []).get(fu
 
 const abilitiesOf = (json) => {
   try {
-    return (JSON.parse(json || '[]') || []).map((x) => ({ name: x.name || x.title || '', text: x.text || x.description || x.effect || '' })).filter((x) => x.text);
+    return (JSON.parse(json || '[]') || []).flatMap((x) => splitDbAbilities(x.name || x.title || '', x.text || x.description || x.effect || '')).filter((x) => x.text);
   } catch { return []; }
 };
 // Keyword-only cards ship no ability text, just the `keywords` column — turn it back into printed keyword
@@ -100,9 +101,12 @@ const errors = [];
 const stats = { cards: 0, rulings: 0, sources: {} };
 out.exec('BEGIN');
 for (const [full, printings] of [...byFull].sort((a, b) => a[0].localeCompare(b[0]))) {
-  // same printing the scan reads: one with text, standard frame before full art, newest set first
+  // the printing to read when there's no scan: one with text, then one needs-ocr finds nothing wrong with
+  // (reprints often lost icons the older row still has), standard frame before full art, newest set first
+  const flagsOf = (p) => needsOcr(abilitiesOf(p.abilities).map((a) => a.text), p.type).length;
   const r = [...printings].sort((a, b) => (abilitiesOf(b.abilities).length > 0) - (abilitiesOf(a.abilities).length > 0)
-    || FULL_ART.has(a.rarity) - FULL_ART.has(b.rarity) || String(b.setId).localeCompare(String(a.setId)) || String(b.id).localeCompare(String(a.id)))[0];
+    || flagsOf(a) - flagsOf(b) || FULL_ART.has(a.rarity) - FULL_ART.has(b.rarity)
+    || String(b.setId).localeCompare(String(a.setId)) || String(b.id).localeCompare(String(a.id)))[0];
   const scan = results.get(full);
   const rules = scan?.rules;
   const dbAb = abilitiesOf(r.abilities);
