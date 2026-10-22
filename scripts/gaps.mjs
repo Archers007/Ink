@@ -5,8 +5,23 @@
 //   node scripts/gaps.mjs              ranked families + examples
 //   node scripts/gaps.mjs <family>     every card + miss in one family
 //   node scripts/gaps.mjs --other      the misses no family claims (to grow the list below)
+//   (every form scans + recompiles first; add --no-scan to reuse cache/procs.json)
 
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+
+// Always refresh first: OCR scan (card image vs DB text) → recompile procs, so gaps reflect verified text.
+// `--no-scan` skips straight to the existing cache/procs.json.
+if (!process.argv.includes('--no-scan')) {
+  const run = (cmd, args) => {
+    const r = spawnSync(cmd, args, { cwd: new URL('..', import.meta.url), stdio: ['ignore', 'ignore', 'inherit'] });
+    if (r.status !== 0) { console.error(`gaps: \`${cmd} ${args.join(' ')}\` failed — fix it or pass --no-scan`); process.exit(1); }
+  };
+  console.error('gaps: scanning card images (OCR + icons vs DB text)…');
+  run('uv', ['run', 'tools/card-scan/scan.py', '--jobs', '12']);
+  console.error('gaps: recompiling procs…');
+  run('node', ['tools/compile-procs.mjs']);
+}
 
 const P = JSON.parse(readFileSync(new URL('../cache/procs.json', import.meta.url), 'utf8')).cards;
 
