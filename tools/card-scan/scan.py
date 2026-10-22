@@ -16,7 +16,7 @@ Pipeline per card (all deterministic, no AI):
   8. diff against the cards.db text; when the DB is missing an icon the card has, patch it in
 
 Usage:
-  uv run tools/card-scan/scan.py                 # whole pool → cache/scan/results.jsonl + summary.json
+  uv run tools/card-scan/scan.py                 # whole pool → cache/scan/results.jsonl + summary.json (→ build-rulings)
   uv run tools/card-scan/scan.py --name Webby    # just matching cards, print results
   uv run tools/card-scan/scan.py --name Webby --debug   # also writes annotated crops to cache/scan/debug/
 """
@@ -873,9 +873,9 @@ def main():
         counts[r["status"]] = counts.get(r["status"], 0) + 1
     fixes = {r["id"]: r["patched"] for r in results if r.get("patched")}
     (OUT_DIR / "icon-fixes.json").write_text(json.dumps(fixes, indent=2, ensure_ascii=False))
-    # Clean rules text for the ability compiler (flavour already cut) — see rules_text()
-    rules = {r["full"]: {"scannedId": r["id"], "ids": r["ids"], **r["rules"]} for r in results if r.get("rules")}
-    (OUT_DIR / "rules.json").write_text(json.dumps(rules, indent=1, ensure_ascii=False))
+    # each row's "rules" = clean text for the ability compiler (flavour already cut, see rules_text());
+    # tools/build-rulings.mjs combines it with cards.db into cache/rulings.db
+    rules = {r["full"]: r["rules"] for r in results if r.get("rules")}
     by_card = {c["full"]: c for c in cards}
     corr_cards = [c for c in cards if c.get("correction")]
     # a db-fix the card image doesn't back up is a typo in corrections.json until proven otherwise

@@ -5,15 +5,17 @@ The engine runs the proc whenever the ability fires. Nothing is interpreted mid-
 The same text always compiles to the same proc.
 
 ```
-tools/card-scan  →  cache/scan/rules.json   verified text (DB + card image + lorcanajson + corrections)
-compile-procs    →  cache/procs.json        { cards: { "<Name - Title>": { abilities, procs, source } }, coverage }
-game/cards.js    →  def.procs               linked to every printing at load (falls back to compiling DB text)
+tools/card-scan  →  cache/scan/results.jsonl  scan verdict per card (DB + card image + lorcanajson + corrections)
+build-rulings    →  cache/rulings.db         cards · printings · rulings (one row per ability: db_text, scan_text, text, proc_id)
+compile-procs    →  cache/proc.db            procs (proc_id = hash of the proc JSON, kind, exec, why, fns, json); fills rulings.proc_id
+game/cards.js    →  def.procs                linked to every printing at load (falls back to compiling DB text)
 procs/runtime.js →  engine                  fire(event) → queue → pump → s.pending prompts
 /procs                                      look up any card and see its proc
 ```
 
 ```sh
-pnpm build:procs                 # recompile + coverage (add --misses for what to build next)
+pnpm build:rulings               # cards.db + scan results → rulings.db
+pnpm build:procs                 # rulings.db → proc.db + coverage (add --misses for what to build next)
 pnpm test:procs                  # compiler + runtime scenarios
 pnpm test:chaos                  # 200 bot games with random decks of every runnable card
 open http://localhost:3000/procs # lookup UI   (API: /api/procs/search?q=  /api/procs/card?full=  /api/procs/stats)

@@ -5,13 +5,13 @@
 //   node scripts/gaps.mjs              ranked families + examples
 //   node scripts/gaps.mjs <family>     every card + miss in one family
 //   node scripts/gaps.mjs --other      the misses no family claims (to grow the list below)
-//   (every form scans + recompiles first; add --no-scan to reuse cache/procs.json)
+//   (every form scans + recompiles first; add --no-scan to reuse cache/rulings.db + proc.db)
 
-import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { spawnSync } from 'node:child_process';
 
-// Always refresh first: OCR scan (card image vs DB text) → recompile procs, so gaps reflect verified text.
-// `--no-scan` skips straight to the existing cache/procs.json.
+// Always refresh first: OCR scan (card image vs DB text) → rulings.db → recompile procs, so gaps reflect verified text.
+// `--no-scan` skips straight to the existing cache/rulings.db + cache/proc.db.
 if (!process.argv.includes('--no-scan')) {
   const run = (cmd, args) => {
     const r = spawnSync(cmd, args, { cwd: new URL('..', import.meta.url), stdio: ['ignore', 'ignore', 'inherit'] });
@@ -19,11 +19,19 @@ if (!process.argv.includes('--no-scan')) {
   };
   console.error('gaps: scanning card images (OCR + icons vs DB text)…');
   run('uv', ['run', 'tools/card-scan/scan.py', '--jobs', '12']);
-  console.error('gaps: recompiling procs…');
+  console.error('gaps: building rulings + recompiling procs…');
+  run('node', ['tools/build-rulings.mjs']);
   run('node', ['tools/compile-procs.mjs']);
 }
 
-const P = JSON.parse(readFileSync(new URL('../cache/procs.json', import.meta.url), 'utf8')).cards;
+// card → { procs: [{ kind, exec, why, text }] } from cache/rulings.db + cache/proc.db
+const db = new DatabaseSync(new URL('../cache/rulings.db', import.meta.url).pathname, { readOnly: true });
+db.exec(`ATTACH DATABASE '${new URL('../cache/proc.db', import.meta.url).pathname}' AS p`);
+const P = {};
+for (const r of db.prepare('SELECT r.card_key, r.text, p.kind, p.exec, p.why FROM rulings r JOIN p.procs p USING (proc_id) ORDER BY r.card_key, r.idx').all()) {
+  (P[r.card_key] ||= { procs: [] }).procs.push({ kind: r.kind, exec: !!r.exec, why: r.why, text: r.text });
+}
+db.close();
 
 // root-cause family → test on the missing fragment (quoted part of "why"), then on why+text. First match wins.
 const FAMILIES = [

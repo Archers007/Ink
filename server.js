@@ -142,8 +142,9 @@ let cardIndex = null;
 async function refreshCardIndex() {
   try {
     const file = await ensureCached('cards.db', CARDS_DB_URL);
-    const procsMtime = await fs.stat(path.join(CACHE_DIR, 'procs.json')).then((x) => x.mtimeMs).catch(() => 0);
-    const mtime = (await fs.stat(file)).mtimeMs + procsMtime;    // rebuild on a new DB or a recompiled procs.json
+    const built = (f) => fs.stat(path.join(CACHE_DIR, f)).then((x) => x.mtimeMs).catch(() => 0);
+    const procsMtime = (await built('rulings.db')) + (await built('proc.db'));
+    const mtime = (await fs.stat(file)).mtimeMs + procsMtime;    // rebuild on a new DB or rebuilt rulings / procs
     if (cardIndex && cardIndex.mtime === mtime) return;
     const idx = await loadCardIndex(file);
     idx.mtime = mtime;
