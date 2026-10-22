@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import os
 import re
 import sqlite3
 import subprocess
@@ -335,10 +336,14 @@ def preprocess(gray: np.ndarray, variant: str, scale: float) -> np.ndarray:
     return up
 
 
+# One thread per tesseract: --jobs already runs them in parallel; OpenMP threads on top thrash the CPU (minutes per card).
+TESS_ENV = {**os.environ, "OMP_THREAD_LIMIT": "1"}
+
+
 def tesseract_tsv(gray: np.ndarray, psm: int):
     ok, buf = cv2.imencode(".png", gray)
     p = subprocess.run(["tesseract", "stdin", "stdout", "--psm", str(psm), "tsv"],
-                       input=buf.tobytes(), capture_output=True, check=False)
+                       input=buf.tobytes(), capture_output=True, check=False, env=TESS_ENV)
     words = []
     for line in p.stdout.decode("utf-8", "replace").splitlines()[1:]:
         f = line.split("\t")
