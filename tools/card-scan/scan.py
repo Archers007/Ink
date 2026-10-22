@@ -847,9 +847,13 @@ def main():
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--debug", action="store_true")
+    ap.add_argument("--names-file", help="scan only these cards (one 'Name - Title' per line) and merge them into results.jsonl")
     args = ap.parse_args()
 
-    cards = load_cards(args.name)
+    all_cards = cards = load_cards(args.name)
+    if args.names_file:
+        want = {l.strip() for l in open(args.names_file, encoding="utf-8") if l.strip()}
+        cards = [c for c in cards if c["full"] in want]
     if args.limit:
         cards = cards[: args.limit]
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -865,6 +869,13 @@ def main():
             print(json.dumps(r, indent=2, ensure_ascii=False))
         return
 
+    if args.names_file and (OUT_DIR / "results.jsonl").exists():
+        # keep every earlier result for the cards this run didn't touch
+        done = {r["full"] for r in results}
+        old = [json.loads(l) for l in open(OUT_DIR / "results.jsonl", encoding="utf-8") if l.strip()]
+        results = [r for r in old if r["full"] not in done] + results
+        results.sort(key=lambda r: r["full"])
+        cards = all_cards
     with open(OUT_DIR / "results.jsonl", "w") as f:
         for r in results:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
