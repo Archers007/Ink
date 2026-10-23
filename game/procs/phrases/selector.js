@@ -5,6 +5,9 @@ import { Query } from '../query.js';
 
 export class Selector {
   static parse(phrase, at = phrase) {
+    // "the exerted character" — the card a step before acted on
+    if (/^the exerted character$/i.test(phrase.trim())) return { ref: true, of: 'exert' };
+    if (/^the (?:moved|banished|chosen|revealed) (?:character|card|item)$/i.test(phrase.trim())) return { ref: true };
     const p = phrase.trim().replace(/^the /i, '');
     if (/^this (character|item|location|card)$/i.test(p)) return { self: true };
     // the two sides of the challenge this ability fired in
@@ -17,7 +20,7 @@ export class Selector {
     // Evasive and each opposing location with Evasive" — both groups, the second seeing the first as "that character"
     const both = Selector.union(p, at);
     if (both) return both;
-    if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|discarded character|those characters|each of them|both of them)$/i.test(p)) return { ref: true };
+    if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|the exerted character|discarded character|those characters|each of them|both of them)$/i.test(p)) return { ref: true };
     let m;
     // "any number of cards from under your characters and locations"
     if ((m = p.match(/^(any number of|up to (\d+)) cards from under your (?:characters|locations|characters and locations|characters or locations)$/i))) return { chosen: { zone: 'under', owner: 'you' }, upTo: m[2] ? +m[2] : 99 };

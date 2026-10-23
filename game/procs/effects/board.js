@@ -52,7 +52,7 @@ export class PutUnder extends Effect {
 const WHERE = [
   [/^(?:a|one of your|the same|another) locations?$/i, () => ({ chosen: { types: ['location'], owner: 'you' } })],
   [/^(?:this location|here)$/i, () => ({ self: true })],
-  [/^that location$/i, () => ({ refLoc: true })],
+  [/^(?:that location|there)$/i, () => ({ refLoc: true })],
 ];
 function moverSel(phrase, P) {
   const p = phrase.trim();
@@ -74,6 +74,12 @@ export class MoveFree extends Effect {
     if (!to) return P.miss(`move to: "${m[2]}"`);
     const movers = m[1].split(/ and (?=(?:up to |one of |any |a |an |him|her|them|this |that ))/i).map((x) => moverSel(x, P));
     return { fn: 'moveFree', sel: movers[0], ...(movers.length > 1 ? { also: movers.slice(1) } : {}), to };
+  }],
+  // "They may move to a location for free" · "this character may move there for free" (there = the location just played)
+  [/^(this character|they|he|she|that character) may move (?:to )?(.+?) for free$/i, (m, P) => {
+    const where = WHERE.find(([rx]) => rx.test(m[2]));
+    if (!where) return P.miss(`move to: "${m[2]}"`);
+    return { fn: 'moveFree', sel: /^this character$/i.test(m[1]) ? { self: true } : P.sel(m[1]), to: where[1](), may: true };
   }]];
   static chooses(st) { return !!(st.sel?.chosen || st.to?.chosen || st.also?.some((x) => x.chosen)); }
   static run(rt, s, job, st, ev) {

@@ -62,6 +62,14 @@ export class Mod extends Effect {
       fn: 'mod', sel: P.sel(m[1]),
       mods: [{ stat: STAT[m[3]], n: /^loses/i.test(m[2]) ? -1 : 1, nOf: { stat: STAT[m[5]], of: /^(their|its)$/i.test(m[4]) ? 'target' : 'self' } }],
     })],
+    // "chosen character loses {strength} equal to that number" (after "Count the number of …")
+    [/^(.+?) (loses |gets \+|gains \+|gets -)\{(strength|willpower|lore)\} equal to that number$/i, (m, P) => P.D({
+      fn: 'mod', sel: P.sel(m[1]), mods: [{ stat: STAT[m[3]], n: /^(?:loses|gets -)/i.test(m[2]) ? -1 : 1, nOf: { last: true } }],
+    })],
+    // "add his {willpower} to another chosen character's {strength}"
+    [/^add (?:his|her|its|this character's) \{(strength|willpower|lore)\} to (.+?)'s? \{(strength|willpower|lore)\}$/i, (m, P) => P.D({
+      fn: 'mod', sel: P.sel(m[2]), mods: [{ stat: STAT[m[3]], n: 1, nOf: { stat: STAT[m[1]], of: 'self' } }],
+    })],
     // damage prevention
     [/^(.+?) takes? no damage from (?:the )?challenges?$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noChallengeDamage' }], ...(/the challenge$/i.test(m[0]) ? { dur: 'turn' } : P.dur ? { dur: P.dur } : {}) })],
     [/^(.+?) takes? no damage while challenging$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamageChallenging' }] })],
@@ -99,7 +107,7 @@ export class Mod extends Effect {
   }
   static text(rt, s, job, st) {
     const what = [
-      ...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)),
+      ...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.last ? 'that number' : `${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}`}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)),
       ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : k.lose ? `loses ${kwLabel(k.kw)}` : kwLabel(k.kw, k.n))),
       ...(st.cls ? [`the ${st.cls} classification`] : []),
     ].join(' and ');
@@ -107,7 +115,7 @@ export class Mod extends Effect {
   }
   static verb(rt, s, job, st) { return Mod.text(rt, s, job, st); }
   static say(st) {
-    const what = [...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)), ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : k.by ? `can't be challenged by ${k.by.q ? Query.describe(k.by.q) : k.by.class ? `${k.by.class} characters` : `characters with ${k.by.strGte}+ {strength}`}` : k.of ? `can challenge ready ${Query.describe(k.of)}` : k.lose ? `loses ${kwLabel(k.kw)}` : kwLabel(k.kw, k.n))), ...(st.cls ? [`the ${st.cls} classification`] : [])].join(', ');
+    const what = [...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.last ? 'that number' : `${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}`}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)), ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : k.by ? `can't be challenged by ${k.by.q ? Query.describe(k.by.q) : k.by.class ? `${k.by.class} characters` : `characters with ${k.by.strGte}+ {strength}`}` : k.of ? `can challenge ready ${Query.describe(k.of)}` : k.lose ? `loses ${kwLabel(k.kw)}` : kwLabel(k.kw, k.n))), ...(st.cls ? [`the ${st.cls} classification`] : [])].join(', ');
     return `${Selector.say(st.sel)} ${(st.kws || []).every((k) => RESTRICTIONS[k.kw] || k.lose) && !st.mods ? '' : st.mods ? 'gets ' : 'gains '}${what}${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''} ${st.dur ? Duration.say(st.dur) : '(while in play)'}`;
   }
   static check(st, missing, SUPPORT) {

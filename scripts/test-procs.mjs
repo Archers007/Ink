@@ -1094,6 +1094,35 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     const p = byName('Elinor - Renowned Diplomat').procs.find((x) => x.kind === 'triggered');
     assert.deepEqual(p.do.map((x) => x.fn), ['damage', 'gainLore', 'draw']);
   }
+  { // Lose the Way: "the exerted character can't ready" — the character exerted, not the card discarded after it
+    const ltw = byName('Lose the Way'), foe = vanilla(() => true);
+    const { s, ids } = setup({ hand0: [ltw], play1: [foe], ink0: ltw.cost });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.ok(s.cards[ids.play1[0]].mods.some((m) => m.stat === 'kw' && m.kw === 'skipReady'));
+  }
+  { // Rescue Rangers Away!: "Count the number of characters you have in play. Chosen character loses {strength} equal to that number"
+    const rra = byName('Rescue Rangers Away!'), pal = vanilla(() => true), foe = vanilla((d) => d.str >= 3);
+    const { s, ids } = setup({ hand0: [rra], play0: [pal, pal], play1: [foe], ink0: rra.cost });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(viewFor(s, 0).players[1].play[0].eff.str, foe.str - 2);
+  }
+  { // Simba - Fighting Prince: "When you play this character and whenever he banishes … during your turn" — the duration is the 2nd trigger's
+    const p = byName('Simba - Fighting Prince').procs.find((x) => x.kind === 'triggered');
+    assert.deepEqual(p.on, [{ ev: 'play' }, { ev: 'banishOther', during: 'yours' }]);
+    assert.equal(p.during, undefined);
+  }
+  { // Ratigan - Nefarious Criminal: "Whenever you play an action while this character is exerted"
+    const rat = byName('Ratigan - Nefarious Criminal'), act = byName('Dangerous Plan');
+    for (const exerted of [false, true]) {
+      const { s, ids } = setup({ play0: [rat], hand0: [act], ink0: act.cost });
+      s.cards[ids.play0[0]].exerted = exerted;
+      const lore = s.players[0].lore;
+      ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+      assert.equal(s.players[0].lore, lore + (exerted ? 1 : 0));
+    }
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
