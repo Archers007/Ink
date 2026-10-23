@@ -158,7 +158,8 @@ export function defenderBlocker(att, attDef, tgt, tgtDef, defenderSide) {
 // opts.attStat / defStat: which stat deals the damage ('str' — or 'wp': "your characters deal damage with their {willpower}")
 export function challengeDamage(att, attDef, tgt, tgtDef, opts = {}) {
   const dmg = (c, d, stat) => (stat === 'wp' ? effWp(c, d) : effStr(c, d));
-  const atk = Math.max(0, dmg(att, attDef, opts.attStat) + kwVal(att, attDef, 'challenger'));
+  // Challenger, plus "+3 {strength} while challenging a location" (Olympus Would Be That Way)
+  const atk = Math.max(0, dmg(att, attDef, opts.attStat) + kwVal(att, attDef, 'challenger') + (tgtDef.type === 'location' ? kwVal(att, attDef, 'challengerLoc') : 0));
   const safe = (c, d, ...k) => ['noDamage', 'noChallengeDamage', ...k].some((x) => hasKw(c, d, x));   // "takes no damage from challenges"
   const toDefender = safe(tgt, tgtDef) ? 0 : Math.max(0, atk - kwVal(tgt, tgtDef, 'resist'));
   const back = tgtDef.type === 'character' ? Math.max(0, dmg(tgt, tgtDef, opts.defStat)) : 0;  // locations deal no damage

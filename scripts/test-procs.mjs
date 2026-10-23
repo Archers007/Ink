@@ -1319,6 +1319,35 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
     assert.equal(s.players[0].lore, lore + 1);
   }
+  { // RC - Remote-Controlled Car: "This character can't quest or challenge unless you pay 1 {ink}. (You pay this cost each time.)"
+    const rc = byName('RC - Remote-Controlled Car');
+    for (const ink of [0, 1]) {
+      const { s, ids } = setup({ play0: [rc], ink0: ink });
+      ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+      s.players[0].inkwell.forEach((iid) => { s.cards[iid].exerted = false; });
+      while (s.players[0].inkwell.length > ink) { const iid = s.players[0].inkwell.pop(); s.cards[iid].zone = 'deck'; s.players[0].deck.push(iid); }
+      assert.equal(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }).ok, ink === 1, `${ink} ink`);
+    }
+  }
+  { // Powhatan's Staff: "The next character you play this turn enters play exerted and gains Bodyguard until the start of your next turn."
+    const ps = byName("Powhatan's Staff"), a = vanilla((d) => d.cost <= 2);
+    const { s, ids } = setup({ play0: [ps], hand0: [a, a] });
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(ps) })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] })); drain(s);
+    const bg = (i) => kwHas(s.cards[ids.hand0[i]], s.defs[s.cards[ids.hand0[i]].cardId], 'bodyguard');
+    assert.deepEqual([s.cards[ids.hand0[0]].exerted, bg(0), s.cards[ids.hand0[1]].exerted, bg(1)], [true, true, false, false]);
+  }
+  { // Pride Lands - Jungle Oasis: "While you have 3 or more characters here, you may banish this location to play a character from your discard for free."
+    const pl = byName('Pride Lands - Jungle Oasis'), a = vanilla((d) => d.cost <= 2), big = vanilla((d) => d.cost >= 6);
+    const { s, ids } = setup({ play0: [pl, a, a, a], hand0: [big] });
+    for (const x of ids.play0.slice(1)) s.cards[x].atLocation = ids.play0[0];
+    E.moveTo(s, ids.hand0[0], 'discard', []);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(pl) }));
+    while (s.pending) ok(applyAction(s, 0, { type: 'choose', target: s.pending.valid?.[0] ?? s.pending.cards?.[0]?.iid }));
+    assert.equal(s.cards[ids.play0[0]].zone, 'discard');
+    assert.equal(s.cards[ids.hand0[0]].zone, 'play');
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
