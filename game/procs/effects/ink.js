@@ -108,3 +108,29 @@ export class ExtraInk extends Effect {
   }
   static say() { return 'you may ink an additional card this turn'; }
 }
+
+// "Each player exerts all the cards in their inkwell" · "returns cards at random from their inkwell to their hand until they
+// have 3 cards in their inkwell" (Ink Geyser)
+export class InkwellFx extends Effect {
+  static fn = 'inkwell';
+  static rules = [
+    [/^exert all the cards in your inkwell$/i, () => ({ fn: 'inkwell', exert: true })],   // ("all cards in your inkwell" is a plain exert)
+    [/^return cards at random from your inkwell to your hand until you have (\d+) cards? in your inkwell$/i, (m) => ({ fn: 'inkwell', keep: +m[1] })],
+  ];
+  static run(rt, s, job, st, ev) {
+    const p = rt.E.P(s, job.seat);
+    if (st.exert) {
+      for (const iid of p.inkwell) s.cards[iid].exerted = true;
+      rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} exerted all the cards in their inkwell.`, { seat: job.seat, kind: 'effect' });
+      return true;
+    }
+    let n = 0;
+    while (p.inkwell.length > st.keep) {
+      const iid = p.inkwell[Math.floor(rt.E.rand(s) * p.inkwell.length)];
+      rt.E.moveTo(s, iid, 'hand', ev); n++;
+    }
+    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} returned ${n} card${n === 1 ? '' : 's'} at random from their inkwell to their hand.`, { seat: job.seat, kind: 'effect' });
+    return n > 0;
+  }
+  static say(st) { return st.exert ? 'exert all the cards in your inkwell' : `return cards at random from your inkwell until you have ${st.keep}`; }
+}

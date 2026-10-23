@@ -59,7 +59,7 @@ export class EachPlayer extends Effect {
     const order = [...seats].sort((a, b) => ((a - s.active + s.players.length) % s.players.length) - ((b - s.active + s.players.length) % s.players.length));
     // tally: who declined a "may" ("For each opponent who doesn't, …" · "If they don't, …")
     const tally = (job.ctx.tally = { didnt: [] });
-    const jobs = order.map((seat) => rt.makeJob(seat, job.src, job.label, st.do, { it: job.ctx.it, tally }));
+    const jobs = order.map((seat) => rt.makeJob(seat, job.src, job.label, st.do, { it: job.ctx.it, tally, ctl: job.ctx.ctl ?? job.seat }));   // ctl: whose ability it is
     s.fx.splice(0, 0, ...jobs);                       // ahead of this job → they resolve before its next step
     return true;
   }

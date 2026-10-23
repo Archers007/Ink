@@ -1369,6 +1369,25 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     drain(s);
     assert.equal(s.players[1].play.length, 1);
   }
+  { // Ink Geyser: "Each player exerts all the cards in their inkwell. Then each player with more than 3 cards in their inkwell returns
+    // cards at random from their inkwell to their hand until they have 3 cards in their inkwell."
+    const ig = byName('Ink Geyser');
+    const { s, ids } = setup({ hand0: [ig], ink0: 6 });
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].inkwell.length, 3);
+    assert.ok(s.players[0].inkwell.every((iid) => s.cards[iid].exerted));
+    assert.equal(s.players[0].hand.length, hand - 1 + 3);
+  }
+  { // With a Few Good Friends: "Chosen player draws a card for each different ink type of characters you have in play." — your inks
+    const wf = byName('With a Few Good Friends'), inks = [...new Set(all.filter((d) => d.type === 'character' && (d.inks || []).length === 1).map((d) => d.inks[0]))].slice(0, 3);
+    const chars = inks.map((k) => vanilla((d) => d.inks?.length === 1 && d.inks[0] === k) || all.find((d) => d.type === 'character' && d.inks?.length === 1 && d.inks[0] === k));
+    const { s, ids } = setup({ hand0: [wf], play0: chars, ink0: wf.cost });
+    const opp = s.players[1].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', option: s.pending.choices.findIndex((c) => /P1/.test(c)) })); drain(s);
+    assert.equal(s.players[1].hand.length, opp + 3);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
