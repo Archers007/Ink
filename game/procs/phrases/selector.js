@@ -32,11 +32,13 @@ export class Selector {
       if (/^another/i.test(p)) F.other = true;
       return { chosen: F };
     }
-    if ((m = p.match(/^up to (\d+) (.+? )?cards? from (your|chosen player's|any) (hand|discard)$/i))) {
-      const F = m[2] ? filter(`${m[2].trim()} card`, at) : {};
-      F.zone = m[4].toLowerCase(); if (m[3] === 'your') F.owner = 'you';
-      return { chosen: F, upTo: +m[1] };
+    // "up to 2 cards from chosen player's discard" · "3 item cards from your discard" (exactly that many)
+    if ((m = p.match(new RegExp(String.raw`^(up to )?${NUM} (.+? )?cards? from (your|chosen player's|any|chosen opponent's) (hand|discard)$`, 'i')))) {
+      const F = m[3] ? filter(`${m[3].trim()} card`, at) : {};
+      F.zone = m[5].toLowerCase(); if (m[4] === 'your') F.owner = 'you'; else if (/opponent/.test(m[4])) F.owner = 'opp';
+      return { chosen: F, upTo: N(m[2]), ...(m[1] ? {} : { exactly: true }) };
     }
+    if (/^all (?:of )?(?:the )?cards in your hand$/i.test(p)) return { all: { zone: 'hand', owner: 'you' } };
     if (/^this card from your discard$/i.test(p)) return { self: true };
     if ((m = p.match(/^(another|a) chosen (.+)$/i))) { const F = filter(m[2], at); if (m[1].toLowerCase() === 'another') F.other = true; return { chosen: F }; }
     // "another 2 chosen characters of yours" — exactly that many

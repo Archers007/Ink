@@ -27,7 +27,8 @@ export class Look extends Effect {
     let m;
     const t = sentence.replace(/\.$/, '');
     if ((m = t.match(new RegExp(String.raw`^you may reveal (?:(a|an|up to ${NUM}) )?(.+?) and put (?:it|them) into your hand$`, 'i')))) {
-      st.pick = { filter: filter(m[3], at), n: m[2] ? N(m[2]) : 1, may: true, to: 'hand', reveal: true }; return true;
+      const f = tryFilter(m[3]);                                       // else "up to 1 X and up to 1 Y" / "any number of X": the distribution
+      if (f) { st.pick = { filter: f, n: m[2] ? N(m[2]) : 1, may: true, to: 'hand', reveal: true }; return true; }
     }
     if ((m = t.match(/^put (one|\d+) (?:of them )?into your hand$/i))) { st.pick = { filter: {}, n: N(m[1]), to: 'hand' }; return true; }
     if ((m = t.match(/^put (one|\d+) (?:of them )?into your hand and the (?:other|rest) on the (bottom|top) of your deck(?: in any order)?$/i))) { st.pick = { filter: {}, n: N(m[1]), to: 'hand' }; st.rest = m[2]; return true; }

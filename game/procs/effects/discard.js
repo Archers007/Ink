@@ -1,6 +1,7 @@
 import { Effect } from './Effect.js';
 import { N, NUM, plural } from '../phrases/text.js';
 import { Query } from '../query.js';
+import { Amount } from '../phrases/amount.js';
 
 const WHO = { opp: 'each opponent discards', each: 'each player discards' };
 export class Discard extends Effect {
@@ -9,6 +10,7 @@ export class Discard extends Effect {
     [new RegExp(String.raw`^(?:each|chosen) opponent (?:chooses and )?discards ${NUM} cards?( at random)?$`, 'i'), (m) => ({ fn: 'discard', who: 'opp', n: N(m[1]), random: !!m[2] || undefined })],
     [new RegExp(String.raw`^each player (?:chooses and )?discards ${NUM} cards?( at random)?$`, 'i'), (m) => ({ fn: 'discard', who: 'each', n: N(m[1]), random: !!m[2] || undefined })],
     [new RegExp(String.raw`^(?:choose and )?discard ${NUM} cards?( at random)?$`, 'i'), (m) => ({ fn: 'discard', who: 'you', n: N(m[1]), random: !!m[2] || undefined })],
+    [/^(?:choose and )?discard that many cards$/i, () => ({ fn: 'discard', who: 'you', n: { last: true } })],   // as many as were just drawn
     [/^(?:choose and )?discard (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'you', n: 1, filter: P.filter(m[1]) })],
     [/^(?:each|chosen) opponent (?:chooses and )?discards (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'opp', n: 1, filter: P.filter(m[1]) })],
     [/^discard (?:your hand|all (?:the )?cards in your hand)$/i, () => ({ fn: 'discard', who: 'you', all: true })],
@@ -28,7 +30,7 @@ export class Discard extends Effect {
     if (st.random) {
       for (const seat of seats()) {
         const p = P(s, seat); const gone = [];
-        for (let k = 0; k < st.n && p.hand.length; k++) {
+        for (let k = 0; k < Amount.value(rt, s, job, st.n) && p.hand.length; k++) {
           const iid = p.hand[Math.floor(rt.E.rand(s) * p.hand.length)];
           gone.push(rt.E.cardLabel(rt.E.D(s, s.cards[iid]))); rt.E.moveTo(s, iid, 'discard', ev);
         }
@@ -37,7 +39,7 @@ export class Discard extends Effect {
       return true;
     }
     // one pick per card per player; each player chooses their own
-    const T = (job.tmp.discard ||= { queue: seats().flatMap((seat) => Array(st.n).fill(seat)), any: false });
+    const T = (job.tmp.discard ||= { queue: seats().flatMap((seat) => Array(Amount.value(rt, s, job, st.n)).fill(seat)), any: false });
     if (job.answer?.key === 'discard') {
       const a = job.answer; job.answer = null;
       const c = s.cards[a.target];
@@ -57,6 +59,6 @@ export class Discard extends Effect {
     }
     return T.any;
   }
-  static verb(rt, s, job, st) { return st.all ? 'discard your hand' : `discard ${plural(st.n, 'card')}`; }
-  static say(st) { return `${WHO[st.who] || 'discard'} ${st.all ? 'their hand' : `${st.n}${st.random ? ' at random' : ''}${st.filter ? ` ${Query.describe(st.filter)}` : ''}`}`; }
+  static verb(rt, s, job, st) { return st.all ? 'discard your hand' : `discard ${plural(Amount.value(rt, s, job, st.n), 'card')}`; }
+  static say(st) { return `${WHO[st.who] || 'discard'} ${st.all ? 'their hand' : `${Amount.say(st.n)}${st.random ? ' at random' : ''}${st.filter ? ` ${Query.describe(st.filter)}` : ''}`}`; }
 }
