@@ -6,13 +6,13 @@ import { SelfIs } from './self.js';
 import { HandSize, MoreCards, OppMoreCards } from './hand.js';
 import { OppMoreLore, YouMoreLore, LoreAmount } from './lore.js';
 import { YourTurn, PlayedThisTurn } from './turn.js';
-import { Shifted, RefIs, PaidWithDrop, Sang, HealedThisWay, TheyDont } from './card.js';
+import { Shifted, RefIs, PaidWithDrop, Sang, HealedThisWay, TheyDont, NthDraw } from './card.js';
 import { History } from './history.js';
 import { Inkwell, Compare, FewerInHand, FirstTurnSecond, HasInkDrop } from './player.js';
 import { Exists, Did, Challenging, MoreThan } from './exists.js';
 
 export const CONDITIONS = [AnyOf, NotCond, HasInkDrop, History, Inkwell, Compare, FewerInHand, FirstTurnSecond, HandSize, MoreCards, OppMoreCards, OppMoreLore, YouMoreLore, LoreAmount,
-  Have, SelfIs, TheyDont, PlayedThisTurn, YourTurn, Shifted, PaidWithDrop, Sang, HealedThisWay, RefIs, Challenging, Did, MoreThan, Exists, AllOf];   // generic ones last: specific wording wins
+  Have, SelfIs, TheyDont, NthDraw, PlayedThisTurn, YourTurn, Shifted, PaidWithDrop, Sang, HealedThisWay, RefIs, Challenging, Did, MoreThan, Exists, AllOf];   // generic ones last: specific wording wins
 const BY_KEY = new Map(CONDITIONS.map((C) => [C.key, C]));
 
 export function conditionOf(C) {

@@ -1215,6 +1215,39 @@ test('the other player decides (CR 6.1.4): "who doesn\'t", "unless their player 
     assert.equal(p1.deck.at(-1), top, 'not a character → bottom');
   }
 });
+test('new triggers (CR 6.2): any character played, opponent discards, an action deals damage, while X whenever Y', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Queen of Hearts - Unpredictable Bully: "Whenever another character is played, put a damage counter on them."
+    const x = plain((d) => d.wp >= 2 && d.cost <= 3);
+    const { s, ids } = setup({ play1: [byName('Queen of Hearts - Unpredictable Bully')], hand0: [x] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].damage, 1);
+  }
+  { // Prince John - Greediest of All: "Whenever your opponent discards 1 or more cards, you may draw a card for each card discarded."
+    const { s, ids } = setup({ play0: [byName('Prince John - Greediest of All')], hand0: [byName('You Have Forgotten Me')] });
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (let k = 0; k < 8 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, pd.seat, { type: 'choose', ...(pd.confirm ? {} : { target: pd.valid[0] }) })); }
+    assert.equal(s.players[0].hand.length, hand - 1 + 2, 'drew one per discarded card');
+  }
+  { // Merida - Formidable Archer: "Whenever one of your actions deals damage to an opposing character, deal 2 damage to that character."
+    const zap = all.find((d) => d.type === 'action' && d.procs.every((p) => p.exec) && /^Deal 2 damage to chosen character\.$/.test(d.abilities[0]?.text || ''));
+    const foe = plain((d) => d.wp >= 6);
+    const { s, ids } = setup({ play0: [byName('Merida - Formidable Archer')], hand0: [zap], play1: [foe] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].damage, 4);
+  }
+  { // Jafar - Striking Illusionist: "During your turn, while this character is exerted, whenever you draw a card, gain 1 lore."
+    const draw = byName('Seeking the Half Crown');                     // "… Draw 2 cards."
+    const { s, ids } = setup({ play0: [byName('Jafar - Striking Illusionist')], hand0: [draw, draw], ink0: 12 });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].lore, 0, 'ready: nothing');
+    s.cards[ids.play0[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] })); drain(s);
+    assert.equal(s.players[0].lore, 2, 'exerted: 1 per card drawn');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

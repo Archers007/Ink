@@ -24,7 +24,7 @@ export class Discard extends Effect {
     if (st.all) {
       for (const seat of seats()) {
         const n = P(s, seat).hand.length;
-        for (const iid of [...P(s, seat).hand]) rt.E.moveTo(s, iid, 'discard', ev, { reveal: true });
+        for (const iid of [...P(s, seat).hand]) { rt.E.moveTo(s, iid, 'discard', ev, { reveal: true }); rt.fire(s, 'discarded', { iid, seat, n: 1 }); }
         rt.log(s, `↳ ${rt.E.nameOf(s, seat)} discarded their hand (${plural(n, 'card')}).`, { seat, kind: 'effect' });
       }
       return true;
@@ -34,7 +34,7 @@ export class Discard extends Effect {
         const p = P(s, seat); const gone = [];
         for (let k = 0; k < Amount.value(rt, s, job, st.n) && p.hand.length; k++) {
           const iid = p.hand[Math.floor(rt.E.rand(s) * p.hand.length)];
-          gone.push(rt.E.cardLabel(rt.E.D(s, s.cards[iid]))); rt.E.moveTo(s, iid, 'discard', ev);
+          gone.push(rt.E.cardLabel(rt.E.D(s, s.cards[iid]))); rt.E.moveTo(s, iid, 'discard', ev); rt.fire(s, 'discarded', { iid, seat, n: 1 });
         }
         rt.log(s, `↳ ${rt.E.nameOf(s, seat)} discarded ${gone.join(', ') || 'nothing'} at random.`, { seat, kind: 'effect' });
       }
@@ -47,7 +47,7 @@ export class Discard extends Effect {
       const c = s.cards[a.target];
       rt.E.moveTo(s, c.iid, 'discard', ev); T.any = true;
       (T.got ||= []).push(c.iid);
-      rt.fire(s, 'discarded', { iid: c.iid, seat: c.owner });
+      rt.fire(s, 'discarded', { iid: c.iid, seat: c.owner, n: 1 });
       job.ctx.it = T.got;                                            // "the discarded character" / "… discarded this way"
       rt.log(s, `↳ ${rt.E.nameOf(s, c.owner)} discarded ${rt.E.cardLabel(rt.E.D(s, c))}.`, { seat: c.owner, kind: 'effect' });
       T.queue.shift();

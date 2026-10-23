@@ -24,6 +24,7 @@ export class Mill extends Effect {
     const p = rt.E.P(s, job.seat); const names = [];
     for (let k = 0; k < st.n && p.deck.length; k++) { names.push(rt.E.cardLabel(rt.E.D(s, s.cards[p.deck[0]]))); rt.E.moveTo(s, p.deck[0], 'discard', ev); }
     rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} put ${names.join(', ') || 'nothing'} from the top of their deck into their discard.`, { seat: job.seat, kind: 'effect' });
+    if (names.length) rt.fire(s, 'milled', { seat: job.seat });
     return names.length > 0;
   }
   static verb(rt, s, job, st) { return `put the top ${plural(st.n, 'card')} of your deck into your discard`; }
