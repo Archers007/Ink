@@ -27,7 +27,7 @@ export { Miss };
 const SONG_REMINDER = /^\(?(?:a|an) character with cost \d+ or more can \{exert\} to sing this song for free\.?\)?$/i;
 const SING_TOGETHER = /^sing together \d+\s*/i;
 // "<cost> to <effect>": the left side must read as a cost — one of these verbs — and compile; the right side is the effect
-const COST_VERB = /^(?:you may )?(?:pay|exert|\{exert\}|banish|discard|choose and discard|put|return|reveal|shuffle|deal|remove|move|give|choose)\b/i;
+const COST_VERB = /^(?:you may )?(?:pay|exert|\{exert\}|banish|discard|choose and discard|put|return|reveal|shuffle|deal|remove|move|give|choose)(?!\w)/i;
 
 // "draws 2 cards and gains 2 lore" → "draw 2 cards and gain 2 lore"; their → your
 const VERB3 = /\b(draws|loses|gains|puts|discards|chooses|exerts|shuffles|reveals|pays|returns|deals|banishes|readies|plays|removes|moves|looks|gets|takes|mills)\b/gi;
@@ -67,6 +67,7 @@ export class Compiler {
     s = s.replace(/^you (?=(?:draw|look|reveal|return|banish|exert|ready|choose|put)\b)/i, '');   // "you draw a card" = "draw a card"
     s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
     s = s.replace(/ damage each (to|from) /i, ' damage $1 ');
+    s = s.replace(/^give (.+?) (\+\d+ \{\w+\}) and ([A-Z]\w*(?: \+\d+)?)( .+)?$/, '$1 gets $2 and gains $3$4');   // "give this character +1 {lore} and Evasive …"
     s = s.replace(/( on the (?:top|bottom) of (?:your|their|their players'|its owner's|their player's) decks?) in any order$/i, '$1');   // CR 7.2.3: the player picks the order                // "deal 1 damage each to up to 2 chosen characters"
     let dur;
     [s, dur] = Duration.take(s);
@@ -297,17 +298,20 @@ export class Compiler {
       return [{ fn: 'chooseOne', by: 'opp', labels: opts.map((o) => o.replace(/\.$/, '')), options: opts.map(optSteps) }];
     }
     // "Choose one: • …" · "you may choose one: • …" (neither is fine) · "choose one of the following. If X, choose both instead: • …"
-    const CHOOSE = /(?:you may )?choose one(?: of the following)?(?:\. if (.+?), choose both instead)?: • /i;
+    const CHOOSE = /(?:you may (?:pay (\d+) \{ink\} to )?)?choose one(?: of the following)?(?:\. if (.+?), choose both instead)?: • /i;
     const chooseAt = text.search(CHOOSE);
     if (chooseAt >= 0) {
       const head = text.slice(chooseAt).match(CHOOSE);
       const before = text.slice(0, chooseAt).trim();
       const opts = text.slice(chooseAt + head[0].length).split(/ • /);
       if (before) steps.push(...this.effects(before, ctx));
-      const may = /^you may/i.test(head[0]);
+      // "you may pay 2 {ink} to choose one: • …" — pay, then choose
+      const pay = head[1] ? +head[1] : 0;
+      if (pay) steps.push({ fn: 'payInk', n: pay, may: true });
+      const may = /^you may/i.test(head[0]) && !pay;
       steps.push({
         fn: 'chooseOne', labels: [...opts.map((o) => o.trim().replace(/\.$/, '')), ...(may ? ['Neither'] : [])], options: [...opts.map((o) => this.effects(o.trim(), ctx)), ...(may ? [[]] : [])],
-        ...(head[1] ? { bothIf: parseCondition(head[1], at) } : {}),
+        ...(head[2] ? { bothIf: parseCondition(head[2], at) } : {}), ...(pay ? { ifDid: true } : {}),
       });
       return steps;
     }
@@ -424,6 +428,12 @@ export class Compiler {
       const cond = this.condition(m[1], t);
       const tp = Triggered.parse(m[2], this, mods);
       if (tp) return { ...tp, on: tp.on.map((o) => ({ ...o, whileCond: o.whileCond ? { all: [o.whileCond, cond] } : cond })) };
+    }
+    // "You may banish chosen item of yours to play this character for free" — an alternate cost, used from your hand:
+    // pay it, then the card is played for free (CR 1.5.5 alternate costs, 1.5.5.3 "for free")
+    if ((m = t.match(/^you may (.+) to play this (?:character|item|location) for free\.?$/i))) {
+      const cost = this.effects(m[1]).map((x) => ({ ...x, cost: true }));
+      return { kind: 'activated', from: 'hand', cost: {}, ...mods, do: [...cost, { fn: 'playIt', self: true, ifDid: true }] };
     }
     const rep = parseReplace(t);                                    // "if … would …, … instead" (CR 6.5)
     if (rep) return { kind: 'static', ...mods, effect: rep };

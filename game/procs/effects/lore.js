@@ -10,8 +10,19 @@ export class GainLore extends Effect {
     // "each opponent loses 1 lore and you gain lore equal to the lore lost [this way]"
     [/^(?:you )?gain lore equal to the lore lost(?: this way)?$/i, () => ({ fn: 'gainLore', n: { last: true } })],
     [/^gain (\d+) lore for each (.+)$/i, (m, P) => ({ fn: 'gainLore', n: { n: +m[1], per: Amount.forEach(m[2], P.at) } })],
+    // "gain lore equal to the {lore} of a character card in your discard" — pick the card, then read it ("that card" next)
+    [/^gain lore equal to the \{lore\} of (?:a|an) (.+?) in your discard$/i, (m, P) => ({ fn: 'gainLore', n: { stat: 'lore', of: 'ref' }, pick: { ...P.filter(m[1]), zone: 'discard', owner: 'you' } })],
   ];
+  static chooses(st) { return !!st.pick; }
   static run(rt, s, job, st, ev) {
+    if (st.pick) {
+      const valid = rt.E.P(s, job.seat).discard.filter((iid) => rt.matches(s, st.pick, s.cards[iid], job.seat, job.src, { anyZone: true }));
+      if (!valid.length) return false;
+      const picked = rt.pickFrom(s, job, st, 'gainLorePick', valid, { n: 1, optional: !!st.may, prompt: 'choose a card in your discard.' });
+      if (!picked) return null;
+      if (!picked.length) return false;
+      job.ctx.it = picked;
+    }
     const n = Amount.value(rt, s, job, st.n);
     rt.E.gainLore(s, job.seat, n, ev);
     rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} gained ${n} lore (${rt.E.P(s, job.seat).lore}/${rt.rule(s, 'winLore', job.seat)}).`, { seat: job.seat, kind: 'effect' });

@@ -840,6 +840,12 @@ H.boost = (s, seat, a, ev) => {
 
 H.useAbility = (s, seat, a, ev) => {
   needMain(s, seat);
+  // "you may <cost> to play this character for free" — an ability used from the hand
+  if (s.cards[a.iid]?.zone === 'hand') {
+    const C = ownCard(s, seat, a.iid, 'hand');
+    if (R.activate(s, seat, C, clampInt(a.index, 0, 50, -1), ev)) return;
+    throw RE('No such ability.');
+  }
   const C = ownCard(s, seat, a.iid, 'play');
   const Cd = D(s, C);
   if (R.activate(s, seat, C, clampInt(a.index, 0, 50, -1), ev)) return;      // own or granted ability
