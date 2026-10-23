@@ -1016,6 +1016,19 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     assert.equal(s.cards[top].zone, 'inkwell');
     assert.equal(s.players[0].inkDrops || 0, 0);
   }
+  { // Baymax - Amped Up applies once per ink drop: Higitus Figitus "Get 3 ink drops" asks 3 times
+    const hig = byName('Higitus Figitus');
+    const { s, ids } = setup({ play0: [byName('Baymax - Amped Up')], hand0: [hig], ink0: hig.cost });
+    const ink = s.players[0].inkwell.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (const yes of [true, false, true]) {
+      assert.equal(s.pending?.op, 'inkDropInstead');
+      ok(applyAction(s, 0, yes ? { type: 'choose', confirm: true } : { type: 'choose', skip: true }));
+    }
+    drain(s);
+    assert.equal(s.players[0].inkwell.length, ink + 2);
+    assert.equal(s.players[0].inkDrops || 0, 1);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
