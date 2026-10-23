@@ -15,7 +15,7 @@ export class Discard extends Effect {
     // "Whenever an opponent chooses this character for an action or ability, they choose and discard a card"
     [/^they (?:choose and )?discard a card$/i, () => ({ fn: 'discard', who: 'opp', n: 1 })],
     [/^(?:choose and )?discard that many cards$/i, () => ({ fn: 'discard', who: 'you', n: { last: true } })],   // as many as were just drawn
-    [/^(?:choose and )?discard (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'you', n: 1, filter: P.filter(m[1]) })],
+    [/^(?:choose and )?discard (?:a|an|1) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'you', n: 1, filter: P.filter(m[1]) })],
     [/^(?:each|chosen) opponent (?:chooses and )?discards (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'opp', n: 1, filter: P.filter(m[1]) })],
     [/^discard (?:your hand|all (?:the )?cards in your hand)$/i, () => ({ fn: 'discard', who: 'you', all: true })],
     [/^each (?:player|opponent) discards their hand$/i, (m) => ({ fn: 'discard', who: /player/.test(m[0]) ? 'each' : 'opp', all: true })],

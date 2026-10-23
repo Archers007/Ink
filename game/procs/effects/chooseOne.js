@@ -4,12 +4,19 @@ import { Effect } from './Effect.js';
 const clone = (x) => JSON.parse(JSON.stringify(x));
 export class ChooseOne extends Effect {
   static fn = 'chooseOne';
+  // "choose and discard either 2 cards or 1 action card" — a forced choice between two discards (CR 6.1.5.2)
+  static rules = [[/^choose and discard either (.+?) or (.+)$/i, (m, P) => ({
+    fn: 'chooseOne', labels: [m[1], m[2]], options: [P.effects(`choose and discard ${m[1]}`), P.effects(`choose and discard ${m[2]}`)],
+  })]];
   // CR 1.7.7: an option that can't be done isn't a legal choice ("choose and discard a card or banish this character")
   static feasible(rt, s, job, steps) {
     const st = steps[0];
     if (!st) return true;
     if (st.sel?.chosen) return rt.candidates(s, st.sel.chosen, job.seat, job.src).length > 0;
-    if (st.fn === 'discard' && (!st.who || st.who === 'you')) return rt.E.P(s, job.seat).hand.length > 0;
+    if (st.fn === 'discard' && (!st.who || st.who === 'you')) {
+      const hand = rt.E.P(s, job.seat).hand;
+      return st.filter ? hand.some((iid) => rt.matches(s, st.filter, s.cards[iid], job.seat, job.src, { anyZone: true })) : hand.length > 0;
+    }
     return true;
   }
   static run(rt, s, job, st) {

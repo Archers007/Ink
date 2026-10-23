@@ -47,6 +47,7 @@ export class Compiler {
       forEach: (x) => Amount.forEach(x, at),
       miss: (why) => miss(why, at),
       ability: (tok) => this.ability({ text: unquote(tok) }, 'character'),
+      effects: (x) => this.effects(x, ctx),
       // a change with no duration: on a card just acted on it lasts while that card is in play ("They gain Rush.")
       D: (o) => (dur ? { ...o, dur } : o.dur || ctx.static ? o : o.sel?.ref && !o.sel.pron ? { ...o, dur: 'perm' } : miss('needs a duration (this turn / until …)', at)),
     };
@@ -143,8 +144,21 @@ export class Compiler {
         }
         return null;
       };
+      // "for each character that sang this song, draw a card and gain 1 lore" — each amount is multiplied
+      const fe = s0.match(/^for each (.+?), (.+)$/i);
+      if (fe && / and /i.test(fe[2])) {
+        const per = Amount.forEach(fe[1], part);
+        const steps = this.compound(fe[2], ctx);
+        if (steps.every((x) => typeof x.n === 'number')) return steps.map((x) => ({ ...x, n: { n: x.n, per } }));
+      }
       const r = attempt(s, durTxt) || (durTxt ? attempt(s0, '') : null);
       if (r) return r;
+      // "deal 1 damage to chosen opposing character, gain 1 lore, and draw a card" — a list of 3+ clauses
+      const list = s0.match(/^(.+?), (.+), and (.+)$/i);
+      if (list) {
+        const parts = [list[1], ...list[2].split(/, /), list[3]];
+        try { return parts.map((x) => this.clause(x, ctx)); } catch (e2) { if (!(e2 instanceof Miss)) throw e2; }
+      }
       // "<verb> X or <verb> Y" — the player picks one
       for (const m of s0.matchAll(/ or (?=[a-z]+ )/g)) {
         const a = s0.slice(0, m.index); const b = s0.slice(m.index + 4);
@@ -300,7 +314,7 @@ export class Compiler {
       if (last?.fn === 'reveal' && !last.sel && Look.distribute(sent.replace(/[.!]$/, ''), last, at)) { last.fn = 'look'; last.reveal = true; continue; }
       // "Each opponent reveals the top card of their deck. If it's a character card, they may put it into their hand.
       // Otherwise, they put it on the bottom of their deck." — the follow-ups are that player's too
-      if (last?.fn === 'eachPlayer' && INNER.has(last) && last.do.some((x) => x.fn === 'reveal' || x.fn === 'look') && /^(?:if it's .+?, they |otherwise, (?:they )?put it .*\btheir\b|they )/i.test(sent)) {
+      if (last?.fn === 'eachPlayer' && INNER.has(last) && last.do.some((x) => x.fn === 'reveal' || x.fn === 'look') && /^(?:if (?:it's|that card is) .+?, they |otherwise, (?:they )?put it .*\btheir\b|they )/i.test(sent)) {
         const inner = `${INNER.get(last)}. ${secondPerson(sent.replace(/[.!]$/, ''))}`;
         try { last.do = this.effects(inner, ctx); INNER.set(last, inner); continue; } catch (e) { if (!(e instanceof Miss)) throw e; }
       }

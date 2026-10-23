@@ -1074,6 +1074,26 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     under(ids.play0[0]); s.fx = [];
     ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
   }
+  { // Lucifer - Cunning Cat: "each opponent chooses and discards either 2 cards or 1 action card" — no action in hand → 2 cards
+    const luc = byName('Lucifer - Cunning Cat');                        // P1's opening hand is all FILLER characters
+    const { s, ids } = setup({ hand0: [luc], ink0: luc.cost });
+    const before = s.players[1].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.notEqual(s.pending?.op, 'chooseOne', 'the action option is not offered');
+    drain(s);
+    assert.equal(s.players[1].hand.length, before - 2);
+  }
+  { // Merlin - Envisioning the Future: "you may draw a card from the bottom of your deck"
+    const merlin = byName('Merlin - Envisioning the Future');
+    const { s, ids } = setup({ hand0: [merlin], ink0: merlin.cost });
+    const bottom = s.players[0].deck[s.players[0].deck.length - 1];
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[bottom].zone, 'hand');
+  }
+  { // Elinor - Renowned Diplomat: "deal 1 damage to chosen opposing character, gain 1 lore, and draw a card" — a list of 3
+    const p = byName('Elinor - Renowned Diplomat').procs.find((x) => x.kind === 'triggered');
+    assert.deepEqual(p.do.map((x) => x.fn), ['damage', 'gainLore', 'draw']);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);

@@ -28,7 +28,7 @@ export function sentences(t) {
     const ch = t[i];
     buf += ch;
     if (ch === '"') q = !q;
-    if (!q && /[.!]/.test(ch) && (i + 1 >= t.length || t[i + 1] === ' ') && !/\.\.$/.test(buf)) { out.push(buf.trim()); buf = ''; }
+    if (!q && /[.!]/.test(ch) && (i + 1 >= t.length || t[i + 1] === ' ') && !/\.\.$/.test(buf) && !(ch === '!' && /^ [a-z]/.test(t.slice(i + 1, i + 3)))) { out.push(buf.trim()); buf = ''; }
   }
   if (buf.trim()) out.push(buf.trim());
   return out;

@@ -5,7 +5,7 @@ import { Query } from '../query.js';
 export class FromDiscard extends Effect {
   static fn = 'fromDiscard';
   static chooses() { return true; }
-  static rules = [[/^return (a|an|up to \d+) (.+?) from your discard to your hand$/i, (m, P) => {
+  static rules = [[/^return (a|an|up to \d+) (.+?) from your discard (?:to|into) your hand$/i, (m, P) => {
     const F = P.filter(m[2]); F.zone = 'discard'; F.owner = 'you';
     const up = /^up to/.test(m[1]);
     return { fn: 'fromDiscard', filter: F, n: up ? +m[1].split(' ')[2] : 1, upTo: up || undefined };

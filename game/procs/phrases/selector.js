@@ -28,7 +28,7 @@ export class Selector {
     if ((m = p.match(/^any number of (?:your |chosen )?(other )?(.+)$/i))) { const F = filter(/^any number of your/i.test(p) ? `your ${m[2]}` : m[2], at); if (m[1]) F.other = true; return { chosen: F, upTo: 99 }; }
     // "a card from your hand", "an item card from your discard", "a card from chosen player's discard"
     if ((m = p.match(/^(?:a|an|another|one) (.+? )?(?:card )?from (your|chosen player's|any|chosen opponent's|an opponent's) (hand|discard)$/i))) {
-      const F = m[1] ? filter(`${m[1].trim()}${/card$/i.test(m[1].trim()) ? '' : ' card'}`, at) : {};
+      const F = m[1] ? filter(`${m[1].trim()}${/\bcard\b/i.test(m[1]) ? '' : ' card'}`, at) : {};
       F.zone = m[3].toLowerCase();
       if (m[2] === 'your') F.owner = 'you'; else if (/opponent/.test(m[2])) F.owner = 'opp';
       if (/^another/i.test(p)) F.other = true;
