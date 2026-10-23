@@ -1,5 +1,6 @@
 // "Choose one: • … • …" — the chosen option's steps are spliced in after this step
 import { Effect } from './Effect.js';
+import { sayCondition as sayCond } from '../conditions/index.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 export class ChooseOne extends Effect {
@@ -45,5 +46,5 @@ export class ChooseOne extends Effect {
     const by = st.by === 'opp' ? (job.ctx.chooser ??= rt.E.opponentsOf(s, job.seat)[0]) : job.seat;
     return rt.ask(s, job, { seat: by, op: 'chooseOne', choices: st.labels || st.options.map((o, k) => `Option ${k + 1}`), prompt: 'choose one.' });
   }
-  static say(st, sayStep) { return `${st.by === 'opp' ? 'chosen opponent chooses' : 'choose'} one: ${st.options.map((o, i) => `(${i + 1}) ${o.map(sayStep).join(', ')}`).join('  ')}`; }
+  static say(st, sayStep) { return `${st.by === 'opp' ? 'chosen opponent chooses' : 'choose'} one${st.bothIf ? ` (both if ${sayCond(st.bothIf)})` : ''}: ${st.options.map((o, i) => `(${i + 1}) ${o.map(sayStep).join(', ')}`).join(' · ')}`; }
 }

@@ -33,7 +33,10 @@ export class Triggered extends Kind {
   }
   static check(p, missing, S) { for (const o of p.on) if (!S.trigger.has(o.ev)) missing.add(`trigger ${o.ev}`); }
   static explain(p, X) {
-    const when = p.on.map((o) => `${sayTrigger(o)}${o.whileCond ? ` while ${X.cond(o.whileCond)}` : ''}`).join(' or ');
+    // flags on one trigger that its own wording may not say
+    const FLAG = { first: 'the first time each turn', fromDiscard: 'heard from the discard', inChallenge: 'in a challenge', defending: 'while defending', shifted: 'shifted onto', fromLoc: 'from a location', theirTurn: 'on their turn' };
+    const flags = (o) => { const f = Object.keys(FLAG).filter((k) => o[k] && !sayTrigger(o).includes(FLAG[k])).map((k) => FLAG[k]); if (o.during) f.push(o.during === 'yours' ? 'during your turn' : "during an opponent's turn"); return f.length ? ` (${f.join(', ')})` : ''; };
+    const when = p.on.map((o) => `${sayTrigger(o)}${flags(o)}${o.whileCond ? ` while ${X.cond(o.whileCond)}` : ''}`).join(' or ');
     return [X.tag('triggered'), `WHEN ${when}${sayDuring(p)}`, ...(p.cond ? [`IF ${X.cond(p.cond)}`] : []), ...p.do.map((st, i) => `${i + 1}. ${X.step(st)}`)];
   }
 

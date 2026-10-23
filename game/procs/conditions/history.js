@@ -40,13 +40,15 @@ export class History extends Condition {
   static say(C) {
     const h = C.history;
     const r = h.n || { gte: 1 };
-    const n = r.lte === 0 ? 'no' : `${r.gte ?? 1}+`;
+    const n = r.lte === 0 && r.gte == null ? 'no' : r.gte != null && r.lte != null ? (r.gte === r.lte ? `exactly ${r.gte}` : `${r.gte}–${r.lte}`) : r.lte != null ? `≤${r.lte}` : `${r.gte}+`;
     const what = h.of ? Query.describe(h.of) : 'card';
+    // whose: mine = by/for you, opp = an opponent's, else anyone's
+    const who = h.mine ? 'yours' : h.opp ? "an opponent's" : "anyone's";
     const S = {
-      toDiscard: `${n} cards put into your discard`, challenges: `${n} challenges by your characters`, damaged: `${n} of your characters damaged`,
-      healed: `${n} heals on your characters`, inked: `${n} cards inked`, putUnder: `${n} cards put under yours`,
-      play: `${n} ${what}s played`, banished: `${n} ${h.opp ? 'opposing ' : ''}${what}s banished${h.inChallenge ? ' in a challenge' : ''}`,
+      toDiscard: `${n} cards put into the discard`, challenges: `${n} challenges`, damaged: `${n} characters damaged`,
+      healed: `${n} heals`, inked: `${n} cards inked`, putUnder: `${n} cards put under${h.onSelf ? ' this card' : ''}`,
+      play: `${n} ${what}s played`, banished: `${n} ${what}s banished${h.inChallenge ? ' in a challenge' : ''}`,
     };
-    return `this turn: ${S[h.ev] || `${n} ${h.ev}`}`;
+    return `this turn: ${S[h.ev] || `${n} ${h.ev}`} (${who}${h.notSelf ? ', not counting this card' : ''})`;
   }
 }

@@ -108,7 +108,7 @@ export class PlayIt extends Effect {
     return rt.each(ids.slice(0, 1), (iid) => rt.E.playFree(s, job.seat, iid, ev, { pay: !!st.pay, exerted: !!st.exerted, after: st.after }));
   }
   static verb(rt, s, job, st) { return st.pay ? 'play it (paying its cost)' : 'play it for free'; }
-  static say(st) { return `play that card${st.pay ? ', paying its cost' : ' for free'}${st.exerted ? ' (enters exerted)' : ''}${st.after === 'deckBottom' ? ', then put it on the bottom of the deck' : ''}`; }
+  static say(st) { return `play ${st.self ? 'this card' : st.pron ? 'him/her' : 'that card'}${st.pay ? ', paying its cost' : ' for free'}${st.exerted ? ' (enters exerted)' : ''}${st.after === 'deckBottom' ? ', then put it on the bottom of the deck' : ''}`; }
 }
 // "chosen opponent reveals their hand and discards a non-character card of your choice"
 export class RevealHandDiscard extends Effect {

@@ -63,7 +63,7 @@ export class EachPlayer extends Effect {
     s.fx.splice(0, 0, ...jobs);                       // ahead of this job → they resolve before its next step
     return true;
   }
-  static say(st, sayStep) { return `${PLAYER_SAY[st.who] || st.who}${st.whoIf ? ` (${Object.keys(st.whoIf).join(', ')})` : ''}: ${st.do.map(sayStep).join(', then ')}`; }
+  static say(st, sayStep) { return `${PLAYER_SAY[st.who] || st.who}${st.whoIf ? ` (${JSON.stringify(st.whoIf).replace(/[{}"]/g, '')})` : ''}: ${st.do.map(sayStep).join(', then ')}`; }
 }
 
 // "Whenever one of your characters quests this turn, gain 1 lore." — a trigger that lives on the player until
@@ -78,7 +78,7 @@ export class Delayed extends Effect {
     return true;
   }
   static check(st, missing) { if (!st.proc.exec) missing.add(`delayed trigger: ${(st.proc.why || '').replace(/^engine can't run: /, '')}`); }
-  static say(st, sayStep) { return `for the rest of this turn: ${st.text}`; }
+  static say(st) { return `${st.once ? 'once' : 'for the rest of this turn'}${st.who === 'keep' ? ', for that card' : st.who === 'src' ? ', for this card' : ''}: ${st.text}`; }
 }
 
 // "Count the number of characters you have in play." — that number is "that amount" / "that number" for what follows

@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadCardIndex, resolveDeck } from '../game/cards.js';
 import { newGame, applyAction, checkInvariants, viewFor, eventsFor } from '../game/engine.js';
+import { props, snap } from './verify/props.mjs';
 import { botDecide } from '../game/bot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -70,6 +71,7 @@ for (let g = 0; g < GAMES; g++) {
     for (const seat of [0, 1]) {
       const a = botDecide(s, seat);
       if (!a) continue;
+      const prev = snap(s);
       const r = applyAction(s, seat, a);
       stats.actions++;
       if (!r.ok) {
@@ -87,6 +89,8 @@ for (let g = 0; g < GAMES; g++) {
         }
       }
       checkInvariants(s);
+      const bad = props(s, prev, a);                                     // scripts/verify/props.mjs
+      if (bad.length) throw new Error(`game ${g} turn ${s.turn} after ${JSON.stringify(a)}: ${bad.join('; ')}`);
       acted = true;
       break;
     }

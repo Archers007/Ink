@@ -56,7 +56,7 @@ export class Heal extends Effect {
     });
   }
   static verb(rt, s, job, st) { return `remove up to ${st.n} damage`; }
-  static say(st) { return `remove ${st.n === 99 ? 'all' : `up to ${Amount.say(st.n)}`} damage from ${Selector.say(st.sel)}`; }
+  static say(st) { return `remove ${st.n === 99 ? 'all' : `up to ${Amount.say(st.n)}${st.total ? ' total' : ''}`} damage from ${Selector.say(st.sel)}`; }
 }
 export class MoveDamage extends Effect {
   static fn = 'moveDamage';

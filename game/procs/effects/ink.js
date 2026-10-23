@@ -40,7 +40,7 @@ export class CostMod extends Effect {
 export class SelfCost extends Effect {
   static fn = 'selfCost';
   static staticOnly = true;
-  static say(st) { return st.free ? 'you may play this for free' : `you pay ${st.n} {ink} less to play this${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''}`; }
+  static say(st) { return `${st.free ? 'you may play this for free' : `you pay ${Amount.say(st.n)} {ink} less to play this${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''}`}${st.shift ? ' (when shifting it)' : ''}`; }
 }
 // static-only: "this character enters play exerted / with 2 damage"
 export class Enters extends Effect {
@@ -95,7 +95,7 @@ export class InkDrop extends Effect {
     return true;
   }
   static verb(rt, s, job, st) { return `get ${st.n} ink drop${st.n === 1 ? '' : 's'}`; }
-  static say(st) { return `${st.who === 'youAndOne' ? 'you and another chosen player each get' : st.who === 'each' ? 'each player gets' : 'get'} ${st.n} ink drop${st.n === 1 ? '' : 's'}`; }
+  static say(st) { return `${st.who === 'youAndOne' ? 'you and another chosen player each get' : st.who === 'each' ? 'each player gets' : 'get'} ${Amount.say(st.n)} ink drop${st.n === 1 ? '' : 's'}`; }
 }
 // "you may ink an additional card this turn" — one more card into the inkwell this turn
 export class ExtraInk extends Effect {

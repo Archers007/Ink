@@ -53,5 +53,5 @@ export class PlayFree extends Effect {
     return rt.each(picked, (iid) => rt.E.playFree(s, job.seat, iid, ev, { exerted: !!st.exerted, after: st.after }));
   }
   static verb(rt, s, job, st) { return `play ${Query.describe(st.filter)} for free`; }
-  static say(st) { return `play ${Query.describe(st.filter)} for free${st.after === 'deckBottom' ? ', then put it on the bottom of your deck' : ''}`; }
+  static say(st) { return `play ${st.each ? 'each ' : ''}${Query.describe(st.filter)}${st.fromUnder ? ' that was under this card' : ''} for free${st.exerted ? ' (enters exerted)' : ''}${st.after === 'deckBottom' ? ', then put it on the bottom of your deck' : ''}`; }
 }
