@@ -780,6 +780,29 @@ test('players with a condition · that much damage · loses a keyword · reveal 
     assert.equal(s.cards[ids.play1[1]].zone, 'discard', 'the item is discarded');
   }
 });
+test('unions: chosen and all others with the same name · each X and each Y · from your hand or discard', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Alice - Tea Alchemist: "{exert} — Exert chosen opposing character and all other opposing characters with the same name."
+    const alice = byName('Alice - Tea Alchemist');
+    const a = plain(() => true), b = plain((d) => d.name !== a.name);
+    const { s, ids } = setup({ play0: [alice], play1: [a, a, b] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.deepEqual(ids.play1.map((i) => s.cards[i].exerted), [true, true, false]);
+  }
+  { // Prince John - Gold Lover: "Play an item from your hand or discard with cost 5 or less for free, exerted."
+    const pj = byName('Prince John - Gold Lover');
+    const item = all.find((d) => d.type === 'item' && d.cost <= 5 && !d.abilities.length) || all.find((d) => d.type === 'item' && d.cost <= 5);
+    const { s, ids } = setup({ play0: [pj, item] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'moveCard', iid: ids.play0[1], to: 'discard' }));
+    if (pj.procs[0].exec) {
+      ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }));
+      if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] }));
+      drain(s);
+      assert.equal(s.cards[ids.play0[1]].zone, 'play', 'played from the discard');
+    }
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

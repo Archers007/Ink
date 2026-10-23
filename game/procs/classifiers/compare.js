@@ -63,8 +63,8 @@ export class Compare extends Classifier {
 export class SameName extends Classifier {
   static id = 'sameName';
   static parseWith(s) {
-    const m = s.match(new RegExp(String.raw`^the same name as (${REF}|${SELF})`, 'i'));
-    return m ? [{ sameName: new RegExp(`^${SELF}$`, 'i').test(m[1]) ? 'self' : 'ref' }, m[0].length] : null;
+    const m = s.match(new RegExp(String.raw`^the same name(?: as (${REF}|${SELF}))?`, 'i'));     // bare "the same name" = as the card just picked
+    return m ? [{ sameName: m[1] && new RegExp(`^${SELF}$`, 'i').test(m[1]) ? 'self' : 'ref' }, m[0].length] : null;
   }
   static test(x, card, def, env) {
     const other = x.sameName === 'self' ? env.s?.cards[env.src] : refCard(env);

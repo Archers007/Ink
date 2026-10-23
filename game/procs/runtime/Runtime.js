@@ -95,6 +95,7 @@ export class Runtime {
   // ------------------------------------------------------------ queries & conditions
   matches(s, F, c, ctl, src, o = {}) { return !!c && Query.matches(F, c, this.E.D(s, c), { E: this.E, s, ctl, src, it: o.it }, o); }
   pool(s, F, ctl) {
+    if (F.any && F.any.some((G) => G.zone)) return [...new Set(F.any.flatMap((G) => this.pool(s, { ...G, owner: G.owner || F.owner }, ctl)))];
     const zone = F.zone || 'play';
     const seats = F.owner === 'you' ? [ctl] : F.owner === 'opp' ? this.E.opponentsOf(s, ctl) : s.players.map((p) => p.seat);
     return seats.flatMap((seat) => this.E.P(s, seat)[zone] || []);

@@ -12,6 +12,11 @@ export class Selector {
     if (/^(?:challenged character|character who was challenged|character (?:he|she|they) challenged)$/i.test(p)) return { role: 'challenged' };
     if (/^(he|she|him|her)$/i.test(p)) return { ref: true, pron: true };
     if (/^other (?:character|card|one)$/i.test(p)) return { ref: true, nth: -1 };    // "the other character" — the last one acted on
+    if (/^(?:that card|that character|it) from (?:your|their) discard$/i.test(p)) return { ref: true };
+    // "chosen opposing character and all other opposing characters with the same name" · "each opposing character with
+    // Evasive and each opposing location with Evasive" — both groups, the second seeing the first as "that character"
+    const both = Selector.union(p, at);
+    if (both) return both;
     if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|discarded character|those characters|each of them|both of them)$/i.test(p)) return { ref: true };
     let m;
     if ((m = p.match(new RegExp(String.raw`^up to ${NUM} (?:other )?chosen (.+)$`, 'i')))) {
@@ -34,6 +39,8 @@ export class Selector {
     }
     if (/^this card from your discard$/i.test(p)) return { self: true };
     if ((m = p.match(/^(another|a) chosen (.+)$/i))) { const F = filter(m[2], at); if (m[1].toLowerCase() === 'another') F.other = true; return { chosen: F }; }
+    // "another 2 chosen characters of yours" — exactly that many
+    if ((m = p.match(new RegExp(String.raw`^(another )?${NUM} (?:other )?chosen (.+)$`, 'i'))) && N(m[2]) > 1) { const F = filter(m[3], at); if (m[1] || /other chosen/i.test(p)) F.other = true; return { chosen: F, upTo: N(m[2]), exactly: true }; }
     if ((m = p.match(/^chosen (.+)$/i))) return { chosen: filter(m[1], at) };
     if ((m = p.match(/^one of (your|their) (.+)$/i))) { const F = filter(m[2], at); if (m[1] === 'your') F.owner = 'you'; return { chosen: F, yours: true }; }
     if ((m = p.match(/^(?:each|all|every) (?:of )?(your |opposing )?(other )?(.+)$/i))) return { all: filter((m[1] || '') + (m[2] || '') + m[3], at) };
@@ -44,8 +51,18 @@ export class Selector {
     }
     miss(`selector: "${p}"`, at);
   }
+  static union(p, at) {
+    for (const m of p.matchAll(/ and (?=(?:all|each|every|chosen|up to|another) )/gi)) {
+      const a = p.slice(0, m.index), b = p.slice(m.index + 5);
+      let A, B;
+      try { A = Selector.parse(a, at); B = Selector.parse(b, at); } catch { continue; }
+      if ((A.chosen || A.all) && (B.chosen || B.all)) return { both: [A, B] };
+    }
+    return null;
+  }
   static say(s) {
     if (!s) return '';
+    if (s.both) return s.both.map(Selector.say).join(' and ');
     if (s.self) return 'this card';
     if (s.role) return `the ${s.role} character`;
     if (s.ref && s.pron) return 'him/her';

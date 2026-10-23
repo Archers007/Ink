@@ -689,7 +689,10 @@ function challengeDamageStep(s, a, t, ev) {
   if (toDefender) R.fire(s, 'damaged', { iid: T.iid, n: toDefender, inChallenge: true, by: A.iid });
   if (toAttacker) R.fire(s, 'damaged', { iid: A.iid, n: toAttacker, inChallenge: true, by: T.iid });
   s.challengeCtx = { a, t };
-  try { gameStateCheck(s, ev); } finally { s.challengeCtx = null; s.challenge = null; }
+  try { gameStateCheck(s, ev); } finally {
+    s.challengeCtx = null; s.challenge = null;
+    for (const x of [A, T]) if (x.mods?.length) x.mods = x.mods.filter((m) => m.until !== 'challenge');   // "during that challenge"
+  }
 }
 
 H.move = (s, seat, a, ev) => {

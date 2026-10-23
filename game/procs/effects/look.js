@@ -36,7 +36,7 @@ export class Look extends Effect {
     if (/^put the rest (?:in|into) your discard$/i.test(t)) { st.rest = 'discard'; return true; }
     if (/^put (?:it|them) on either the top or the bottom of (?:your|their) deck$/i.test(t) || /^put it on (?:either )?the top or (?:the )?bottom of (?:your|their) deck$/i.test(t)) { st.scry = true; return true; }
     if (/^put one on the top of (?:your|their) deck and the (?:other|rest) on the bottom(?: of (?:your|their) deck)?(?: in any order)?$/i.test(t)) { st.scry = true; return true; }
-    if (/^put it on top of (?:your|their) deck or into (?:your|their) discard$/i.test(t)) { st.scry = 'discard'; return true; }
+    if (/^put it on (?:either )?(?:the )?top of (?:your|their) deck or into (?:your|their) discard$/i.test(t)) { st.scry = 'discard'; return true; }
     if (/^put (?:them|those cards) back (?:on top )?in any order$/i.test(t) || /^put them back on (?:the )?top of your deck in any order$/i.test(t)) { st.rest = 'top'; return true; }
     return Look.distribute(t, st, at);                                  // anything else: the distribution grammar
   }

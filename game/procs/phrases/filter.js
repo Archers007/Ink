@@ -9,7 +9,7 @@ import { Miss, miss } from './text.js';
 import { parseWith, fromAdjective, ADJECTIVES, Compare } from '../classifiers/index.js';
 
 const TYPE = '(?:character|item|location|action|song|card)s?';
-const TYPES = new RegExp(String.raw`^${TYPE}(?:(?:,|,? or|,? and) ${TYPE})*(?: cards?)?\b`, 'i');
+const TYPES = new RegExp(String.raw`^${TYPE}(?:(?:,|,? or|,? and|,? and\/or) ${TYPE})*(?: cards?)?\b`, 'i');
 const OWNER_ADJ = /^(other|another|opposing|your|their|its|chosen opponent's|an opponent's|each opponent's|opponent's)\s+/i;
 const ADJ = new RegExp(String.raw`^(${ADJECTIVES.join('|')})\s+`, 'i');
 const CLASSES = new RegExp(String.raw`^((?:[A-Z][\w'.-]*)(?:(?: |, |,? or |,? and )(?!${TYPE}\b)[A-Z][\w'.-]*)*) (?=${TYPE}\b)`);
@@ -18,6 +18,19 @@ const NAMED = new RegExp(String.raw`^named (${NAME_WORD}(?: ${NAME_WORD})*?)(?= 
 
 export function filter(phrase, at = phrase) {
   phrase = phrase.trim().replace(/^(?:a|an) (?=\S)/i, '');
+  // "a location from your hand or discard (with cost 4 or less)" — the same card from either zone
+  const zones = phrase.match(/^(.+?) from your (hand|discard) or (hand|discard)(.*)$/i);
+  if (zones) {
+    const F = tryFilter(`${zones[1]}${zones[4]}`);
+    if (F) return { owner: 'you', any: [{ ...F, zone: zones[2].toLowerCase() }, { ...F, zone: zones[3].toLowerCase() }].map(({ owner, ...x }) => x) };
+  }
+  // "character card with cost 3 or less or named Pocahontas" · "chosen character with Bodyguard or item"
+  const orNamed = phrase.match(/^(.+?) or (named .+|(?:character|item|location|action|song)s?)$/i);
+  if (orNamed && /\b(?:with|named)\b/i.test(orNamed[1])) {           // plain "character or location" is a type list
+    const A = tryFilter(orNamed[1]);
+    const B = /^named /i.test(orNamed[2]) ? (() => { const t = A?.types; return A && { ...(t ? { types: t } : {}), with: [{ named: [orNamed[2].replace(/^named /i, '').trim()] }] }; })() : tryFilter(orNamed[2]);
+    if (A && B) return { any: [A, B] };
+  }
   // "a character card with Singer or a song card" — either query
   const alt = phrase.match(/^(.+?),? or (?:a|an) (.+)$/i);
   if (alt) {
@@ -84,7 +97,7 @@ function filter1(phrase, at) {
       F.zone = m[2].toLowerCase();
       const o = m[1].toLowerCase();
       if (o === 'your') F.owner = 'you'; else if (o !== 'their') F.owner = 'opp';
-    } else if ((m = s.match(/^(?:from )?(?:here|at this location)\b\s*/i))) W.push({ here: true });
+    } else if ((m = s.match(/^(?:from )?(?:here|at this location|at that location)\b\s*/i))) W.push({ here: true });
     else if ((m = s.match(/^at a location\b\s*/i))) W.push({ atLocation: true });
     else if ((m = s.match(/^that (?:isn't|is not) (?:a|an) (character|item|location|action|song)\b\s*/i))) W.push({ notType: [m[1].toLowerCase()] });
     else if ((m = s.match(NAMED))) {

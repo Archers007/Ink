@@ -3,7 +3,8 @@ export const DURATIONS = {
   turn: { until: 'eot', say: 'this turn' },
   next: { until: 'sot', say: 'until the start of your next turn' },
   theirNext: { until: 'theirNext', say: "during its owner's next turn" },
-  src: { until: 'src', say: 'while the source is in play' },          // "While this item is in play, that character gains Evasive"
+  src: { until: 'src', say: 'while the source is in play' },
+  challenge: { until: 'challenge', say: 'during that challenge' },     // "they gain Resist +2 during that challenge"          // "While this item is in play, that character gains Evasive"
   perm: { until: 'perm', say: 'while it is in play' },                // "They gain Rush." — no duration: it lasts while in play
 };
 const RX = [
@@ -12,6 +13,7 @@ const RX = [
   [/ until the start of your next turn$/i, 'next'],
   [/ until the end of (?:your|the) turn$/i, 'turn'],
   [/ during (?:their|its owner's|that player's) next turn$/i, 'theirNext'],
+  [/ during (?:that|the) challenge$/i, 'challenge'],
 ];
 export class Duration {
   // "<clause> this turn" → [clause, 'turn'];  also "for the rest of this turn, <clause>" / "this turn, <clause>"
