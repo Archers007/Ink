@@ -79,7 +79,7 @@ function exertCard(s, c) {
 function resetCard(c) {
   c.exerted = false; c.damage = 0; c.drying = false; c.atLocation = null; c.mods = [];
   c.faceDown = false; c.boostedTurn = 0; c.parent = null; c.under = [];
-  c.shifted = false; c.tempShift = null;
+  c.shifted = false; c.tempShift = null; c.enteredExerted = false;
 }
 
 function log(s, text, opt = {}) {
@@ -149,7 +149,10 @@ function moveTo(s, iid, to, ev, opt = {}) {
     const k = s.cards[id];
     const wasFaceDown = k.faceDown;
     k.leftGrants = from === 'play' && id === iid ? k.mods.filter((m) => m.stat === 'grant') : [];
+    // last-known stats ("less {strength} than that character" after it was banished — Divebomb + Felicia ruling)
+    if (from === 'play' && id === iid && D(s, k).type === 'character') k.lastKnown = { str: effStr(k, D(s, k)), wp: effWp(k, D(s, k)), lore: effLore(k, D(s, k)) };
     resetCard(k);
+    k.seq = (k.seq || 0) + 1;                                          // a new object in its new zone (an effect following "them" loses it)
     k.zone = to;
     if (to === 'deckTop' || to === 'deckBottom') k.zone = 'deck';
     if (to === 'deckTop') p.deck.unshift(id);
@@ -294,8 +297,11 @@ function banish(s, iid, ev, why = '') {
 }
 
 // Game state check (CR 1.8): win at 20 lore, banish anything with lethal damage; repeat until stable.
-function gameStateCheck(s, ev) {
+function gameStateCheck(s, ev, opt = {}) {
   if (s.status !== 'playing') return;
+  // in the middle of an ability (a step waiting on a choice, or steps left): the check waits until all of its effects
+  // are done (CR 6.7.5, 1.8.5 — Luisa - Confident Climber) — only a challenge checks mid-way (4.6.6.3)
+  if (!opt.force && s.fx?.[0] && (s.fx[0].i > 0 || s.pending)) { R.statics(s); return; }
   for (let guard = 0; guard < 50; guard++) {
     R.statics(s);                                                   // "while …, this character gets …"
     const order = [];
@@ -471,12 +477,17 @@ function sideOf(s, seat) {
   return P(s, seat).play.map((id) => ({ card: s.cards[id], def: D(s, s.cards[id]) }));
 }
 
+// Bodyguard (CR 8.3.2) or "This character may enter play exerted": the player may play it exerted
+export function mayEnterExerted(s, c, d) {
+  return hasKw(c, d, 'bodyguard') || R.procsOf(s, c).some((p) => p.kind === 'static' && p.exec && p.effect?.fn === 'enterExertedOpt');
+}
+
 export function recklessBlockers(s, seat) {
   const out = [];
   for (const iid of P(s, seat).play) {
     const c = s.cards[iid];
     const d = D(s, c);
-    if (d.type !== 'character' || !hasKw(c, d, 'reckless') || attackerBlocker(c, d)) continue;
+    if (d.type !== 'character' || !hasKw(c, d, 'reckless') || attackerBlocker(c, d) || hasKw(c, d, 'actCost')) continue;   // RC: a challenge that needs ink paid isn't forced (ruling)
     const canHit = opponentsOf(s, seat).some((o) => sideOf(s, o).some(({ card, def }) => !defenderBlocker(c, d, card, def, sideOf(s, o))));
     if (canHit) out.push(iid);
   }
@@ -564,10 +575,16 @@ function playFree(s, seat, iid, ev, opt = {}) {
   P(s, seat).playedThisTurn.push(iid);
   const mv = c.zone === 'under' ? { fromUnder: true } : {};
   if (d.type === 'action' || d.type === 'song') {
-    moveTo(s, iid, opt.after === 'deckBottom' ? 'deckBottom' : 'discard', ev, mv);   // "then put it on the bottom of your deck instead of into your discard"
+    moveTo(s, iid, 'discard', ev, mv);
     ev.push({ k: 'reveal', seat, iid, cardId: d.id });
-    log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${opt.after === 'deckBottom' ? ', then put it on the bottom of their deck' : ''}.`, { seat, kind: 'play' });
-    if (!R.castAction(s, seat, c)) manualActionText(s, d);
+    log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
+    const cast = R.castAction(s, seat, c);
+    if (!cast) manualActionText(s, d);
+    // "then put it on the bottom of your deck instead of into your discard" — once its effect is done (Ursula - Deceiver of All ruling)
+    if (opt.after === 'deckBottom') {
+      if (cast) s.fx[s.fx.length - 1].steps.push({ fn: 'toDeckBottom', sel: { self: true } });
+      else moveTo(s, iid, 'deckBottom', ev);
+    }
     R.fire(s, 'play', { iid });
     return true;
   }
@@ -586,8 +603,9 @@ function manualActionText(s, d) {
   }
 }
 
-H.play = (s, seat, a, ev) => {
-  needMain(s, seat);
+H.play = (s, seat, a, ev) => { needMain(s, seat); playCard(s, seat, { ...a, free: false }, ev); };
+// a.free: an effect plays it for free (Mickey Mouse - Trumpeter: "Play a character for free" may use an ink Shift — ruling)
+function playCard(s, seat, a, ev) {
   // from the hand — or from the discard / under a card when an ability allows it (CR 4.3)
   const c0 = s.cards[a.iid];
   const perm = c0 && c0.zone !== 'hand' ? R.playFromPerm(s, seat, c0) : null;
@@ -630,9 +648,9 @@ H.play = (s, seat, a, ev) => {
     const onto = ts.map((t) => cardLabel(D(s, t))).join(' and ');
     const cost = opt.spec.cost;
     if (cost.ink != null) {
-      const n = Math.max(0, cost.ink + R.costDelta(s, seat, c, true, 'shift', ts.map((t) => t.iid)) + adjust);   // "you pay 1 {ink} less to shift …"
+      const n = a.free ? 0 : Math.max(0, cost.ink + R.costDelta(s, seat, c, true, 'shift', ts.map((t) => t.iid)) + adjust);   // "you pay 1 {ink} less to shift …"
       c.paidDrops = payInk(s, seat, n);
-      how = `by ${opt.label} onto ${onto} for ${n} ink`;
+      how = `by ${opt.label} onto ${onto} ${a.free ? 'for free' : `for ${n} ink`}`;
       paid = n;
     } else if (cost.inkDrops != null) {                              // "Shift Remove 2 ink drops"
       if ((p.inkDrops || 0) < cost.inkDrops) throw RE(`${opt.label}: remove ${cost.inkDrops} ink drops — you have ${p.inkDrops || 0}.`);
@@ -704,7 +722,7 @@ H.play = (s, seat, a, ev) => {
     c.damage = ts.reduce((n, t) => n + (t.damage || 0), 0);
     c.atLocation = ts[0].atLocation;
     c.mods = ts.flatMap((t) => t.mods || []);    // keeps effects applied to the character (8.10.5)
-    if (a.enterExerted && hasKw(c, d, 'bodyguard')) c.exerted = true;
+    if (a.enterExerted && mayEnterExerted(s, c, d)) c.exerted = true;
     c.under = ts.flatMap((t) => [...t.under, t.iid]);
     p.play[p.play.indexOf(ts[0].iid)] = c.iid;
     for (const t of ts.slice(1)) p.play.splice(p.play.indexOf(t.iid), 1);
@@ -714,20 +732,21 @@ H.play = (s, seat, a, ev) => {
     if (shiftOpt.spec.temp) c.tempShift = s.turn;                     // 8.10.8.5: back to hand at end of turn
     ev.push({ k: 'shift', iid: c.iid, onto: ts[0].iid, ...(ts.length > 1 ? { also: ts.slice(1).map((t) => t.iid) } : {}) });
   } else {
-    c.exerted = d.type === 'character' && !!a.enterExerted && hasKw(c, d, 'bodyguard');  // 8.3.2
+    c.exerted = d.type === 'character' && !!a.enterExerted && mayEnterExerted(s, c, d);  // 8.3.2
     c.drying = d.type === 'character';
     p.play.push(c.iid);
   }
   ev.push({ k: 'move', iid: c.iid, cardId: c.cardId, from: { seat, zone: from }, to: { seat, zone: 'play' } });
   if (!shiftTarget) R.onEnter(s, c);                                // "enters play exerted / with damage"
-  if (perm?.exerted) c.exerted = true;                              // "If you do, they enter play exerted"
+  if (perm?.exerted || a.exertedFx) c.exerted = true;               // "If you do, they enter play exerted"
   if (perm?.sameNameBan) (p.nameBans ||= []).push({ name: d.name, turn: s.turn });
+  c.enteredExerted = !!c.exerted;                                   // for "may enter play exerted to draw a card"
   p.playedThisTurn.push(c.iid);
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${c.exerted ? ' (entered exerted)' : ''}.`, { seat, kind: 'play' });
   R.fire(s, 'play', { iid: c.iid, paid });
   R.fire(s, 'entersPlay', { iid: c.iid });                          // "whenever another character is played / enters play exerted"
   if (shiftTarget) for (const t of shiftTarget) R.fire(s, 'shiftedOnto', { iid: t.iid, by: c.iid });
-};
+}
 
 H.quest = (s, seat, a, ev) => {
   needMain(s, seat);
@@ -803,7 +822,7 @@ function challengeDamageStep(s, a, t, ev) {
   dealDamage(s, T.iid, toDefender, ev, { inChallenge: true, by: A.iid });   // dealt at the same time (4.6.6.2)
   dealDamage(s, A.iid, toAttacker, ev, { inChallenge: true, by: T.iid });
   s.challengeCtx = { a, t };
-  try { gameStateCheck(s, ev); } finally {
+  try { gameStateCheck(s, ev, { force: true }); } finally {
     s.challengeCtx = null; s.challenge = null;
     for (const x of [A, T]) if (x.mods?.length) x.mods = x.mods.filter((m) => m.until !== 'challenge');   // "during that challenge"
   }
@@ -1105,7 +1124,7 @@ H.clearMods = (s, seat, a, ev) => {
 export const ENGINE = {
   D, P, nameOf, log, cardLabel, prettyText, KEYWORD_LABEL, LORE_TO_WIN, RE,
   effStr, effWp, effLore, kwVal, hasKw, rand, shuffleArr, readyInk, payInk, opponentsOf,
-  moveTo, banish, dealDamage, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, turnPhase, putUnder, moveChar, exertCard,
+  moveTo, banish, dealDamage, drawCards, gainLore, gameStateCheck, playFree, playCard, challengeDamageStep, turnPhase, putUnder, moveChar, exertCard,
 };
 const R = createRuntime(ENGINE);
 // restrictions that name a query ("can't be challenged by characters with cost 3 or less") — see rules.js

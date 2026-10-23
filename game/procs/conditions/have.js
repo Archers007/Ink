@@ -25,7 +25,7 @@ export class Have extends Condition {
     [/^you have any (.+?) in play( .+)?$/i, (m, a) => ({ have: filter(m[1] + (m[2] || ''), a), n: 1 })],
     [new RegExp(String.raw`^you have ${NUM} or more (other )?(.+?) in play (with .+)$`, 'i'), (m, a) => { const F = filter(`${m[3]} ${m[4]}`, a); if (m[2]) F.other = true; return { have: F, n: N(m[1]) }; }],
     [new RegExp(String.raw`^you have ${NUM} or more (.+?) (?:here|at this location)$`, 'i'), (m, a) => { const F = filter(m[2], a); (F.with ||= []).push({ here: true }); return { have: F, n: N(m[1]) }; }],
-    [new RegExp(String.raw`^you have ${NUM} (.+?) in play$`, 'i'), (m, a) => ({ have: filter(m[2], a), n: N(m[1]) })],
+    [new RegExp(String.raw`^you have ${NUM} (.+?) in play$`, 'i'), (m, a) => ({ have: filter(m[2], a), n: N(m[1]), exactly: true })],   // "4 items named …" means exactly 4 (Leaning Tower of Cheese-a ruling)
   ];
   static test(rt, s, C, env) {
     const F = { ...C.have, owner: C.have.owner || 'you' };

@@ -155,11 +155,14 @@ export class Runtime {
       const hear = (c, name, pass, it) => {
         for (const d of live) {
           if (!c || c.owner !== d.seat || heard.has(d) || d.used) continue;
-          if (d.who === 'keep' ? !d.keep.includes(c.iid) : d.who === 'src' ? c.iid !== d.src : false) continue;   // "the next time they challenge"
+          // the cards it's about, while they're still the same objects (one that changed zones is a new card — Madam Mim ruling)
+          const keep = (d.keep || []).filter((id, i) => d.keepSeq == null || (s.cards[id]?.seq || 0) === d.keepSeq[i]);
+          if (d.who === 'keep' ? !keep.includes(c.iid) : d.who === 'src' ? c.iid !== d.src : false) continue;   // "the next time they challenge"
+          if (d.keep?.length && !keep.length && !it?.length && name === 'turnEnd') continue;   // "at the end of the turn, banish them": they're gone
           if (!d.proc.on.some((o) => o.ev === name && (!pass || pass(o)))) continue;
           heard.add(d);
           if (d.once) d.used = true;
-          this.queue(s, d.seat, d.src, d.label, d.proc.do, { it: it?.length ? it : d.keep || [] }, { cond: d.proc.cond || null });
+          this.queue(s, d.seat, d.src, d.label, d.proc.do, { it: it?.length ? it : keep }, { cond: d.proc.cond || null });
         }
       };
       EVENTS[ev]?.(this, s, info, hear);
@@ -176,7 +179,8 @@ export class Runtime {
         if (job.cond && !this.test(s, job.cond, job.seat, job.src, job)) { s.fx.shift(); continue; }
       }
       const st = job.steps[job.i];
-      if (!st) { s.fx.shift(); continue; }
+      // the game state check comes once all of the ability's effects are done (CR 6.7.5; 1.8.5 — Luisa - Confident Climber)
+      if (!st) { s.fx.shift(); this.E.gameStateCheck(s, ev); continue; }
       const E = this.effect(st.fn);
       const skip = () => Job.next(job);
       // gates
@@ -223,7 +227,6 @@ export class Runtime {
       if (st.may && (!r || declined)) didnt(job);
       if (declined) this.log(s, `↳ ${this.E.nameOf(s, job.seat)} chose not to (${job.label}).`, { seat: job.seat, kind: 'effect' });
       skip();
-      this.E.gameStateCheck(s, ev);
     }
   }
 

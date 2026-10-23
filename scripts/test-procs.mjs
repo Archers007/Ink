@@ -404,9 +404,14 @@ test('"can\'t quest unless …" and "may enter play exerted to …"', () => {
   {
     const { s, ids } = setup({ hand0: [merida] });
     const h = s.players[0].hand.length;
-    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
-    ok(applyAction(s, 0, { type: 'choose', confirm: true })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], enterExerted: true })); drain(s);   // chosen as she's played (ruling)
     assert.equal(s.cards[ids.hand0[0]].exerted, true); assert.equal(s.players[0].hand.length, h);   // -1 played +1 drawn
+  }
+  {
+    const { s, ids } = setup({ hand0: [merida] });
+    const h = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].exerted, false); assert.equal(s.players[0].hand.length, h - 1);   // played ready → no draw
   }
 });
 test('pronouns: "whenever this character moves to a location, he gets +3" means him, not the location', () => {

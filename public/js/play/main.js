@@ -303,8 +303,9 @@ function actionsFor(found) {
     if (def.type === 'song' || def.type === 'action' || def.type === 'item' || def.type === 'location' || def.type === 'character') {
       P(`Play  ·  ${def.cost} ⬡`, () => act({ type: 'play', iid: c.iid, mode: 'ink' }), lacking(def.cost), { hot: true });
     }
-    if (def.type === 'character' && def.kw?.bodyguard) {
-      P(`Play exerted (Bodyguard)  ·  ${def.cost} ⬡`, () => act({ type: 'play', iid: c.iid, mode: 'ink', enterExerted: true }), lacking(def.cost));
+    const exertOpt = def.procs?.some((p) => p.kind === 'static' && p.effect?.fn === 'enterExertedOpt');   // "may enter play exerted [to …]"
+    if (def.type === 'character' && (def.kw?.bodyguard || exertOpt)) {
+      P(`Play exerted${def.kw?.bodyguard ? ' (Bodyguard)' : ''}  ·  ${def.cost} ⬡`, () => act({ type: 'play', iid: c.iid, mode: 'ink', enterExerted: true }), lacking(def.cost));
     }
     for (const opt of shiftOptions(def)) {
       const valid = me().play.filter((t) => shiftTargetOk(opt, def, D(t.cardId)));

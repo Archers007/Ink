@@ -5,7 +5,7 @@ import { GainLore, LoseLore } from './lore.js';
 import { Damage, Heal, MoveDamage } from './damage.js';
 import { Banish, ToHand, ToDeckBottom, ShuffleIn, ToInkwell, FromUnder } from './zones.js';
 import { InkTop, Mill, Shuffle, Search } from './deck.js';
-import { PlayBan, SelfBan, ShiftAs } from './playBan.js';
+import { PlayBan, SelfBan, ShiftAs, EnterExertedOpt } from './playBan.js';
 import { Exert, Ready } from './exert.js';
 import { Mod } from './mod.js';
 import { Discard } from './discard.js';
@@ -27,7 +27,7 @@ export const EFFECTS = [
   Choose, EachPlayer, Delayed, Count, Reveal, RevealCard, RevealHandDiscard, RevealHand, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, FromUnder, ToHand, ToDeckBottom, ShuffleIn,
   InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, InkwellFx, Exert, Ready, Discard, OppChoose, UnlessOther, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
-  Search, DrawUntil, PlayBan, SelfBan, ShiftAs, MoveCost, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, PlayFrom, GrantPlayFrom, Again, ChallengeDamage, TurnStep,
+  Search, DrawUntil, PlayBan, SelfBan, ShiftAs, EnterExertedOpt, MoveCost, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, PlayFrom, GrantPlayFrom, Again, ChallengeDamage, TurnStep,
 ];
 export const EFFECT = Object.fromEntries(EFFECTS.map((C) => [C.fn, C]));
 export { Look, Mod };

@@ -55,7 +55,9 @@ export class Compare extends Classifier {
     }
     const other = c.vs.of === 'self' ? env.s?.cards[env.src] : refCard(env);
     if (!other) return false;
-    return OPS[c.op](mine, statOf(env.E, other, env.E.D(env.s, other), c.vs.stat) + (c.vs.plus || 0));
+    // a card that has left play: the value it had there (its last-known information)
+    const theirs = other.zone !== 'play' && other.lastKnown?.[c.vs.stat] != null ? other.lastKnown[c.vs.stat] : statOf(env.E, other, env.E.D(env.s, other), c.vs.stat);
+    return OPS[c.op](mine, theirs + (c.vs.plus || 0));
   }
   static say(x) {
     const c = x.cmp;

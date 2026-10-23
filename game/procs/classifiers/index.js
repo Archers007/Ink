@@ -6,7 +6,7 @@ import { Inkable } from './inkable.js';
 import { Cost } from './cost.js';
 import { Strength, Willpower, LoreValue } from './stats.js';
 import { Damaged, Undamaged, DamageCount } from './damage.js';
-import { Exerted, Ready } from './exerted.js';
+import { Exerted, Ready, Dry } from './exerted.js';
 import { Under, PlayedTurn, WasChallenged } from './under.js';
 import { AtLocation, Here } from './location.js';
 import { NotType } from './notType.js';
@@ -16,7 +16,7 @@ import { Compare, SameName, HighestCost, UniqueName } from './compare.js';
 export { KEYWORDS, RESTRICTIONS, KEYWORD_ALT, keywordId, kwLabel } from './keyword.js';
 
 export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, DamageCount, Damaged, Undamaged,
-  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn, NamedCard, Inkable, HighestCost, WasChallenged, UniqueName];
+  Exerted, Ready, Dry, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn, NamedCard, Inkable, HighestCost, WasChallenged, UniqueName];
 export { Compare };
 const BY_ID = new Map(CLASSIFIERS.map((C) => [C.id, C]));
 
