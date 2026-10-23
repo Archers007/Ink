@@ -12,7 +12,7 @@ export class Amount {
   }
   // "for each other Villain character you have in play" → { count: Query | {under} | {damageOnSelf} | {zone, owner} }
   static forEach(phrase, at) {
-    const p = phrase.trim();
+    const p = phrase.trim().replace(/^of your (.+?)(?: in play)?$/i, 'your $1');   // "for each of your characters named Maleficent in play"
     let m;
     if ((m = p.match(/^card in (your|an opponent's|each opponent's|opponents'|your opponents') (hands?|discard)$/i))) return { count: { zone: m[2].replace(/s$/, ''), owner: m[1] === 'your' ? 'you' : 'opp', size: true } };
     if (/^character that sang this song$/i.test(p)) return { count: { sang: true } };   // Sing Together: every singer (CR 8.12)
@@ -30,7 +30,8 @@ export class Amount {
     // in a trigger: "gain 1 lore for each 1 damage removed" · "draw a card for each card discarded" — how much the event did
     if (/^(?:1 )?(?:damage removed|card discarded)$/i.test(p)) return { count: { thisWay: true } };
     // "for each item banished this way" · "for each item card put into your discard this way" — what the last step moved
-    if ((m = p.match(/^(.+?) (?:banished|put into (?:your|their) discard|discarded|moved|returned|revealed|exerted|readied) this way$/i))) return { count: { thisWayOf: filter(m[1], at) } };
+    if ((m = p.match(/^(character|card)s? you moved$/i))) return { count: { thisWayOf: filter(m[1], at) } };   // "for each character you moved"
+    if ((m = p.match(/^(.+?) (banished|put into (?:your|their) discard|discarded|moved|returned|revealed|exerted|readied) this way$/i))) return { count: { thisWayOf: filter(m[1], at), ...(/^discarded$/i.test(m[2]) ? { of: 'discarded' } : {}) } };
     // "for each opposing character banished in a challenge this turn" — the turn log, counted like the "did" condition
     const did = Did.rules[0][0].exec(p.replace(/^(.+?) (banished|challenged|quested)( in a challenge)? this turn$/i, '$1 was $2$3 this turn'));   // "opposing character banished in a challenge this turn"
     if (did) { const C = Did.rules[0][1](did, at); if (C) return { count: { did: C } }; }   // (exec'd on the rewritten phrase)
@@ -60,7 +61,7 @@ export class Amount {
   static count(rt, s, per, ctl, src, job) {
     const c = per.count;
     const me = s.cards[src];
-    if (c.thisWayOf) return (job?.ctx.it || []).filter((id) => rt.matches(s, c.thisWayOf, s.cards[id], ctl, src, { anyZone: true })).length;
+    if (c.thisWayOf) return ((c.of && job?.ctx[c.of]) || job?.ctx.it || []).filter((id) => rt.matches(s, c.thisWayOf, s.cards[id], ctl, src, { anyZone: true })).length;
     if (c.did) return Did.count(rt, s, c.did, { ctl, src, job });
     if (c.didnt) return job?.ctx.tally?.didnt.length || 0;
     if (c.under) {

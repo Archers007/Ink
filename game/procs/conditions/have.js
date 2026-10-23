@@ -9,6 +9,8 @@ const at = (F, zone, owner) => Object.assign(F, zone ? { zone } : {}, owner ? { 
 export class Have extends Condition {
   static key = 'have';
   static rules = [
+    // "you have a Seven Dwarfs character and a Princess character in play" — both
+    [/^you have (?:a|an) (.+?) and (?:a|an) (.+?) in play$/i, (m, a) => ({ all: [{ have: filter(m[1], a), n: 1 }, { have: filter(m[2], a), n: 1 }] })],
     [new RegExp(String.raw`^you have ${NUM} or more (.+?) in play$`, 'i'), (m, a) => ({ have: filter(m[2], a), n: N(m[1]) })],
     [/^you have (a|an|another) (.+?) in play$/i, (m, a) => { const F = filter(m[2], a); if (/another/i.test(m[1])) F.other = true; return { have: F, n: 1 }; }],
     [/^you have (?:a|an) (.+?) (here|at this location)$/i, (m, a) => { const F = filter(m[1], a); (F.with ||= []).push({ here: true }); return { have: F, n: 1 }; }],

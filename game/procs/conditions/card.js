@@ -62,6 +62,8 @@ export class RefIs extends Condition {
     [/^there(?:'s| is) a card under (?:that character|that location|it|them|him|her)$/i, () => ({ refIs: { with: [{ under: true }] } })],
     [/^(?:the chosen character|that character|the moved character|the challenging character|that item) is named (.+)$/i, (m) => ({ refIs: { with: [{ named: [m[1].trim()] }] } })],
     [/^(?:that character|the chosen character|they) (?:has|have) damage$/i, () => ({ refIs: { with: [{ damaged: true }] } })],
+    // "If one of them is cost 3 or less" — any of the cards just chosen
+    [/^(?:one|any|either) of them (?:is cost|costs|has cost) (\d+) or (less|more)$/i, (m) => ({ refIs: { with: [{ cost: m[2] === 'less' ? { lte: +m[1] } : { gte: +m[1] } }] }, n: { gte: 1 } })],
     [/^(?:that item|that card|it) costs (\d+) or less$/i, (m) => ({ refIs: { with: [{ cost: { lte: +m[1] } }] } })],
     [/^(?:the challenging character|that character) has (\d+) \{strength\} or more$/i, (m) => ({ refIs: { with: [{ str: { gte: +m[1] } }] } })],
   ];

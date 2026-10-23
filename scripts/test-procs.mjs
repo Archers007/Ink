@@ -1155,6 +1155,35 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] }).ok === false ? { ok: true } : { ok: false, error: 'second one should cost full' });
   }
+  { // Launchpad - Trusty Sidekick: "Draw a card. Then, choose and discard a card unless you have a character named Darkwing Duck in play."
+    const lp = byName('Launchpad - Trusty Sidekick'), dw = all.find((d) => d.type === 'character' && d.name === 'Darkwing Duck');
+    for (const withDw of [false, true]) {
+      const { s, ids } = setup({ play0: withDw ? [lp, dw] : [lp] }); unready(s, ids.play0);
+      const hand = s.players[0].hand.length;
+      ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(lp) })); drain(s);
+      assert.equal(s.players[0].hand.length, hand + (withDw ? 1 : 0));
+    }
+  }
+  { // Maleficent - Formidable Queen: "for each of your characters named Maleficent in play, return a chosen opposing character …"
+    const mq = byName('Maleficent - Formidable Queen'), mal = all.find((d) => d.type === 'character' && d.name === 'Maleficent' && d.full !== mq.full);
+    const foe = vanilla((d) => d.cost <= 3);
+    const { s, ids } = setup({ hand0: [mq], play0: [mal], play1: [foe, foe, foe], ink0: mq.cost });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[1].play.length, 1, 'two Maleficents → two returned');
+  }
+  { // Un Poco Loco: "Choose 2 characters of yours. If one of them is cost 3 or less, return both to your hand."
+    const upl = byName('Un Poco Loco'), cheap = vanilla((d) => d.cost <= 3), big = vanilla((d) => d.cost >= 5);
+    const { s, ids } = setup({ hand0: [upl], play0: [cheap, big], ink0: upl.cost });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.deepEqual(ids.play0.map((id) => s.cards[id].zone), ['hand', 'hand']);
+  }
+  { // Pluto - Clever Cluefinder: no Detective → "Otherwise, put it on the top of your deck" (an item from your discard)
+    const pl = byName('Pluto - Clever Cluefinder'), item = all.find((d) => d.type === 'item');
+    const { s, ids } = setup({ play0: [pl], hand0: [item] }); unready(s, ids.play0);
+    E.moveTo(s, ids.hand0[0], 'discard', []);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(pl) })); drain(s);
+    assert.equal(s.players[0].deck[0], ids.hand0[0]);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);

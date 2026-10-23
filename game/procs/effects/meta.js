@@ -15,6 +15,11 @@ export class Choose extends Effect {
       const phrase = w === 'one of your' || w === 'one of their' ? `one of your ${m[2]}` : /^up to/.test(w) ? `${w} chosen ${m[2]}` : `${w === 'another' ? 'another' : 'a'} chosen ${m[2]}`;
       return { fn: 'choose', sel: P.sel(phrase) };
     }],
+    // "choose 2 of your characters" · "Choose 2 characters of yours" — exactly that many (fewer only if you have fewer)
+    [/^choose (\d+) (?:of your (.+)|(.+?) of yours)$/i, (m, P) => {
+      const F = P.filter(`your ${m[2] || m[3]}`);
+      return { fn: 'choose', sel: { chosen: F, upTo: +m[1], exactly: true } };
+    }],
   ];
   static chooses() { return true; }
   static run(rt, s, job, st) {
