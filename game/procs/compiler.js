@@ -440,6 +440,10 @@ export class Compiler {
     steps.forEach((st, i) => {
       if (i && steps[i - 1].fn === 'discard' && JSON.stringify(st.sel) === '{"ref":true}' && ['banish', 'damage', 'exert', 'ready', 'mod', 'toHand'].includes(st.fn)
         && steps.slice(0, i - 1).some((x) => x.fn === 'choose')) st.sel = { ref: true, of: 'choose' };
+      // "you may ready this character. He can't quest …" — he is this character, even when the may was declined (Mr. Litwak)
+      if (i && JSON.stringify(st.sel) === '{"ref":true,"pron":true}' && steps[i - 1].sel?.self) st.sel = { self: true };
+      // "you may search your deck for … Put that card into your hand" — only the card found (Antonio - Friend to All)
+      if (i && steps[i - 1].fn === 'search' && st.fn === 'putInHand' && st.sel?.ref && !st.ifDid && !st.linked) st.ifDid = true;
     });
     return steps;
   }

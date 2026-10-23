@@ -150,7 +150,7 @@ function moveTo(s, iid, to, ev, opt = {}) {
     const wasFaceDown = k.faceDown;
     k.leftGrants = from === 'play' && id === iid ? k.mods.filter((m) => m.stat === 'grant') : [];
     // last-known stats ("less {strength} than that character" after it was banished — Divebomb + Felicia ruling)
-    if (from === 'play' && id === iid && D(s, k).type === 'character') k.lastKnown = { str: effStr(k, D(s, k)), wp: effWp(k, D(s, k)), lore: effLore(k, D(s, k)) };
+    if (from === 'play' && id === iid && D(s, k).type === 'character') k.lastKnown = { str: effStr(k, D(s, k)), wp: effWp(k, D(s, k)), lore: effLore(k, D(s, k)), at: k.atLocation };
     resetCard(k);
     k.seq = (k.seq || 0) + 1;                                          // a new object in its new zone (an effect following "them" loses it)
     k.zone = to;
@@ -166,6 +166,8 @@ function moveTo(s, iid, to, ev, opt = {}) {
     const visibleAfter = PUBLIC_ZONES.has(k.zone);
     if (id === iid && k.zone === 'discard') (s.turnLog ||= []).push({ ev: 'toDiscard', seat: c.owner, iid });
     if (id === iid && from === 'discard' && s.status === 'playing') R.fire(s, 'leavesDiscard', { iid, seat: c.owner });
+    // "whenever a card is put into your inkwell" — inked, or put there by an effect (Fishbone Quill, a banish replacement)
+    if (id === iid && k.zone === 'inkwell' && from !== 'inkwell' && s.status === 'playing') R.fire(s, 'inked', { seat: c.owner, iid });
     if (id === iid && from === 'discard' && to === 'hand' && s.status === 'playing') R.fire(s, 'returnFromDiscard', { iid });
     if (visibleBefore || visibleAfter || opt.reveal) ev.push({ k: 'move', iid: id, cardId: k.cardId, from: fromZ, to: toZ, parent: id !== iid ? iid : undefined, revealed: (opt.reveal && !visibleBefore && !visibleAfter) || undefined });
     else ev.push(privateMove(s, id, fromZ, toZ, c.owner));
@@ -318,7 +320,9 @@ function gameStateCheck(s, ev, opt = {}) {
       }
     }
     if (!doomed.length) return;
-    for (const iid of doomed) banish(s, iid, ev, `${s.cards[iid].damage} damage`);
+    // they're banished at the same time (CR 1.8.4): one that banished another still counts while it goes too
+    s.leaving = doomed;
+    try { for (const iid of doomed) banish(s, iid, ev, `${s.cards[iid].damage} damage`); } finally { delete s.leaving; }
   }
 }
 
@@ -543,7 +547,6 @@ H.ink = (s, seat, a, ev) => {
   moveTo(s, c.iid, 'inkwell', ev, { reveal: true, exerted: R.rule(s, 'inkExerted', seat) });  // inking reveals the card (4.2.1.1)
   p.inkedThisTurn += 1;
   log(s, `${nameOf(s, seat)} inked ${cardLabel(d)} (${p.inkwell.length} ink).`, { seat });
-  R.fire(s, 'inked', { seat });
 };
 
 

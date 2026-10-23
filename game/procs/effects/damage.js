@@ -42,7 +42,9 @@ export class Heal extends Effect {
     [/^remove all damage from (.+)$/i, (m, P) => ({ fn: 'heal', n: 99, sel: P.sel(m[1]) })],
   ];
   static run(rt, s, job, st, ev) {
-    const ids = rt.targets(s, job, st, st.sel, 'sel', { keep: (iid) => s.cards[iid].damage > 0 });
+    // any character can be chosen, damaged or not — 0 is removed, and "ready it" / "it gains Resist" still apply (Try
+    // Everything, Penny - Bolt's Person); only the pooled "up to N total from any number" picks among damaged ones
+    const ids = rt.targets(s, job, st, st.sel, 'sel', st.total ? { keep: (iid) => s.cards[iid].damage > 0 } : {});
     if (!ids) return null;
     // "remove up to 3 damage" from one card: the player says how much, 0 included (Pluto - Determined Defender ruling)
     let chosen = null;

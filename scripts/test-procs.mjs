@@ -2169,6 +2169,38 @@ test('Medallion Weights: "whenever they challenge another character this turn" l
   ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[2], target: ids.play1[0] })); drain(s);
   assert.equal(s.players[0].hand.length, hand + 1, 'the chosen character challenged → draw');
 });
+test('re-review fixes: effect-inked cards trigger · trades count as banishing · Hercules challenging · heal an undamaged target', () => {
+  { // Fishbone Quill puts a card into the inkwell → Dawson's "whenever a card is put into your inkwell" fires
+    const quill = byName('Fishbone Quill'); const dawson = byName('Dawson - Puzzling Sleuth');
+    const { s, ids } = setup({ play0: [quill, dawson], hand0: [FILLER] }); unready(s, ids.play0);
+    const ink = s.players[0].inkwell.length;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }));
+    for (let k = 0; k < 6 && s.pending; k++) ok(applyAction(s, 0, { type: 'choose', ...(s.pending.valid?.length ? { target: s.pending.valid[0] } : { skip: true }) }));
+    assert.equal(s.players[0].inkwell.length, ink + 1);
+    assert.ok(s.log.some((l) => /looked at the top 1 card/.test(l.text)), 'Dawson triggered');
+  }
+  { // both characters banished in the same check: Shere Khan still hears "your other character banishes another"
+    const khan = byName('Shere Khan - Khan Industries CEO'); const two = vanilla((d) => d.str === 2 && d.wp === 2);
+    const { s, ids } = setup({ play0: [khan, two], play1: [two] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].zone, 'discard'); assert.equal(s.cards[ids.play1[0]].zone, 'discard');
+    assert.equal(s.players[0].inkDrops || 0, 1, 'the trade still gives the ink drop');
+  }
+  { // Hercules can't be dealt damage while challenging — only while being challenged
+    const herc = byName('Hercules - Mighty Leader'); const foe = vanilla((d) => d.str >= 1 && d.wp >= 9);
+    const { s, ids } = setup({ play0: [herc], play1: [foe] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].damage, 0);
+  }
+  { // Try Everything readies an undamaged character (0 damage removed)
+    const te = byName('Try Everything'); const me = vanilla((d) => d.cost >= 1);
+    const { s, ids } = setup({ hand0: [te], play0: [me] }); s.cards[ids.play0[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].exerted, false);
+  }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
