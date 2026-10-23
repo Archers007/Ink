@@ -36,6 +36,15 @@ export class HealedThisWay extends Condition {
   static test(rt, s, C, env) { return (env.job?.ctx.healed || 0) > 0; }
   static say() { return 'damage was removed this way'; }
 }
+// "if any of the cards that were under them are character cards" — this card's last stack, now in the discard
+export class WasUnder extends Condition {
+  static key = 'wasUnder';
+  static rules = [];                                                   // read by RefIs's table (same wording family)
+  static test(rt, s, C, env) {
+    return (s.cards[env.src]?.lastUnder || []).some((id) => s.cards[id]?.zone === 'discard' && rt.matches(s, C.wasUnder, s.cards[id], env.ctl, env.src, { anyZone: true }));
+  }
+  static say(C) { return `a ${C.wasUnder.types.join('/')} card was under it`; }
+}
 // "if it has the same name as the chosen card" (the card picked first) · "… as a card in your discard" (another one)
 export class SameNameAs extends Condition {
   static key = 'sameNameAs';
@@ -81,6 +90,8 @@ export class RefIs extends Condition {
       const F = m[1].match(/^(?:is|are|was|were) (?:a|an) (.+)$/i) && tryFilter(m[1].replace(/^\w+ (?:a|an) /i, ''));
       return F ? { refIs: F } : undefined;
     }],
+    // "if any of the cards that were under them are character cards" (it left play — what was under it then)
+    [/^any of the cards that were under (?:them|him|her|it) are (character|item|action|song|location) cards$/i, (m) => ({ wasUnder: { types: [m[1].toLowerCase()] } })],
     [/^there(?:'s| is) a card under (?:that character|that location|it|them|him|her)$/i, () => ({ refIs: { with: [{ under: true }] } })],
     [/^(?:the chosen character|that character|the moved character|the challenging character|that item) is named (.+)$/i, (m) => ({ refIs: { with: [{ named: [m[1].trim()] }] } })],
     [/^(?:that character|the chosen character|they) (?:has|have) damage$/i, () => ({ refIs: { with: [{ damaged: true }] } })],

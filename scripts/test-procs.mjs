@@ -1275,6 +1275,26 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
     assert.equal(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'sing', singers: [ids.play0[0]] }).ok, false);
   }
+  { // The Torn Corner: "When this card is put into your discard from your deck, if you have an item named Rivera Family Photo in play,
+    // you may play this card from your discard for free." — milled by Jack-Jack Parr - Incredible Potential
+    const tc = byName('The Torn Corner'), photo = all.find((d) => d.type === 'item' && d.name === 'Rivera Family Photo'), jj = byName('Jack-Jack Parr - Incredible Potential');
+    const { s, ids } = setup({ play0: [photo, jj], hand0: [tc] });
+    const corner = ids.hand0[0]; s.players[0].hand.splice(s.players[0].hand.indexOf(corner), 1); s.cards[corner].zone = 'deck';
+    ok(applyAction(s, 0, { type: 'endTurn' })); s.players[0].deck.unshift(corner);
+    ok(applyAction(s, 1, { type: 'endTurn' }));
+    while (s.pending) ok(applyAction(s, 0, s.pending.confirm ? { type: 'choose', confirm: true } : { type: 'choose', target: s.pending.valid[0] }));
+    assert.equal(s.cards[corner].zone, 'play');
+  }
+  { // Sulley & Boo - Scare Buddies: "if any of the cards that were under them are character cards, you may play those characters …"
+    const sb = byName('Sulley & Boo - Scare Buddies'), ch = vanilla((d) => d.cost <= 3);
+    const fire = byName('Dragon Fire');                                 // "Banish chosen character."
+    const { s, ids } = setup({ play0: [sb], hand0: [ch, fire], ink0: fire.cost });
+    const u = ids.hand0[0]; s.players[0].hand.splice(s.players[0].hand.indexOf(u), 1); s.cards[u].zone = 'under'; s.cards[u].parent = ids.play0[0]; s.cards[ids.play0[0]].under = [u];
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] }));
+    while (s.pending) ok(applyAction(s, 0, s.pending.confirm ? { type: 'choose', confirm: true } : { type: 'choose', target: s.pending.valid[0] }));
+    assert.equal(s.cards[u].zone, 'play');
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);

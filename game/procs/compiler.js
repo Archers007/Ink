@@ -304,6 +304,18 @@ export class Compiler {
       });
       return [{ fn: 'chooseOne', by: 'opp', labels: opts.map((o) => o.replace(/\.$/, '')), options: opts.map(optSteps) }];
     }
+    // "If its card type is: • character, X. • action or item, Y. • location, Z." — one branch per card type of the card just moved
+    const ct = text.match(/^(.*?)\s*If its card type is: • (.+)$/i);
+    if (ct) {
+      if (ct[1]) steps.push(...this.effects(ct[1], ctx));
+      for (const opt of ct[2].split(/ • /)) {
+        const b = opt.trim().replace(/\.$/, '').match(/^((?:character|action|item|location|song)(?:(?:,| or|, or) (?:character|action|item|location|song))*), (.+)$/i);
+        if (!b) miss(`card type branch: "${opt}"`, at);
+        const types = b[1].toLowerCase().split(/,? or |, /);
+        steps.push(...this.effects(b[2], ctx).map((x, i) => (i === 0 ? { ...x, cond: { refIs: { types } } } : x)));
+      }
+      return steps;
+    }
     // "Choose one: • …" · "you may choose one: • …" (neither is fine) · "choose one of the following. If X, choose both instead: • …"
     const CHOOSE = /(?:you may (?:pay (\d+) \{ink\} to )?)?choose one(?: of the following)?(?:\. if (.+?), choose both instead)?: • /i;
     const chooseAt = text.search(CHOOSE);

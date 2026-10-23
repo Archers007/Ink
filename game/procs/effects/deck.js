@@ -25,10 +25,11 @@ export class Mill extends Effect {
     [new RegExp(String.raw`^put the top (?:${NUM} )?cards? of chosen player's deck into their discard$`, 'i'), (m) => ({ fn: 'eachPlayer', who: 'chosenPlayer', do: [{ fn: 'mill', n: N(m[1] || '1') }] })],
   ];
   static run(rt, s, job, st, ev) {
-    const p = rt.E.P(s, job.seat); const names = [];
-    for (let k = 0; k < st.n && p.deck.length; k++) { names.push(rt.E.cardLabel(rt.E.D(s, s.cards[p.deck[0]]))); rt.E.moveTo(s, p.deck[0], 'discard', ev); }
+    const p = rt.E.P(s, job.seat); const names = []; const iids = [];
+    for (let k = 0; k < st.n && p.deck.length; k++) { names.push(rt.E.cardLabel(rt.E.D(s, s.cards[p.deck[0]]))); iids.push(p.deck[0]); rt.E.moveTo(s, p.deck[0], 'discard', ev); }
+    job.ctx.it = iids;                                                // "for each item card put into your discard this way"
     rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} put ${names.join(', ') || 'nothing'} from the top of their deck into their discard.`, { seat: job.seat, kind: 'effect' });
-    if (names.length) rt.fire(s, 'milled', { seat: job.seat });
+    if (names.length) rt.fire(s, 'milled', { seat: job.seat, iids });
     return names.length > 0;
   }
   static verb(rt, s, job, st) { return `put the top ${plural(st.n, 'card')} of your deck into your discard`; }

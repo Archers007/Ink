@@ -23,12 +23,14 @@ export class FromDiscard extends Effect {
 }
 export class PlayFree extends Effect {
   static fn = 'playFree';
-  static chooses() { return true; }
+  static chooses(st) { return !st?.each; }                // "play those characters" plays them all: a yes/no first
   static rules = [
     [/^play (?:a|an) (.+?) (?:from your (hand|discard) )?for free$/i, (m, P) => {
       const F = P.filter(m[1]); F.zone = m[2] || 'hand'; F.owner = 'you';
       return { fn: 'playFree', filter: F };
     }],
+    // "you may play those characters from your discard for free" — the ones that were under this card
+    [/^play those (characters|items|cards) from your discard for free$/i, (m) => ({ fn: 'playFree', filter: { ...(m[1] === 'cards' ? {} : { types: [m[1].slice(0, -1)] }), zone: 'discard', owner: 'you' }, fromUnder: true, each: true })],
     // any zone phrase the filter reads ("a location from your hand or discard with cost 4 or less") · ", exerted"
     [/^play (?:a|an) (.+?) for free(,? exerted| and (?:it|they) enters? play exerted)?$/i, (m, P) => {
       const F = { owner: 'you', ...P.filter(m[1]) };
@@ -37,7 +39,12 @@ export class PlayFree extends Effect {
     }],
   ];
   static run(rt, s, job, st, ev) {
-    const valid = rt.candidates(s, st.filter, job.seat, job.src, job.ctx.it);   // "with the same cost or less" reads the card before
+    let valid = rt.candidates(s, st.filter, job.seat, job.src, job.ctx.it);   // "with the same cost or less" reads the card before
+    if (st.fromUnder) valid = valid.filter((iid) => (s.cards[job.src]?.lastUnder || []).includes(iid));
+    if (st.each && valid.length) {                                     // all of them, in the order the player likes
+      job.ctx.it = valid;
+      return rt.each(valid, (iid) => rt.E.playFree(s, job.seat, iid, ev, { exerted: !!st.exerted }));
+    }
     if (!valid.length) { rt.log(s, `↳ ${job.label}: nothing to play for free.`, { kind: 'effect' }); return false; }
     const picked = rt.pickFrom(s, job, st, 'playFree', valid, { n: 1, optional: !!st.may, prompt: `play ${Query.describe(st.filter)} for free.` });
     if (!picked) return null;

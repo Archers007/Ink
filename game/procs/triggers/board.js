@@ -125,6 +125,12 @@ export class Milled extends Trigger {
   static rules = [[/^whenever you put (?:1 or more|a) cards? into your discard from your deck$/i, () => [{ ev: 'milled' }]]];
   static say() { return 'you put cards from your deck into your discard'; }
 }
+// "When this card is put into your discard from your deck" — the milled card itself hears it, from the discard
+export class MilledSelf extends Trigger {
+  static ev = 'milledSelf';
+  static rules = [[/^when(?:ever)? this card is put into your discard from your deck$/i, () => [{ ev: 'milledSelf' }]]];
+  static say() { return 'this card is put into your discard from your deck'; }
+}
 // "Whenever one of your actions deals damage to an opposing character" — that character = it
 export class ActionDamage extends Trigger {
   static ev = 'actionDamage';
@@ -186,7 +192,10 @@ export const events = {
     for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'draw');
     for (const o of rt.E.opponentsOf(s, info.seat)) for (const x of rt.inPlay(s, o)) fireOn(x, 'oppDraw', (on) => !on.theirTurn || s.active === info.seat);
   },
-  milled(rt, s, info, fireOn) { for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'milled'); },
+  milled(rt, s, info, fireOn) {
+    for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'milled');
+    for (const iid of info.iids || []) if (s.cards[iid]?.zone === 'discard') fireOn(s.cards[iid], 'milledSelf', null, [iid]);
+  },
   entersPlay(rt, s, info, fireOn) {
     const c = s.cards[info.iid];
     if (!c || c.zone !== 'play') return;
