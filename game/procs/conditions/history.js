@@ -18,6 +18,7 @@ export class History extends Condition {
     [/^one of your characters (?:was (?:damaged|dealt damage)|took damage) this turn$/i, () => H('damaged', { mine: true })],
     [/^you (?:removed damage from a character|removed 1 or more damage from one of your characters) this turn$/i, () => H('healed', { mine: true })],
     [/^you(?:'ve)? discarded a card this turn$/i, () => H('toDiscard', { mine: true })],
+    [/^you(?:'ve)? got(?:ten)? (?:an|one or more) ink drops? this turn$/i, () => H('gotInkDrop', { mine: true })],
     [/^you didn't put any cards into your inkwell this turn$/i, () => H('inked', { mine: true, n: { lte: 0 } })],
     [new RegExp(String.raw`^you(?:'ve)? played ${NUM} or more (.+?) this turn$`, 'i'), (m, a) => H('play', { mine: true, n: { gte: N(m[1]) }, ...(/^cards?$/i.test(m[2]) ? {} : { of: filter(m[2], a) }) })],
     [/^you didn't play (?:a|an) (.+?) this turn$/i, (m, a) => H('play', { mine: true, n: { lte: 0 }, of: filter(m[1], a) })],

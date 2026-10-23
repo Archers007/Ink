@@ -600,6 +600,16 @@ test('player subjects · moving several to one location · free moves', () => {
     assert.equal(s.cards[ids.play0[1]].atLocation, ids.play0[0]);
   }
 });
+test('"if you removed an ink drop to play this action" · "that character had a card under them"-style ref conditions', () => {
+  const act = all.find((d) => d.type === 'action' && d.procs.every((p) => p.exec) && d.abilities.some((a) => /removed an ink drop to play this action/i.test(a.text)));
+  const target = all.find((d) => d.type === 'character' && !d.abilities.length && d.wp >= 6);
+  for (const drops of [0, 1]) {
+    const { s, ids } = setup({ hand0: [act], play1: [target], ink0: act.cost - drops });
+    s.players[0].inkDrops = drops;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].damage, drops ? 5 : 2, `${drops} ink drop(s) paid`);
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

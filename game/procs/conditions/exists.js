@@ -26,7 +26,7 @@ const where = (F, w) => {
 };
 const WHERE = String.raw`(?: (in play|here|at this location|in (?:your|a player's|any|their|an opponent's) (?:discard|hand|inkwell)))?`;
 // "is exerted" · "has damage" · "is at a location" · "is damaged" → a classifier on the subject
-function predicate(p) {
+export function predicate(p) {
   let m;
   if ((m = p.match(/^(?:is|are) at a location$/i))) return { atLocation: true };
   if ((m = p.match(new RegExp(String.raw`^(?:is|are) (${ADJECTIVES.join('|')})$`, 'i')))) return fromAdjective(m[1]);

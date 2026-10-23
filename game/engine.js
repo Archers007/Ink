@@ -92,8 +92,9 @@ export function readyInk(s, seat) {
   return P(s, seat).inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0) + (P(s, seat).inkDrops || 0);
 }
 // Ink drop counters (CR 1.13.1.2) pay 1 ink each; ready inkwell cards are spent first.
+// → how many ink drops paid part of it ("if you removed an ink drop to play her")
 function payInk(s, seat, n) {
-  if (n <= 0) return;
+  if (n <= 0) return 0;
   const p = P(s, seat);
   const ready = p.inkwell.filter((iid) => !s.cards[iid].exerted);
   const drops = p.inkDrops || 0;
@@ -101,6 +102,7 @@ function payInk(s, seat, n) {
   const cards = Math.min(n, ready.length);
   for (let i = 0; i < cards; i++) s.cards[ready[ready.length - 1 - i]].exerted = true;
   if (n > cards) { p.inkDrops = drops - (n - cards); p.usedDropTurn = s.turn; R.fire(s, 'inkDropUsed', { seat }); }
+  return Math.max(0, n - cards);
 }
 
 function listOf(s, c) {
@@ -495,11 +497,12 @@ H.play = (s, seat, a, ev) => {
   let sungBy = [];
   const banned = R.playBlocked(s, seat, c);
   if (banned) throw RE(banned);
+  c.paidDrops = 0;                                                  // set again below when ink drops pay for it
 
   if (mode === 'ink') {
     const auto = R.costDelta(s, seat, c, true);                   // "you pay N {ink} less …"
     const cost = Math.max(0, d.cost + auto + adjust);
-    payInk(s, seat, cost);
+    c.paidDrops = payInk(s, seat, cost);
     const notes = [auto ? `${auto} from abilities` : '', adjust ? `adjusted ${adjust > 0 ? '+' : ''}${adjust}` : ''].filter(Boolean).join(', ');
     how = `for ${cost} ink${notes ? ` (cost ${d.cost}, ${notes})` : ''}`;
     paid = cost;
@@ -520,12 +523,12 @@ H.play = (s, seat, a, ev) => {
     const cost = opt.spec.cost;
     if (cost.ink != null) {
       const n = Math.max(0, cost.ink + adjust);
-      payInk(s, seat, n);
+      c.paidDrops = payInk(s, seat, n);
       how = `by ${opt.label} onto ${onto} for ${n} ink`;
       paid = n;
     } else if (cost.inkDrops != null) {                              // "Shift Remove 2 ink drops"
       if ((p.inkDrops || 0) < cost.inkDrops) throw RE(`${opt.label}: remove ${cost.inkDrops} ink drops — you have ${p.inkDrops || 0}.`);
-      p.inkDrops -= cost.inkDrops; p.usedDropTurn = s.turn; R.fire(s, 'inkDropUsed', { seat });
+      p.inkDrops -= cost.inkDrops; p.usedDropTurn = s.turn; c.paidDrops = cost.inkDrops; R.fire(s, 'inkDropUsed', { seat });
       how = `by ${opt.label} onto ${onto}, removing ${cost.inkDrops} ink drops`;
     } else {                                                          // "Shift: Discard an action card"
       const ds = uniq(Array.isArray(a.discard) ? a.discard : []).map((id) => s.cards[id]);

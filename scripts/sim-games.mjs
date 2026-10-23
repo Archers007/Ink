@@ -100,6 +100,8 @@ for (let g = 0; g < GAMES; g++) {
     else if (m) { fx.auto++; fx.ops[m[1]] = (fx.ops[m[1]] || 0) + 1; }
     else { fx.manual++; if (process.env.SHOW_MANUAL) console.log('MANUAL', l.text); }
   }
+  // SHOW_LONG=40: print how a game that ran past 40 turns ended — a stall (nobody playing anything) is a bug
+  if (process.env.SHOW_LONG && s.turn > Number(process.env.SHOW_LONG)) console.log(`LONG game ${g} (${s.turn} turns):\n  ${s.log.slice(-30).map((l) => l.text).join('\n  ')}`);
   stats.wins[s.winner]++;
   const reason = s.endReason.replace(/^.*?(reached|ended|conceded)/, '$1').replace(/\d+/g, 'N');
   stats.reasons[reason] = (stats.reasons[reason] || 0) + 1;
