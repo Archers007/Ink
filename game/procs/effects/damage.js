@@ -14,8 +14,9 @@ export class Damage extends Effect {
     [/^put (\d+|a) damage(?: counters?)? on (.+)$/i, (m, P) => ({ fn: 'damage', n: m[1] === 'a' ? 1 : +m[1], sel: P.sel(m[2]), put: true })],
   ];
   static run(rt, s, job, st, ev) {
-    const ids = rt.targets(s, job, st, st.sel);
-    if (!ids) return null;
+    const got = rt.targets(s, job, st, st.sel);
+    if (!got) return null;
+    const ids = got.filter((iid) => s.cards[iid].zone === 'play');          // only cards in play take damage ("put 1 damage on it" after it was banished)
     const n0 = Amount.value(rt, s, job, st.n);
     job.ctx.it = ids;
     job.ctx.n = n0;                                                    // "deal that much damage to …" next

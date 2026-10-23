@@ -49,7 +49,7 @@ export class WasUnder extends Condition {
 export class SameNameAs extends Condition {
   static key = 'sameNameAs';
   static rules = [
-    [/^it has the same name as the chosen card$/i, () => ({ sameNameAs: 'chosen' })],
+    [/^(?:it has the same name as the chosen card|they have the same name)$/i, () => ({ sameNameAs: 'chosen' })],   // Rapunzel - Outgoing Artist: the chosen and the revealed
     [/^it has the same name as a card in your discard$/i, () => ({ sameNameAs: 'discard' })],
   ];
   static test(rt, s, C, env) {

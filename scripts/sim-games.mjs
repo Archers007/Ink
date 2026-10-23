@@ -90,7 +90,7 @@ for (let g = 0; g < GAMES; g++) {
       }
       checkInvariants(s);
       const bad = props(s, prev, a);                                     // scripts/verify/props.mjs
-      if (bad.length) throw new Error(`game ${g} turn ${s.turn} after ${JSON.stringify(a)}: ${bad.join('; ')}`);
+      if (bad.length) { if (process.env.SIM_LOG) console.log(s.log.slice(-25).map((l) => l.text || l).join("\n")); throw new Error(`game ${g} turn ${s.turn} after ${JSON.stringify(a)}: ${bad.join("; ")}`); }
       acted = true;
       break;
     }

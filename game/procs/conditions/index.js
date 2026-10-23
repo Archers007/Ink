@@ -12,7 +12,7 @@ import { Inkwell, Compare, FewerInHand, FirstTurnSecond, HasInkDrop } from './pl
 import { Exists, Did, Challenging, MoreThan } from './exists.js';
 
 export const CONDITIONS = [AnyOf, NotCond, HasInkDrop, History, Inkwell, Compare, FewerInHand, FirstTurnSecond, HandSize, MoreCards, OppMoreCards, OppMoreLore, YouMoreLore, LoreAmount,
-  Have, SelfIs, TheyDont, NthDraw, PlayedThisTurn, YourTurn, Shifted, PaidWithDrop, Sang, HealedThisWay, SameNameAs, WasUnder, RefIs, Challenging, Did, MoreThan, Exists, AllOf];   // generic ones last: specific wording wins
+  Have, SameNameAs, SelfIs, TheyDont, NthDraw, PlayedThisTurn, YourTurn, Shifted, PaidWithDrop, Sang, HealedThisWay, WasUnder, RefIs, Challenging, Did, MoreThan, Exists, AllOf];   // generic ones last: specific wording wins
 const BY_KEY = new Map(CONDITIONS.map((C) => [C.key, C]));
 
 export function conditionOf(C) {

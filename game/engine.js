@@ -338,7 +338,7 @@ const STEPS = {
     const readied = [];
     for (const iid of p.play) {
       const c = s.cards[iid];
-      if (hasKw(c, D(s, c), 'cantReady') || hasKw(c, D(s, c), 'skipReady')) continue;
+      if (hasKw(c, D(s, c), 'cantReady') || hasKw(c, D(s, c), 'skipReady') || (hasKw(c, D(s, c), 'skipReadyOffLoc') && !c.atLocation)) continue;
       if (c.exerted) readied.push(iid);
       c.exerted = false;
     }

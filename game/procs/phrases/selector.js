@@ -7,6 +7,7 @@ export class Selector {
   static parse(phrase, at = phrase) {
     // "the exerted character" — the card a step before acted on
     if (/^the exerted character$/i.test(phrase.trim())) return { ref: true, of: 'exert' };
+    if (/^that location$/i.test(phrase.trim())) return { ref: true, of: 'loc' };                  // after a move: where they went (else the last card)
     if (/^each (?:character|card) you removed damage from this way$/i.test(phrase.trim())) return { ref: true, of: 'healedIds' };   // Goofy - Groundbreaking Chef
     if (/^the (?:moved|banished|chosen|revealed) (?:character|card|item)$/i.test(phrase.trim())) return { ref: true };
     const p = phrase.trim().replace(/^the /i, '');
@@ -85,6 +86,7 @@ export class Selector {
     if (s.singers) return 'the characters who sang it';
     // which card "that card" is: the one the step before acted on, unless the selector says which step (of) or which one (nth)
     if (s.ref && s.pron) return 'him/her (this card until a step picks one)';
+    if (s.ref && s.of === 'loc') return 'that location';
     if (s.ref && s.of) return `the card${s.of === 'healedIds' ? 's damage was removed from' : ` the ${s.of} step acted on`}`;
     if (s.ref && s.nth != null) return 'the other card picked';
     if (s.ref) return 'that card';

@@ -20,7 +20,7 @@ export const SUPPORT = {
     'evasive', 'ward', 'rush', 'reckless', 'bodyguard', 'support', 'alert', 'challenger', 'resist', 'singer',
     'boost', 'shift', 'puppyShift', 'universalShift', 'classShift', 'singTogether', 'vanish', 'grant',
     // restrictions / grants procs can put on a card
-    'cantQuest', 'cantChallenge', 'cantReady', 'skipReady', 'cantBeChallenged', 'cantSing', 'cantMove', 'noDamage', 'noChallengeDamage', 'noDamageChallenging', 'noEffectDamage', 'challengeReady', 'mustQuest', 'adventurous', 'cantBeChallengedBy',
+    'cantQuest', 'cantChallenge', 'cantReady', 'skipReady', 'skipReadyOffLoc', 'cantBeChallenged', 'cantSing', 'cantMove', 'noDamage', 'noChallengeDamage', 'noDamageChallenging', 'noEffectDamage', 'challengeReady', 'mustQuest', 'adventurous', 'cantBeChallengedBy',
     'challengeReadyOf', 'questFresh', 'mustChoose', 'cantSingSolo', 'challengerLoc', 'actCost',
   ]),
   dur: new Set(Object.keys(DURATIONS)),
