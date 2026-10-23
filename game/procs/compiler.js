@@ -131,7 +131,9 @@ export class Compiler {
           let A;
           try { A = this.clause(a + durTxt, ctx); } catch (e2) { if (e2 instanceof Miss) continue; throw e2; }
           const subj = a.replace(/^you may /i, '').match(/^(.+?) (?:gets?|gains?|can't|cannot|can|loses?|takes?|enters?|is|are)\b/i)?.[1];
-          const tries = [b + durTxt, ...(subj ? [`${subj} ${b}${durTxt}`] : [])];
+          // "gains Resist +1 and the Detective classification" — the second half shares the verb too
+          const verb = a.replace(/^you may /i, '').match(/^.+? (gains?|gets?)\b/i)?.[1];
+          const tries = [b + durTxt, ...(subj ? [`${subj} ${b}${durTxt}`] : []), ...(subj && verb ? [`${subj} ${verb} ${b}${durTxt}`] : [])];
           for (const t of tries) {
             try {
               const B = this.clause(t, ctx);
@@ -355,6 +357,8 @@ export class Compiler {
         if (paid) {
           // "you may pay 2 {ink} to draw a card" — the cost, then the rest only if it was paid
           paid.effect.forEach((x) => { x.ifDid = true; });
+          if (i === 0 && ifDid) paid.cost.forEach((x) => { x.ifDid = true; });
+          if (i === 0 && cond) paid.cost[0].cond = cond;                   // "If it's named Kevin, you may reveal it … to gain 3 lore"
           steps.push(...paid.cost, ...paid.effect);
           return;
         }
@@ -415,6 +419,12 @@ export class Compiler {
     if (proc) return proc;
     // "Once during your turn, you may move him to another location for free. If you do, gain 1 lore." — something you
     // choose to do on your turn, once: a free activated ability
+    // "Once during your turn, you may pay 1 {ink} less to move this character" · "…, you pay 1 {ink} less for the next
+    // character you play this turn" — a discount used once each turn, not an ability
+    if (once && /^you may pay \d+ \{ink\} less to move /i.test(t)) return Static.parse(t.replace(/^you may /i, ''), this, mods);
+    if (once && (m = t.match(/^you pay (\d+) \{ink\} less for the next (character|action|item|song|location) you play this turn\.?$/i))) {
+      return { kind: 'static', once: true, during: 'yours', effect: { fn: 'costMod', n: +m[1], filter: { types: [m[2].toLowerCase()] } } };
+    }
     if (once && /^you may /i.test(t)) return { kind: 'activated', cost: {}, once: true, during: 'yours', do: this.effects(t) };
     // "Once during your turn, if this character is at a location, you may move him …" — usable only while …
     if (once && (m = t.match(/^if (.+?), (you may .+)$/i))) return { kind: 'activated', cost: {}, once: true, during: 'yours', cond: this.condition(m[1], t), do: this.effects(m[2]) };

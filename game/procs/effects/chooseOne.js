@@ -7,6 +7,10 @@ export class ChooseOne extends Effect {
   // "choose and discard either 2 cards or 1 action card" — a forced choice between two discards (CR 6.1.5.2)
   static rules = [[/^choose and discard either (.+?) or (.+)$/i, (m, P) => ({
     fn: 'chooseOne', labels: [m[1], m[2]], options: [P.effects(`choose and discard ${m[1]}`), P.effects(`choose and discard ${m[2]}`)],
+  })],
+  // "Otherwise, put it on either the top or the bottom of your deck"
+  [/^put (?:it|that card) on either the top or the bottom of your deck$/i, () => ({
+    fn: 'chooseOne', labels: ['Top of your deck', 'Bottom of your deck'], options: [[{ fn: 'toDeckTop', sel: { ref: true } }], [{ fn: 'toDeckBottom', sel: { ref: true } }]],
   })]];
   // CR 1.7.7: an option that can't be done isn't a legal choice ("choose and discard a card or banish this character")
   static feasible(rt, s, job, steps) {

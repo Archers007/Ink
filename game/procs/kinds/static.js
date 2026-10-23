@@ -72,6 +72,11 @@ export class Static extends Kind {
       if (m[1]) { const c2 = c.condition(m[1].replace(/ this turn$/i, ' this turn'), t); cond = cond ? { all: [cond, c2] } : c2; }
       return { kind: 'static', ...mods, ...(cond ? { cond } : {}), effect: { fn: 'selfCost', n: 99, free: true } };
     }
+    // "This character enters play exerted and can't ready at the start of your turn" — the entry rides on the other static
+    if ((m = t.match(/^this character enters play exerted and (.+)$/i))) {
+      const rest = Static.parse(`this character ${m[1]}`, c, mods);
+      if (rest?.kind === 'static' && rest.effect.fn === 'mod') return { ...rest, ...(cond ? { cond } : {}), effect: { ...rest.effect, enters: { exerted: true } } };
+    }
     if ((m = t.match(/^this (?:character|item|location) enters play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', ...(m[2] ? { damage: +m[2] } : { exerted: true }) });
     // "opposing items enter play exerted" · "opposing characters with Singer enter play with 1 damage"
     if ((m = t.match(/^(.+?) enters? play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', filter: c.filter(m[1], t), ...(m[3] ? { damage: +m[3] } : { exerted: true }) });
@@ -105,7 +110,7 @@ export class Static extends Kind {
       if (eff.sel?.ref && cond?.exists && !eff.sel.pron) eff.sel = { all: cond.exists };
       else if (eff.sel?.ref) eff.sel = { self: true };
       if (eff.fn === 'mod' || eff.fn === 'costMod' || eff.fn === 'playBan') {
-        if (eff.dur === 'turn' && cond && /"(?:history|did|playedTurn)"/.test(JSON.stringify(cond))) delete eff.dur;   // "If you've played a song this turn, … gains Rush this turn"
+        if (eff.dur === 'turn' && cond && /"(?:history|did|playedTurn|playedThisTurn)"/.test(JSON.stringify(cond))) delete eff.dur;   // "If you've played a song this turn, … gains Rush this turn"
         if (eff.dur) c.miss('static with a duration', t);
         return wrap(eff);
       }
@@ -175,6 +180,8 @@ export class Static extends Kind {
         if (!Static.active(rt, s, proc, pl.seat, iid) || !rt.matches(s, e.filter, c, pl.seat, iid, { anyZone: true })) continue;
         if (e.onto === 'self' && !onto.includes(iid)) continue;                        // "to shift a character on top of this character"
         if (e.first && p.playedThisTurn.some((x) => s.cards[x] && rt.E.D(s, s.cards[x]).type === e.filter.types?.[0])) continue;   // "the first action you play each turn"
+        if (proc.once && src.onceCost === s.turn) continue;           // "Once during your turn, you pay 1 {ink} less for the next character"
+        if (proc.once && consume) src.onceCost = s.turn;
         delta -= e.n * times(e, pl.seat, iid);
       }
     }
@@ -208,7 +215,12 @@ export class Static extends Kind {
   // runtime: "enters play exerted / with N damage"
   static onEnter(rt, s, c) {
     const apply = (st) => { if (st.exerted) c.exerted = true; if (st.damage) c.damage += st.damage; };
-    for (const proc of rt.procsOf(s, c)) if (proc.kind === 'static' && proc.exec && proc.effect.fn === 'enters' && !proc.effect.filter) apply(proc.effect);
+    // its own "enters play exerted [unless …]" — the condition is checked as it enters
+    for (const proc of rt.procsOf(s, c)) {
+      if (!Static.active(rt, s, proc, c.owner, c.iid)) continue;
+      if (proc.effect.fn === 'enters' && !proc.effect.filter) apply(proc.effect);
+      else if (proc.effect.enters) apply(proc.effect.enters);
+    }
     // the board's "<cards> enter play exerted": every card in play whose static names the entering card
     for (const p of s.players) for (const iid of p.play) {
       const src = s.cards[iid];

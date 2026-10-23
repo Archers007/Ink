@@ -173,8 +173,12 @@ export class Runtime {
       const E = this.effect(st.fn);
       const skip = () => Job.next(job);
       // gates
-      if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || (st.otherwise && job.ctx.did)) { job.ctx.did = false; skip(); continue; }
-      if (st.cond && !this.test(s, st.cond, job.seat, job.src, job)) { job.ctx.did = false; job.ctx.declined = false; skip(); continue; }
+      // "If it's X, you may … Otherwise, …" — otherwise follows the condition when the step before had one, so declining
+      // the may leaves the card where it is (it was still X)
+      const otherwiseSkip = st.otherwise && (job.ctx.condMet != null ? job.ctx.condMet : job.ctx.did);
+      if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || otherwiseSkip) { job.ctx.did = false; skip(); continue; }
+      job.ctx.condMet = st.cond ? this.test(s, st.cond, job.seat, job.src, job) : null;
+      if (st.cond && !job.ctx.condMet) { job.ctx.did = false; job.ctx.declined = false; skip(); continue; }
       // "… If X, <bigger version> instead" — decided once, as the step starts
       if (st.instead) {
         const { instead, ...base } = st;

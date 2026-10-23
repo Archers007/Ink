@@ -12,10 +12,11 @@ const COSTS = {
   banishOther: [/^banish (?:one of your|chosen) (.+?)(?: of yours)?$/i, (m, c, at) => c.filter(`your ${m[1]}`, at), true, (v) => `banish a ${Query.describe(v)}`],
   banishN: [/^banish (\d+|two|three) of your (.+)$/i, (m, c, at) => ({ n: { two: 2, three: 3 }[m[1].toLowerCase()] || +m[1], filter: c.filter(`your ${m[2]}`, at) }), true, (v) => `banish ${v.n} ${Query.describe(v.filter)}`],
   healSelf: [/^remove (\d+) damage from this character$/i, (m) => +m[1], false, (v) => `remove ${v} damage from this`],
+  damageSelf: [/^deal (\d+) damage to this character$/i, (m) => +m[1], true, (v) => `deal ${v} damage to this`],
   inkSelf: [/^put this (?:character|item) into your inkwell facedown$/i, () => true, false, () => 'put this into your inkwell'],
 };
 export const COST_SUPPORT = new Set(Object.entries(COSTS).filter(([, v]) => v[2]).map(([k]) => k));
-const HEAD = /^((?:\{exert\}|\d+ \{ink\}|banish this (?:item|character|location)|choose and discard (?:a|an?) (?:\w+ )?card|discard (?:a|an?) (?:\w+ )?card|(?:exert|\{exert\}) (?:one of your|an?|\d+) [^—]+?|banish (?:one of your|chosen|\d+ of your|two of your) [^—]+?|put [^—]+? into your inkwell facedown|remove \d+ damage from this character|[, ]+)+) — (.+)$/i;
+const HEAD = /^((?:\{exert\}|\d+ \{ink\}|banish this (?:item|character|location)|choose and discard (?:a|an?) (?:\w+ )?card|discard (?:a|an?) (?:\w+ )?card|(?:exert|\{exert\}) (?:one of your|an?|\d+) [^—]+?|banish (?:one of your|chosen|\d+ of your|two of your) [^—]+?|put [^—]+? into your inkwell facedown|remove \d+ damage from this character|deal \d+ damage to this character|[, ]+)+) — (.+)$/i;
 
 export class Activated extends Kind {
   static kind = 'activated';
@@ -72,6 +73,7 @@ export class Activated extends Kind {
       ...(cost.banishN ? [{ fn: 'banish', sel: { chosen: cost.banishN.filter, upTo: cost.banishN.n, exactly: true }, cost: true }] : []),
       ...proc.do,
     ];
+    if (cost.damageSelf) E.dealDamage(s, c.iid, cost.damageSelf, ev, { cost: true });   // "Deal 1 damage to this character —"
     if (cost.banishSelf) { rt.log(s, `↳ ${E.cardLabel(d)} was banished to pay for it.`, { kind: 'effect' }); E.banish(s, c.iid, ev, 'cost'); }
     rt.queue(s, seat, c.iid, rt.labelOf(s, c, proc), steps);
     return true;

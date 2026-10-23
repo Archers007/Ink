@@ -14,6 +14,7 @@ const RX = [
   [/ until the end of (?:your|the) turn$/i, 'turn'],
   [/ during (?:their|its owner's|that player's) next turn$/i, 'theirNext'],
   [/ during (?:that|the) challenge$/i, 'challenge'],
+  [/ while this (?:item|location|character) is in play$/i, 'src'],   // "They can't challenge or quest while this item is in play"
 ];
 export class Duration {
   // "<clause> this turn" → [clause, 'turn'];  also "for the rest of this turn, <clause>" / "this turn, <clause>"

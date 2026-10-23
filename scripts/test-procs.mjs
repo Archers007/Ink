@@ -1123,6 +1123,38 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
       assert.equal(s.players[0].lore, lore + (exerted ? 1 : 0));
     }
   }
+  { // Television Set: "If it's a Puppy character card, you may … put it into your hand. Otherwise, put it on the bottom" — declining leaves it on top
+    const tv = byName('Television Set'), pup = all.find((d) => d.type === 'character' && (d.classes || []).includes('puppy'));
+    const { s, ids } = setup({ play0: [tv] });
+    const top = s.players[0].deck[0]; s.cards[top].cardId = pup.id;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(tv) }));
+    while (s.pending) ok(applyAction(s, 0, { type: 'choose', skip: true, confirm: false }));
+    assert.equal(s.players[0].deck[0], top, 'still on top');
+  }
+  { // Shere Khan - Fierce and Furious: "1 {ink}, Deal 1 damage to this character — Ready this character."
+    const sk = byName('Shere Khan - Fierce and Furious');
+    const { s, ids } = setup({ play0: [sk] }); unready(s, ids.play0);
+    s.cards[ids.play0[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(sk) })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].damage, 1);
+    assert.equal(s.cards[ids.play0[0]].exerted, false);
+  }
+  { // Gustav the Giant: "enters play exerted and can't ready at the start of your turn"; Dale - Friend in Need: "… unless you have Chip"
+    const gus = byName('Gustav the Giant - Terror of the Kingdom');
+    const { s, ids } = setup({ hand0: [gus], ink0: gus.cost });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].exerted, true);
+    const dale = byName('Dale - Friend in Need'), chip = all.find((d) => d.type === 'character' && d.name === 'Chip');
+    { const { s, ids } = setup({ hand0: [dale], play0: [chip], ink0: dale.cost });
+      ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+      assert.equal(s.cards[ids.hand0[0]].exerted, false, 'Chip in play → ready'); }
+  }
+  { // Grandmother Willow - Ancient Advisor: "Once during your turn, you pay 1 {ink} less for the next character you play this turn."
+    const gw = byName('Grandmother Willow - Ancient Advisor'), a = vanilla((d) => d.cost === 3);
+    const { s, ids } = setup({ play0: [gw], hand0: [a, a], ink0: 4 });   // 2 + 2 only if the discount repeated
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] }).ok === false ? { ok: true } : { ok: false, error: 'second one should cost full' });
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
