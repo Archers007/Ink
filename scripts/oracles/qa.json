@@ -1,0 +1,2592 @@
+[
+ {
+  "id": "26a71c151f",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:362"
+  ],
+  "cards": [
+   "Woody - Helping a Friend"
+  ],
+  "runnable": true,
+  "q": "If I play Woody - Helping a Friend while I have another Toy character in play, can I choose the order of resolving the effects?",
+  "a": "No, the effects are resolved in the order written on the card. If you have a Toy character in play when you play Woody, \"choose one of the following\" is replaced with \"choose both.\" When that happens, you'll first return the character card with cost 2 or less from your discard to your hand, then you may play a character with cost 2 or less for free. The effects will always resolve in that order if both are chosen."
+ },
+ {
+  "id": "fde670a184",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:389"
+  ],
+  "cards": [
+   "Celia Mae - Friendly Receptionist"
+  ],
+  "runnable": true,
+  "q": "If I play Celia Mae - Friendly Receptionist and I don't have any ready ink to use her Please Hold ability, do I still have a character that can't quest or challenge?",
+  "a": "No. If you can't pay the ability's ink cost or choose not to pay it, it's the same as if you choose \"no\" for the \"may\" part of the effect. This means that no part of that effect happens, so there's no character chosen."
+ },
+ {
+  "id": "d2e4ba52aa",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:410"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "Can the opposing character chosen with Woody's Move Along ability still sing songs?",
+  "a": "Yes, the chosen character can still sing songs or pay any ! costs. The ability simply means that the player must quest with the character before they can end their turn if the character is ready and able to quest."
+ },
+ {
+  "id": "65ff735438",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:437"
+  ],
+  "cards": [
+   "Pocahontas & Meeko - Adventurous Friends"
+  ],
+  "runnable": true,
+  "q": "Do I return a character before or after I gain the lore from questing with Pocahontas & Meeko - Adventurous Friends?",
+  "a": "After. All triggers related to the condition of a character questing resolve after the lore is gained from the quest."
+ },
+ {
+  "id": "43d8e92d1b",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:463"
+  ],
+  "cards": [
+   "Sulley & Boo - Scare Buddies"
+  ],
+  "runnable": true,
+  "q": "If Sulley & Boo - Scare Buddies is banished with cards both faceup and facedown under it, can I play characters that were facedown?",
+  "a": "Yes. When Sulley & Boo is banished, all cards under them go to the discard and become faceup. When the effect resolves, it checks if any of those cards are character cards, and since they're all faceup in your discard now, the effect can play them."
+ },
+ {
+  "id": "5c1ab49840",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:469"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "If I use Combo Shift to play Sulley & Boo on top of a dry Sulley and a drying Boo, what happens? What if the Sulley they're shifting onto is ready but the Boo is exerted?",
+  "a": "If you shift on top of a dry character and a drying character, the shifted character will be drying. If you shift them on top of a ready character and an exerted character, they'll be exerted."
+ },
+ {
+  "id": "320480fecc",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:492"
+  ],
+  "cards": [
+   "Winnie the Pooh - Hunny Archmage"
+  ],
+  "runnable": true,
+  "q": "If I have two Winnie the Pooh - Hunny Archmage characters in play, do they count for each other?",
+  "a": "Yes. \"Other Hunny characters\" means a Hunny character that isn't itself, regardless of the name of the character. One Winnie the Pooh sees the second Winnie the Pooh as an \"other\" Hunny character."
+ },
+ {
+  "id": "4ee247f5e0",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:517"
+  ],
+  "cards": [
+   "Merida - Wisp Conjurer"
+  ],
+  "runnable": true,
+  "q": "Do I exert Merida - Wisp Conjurer after she enters play to draw the card?",
+  "a": "No. Like with a character with Bodyguard, you choose if you want Merida to enter play already exerted. If you do, you'll draw a card. The choice is made as you put Merida into play."
+ },
+ {
+  "id": "bd23de30c6",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:539"
+  ],
+  "cards": [
+   "Heihei - Created by the Vine"
+  ],
+  "runnable": true,
+  "q": "If I quest with Heihei - Created by the Vine, does his Botanical Remedy ability trigger?",
+  "a": "Yes, Heihei recognizes his Floodborn classification and will trigger this ability when he quests. (We don't know, however, where he'll end up.)"
+ },
+ {
+  "id": "c0be48e422",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:559"
+  ],
+  "cards": [
+   "Morph - Little Imitator"
+  ],
+  "runnable": true,
+  "q": "What does the reminder text on Morph - Little Imitator actually mean?",
+  "a": "If a character has a Shift ability, regardless of what Shift variant it is, Morph is a legal choice for them to shift on top of. For example, if you want to shift a character with Puppy Shift onto a character, you can choose Morph even though Morph doesn't have the Puppy classification."
+ },
+ {
+  "id": "d77594e41b",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:564"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "Can I shift a character with Duo Shift onto only one Morph?",
+  "a": "No. Morph can only count as one of the characters for Duo Shift, which has a two-character requirement to use it. While you can shift onto Morph and another character with Duo Shift, Morph himself still only counts as one character."
+ },
+ {
+  "id": "b748b799e9",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:592"
+  ],
+  "cards": [
+   "Christopher Robin - Hunny Sage"
+  ],
+  "runnable": true,
+  "q": "If I have two or more Christopher Robin - Hunny Sage cards, can I include them in any deck?",
+  "a": "No. For Christopher Robin to be included in a deck, it has to match his ink types. Christopher Robin is Amethyst and Sapphire, so he can't be put into a deck that has any other ink types."
+ },
+ {
+  "id": "555c98c78b",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:613"
+  ],
+  "cards": [
+   "Winnie the Pooh & Piglet - Hunny Mages"
+  ],
+  "runnable": true,
+  "q": "If I quest with Winnie the Pooh & Piglet - Hunny Mages and I have another Amethyst character in play, how much lore do I gain?",
+  "a": "You gain 2 lore. The ink types of Winnie the Pooh & Piglet are Amethyst and Sapphire. Even though there are a total of 3 ink type symbols across all cards you have in play, the ability only"
+ },
+ {
+  "id": "aeb8f775cd",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:640"
+  ],
+  "cards": [
+   "With a Few Good Friends"
+  ],
+  "runnable": true,
+  "q": "How do I determine the ink type of the characters I have in play?",
+  "a": "There are symbols on the left side of the card below the name and version, on the same line where the classifications are listed. These symbols represent the six different ink types in Disney Lorcana. A card can have one or two symbols, and the card is the ink type of each ink type symbol listed on it. For example, With a Few Good Friends has the Amethyst ink type symbol, so it has the Amethyst ink type."
+ },
+ {
+  "id": "302c167aed",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:663"
+  ],
+  "cards": [
+   "Winnie the Pooh - Hunny Archmage",
+   "Winnie the Pooh - Hunny Wizard",
+   "One and Only"
+  ],
+  "runnable": true,
+  "q": "If my opponent has Winnie the Pooh - Hunny Wizard and Winnie the Pooh - Hunny Archmage in play and I choose one of them for One and Only, will the other be banished?",
+  "a": "Yes. When the effect compares names, it only compares the larger name on the card, not the version. Both cards are named \"Winnie the Pooh,\" so when one of them is chosen, all other Winnie the Pooh characters are banished, regardless of their versions."
+ },
+ {
+  "id": "7e68b254f3",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:683"
+  ],
+  "cards": [
+   "Narrow Escape"
+  ],
+  "runnable": true,
+  "q": "Does the effect mean that if I want to return 2 characters, items, or locations, those cards need to have a cost of 1 for a total of 2?",
+  "a": "No. You can choose up to 2 cards that each have a cost of 2 or less. You can choose one cost 1 and one cost 2 card, two cost 1 cards, or one cost 2 card. You have a lot of options!"
+ },
+ {
+  "id": "9647304f66",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:705"
+  ],
+  "cards": [
+   "Roo - Hunny Rogue"
+  ],
+  "runnable": true,
+  "q": "If I have two Roo - Hunny Rogue characters in play, do they count for each other's abilities?",
+  "a": "Yes. \"Another Hunny character\" means a Hunny character that isn't itself, regardless of the name of the character. Each Roo sees the other Roo as \"another\" Hunny character."
+ },
+ {
+  "id": "51187cbfa1",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:735"
+  ],
+  "cards": [
+   "Morph - Little Imitator",
+   "Posey - Vampire Potato",
+   "Potato"
+  ],
+  "runnable": true,
+  "q": "Can I shift Posey - Vampire Potato onto Morph - Little Imitator?",
+  "a": "Yes. Posey's Potato Shift ability says she shifts onto an item called Potato, but Morph's ability allows him to be a legal choice to shift onto, even though his name isn't the same and he isn't an item."
+ },
+ {
+  "id": "69c664bed5",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:760"
+  ],
+  "cards": [
+   "Mickey Mouse & Minnie Mouse - Adventuring Duo"
+  ],
+  "runnable": true,
+  "q": "If I have a Mickey Mouse & Minnie Mouse - Adventuring Duo in play, can I shift another Mickey Mouse & Minnie Mouse on top of them?",
+  "a": "No. While that dual-named character matches the names for the Duo Shift ability, Mickey Mouse & Minnie Mouse is still only 1 character. With Duo Shift you must shift on top of two characters stacked."
+ },
+ {
+  "id": "a86b7f0621",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:766"
+  ],
+  "cards": [
+   "Mickey Mouse & Minnie Mouse - Adventuring Duo"
+  ],
+  "runnable": true,
+  "q": "If I use Duo Shift to play Mickey Mouse & Minnie Mouse - Adventuring Duo on top of a dry Mickey Mouse and a drying Minnie Mouse, what happens? What if the Mickey Mouse they're shifting onto is ready but the Minnie Mouse is exerted?",
+  "a": "If you shift on top of a dry character and a drying character, the shifted character will be drying. If you shift them on top of a ready character and an exerted character, they'll be exerted."
+ },
+ {
+  "id": "b203aa11d0",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:799"
+  ],
+  "cards": [
+   "Omnidroid - Ultimate Iteration",
+   "Piercing Attack"
+  ],
+  "runnable": true,
+  "q": "If I play Piercing Attack and choose Omnidroid - Ultimate Iteration, which has Resist +2, what happens?",
+  "a": "First, start with the base damage of the action, which is 2 damage. Then, apply modifiers to that damage. Resist +2 would normally apply here and reduce the damage to 0. However, Piercing Attack says its damage can't be reduced by Resist, so Omnidroid's Resist +2 doesn't apply. The final total damage dealt by Piercing Attack is 2, and 2 damage counters are then placed on Omnidroid."
+ },
+ {
+  "id": "a9d984e756",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:834"
+  ],
+  "cards": [
+   "Piglet - Hunny Mage Apprentice",
+   "Boo - Energetic Child"
+  ],
+  "runnable": true,
+  "q": "If I declare Boo - Energetic Child as challenging Piglet - Hunny Mage Apprentice with 2 #, how is it possible that no damage is dealt in the challenge?",
+  "a": "There are two parts to the challenge turn action: challenge declaration and challenge damage. In the declaration step, the player chooses one of their characters to challenge another character or a location. When that process is complete, Boo's Kid-Tastrophe! ability triggers. That's when it's added to the bag and resolves, banishing Piglet before any damage is dealt to him."
+ },
+ {
+  "id": "0455f9c80b",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:862"
+  ],
+  "cards": [
+   "Ming Lee - Giant Red Panda"
+  ],
+  "runnable": true,
+  "q": "If I challenge with Ming Lee - Giant Red Panda and resolve her Path of Destruction ability, when I ready her during the challenge, does it remove her from the challenge?",
+  "a": "No. Once a character is declared as a challenger or being challenged, they can only be removed from the challenge if they leave play before the process of the challenge is complete."
+ },
+ {
+  "id": "e1159aeaba",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:884"
+  ],
+  "cards": [
+   "Prophetic Vision"
+  ],
+  "runnable": true,
+  "q": "If I play an action as part of resolving Prophetic Vision, will my opponent lose 1 lore while I gain 1 lore?",
+  "a": "No. The lore gain and loss only occur if you don't choose to play a revealed action card. If the revealed card isn't an action card or you reveal an action card and choose not to play it, that's when the lore gain and loss occur."
+ },
+ {
+  "id": "2cbb9c588b",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:906"
+  ],
+  "cards": [
+   "Look What You've Done"
+  ],
+  "runnable": true,
+  "q": "If I play Look What You've Done and put it into my discard after dealing damage, can I pay its cost again to play it from my discard?",
+  "a": "No. The second effect of Look What You've Done occurs separately from the deal damage effect. For example, if something instructs you to discard a card on your turn, you could discard it and then the option to play it from your discard would trigger."
+ },
+ {
+  "id": "93c78b9ce3",
+  "src": [
+   "docs/rules/Attack-of-the-Vine-Set-Release-Notes_EN.txt:931"
+  ],
+  "cards": [
+   "Dash Parr & Violet Parr - Super Siblings"
+  ],
+  "runnable": true,
+  "q": "If I use Combo Shift to play Dash Parr & Violet Parr - Super Siblings on top of a dry Dash Parr and a drying Violet Parr, what happens? What if the Dash Parr they're shifting onto is ready but the Violet Parr is exerted?",
+  "a": "If you shift on top of a dry character and a drying character, the shifted character will be drying. If you shift them on top of a ready character and an exerted character, they'll be exerted."
+ },
+ {
+  "id": "107c76f419",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:138",
+   "faq:Lantern",
+   "faq:Stitch - Rock Star"
+  ],
+  "cards": [
+   "Stitch - Rock Star",
+   "Lantern"
+  ],
+  "runnable": true,
+  "q": "Say I have Stitch - Rock Star in play and a cost 3 character in my hand. If I use Lantern so I can pay 1 {I} less to play that character, can I then exert the character to draw a card?",
+  "a": "No. It's not the character's cost that's reduced by Lantern but rather the amount of ink you need to pay in order to play it. The character's cost would still be 3, so they wouldn't qualify for the \"cost 2 or less\" part of the Adoring Fans ability."
+ },
+ {
+  "id": "f213bec6ed",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:163",
+   "faq:Pongo - Determined Father"
+  ],
+  "cards": [
+   "Pongo - Determined Father"
+  ],
+  "runnable": true,
+  "q": "If I have 3 copies of Pongo - Determined Father in play, how many times can I use his Twilight Bark ability per turn?",
+  "a": "3 times. You can use it once for each copy of Pongo - Determined Father you have in play. Note that if you return Pongo to your hand and then play him again, you can use his Twilight Bark ability again because the card resets when it leaves play."
+ },
+ {
+  "id": "c6f79ae3c9",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:186",
+   "faq:The Queen - Wicked and Vain"
+  ],
+  "cards": [
+   "The Queen - Wicked and Vain"
+  ],
+  "runnable": true,
+  "q": "If I have The Queen - Wicked and Vain in play and an effect makes me exert her, do I get to draw a card with her I Summon Thee ability?",
+  "a": "No. When an ability has a cost, the card's player must pay that cost to use the ability. If another effect exerts The Queen, you haven't paid the cost for I Summon Thee, so you don't get to draw the card. Additionally, you won't be able to use I Summon Thee until The Queen is readied."
+ },
+ {
+  "id": "d4041638ae",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:211",
+   "faq:Ursula - Sea Witch"
+  ],
+  "cards": [
+   "Ursula - Sea Witch"
+  ],
+  "runnable": true,
+  "q": "When I use Ursula - Sea Witch's ability You're Too Late, can I choose a ready character?",
+  "a": "Yes. Note, however, that You're Too Late doesn't exert the character you've chosen. It only prevents them from being readied if they're exerted."
+ },
+ {
+  "id": "613315b3ca",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:242",
+   "faq:Jafar - Keeper of Secrets"
+  ],
+  "cards": [
+   "Flynn Rider - Charming Rogue",
+   "Jafar - Keeper of Secrets"
+  ],
+  "runnable": true,
+  "q": "I have 2 cards in my hand plus a Jafar - Keeper of Secrets in play, and my Jafar challenges Flynn Rider - Charming Rogue. When does Flynn Rider's ability Here Comes the Smolder happen? How much damage will he take from the challenge, considering Jafar's Hidden Wonders ability?",
+  "a": "Here Comes the Smolder happens as soon as Flynn Rider is chosen to be challenged. This means the challenging player must discard a card before any damage from the challenge is dealt to either character. In this case, you'll have to discard 1 of your 2 cards, so you'll have 1 card left. Hidden Wonders increases Jafar's Strength by an amount equal to the number of cards in your hand, so he'll have +1 Strength when he deals damage to Flynn Rider in the challenge."
+ },
+ {
+  "id": "de07c4dcbf",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:279",
+   "faq:Elsa - Spirit of Winter",
+   "faq:LeFou - Instigator"
+  ],
+  "cards": [
+   "Mickey Mouse - Trumpeter",
+   "Elsa - Spirit of Winter",
+   "Fan the Flames",
+   "Freeze",
+   "LeFou - Instigator"
+  ],
+  "runnable": true,
+  "q": "If I use Elsa - Spirit of Winter's ability Deep Freeze to exert 2 characters, can they be readied with Fan the Flames on their next turn?",
+  "a": "Yes. Deep Freeze only keeps characters from readying during the Ready step of their next turn. It doesn't keep them from being readied by Fan the Flames and similar abilities. Mickey Mouse - Trumpeter"
+ },
+ {
+  "id": "ab26009c13",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:301",
+   "faq:Mickey Mouse - Trumpeter"
+  ],
+  "cards": [
+   "Mickey Mouse - Trumpeter"
+  ],
+  "runnable": true,
+  "q": "If I use Mickey Mouse - Trumpeter's Sound the Call ability, can I play a character using their Shift ability for free?",
+  "a": "It depends. \"For free\" applies only to the ink cost of playing a card, not to any other costs of playing it. If the Shift cost of the character you want to play is just ink, you can play them using their Shift ability for free. However, if their Shift cost includes other costs, those would still need to be paid."
+ },
+ {
+  "id": "bf71cfafe3",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:327",
+   "faq:Donald Duck - Perfect Gentleman"
+  ],
+  "cards": [
+   "Donald Duck - Perfect Gentleman"
+  ],
+  "runnable": true,
+  "q": "If I choose not to draw a card for Donald Duck - Perfect Gentleman's Allow Me ability, can my opponent still draw a card?",
+  "a": "Yes. Each player decides individually whether they want to draw a card at the start of your turn."
+ },
+ {
+  "id": "b4c9490208",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:350",
+   "faq:Grand Pabbie - Oldest and Wisest"
+  ],
+  "cards": [
+   "Grand Pabbie - Oldest and Wisest"
+  ],
+  "runnable": true,
+  "q": "If I have 3 damaged characters in play, including Grand Pabbie - Oldest and Wisest, and I play a card that removes damage from all my characters, how much lore do I gain from his Ancient Insight ability?",
+  "a": "6 lore. Ancient Insight triggers for each character that has damage removed, even if those characters have damage removed simultaneously."
+ },
+ {
+  "id": "71131fb1b7",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:379",
+   "faq:Pluto - Determined Defender"
+  ],
+  "cards": [
+   "Pluto - Determined Defender"
+  ],
+  "runnable": true,
+  "q": "Can I choose not to remove any damage from Pluto - Determined Defender at the start of my turn?",
+  "a": "Yes. The Guard Dog ability lets you remove up to 3 damage from Pluto, so you can choose any amount from 0 to 3."
+ },
+ {
+  "id": "ac0c607895",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:383",
+   "faq:Pluto - Determined Defender"
+  ],
+  "cards": [
+   "Pluto - Determined Defender"
+  ],
+  "runnable": true,
+  "q": "If I play Pluto - Determined Defender using his Shift ability, can I also use his Bodyguard ability to have him enter play exerted?",
+  "a": "Yes, you can do both."
+ },
+ {
+  "id": "c8231aad36",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:402",
+   "faq:Ursula's Shell Necklace"
+  ],
+  "cards": [
+   "Ursula's Shell Necklace"
+  ],
+  "runnable": true,
+  "q": "If I have Ursula's Shell Necklace in play and exert a cost 3 character to sing a cost 2 song, can I use the difference of 1 ink to use its Now, Sing! ability to draw a card?",
+  "a": "No. Ink costs, including the cost to use an ability like Now, Sing!, must be paid with ink from your inkwell. Using a character with a higher cost than necessary to sing a song doesn't generate ink."
+ },
+ {
+  "id": "adcbc53099",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:436",
+   "faq:Jafar - Keeper of Secrets",
+   "faq:Queen of Hearts - Sensing Weakness"
+  ],
+  "cards": [
+   "Queen of Hearts - Sensing Weakness",
+   "Flounder - Voice of Reason",
+   "Jafar - Keeper of Secrets"
+  ],
+  "runnable": true,
+  "q": "I have a Queen of Hearts - Sensing Weakness and a Jafar - Keeper of Secrets in play and 1 card in my hand. If I challenge my opponent's Flounder - Voice of Reason, how much damage does Flounder take?",
+  "a": "2 damage. Let the Game Begin applies as soon as a challenge is declared, so you draw a card before the challenge itself has happened. With his Hidden Wonders ability, Jafar then gains 2 Strength for the total of 2 cards you now have in your hand."
+ },
+ {
+  "id": "c6293ec3e2",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:459",
+   "faq:Dinner Bell"
+  ],
+  "cards": [
+   "Dinner Bell"
+  ],
+  "runnable": true,
+  "q": "If I use Dinner Bell's You Know What Happens ability, can I choose one of my characters that doesn't have any damage?",
+  "a": "Yes. If you did, you wouldn't draw any cards because there's no damage on the character you chose, but you'd still banish that character. It certainly is a bold choice, but hey, you do you!"
+ },
+ {
+  "id": "b222ffbbc3",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:480",
+   "faq:Last-Ditch Effort"
+  ],
+  "cards": [
+   "Last-Ditch Effort"
+  ],
+  "runnable": true,
+  "q": "The only character my opponent has in play has Ward. Can I still play Last-Ditch Effort and give my character Challenger +2 even though I can't choose an opposing character?",
+  "a": "Yes. When there aren't any eligible opposing characters to choose for the first part of Last-Ditch Effort, that part of its effect simply finishes without exerting a character. However, the second part of its effect still happens, so you still choose a character of yours to get Challenger +2 until the end of the turn."
+ },
+ {
+  "id": "939d268d91",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:506",
+   "faq:Moana - Of Motunui"
+  ],
+  "cards": [
+   "Moana - Of Motunui"
+  ],
+  "runnable": true,
+  "q": "If I quest with Moana - Of Motunui and use her We Can Fix It ability, can I choose which Princess characters I ready? If I instead ready them with other effects later in the turn, can they quest that turn?",
+  "a": "No, you can't choose only some of your Princess characters for We Can Fix It. When you use the ability, you must ready all of your Princess characters. If you don't use We Can Fix It, your other Princess characters can quest as normal and you can ready them with other abilities and effects later in the turn."
+ },
+ {
+  "id": "0559720810",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:532",
+   "faq:Pluto - Friendly Pooch"
+  ],
+  "cards": [
+   "Pluto - Friendly Pooch"
+  ],
+  "runnable": true,
+  "q": "Can I use Pluto - Friendly Pooch's Good Dog ability to reduce the ink I need to pay for the Shift cost of a character?",
+  "a": "Yes. The Good Dog ability reduces the amount of ink you have to pay for the character, which includes the ink needed for an alternate cost like Shift."
+ },
+ {
+  "id": "92b256bbf8",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:564",
+   "faq:Alice - Growing Girl"
+  ],
+  "cards": [
+   "Alice - Growing Girl",
+   "Dragon Gem"
+  ],
+  "runnable": true,
+  "q": "Can I use a Dragon Gem to return Alice - Growing Girl from my discard to my hand?",
+  "a": "No. Even though Alice's ability Good Advice mentions Support, she herself doesn't have Support, so she isn't affected by abilities and effects that interact with it. If you have 2 or more copies of Alice in play, however, they give each other Support. Then abilities and items that interact with Support would apply to all of them."
+ },
+ {
+  "id": "c8ceaf64b6",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:588",
+   "faq:Ursula - Voice Stealer"
+  ],
+  "cards": [
+   "Ursula - Voice Stealer"
+  ],
+  "runnable": true,
+  "q": "If my opponent doesn't have a ready character, can I still play a song with Ursula - Voice Stealer's Sing for Me ability?",
+  "a": "No. If there's no opposing ready character, there's no cost to reference for the second part of the effect. The effect resolves with no effect."
+ },
+ {
+  "id": "dbaae3f563",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:612",
+   "faq:I2I"
+  ],
+  "cards": [
+   "I2I"
+  ],
+  "runnable": true,
+  "q": "If I sing I2I with only 1 character and then ready that character later in the turn, can I quest with them?",
+  "a": "Yes. The restriction on questing applies only if 2 or more characters were used to sing I2I."
+ },
+ {
+  "id": "54369e78cd",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:637",
+   "faq:Cruella De Vil - Style Icon"
+  ],
+  "cards": [
+   "Cruella De Vil - Style Icon"
+  ],
+  "runnable": true,
+  "q": "Does Cruella De Vil - Style Icon's ability Out of Season trigger when an opponent's character with cost 2 or less is banished?",
+  "a": "Yes. Out of Season doesn't specify that the banished character must be yours, so it applies whenever your opponents' characters are banished, too."
+ },
+ {
+  "id": "14b346edee",
+  "src": [
+   "docs/rules/Fabled_SetReleaseNotes_EN.txt:660",
+   "faq:Powerline - Musical Superstar"
+  ],
+  "cards": [
+   "Powerline - Musical Superstar"
+  ],
+  "runnable": true,
+  "q": "During my turn, if I play Powerline - Musical Superstar after I played a song, does he still gain Rush?",
+  "a": "Yes. Powerline's ability Electric Move is a static ability, not one that triggers \"When you play this character.\" It doesn't matter which card was played first, only that a song was played this turn."
+ },
+ {
+  "id": "88322c82c0",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:293"
+  ],
+  "cards": [
+   "Russell - Junior Wilderness Explorer",
+   "Port Authority - Center Hub",
+   "Ancestral Guitar"
+  ],
+  "runnable": true,
+  "q": "With Ancestral Guitar's ability From the Heart, if I chose a character that already has Singer, do they still get the +2 cost to sing songs?",
+  "a": "Yes. Even though gaining Singer wouldn't apply (because a card with the Singer keyword has that ability in perpetuity), the effect still does as much as it can, so the +2 cost part applies for that turn. Port Authority - Center Hub / Russell - Junior Wilderness Explorer"
+ },
+ {
+  "id": "1aba9cc580",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:324"
+  ],
+  "cards": [
+   "Nick Wilde - Inquisitive Harbormaster",
+   "Russell - Junior Wilderness Explorer",
+   "Port Authority - Center Hub"
+  ],
+  "runnable": true,
+  "q": "If I move 2 characters to Port Authority - Center Hub at the same time, say with Russell - Junior Wilderness Explorer's ability, how many ink drops and how much lore should each player get?",
+  "a": "Each player will get 1 ink drop and 1 lore. When both characters move to the location at the same time, the ability triggers and is added to the bag twice. When the first one resolves, it fulfills the \"once during your turn\" condition of the trigger and resolves successfully. When the second one resolves, since the \"once\" condition has already been fulfilled, the triggered ability resolves with no effect. Nick Wilde - Inquisitive Harbormaster"
+ },
+ {
+  "id": "355fcf27e8",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:351"
+  ],
+  "cards": [
+   "Mr. Manchas - Service with a Smile"
+  ],
+  "runnable": true,
+  "q": "If I give a character with 0 # the Adventurous keyword with Nick Wilde's Restricted Route ability, do they still have to quest?",
+  "a": "Yes, although sadly you won't gain any lore from their adventure. Mr. Manchas - Service with a Smile"
+ },
+ {
+  "id": "ef58bcc531",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:368"
+  ],
+  "cards": [
+   "Mr. Manchas - Service with a Smile",
+   "Nick Wilde - Toy Drive Officer"
+  ],
+  "runnable": true,
+  "q": "If I quest with Mr. Manchas - Service with a Smile twice in the same turn, do I pay 1 ! less or 2 ! less for the next character I play this turn?",
+  "a": "You pay 2 ! less. The payment reduction stacks as many times as the triggered ability resolves before playing the next character. Nick Wilde - Toy Drive Officer"
+ },
+ {
+  "id": "8d76c6fa0d",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:394"
+  ],
+  "cards": [
+   "Nick Wilde - Toy Drive Officer"
+  ],
+  "runnable": true,
+  "q": "Does Nick Wilde - Toy Drive Officer count himself for his Community Outreach ability the turn you play him?",
+  "a": "Yes. On the turn you play him, he counts as 1 of the \"2 or more characters.\""
+ },
+ {
+  "id": "8b49e397d2",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:419"
+  ],
+  "cards": [
+   "Clawhauser - Safety Officer"
+  ],
+  "runnable": true,
+  "q": "If an effect says I can play a character \"for free,\" can I play Clawhauser - Safety Officer if I haven't played another character that turn?",
+  "a": "No. You must have played another character that turn in order to play Clawhauser by any means, whether as part of the normal turn action or by using an effect that allows you to play him."
+ },
+ {
+  "id": "edf5f62355",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:456"
+  ],
+  "cards": [
+   "Never Gonna Let You Cry",
+   "Powerline - Megastar"
+  ],
+  "runnable": true,
+  "q": "If I use Powerline - Megastar to sing Never Gonna Let You Cry, in what order do I return characters from my discard to my hand?",
+  "a": "You resolve the song first and then the triggered ability from Powerline. In this instance, first you return up to 2 character cards with cost 2 or less each from your discard to your hand. Then, you resolve Powerline's triggered ability and return a character card with Singer from your discard to your hand."
+ },
+ {
+  "id": "db6c89b98a",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:488"
+  ],
+  "cards": [
+   "Donald Duck - Taxi Driver",
+   "Flash - Efficient Clerk"
+  ],
+  "runnable": true,
+  "q": "If I have Flash - Efficient Clerk in play when my opponent plays Donald Duck - Taxi Driver, and they choose Donald Duck for the triggered ability, what happens?",
+  "a": "Due to Flash's Take . . . Your . . . Time ability, Donald . . . Duck . . . can't . . . gain . . . Rush."
+ },
+ {
+  "id": "3eee0f5949",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:510"
+  ],
+  "cards": [
+   "Winnie the Pooh & Piglet - Hunny Mages",
+   "Everyone Knows Juanita",
+   "Merlin's Wand"
+  ],
+  "runnable": false,
+  "q": "When I play Everyone Knows Juanita, does it count toward the \"10 or more cards in your discard\"?",
+  "a": "No. When you play an action, it's still in play while its ability resolves. Therefore, it wouldn't be in your discard when you're counting cards to determine if you have 10 or more. Once its ability resolves, then it goes into the discard. Merlin's Wand / Winnie the Pooh & Piglet - Hunny Mages"
+ },
+ {
+  "id": "4b551d0085",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:540"
+  ],
+  "cards": [
+   "Winnie the Pooh & Piglet - Hunny Mages",
+   "Merlin's Wand",
+   "Remember Me"
+  ],
+  "runnable": false,
+  "q": "If I use the Merlin's Wand Magic Touch ability and choose to reveal Winnie the Pooh & Piglet - Hunny Mages, do I have to reveal another Winnie the Pooh & Piglet or can I reveal any Winnie the Pooh or Piglet?",
+  "a": "Winnie the Pooh & Piglet - Hunny Mages has three names: Winnie the Pooh, Piglet, and Winnie the Pooh & Piglet. As long as the second card you reveal matches one of those names, you've paid the ability's cost successfully. Remember Me"
+ },
+ {
+  "id": "fbeb1c26e6",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:567"
+  ],
+  "cards": [
+   "Remember Me"
+  ],
+  "runnable": true,
+  "q": "If I play Remember Me and then play a card that allows me to play a character for free, can I play the free character from my discard?",
+  "a": "Yes. Remember Me allows you to play characters from your discard whenever you can play a character that turn, if you so choose. But it also still requires that, if you play a character from your discard with that effect, the character must enter play exerted and you can't play characters with the same name for the rest of the turn."
+ },
+ {
+  "id": "51e52385b2",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:574"
+  ],
+  "cards": [
+   "Rapunzel - Outgoing Artist",
+   "Remember Me"
+  ],
+  "runnable": true,
+  "q": "If I somehow play Remember Me on my opponent's turn, can I then play a character from my discard?",
+  "a": "No. Remember Me doesn't tell you to play a character but simply allows you to play characters from your discard if you're able to play a card. That said, if you somehow played Remember Me on your opponent's turn and also somehow played a card that allowed you to play a character for free during their turn, you could play a character from your discard. Rapunzel - Outgoing Artist"
+ },
+ {
+  "id": "8b42aa89ee",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:601"
+  ],
+  "cards": [
+   "Rapunzel - Outgoing Artist",
+   "Yama - Notorious Criminal"
+  ],
+  "runnable": true,
+  "q": "If I quest with Rapunzel - Outgoing Artist and she's the only character in play, can I reveal another character named Rapunzel from my hand?",
+  "a": "No. Rapunzel's Picture Perfect ability specifically says to choose \"another\" character, so you can't choose Rapunzel if she's the only character in play. If you or an opponent had another Rapunzel in play, then you could reveal any character card from your hand (including a Rapunzel), since you could choose \"another\" character besides the specific copy of Rapunzel - Outgoing Artist whose ability you're using. Yama - Notorious Criminal"
+ },
+ {
+  "id": "1bcab3056c",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:623"
+  ],
+  "cards": [
+   "Yama - Notorious Criminal"
+  ],
+  "runnable": true,
+  "q": "If I use Yama - Notorious Criminal's Keep 'Em Coming ability twice in the same turn, how many ink drop counters do I get when one of my characters challenges another character?",
+  "a": "You'd get 2. Each use of Yama's ability creates a separate floating triggered ability, and all of them trigger when the condition is met. In this case, if you've used the ability twice, then you have two instances of the floating triggered ability, both of which trigger on the challenge."
+ },
+ {
+  "id": "355bb229dc",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:650"
+  ],
+  "cards": [
+   "Belle - Exceptional Writer"
+  ],
+  "runnable": true,
+  "q": "If I quest with Belle - Exceptional Writer twice in the same turn, do I pay 2 ! less or 4 ! less for the next action I play this turn?",
+  "a": "You pay 4 ! less. The payment reduction stacks as many times as the triggered ability resolves before playing the next action."
+ },
+ {
+  "id": "c7b440f044",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:674"
+  ],
+  "cards": [
+   "Miguel Rivera - Street Musician",
+   "Jukebox"
+  ],
+  "runnable": true,
+  "q": "If I have 2 song cards in my discard, does Miguel Rivera - Street Musician get +1 # or +2 #?",
+  "a": "He gets +1 #. Miguel's condition only takes into account whether you have a song card in your discard, not how many there are. Jukebox"
+ },
+ {
+  "id": "d0d9af7b2e",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:723"
+  ],
+  "cards": [
+   "Leaning Tower of Cheese-a",
+   "Intense Research"
+  ],
+  "runnable": true,
+  "q": "If I somehow have more than 4 copies of Leaning Tower of Cheese-a in play, do my items still gain Ward?",
+  "a": "No. You must have exactly 4 copies of Leaning Tower of Cheese-a in play to gain Ward. It can only lean so much. Intense Research"
+ },
+ {
+  "id": "b8bfa4da1e",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:740"
+  ],
+  "cards": [
+   "Intense Research"
+  ],
+  "runnable": true,
+  "q": "If I removed an ink drop to play Intense Research, do I still put a card into my hand and the rest on the bottom of my deck in any order?",
+  "a": "Yes. The replacement effect only replaces the part that it can affect, which is how many cards you can look at. The rest of the effect happens as normal."
+ },
+ {
+  "id": "adbb1f997d",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:765"
+  ],
+  "cards": [
+   "Thomas O'Malley - Savvy Vagabond",
+   "Break"
+  ],
+  "runnable": false,
+  "q": "If I quest with Thomas O'Malley - Savvy Vagabond and the cards my opponent and I reveal are both cost 5, do we both get to put the cards we revealed into our hands?",
+  "a": "Yes. If you both revealed a cost 5 card, then the highest cost among the cards revealed is 5 and the cards are tied. As the card states, when there's a tie for highest cost, you both put your revealed cards into your respective hands."
+ },
+ {
+  "id": "02516bf043",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:788"
+  ],
+  "cards": [
+   "Duchess - Cosmopolitan Cat",
+   "Spyglass Hat"
+  ],
+  "runnable": true,
+  "q": "When I play an item and I have Spyglass Hat in play, what counts as a different name?",
+  "a": "If the name of the item you played doesn't exactly match any name of any other item you have in play, then the triggered ability on Spyglass Hat resolves and you get to put a card from your hand into your inkwell facedown and exerted. However, if you have a Spyglass Hat in play and then play another Spyglass Hat during your next turn, the second would match the name of an item you already have in play, so the triggered ability would resolve for no effect. Duchess - Cosmopolitan Cat"
+ },
+ {
+  "id": "a3972cba38",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:813"
+  ],
+  "cards": [
+   "Duchess - Cosmopolitan Cat"
+  ],
+  "runnable": true,
+  "q": "If I have Duchess - Cosmopolitan Cat plus a character with cost 7 in play and my opponent has an item with cost 8 in play, does my Duchess get +1 # with her Upper Crust ability?",
+  "a": "Yes. That ability compares only characters in play, not items or other card types, so your Duchess would get +1 #."
+ },
+ {
+  "id": "4710b207c8",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:840"
+  ],
+  "cards": [
+   "Minnie Mouse - Urban Visionary",
+   "Ariel - Collector of Oddities"
+  ],
+  "runnable": false,
+  "q": "If I choose \"no\" for either \"may\" option in Minnie Mouse - Urban Visionary's All by Design ability, does the entire ability no longer resolve?",
+  "a": "No. If you choose \"no\" for either option in that ability, only the part that's tied to the specific \"may\" wouldn't happen and you'd do as much as you can for the rest. For example, you could choose to look at the cards in your inkwell and not return one to your hand or you could choose not to look at the cards in your inkwell and then choose to return one to your hand. Either way, you exert all of the cards in your inkwell. If you choose \"no\" for both, the entire ability wouldn't resolve, in which case you wouldn't exert all the cards in your inkwell. Ariel - Collector of Oddities"
+ },
+ {
+  "id": "2504d33ba9",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:864"
+  ],
+  "cards": [
+   "Ariel - Collector of Oddities",
+   "Spyglass Hat"
+  ],
+  "runnable": true,
+  "q": "When I play an item and I have Ariel - Collector of Oddities in play, what counts as a different name?",
+  "a": "If the name of the item you played doesn't exactly match any name of any other item you have in play, then the triggered ability on Ariel resolves and you get to draw a card. For example, if you have a Spyglass Hat in play and then play another Spyglass Hat during your next turn, the second would match the name of an item you already have in play, so the triggered ability would resolve for no effect."
+ },
+ {
+  "id": "2109312180",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:891"
+  ],
+  "cards": [
+   "Baymax - Amped Up"
+  ],
+  "runnable": true,
+  "q": "Does removing the ink drop counters for Baymax - Amped Up's Shift ability count as paying ink?",
+  "a": "No. With Baymax's Shift cost, you're simply removing 2 ink drop counters and not using those ink drops to pay for ink."
+ },
+ {
+  "id": "b4f89efce3",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:913"
+  ],
+  "cards": [
+   "Madam Mim - Resourceful Trickster",
+   "Flippant Taunt"
+  ],
+  "runnable": false,
+  "multiplayer": true,
+  "q": "Let's say I'm playing in a 4-person multiplayer game and an opponent chooses one of my characters for Flippant Taunt but then leaves the game during their turn. Does my character still have Reckless?",
+  "a": "Yes. Static abilities generated by effects last until their stated duration ends, even if the player who generated the effect has left the game. And yes, this is a little weird. Madam Mim - Resourceful Trickster"
+ },
+ {
+  "id": "c0eaf5e7a3",
+  "src": [
+   "docs/rules/Hyperia-set-notes_EN.txt:936"
+  ],
+  "cards": [
+   "Madam Mim - Resourceful Trickster"
+  ],
+  "runnable": true,
+  "q": "Does Madam Mim - Resourceful Trickster's ability Bauble Game trigger if I used ink drop counters to play her?",
+  "a": "No. Madam Mim needs to be in play for the second ability to trigger, and the ink drops used to play her were removed before she was in play."
+ },
+ {
+  "id": "4e552703dc",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:354"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "If I choose not to return a card to my hand, do I still have to discard a card?",
+  "a": "No. If you choose not to do the \"may\" part of an ability, nothing in the sentence after that happens, which includes the effect to choose and discard a card."
+ },
+ {
+  "id": "463fc353d0",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:386"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "How does Rapunzel's Act of Kindness ability work?",
+  "a": "Act of Kindness is a triggered ability that creates a static replacement effect whenever you choose one of your characters for Support. This static effect lasts until it's used or until the start of your next turn, whichever comes first. A static replacement effect exists independently of the character it was chosen for, so if another effect causes the character to lose all abilities, the static replacement effect is unaffected."
+ },
+ {
+  "id": "660e340c8f",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:393"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "If multiple instances of the replacement effect generated by Act of Kindness can apply at the same time, do they stick around if they're not applied the next time damage is dealt?",
+  "a": "No, if an event would be affected by multiple instances of the same replacement effect, their player chooses which one to apply and the other effects cease to exist. For example, if there are two static replacement effects generated from Act of Kindness, they could both apply to the next"
+ },
+ {
+  "id": "b004e36c91",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:425"
+  ],
+  "cards": [
+   "The Black Cauldron"
+  ],
+  "runnable": true,
+  "q": "Does putting a card under The Black Cauldron count as playing that card?",
+  "a": "No. A card that's been put under The Black Cauldron isn't considered to have been played or to be in play. Therefore, putting a card under The Black Cauldron with its The Cauldron Calls ability won't cause any \"whenever you play\" abilities to trigger."
+ },
+ {
+  "id": "c755df374e",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:429"
+  ],
+  "cards": [
+   "The Black Cauldron"
+  ],
+  "runnable": true,
+  "q": "Can I look at cards put under The Black Cauldron with its The Cauldron Calls ability?",
+  "a": "Yes. Any player can look at faceup cards under any card at any time."
+ },
+ {
+  "id": "fc68c630c8",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:457"
+  ],
+  "cards": [
+   "Nana - Canine Caregiver"
+  ],
+  "runnable": true,
+  "q": "If I don't have any cards in my hand when I play Nana - Canine Caregiver, can I still choose to return a character to their player's hand?",
+  "a": "No. You need to choose and discard a card when you play her in order to return a character to their player's hand. Discarding a card is a cost you have to pay in order to get the effect. If you don't discard a card, nothing in the rest of the sentence happens."
+ },
+ {
+  "id": "878875592d",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:504"
+  ],
+  "cards": [
+   "Beast - Aggressive Lord",
+   "Blessed Bagpipes"
+  ],
+  "runnable": true,
+  "q": "If my Beast - Aggressive Lord challenges a character with a card under them and my opponent has a Blessed Bagpipes in play, what happens if they're at 19 lore?",
+  "a": "When you declare Beast as a challenger, both his triggered ability and Blessed Bagpipes' triggered ability go into the bag. The active player chooses and resolves their triggered abilities first, so you resolve Beast's ability and gain 1 lore while your opponent loses 1 lore, bringing their lore total to 18. With no more triggered abilities in the bag for you to resolve, your opponent then resolves the Bagpipes' ability and gains 1 lore, which brings them back up to 19. This all happens before damage is dealt."
+ },
+ {
+  "id": "d173695e04",
+  "src": [
+   "docs/rules/Whispers-in-the-Well_ReleaseNotes_English.txt:542"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "Does Hercules's ability Ever Vigilant apply when he's challenging, too?",
+  "a": "No. The difference between a challenging character and one that's being challenged is whether they're the active player's character or the opponent's character. The active player declares which of their characters is the challenger, and the opposing character they chose is the"
+ },
+ {
+  "id": "73fbebcfe3",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:143"
+  ],
+  "cards": [
+   "Chip - Retrieval Expert",
+   "Dale - Bumbler"
+  ],
+  "runnable": true,
+  "q": "When I play this character, if I have another copy of Pedro Madrigal in play, can I remove the damage from that copy?",
+  "a": "No. The \"him\" in the Devoted Family ability refers to this character only, not another character in play with the same name. Chip - Retrieval Expert / Dale - Bumbler"
+ },
+ {
+  "id": "f05f282a0e",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:174"
+  ],
+  "cards": [
+   "Isabela Madrigal - Such a Lovely Voice",
+   "Chip - Retrieval Expert",
+   "Dale - Bumbler"
+  ],
+  "runnable": true,
+  "q": "If I have Dale - Bumbler in my discard, who has 3 {W}, and I play Chip - Retrieval Expert, can I return Dale to my hand?",
+  "a": "No. Chip's Friendly Assist ability works only on characters named Dale that are in play. It doesn't work on characters named Dale in any other zone. Isabela Madrigal - Such a Lovely Voice"
+ },
+ {
+  "id": "12ed1b9b21",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:194"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "If I moved damage from one of my characters this turn, would that cause Isabela's New Motif ability to trigger?",
+  "a": "Yes. Moving damage counts as removing damage. You first remove the damage from one card in order to put it on another."
+ },
+ {
+  "id": "ae8cb003cc",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:220"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "If I move damage from one of my characters this turn, does that cause Isabela's Do No Wrong ability to trigger?",
+  "a": "Yes. Moving damage counts as removing damage. You first remove the damage from one card in order to put it on another."
+ },
+ {
+  "id": "2429ac1a50",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:225"
+  ],
+  "cards": [
+   "Jessie - Lively Cowgirl"
+  ],
+  "runnable": true,
+  "q": "If I remove 2 damage from one of my characters, will I resolve Isabela's Do No Wrong ability twice?",
+  "a": "No. The ability triggers only once, no matter how much damage was removed. You'll gain lore equal to the damage removed. Jessie - Lively Cowgirl"
+ },
+ {
+  "id": "ea95b1cfc8",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:248"
+  ],
+  "cards": [
+   "Dale - Ready for His Shot"
+  ],
+  "runnable": true,
+  "q": "Does Jessie's Yodel-ay-hee-hoo! ability trigger if I use a payment modifier to play a higher-cost card for 2 {I} or less?",
+  "a": "Yes. That ability only cares about the total ink cost paid to play a card, which is determined after all payment modifiers are applied. As long as you paid no more than 2 {I} to play a card, the Yodel-ay-hee-hoo! ability triggers. For example, if you played a cost 3 card and modified the payment to pay 1 {I} less, you paid a total ink cost of 2 {I} and the ability triggers. Dale - Ready for His Shot"
+ },
+ {
+  "id": "deec776f7e",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:268"
+  ],
+  "cards": [
+   "Dale - Ready for His Shot"
+  ],
+  "runnable": true,
+  "q": "If I have Dale - Ready for His Shot in play, would an effect that modifies the {S} of a character affect how much damage a character deals in a challenge?",
+  "a": "No. Dale's Spike Suit ability replaces the characteristic that's used to calculate the total amount of damage dealt in a challenge. Instead of using the {S} value, you'd use the {W} value, so anything that modifies the {S} of the character doesn't affect the damage calculation. However, anything that modifies the {W} of a character does affect the damage calculation."
+ },
+ {
+  "id": "5ec4bffb0a",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:291"
+  ],
+  "cards": [
+   "Ranger Team-Up"
+  ],
+  "runnable": true,
+  "q": "How does Ranger Team-Up work? Normally, {S} modifiers are written as \"+N {S},\" such as \"+1 {S}.\"",
+  "a": "You take the value of the chosen character's {W} and make it the N value of the modifier. For example, if I chose a character with 2 {W}, that character would get +2 {S}."
+ },
+ {
+  "id": "07b3bc9b48",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:295"
+  ],
+  "cards": [
+   "Ranger Team-Up",
+   "Metamorphosis"
+  ],
+  "runnable": false,
+  "q": "If an effect is modifying a character's {W}, does Ranger Team-Up take the modified {W} or the printed {W}?",
+  "a": "It uses the modified {W}. For example, if the chosen character has 2 {W} and an effect gives that character +1 {W}, then the chosen character would get +3 {S}. Metamorphosis"
+ },
+ {
+  "id": "bbc3397cc3",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:310"
+  ],
+  "cards": [
+   "Metamorphosis"
+  ],
+  "runnable": false,
+  "q": "Does a character need to have the Shift keyword in order to be played by Metamorphosis?",
+  "a": "Yes. This also means that you need to have a character in play that you can shift the character on top of."
+ },
+ {
+  "id": "4e11570d04",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:331"
+  ],
+  "cards": [
+   "Luisa Madrigal - Confident Climber"
+  ],
+  "runnable": true,
+  "q": "If I move damage from one of my characters this turn, would that cause Pepa's Silver Lining ability to trigger?",
+  "a": "Yes. Moving damage counts as removing damage. You first remove the damage from one card in order to put it on another. Luisa Madrigal - Confident Climber"
+ },
+ {
+  "id": "03a8eb4bc2",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:357"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "Can I use Luisa's I Can Take It ability during the turn she's played?",
+  "a": "Yes. The ability doesn't have {E} as a cost, so it can be used the same turn she's played."
+ },
+ {
+  "id": "da7f924502",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:360"
+  ],
+  "cards": [
+   "Dash Parr - Lava Runner"
+  ],
+  "runnable": true,
+  "q": "If Lusia has 3 damage and I use her ability to move 1 damage to her, what happens?",
+  "a": "If there's an opposing character you can choose to move the damage to, you'll move 4 damage from her to chosen opposing character and Luisa won't be banished. This means that she'll temporarily have damage equal to her {W}, but because the effect is still resolving, the damage will be removed by the time a game state check occurs. If there's not an opposing character to move damage to after moving 1 damage to herself, then she has 4 damage when the game state check occurs and will be banished as a result. Dash Parr - Lava Runner"
+ },
+ {
+  "id": "b03921267b",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:381"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "Can Dash sing songs the turn he's played?",
+  "a": "No. He can't {E} the turn he's played for singing, costs, or other abilities. He can only {E} the turn he's played to challenge because of Rush or to quest because of his ability Record Time."
+ },
+ {
+  "id": "775fc6f976",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:403"
+  ],
+  "cards": [
+   "RC - Remote-Controlled Car",
+   "DunBroch Family Tapestry"
+  ],
+  "runnable": true,
+  "q": "If a player doesn't have any character cards in their discard, do they still shuffle their deck?",
+  "a": "No. Since there are no cards for that player to shuffle into the deck, the shuffle doesn't happen for them. RC - Remote-Controlled Car"
+ },
+ {
+  "id": "0a026a9f5f",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:420"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "With RC's Low Batteries ability, when is the cost paid to quest or challenge?",
+  "a": "It's paid during the process of questing or challenging, specifically at the part where the quest or challenge is checked for any limiters or requirements, like Evasive or Bodyguard."
+ },
+ {
+  "id": "4e2d9bd493",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:427"
+  ],
+  "cards": [
+   "Stitch - Carefree Snowboarder",
+   "Alien - True Believer"
+  ],
+  "runnable": true,
+  "q": "If RC gains the Reckless ability, am I forced to pay 1 {I} to quest or challenge with him?",
+  "a": "No. RC's ability says he can't challenge or quest unless 1 {I} is paid, and Reckless only requires that RC be declared a challenger if he's able to challenge. Since RC can't challenge normally due to his static ability, he can't challenge unless you choose to pay the cost. If you do pay 1 {I}, then RC can challenge only because of Reckless. Alien - True Believer / Stitch - Carefree Snowboarder"
+ },
+ {
+  "id": "2a4d389df3",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:457"
+  ],
+  "cards": [
+   "Stitch - Carefree Snowboarder"
+  ],
+  "runnable": true,
+  "q": "Can I return Stitch - Carefree Snowboarder with Alien's He Has Been Chosen ability?",
+  "a": "No. The ability applies only to cards named Alien, not cards that just have the Alien classification."
+ },
+ {
+  "id": "03e08e90d0",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:481"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "What does \"non-character\" mean in Buzz's Secret Mission ability?",
+  "a": "It means any card that isn't a character card type, so the effect will trigger only if you pay 2 {I} or less to play an action, item, or location."
+ },
+ {
+  "id": "a5ebeec222",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:485"
+  ],
+  "cards": [
+   "The Family Scattered"
+  ],
+  "runnable": false,
+  "q": "Does Buzz's World's Greatest Toy ability trigger if I use a payment modifier to play a higher-cost card for 2 {I} or less?",
+  "a": "Yes. That ability only cares about the total ink cost paid to play a card, which is determined after all payment modifiers are applied. As long as you paid no more than 2 {I} to play a card, the World's Greatest Toy ability triggers. The same holds true for his Secret Mission ability. For example, if you played a cost 3 card and modified the payment to pay 1 {I} less, you paid a total ink cost of 2 {I} and the ability triggers. The Family Scattered"
+ },
+ {
+  "id": "b5822180a3",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:507"
+  ],
+  "cards": [
+   "The Family Scattered",
+   "Buzz's Arm"
+  ],
+  "runnable": false,
+  "q": "Can I choose an opponent with fewer than 3 characters in play for The Family Scattered's effect?",
+  "a": "Yes. In that case, the opponent will do as much as they can and resolve the effect in the order written. If the opponent has only 1 character in play, they'll return that card to their hand. If the opponent has 2 characters in play, they'll first return one to their hand and then put the other on the bottom of their deck. Buzz's Arm"
+ },
+ {
+  "id": "b35bf33485",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:526"
+  ],
+  "cards": [
+   "Babyhead - Leader of Sid's Toys",
+   "Buzz Lightyear - Space Ranger",
+   "Buzz's Arm"
+  ],
+  "runnable": true,
+  "q": "My opponent challenged and banished my Buzz Lightyear - Space Ranger on their turn. Can I now play Buzz's Arm?",
+  "a": "No. The Buzz's Arm ability Missing Piece doesn't affect when the item can be played, only that it can be played for free. You still need to adhere to the normal timing restriction of playing cards only on your turn. Babyhead - Leader of Sid's Toys"
+ },
+ {
+  "id": "0c9c1d058a",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:549"
+  ],
+  "cards": [
+   "Hercules - Young Rescuer"
+  ],
+  "runnable": true,
+  "q": "Does Babyhead's Tighten the Bolts ability trigger if I use a payment modifier to play a higher-cost card for 2 {I} or less?",
+  "a": "Yes. That ability only cares about the total ink cost paid to play a card, which is determined after all payment modifiers are applied. As long as you paid no more than 2 {I} to play a card, the Tighten the Bolts ability triggers. For example, if you played a cost 3 card and modified the payment to pay 1 {I} less, you paid a total ink cost of 2 {I} and the ability triggers. Hercules - Young Rescuer"
+ },
+ {
+  "id": "4473889d65",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:570"
+  ],
+  "cards": [
+   "Hercules - Young Rescuer"
+  ],
+  "runnable": true,
+  "q": "If I have only Hercules - Young Rescuer in my hand and play him, can I still resolve his Heroic Sacrifice ability?",
+  "a": "Yes. Discarding your hand doesn't require that you have any cards in your hand."
+ },
+ {
+  "id": "061d9fda41",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:594"
+  ],
+  "cards": [
+   "Mr. Incredible - Super Strong"
+  ],
+  "runnable": true,
+  "q": "When I'm adding opposing characters' {S} values together to get the total {S}, do I take into account any effects that modify {S}?",
+  "a": "Yes. You'll use the current {S} values of the characters. For example, if your opponent has a 2 {S} character that gets +1 {S} from an effect, that character's current {S} value would be 3. It's important to note that if a character's current {S} would be less than 0, it's considered to be 0 for this calculation. Mr. Incredible - Super Strong"
+ },
+ {
+  "id": "bfa96fd685",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:621"
+  ],
+  "cards": [
+   "Bruno Madrigal - Oasis Oracle"
+  ],
+  "runnable": true,
+  "q": "Would I draw a card due to Mr. Incredible's Let's Do This! ability if he's the one challenging another character?",
+  "a": "Yes, the ability still triggers. He has the Super classification, and the ability doesn't restrict the condition to \"other\" Super characters. Bruno Madrigal - Oasis Oracle"
+ },
+ {
+  "id": "cea576ed2f",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:643"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "If I move damage from one of my characters this turn, would that cause Bruno's Find That Vision ability to trigger?",
+  "a": "Yes. Moving damage counts as removing damage. You first remove the damage from one card in order to put it on another."
+ },
+ {
+  "id": "7cd39ff865",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:667"
+  ],
+  "cards": [
+   "Shepherd's Journal"
+  ],
+  "runnable": true,
+  "q": "If I move damage from one of my characters, can I activate the ability That Did the Trick to gain 1 lore?",
+  "a": "Yes. Moving damage counts as removing damage. You first remove the damage from one card in order to put it on another. Shepherd's Journal"
+ },
+ {
+  "id": "a5b3762396",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:689"
+  ],
+  "cards": [
+   "Syndrome - Out for Revenge",
+   "Shepherd's Journal"
+  ],
+  "runnable": false,
+  "q": "When I play Shepherd's Journal, if I choose not to look at the top card of my deck, do I still have to put it on either the top of my deck or into my discard?",
+  "a": "No. The word \"may\" allows you to choose whether that part of the effect happens. If you choose not to do what's described, that part doesn't happen. Since there's no card to reference for the \"it\" in the second part of the effect, there's nothing to move. Syndrome - Out for Revenge"
+ },
+ {
+  "id": "6581dd79ba",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:712"
+  ],
+  "cards": [
+   "Can't Hold It Back Anymore",
+   "Merida - Formidable Archer"
+  ],
+  "runnable": true,
+  "q": "Does a Robot character need to have the Shift ability in order to be shifted into play with Syndrome's Got Me Monologuing! ability?",
+  "a": "Yes. This also means that you need to have a character in play that you can shift the Robot character on top of. Merida - Formidable Archer / Can't Hold It Back Anymore"
+ },
+ {
+  "id": "c688a864b2",
+  "src": [
+   "docs/rules/Wilds-Unknown_SetReleaseNotes_EN.txt:743"
+  ],
+  "cards": [
+   "Can't Hold It Back Anymore"
+  ],
+  "runnable": true,
+  "q": "If I play Can't Hold It Back Anymore and move damage to chosen opposing character, will Merida's Steady Aim ability deal another 2 damage?",
+  "a": "No. Moving damage isn't the same as dealing damage. An action has to \"deal\" damage for Steady Aim to trigger. Have further questions about any cards? Join the community at discord.gg/disneylorcana and ask away! We're a friendly bunch."
+ },
+ {
+  "id": "ee02ffc865",
+  "src": [
+   "docs/rules/Winterspell_SetReleaseNotes_EN.txt:98"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "What does \"printed value\" mean?",
+  "a": "The printed value of a card's characteristic is what's physically printed on the card, regardless of any adjustments that may apply. For example, if Elisa Maza is given +1 {S} from an effect, her {S} value becomes 5, but the card's printed value is still 4."
+ },
+ {
+  "id": "920a1a8c9e",
+  "src": [
+   "docs/rules/Winterspell_SetReleaseNotes_EN.txt:133"
+  ],
+  "cards": [
+   "Flynn Rider - His Own Biggest Fan",
+   "Anna - Soothing Sister"
+  ],
+  "runnable": false,
+  "q": "If I quest with Anna - Soothing Sister and choose Flynn Rider - His Own Biggest Fan from my discard for Anna's Warm Heart ability, how much lore do I gain?",
+  "a": "You gain 1 lore from questing with Anna and 4 lore from Flynn, for a total of 5 lore! Flynn's One Last, Big Score ability doesn't apply when he's not in play, so his {L} isn't reduced."
+ },
+ {
+  "id": "20a2785dbf",
+  "src": [
+   "docs/rules/Winterspell_SetReleaseNotes_EN.txt:157"
+  ],
+  "cards": [
+   "Lilo - Bundled Up"
+  ],
+  "runnable": true,
+  "q": "Can I choose when to use Grandmother Willow's Smooth the Way ability?",
+  "a": "No, because there's no \"may\" in the ability. If you play Grandmother Willow, the discount applies to the very next character you play that turn. On later turns when you have Grandmother Willow already in play, you pay 1 {I} less for the first character you play each turn. Lilo - Bundled Up"
+ },
+ {
+  "id": "aaae0f57df",
+  "src": [
+   "docs/rules/Winterspell_SetReleaseNotes_EN.txt:179"
+  ],
+  "cards": [
+   "Mickey Mouse - Bob Cratchit"
+  ],
+  "runnable": true,
+  "q": "Does Lilo's ability prevent all damage to her during her opponents' turns?",
+  "a": "No. It applies only the first time that she would take damage during each opponent's turn. It doesn't apply to damage she would take after that. Mickey Mouse - Bob Cratchit"
+ },
+ {
+  "id": "52f69c6e3e",
+  "src": [
+   "docs/rules/Winterspell_SetReleaseNotes_EN.txt:198"
+  ],
+  "cards": [],
+  "runnable": false,
+  "q": "If Mickey Mouse is banished in a challenge, are the cards that were under him moved to another character or location faceup or facedown?",
+  "a": "Faceup. The triggered effect resolves after Mickey Mouse and all cards that were under him are put into the discard, where the facedown cards turn faceup. When the ability resolves, those cards are moved from the discard to the chosen character or location, but they remain faceup."
+ },
+ {
+  "id": "2851c9fcdb",
+  "src": [
+   "docs/rules/Winterspell_SetReleaseNotes_EN.txt:221"
+  ],
+  "cards": [
+   "Colors of the Wind"
+  ],
+  "runnable": false,
+  "q": "How can I tell what the ink type of a card is?",
+  "a": "Each ink type has an ink type symbol, which appears on the cards on the left end of the classification line. For example, the ink type of Colors of the Wind is Amethyst. A card with multiple ink type symbols on this line counts as each of those ink types. When everyone reveals the top card of their deck, count the number of unique ink type symbols, not the total number. If you and your opponent both reveal Amethyst cards, you'll draw only 1 card. However, if you reveal one Amethyst card and one card that's both Amethyst and Steel, you'll draw 2 cards-1 for Amethyst and 1 for Steel."
+ },
+ {
+  "id": "751184fef6",
+  "src": [
+   "faq:A Whole New World"
+  ],
+  "cards": [
+   "A Whole New World"
+  ],
+  "runnable": true,
+  "q": "What happens if someone plays A Whole New World when all players have fewer than 7 cards left in their deck?",
+  "a": "The active player resolves first, so that player would lose the game."
+ },
+ {
+  "id": "8b4736ed90",
+  "src": [
+   "faq:Anna - Heir to Arendelle"
+  ],
+  "cards": [
+   "Anna - Heir to Arendelle"
+  ],
+  "runnable": true,
+  "q": "Say I have an Elsa in play and I choose a ready character for Anna - Heir to Arendelle's ability Loving Heart. If that chosen character is exerted later in the turn, will they stay exerted during the start of the next turn?",
+  "a": "Yes, the chosen character will stay exerted by Anna's effect."
+ },
+ {
+  "id": "c43fc83068",
+  "src": [
+   "faq:Beast - Relentless"
+  ],
+  "cards": [
+   "Beast - Relentless",
+   "Mouse Armor"
+  ],
+  "runnable": true,
+  "q": "My opponent has a copy of Flounder and 4 copies of Mouse Armor in play. On my opponent's turn they used the Protection ability of all 4 copies of Mouse Armor and chose Flounder all 4 times, giving it Resist 4. In this situation if my Beast- Relentless challenges that opposing Flounder, can I use Beast's Second Wind ability to ready him?",
+  "a": "No, you cannot. If a character with resist 4 is dealt 4 damage then all 4 damage is prevented by resist and therefore that character was not damaged."
+ },
+ {
+  "id": "799bc16b76",
+  "src": [
+   "faq:Beast - Selfless Protector"
+  ],
+  "cards": [
+   "Beast - Selfless Protector",
+   "Teeth and Ambitions"
+  ],
+  "runnable": true,
+  "q": "I control a copy of Beast- Selfless Protector and a copy of The Prince- Never Gives Up. My opponent controls a copy of Flounder- Voice of Reason. In this situation if I play Teeth and Ambitions and choose The Prince as my character to deal 2 damage to, how much damage will be placed on what characters?",
+  "a": "1 damage will be placed on The Beast- Selfless Protector and 2 damage will be placed on Flounder- Voice of Reason."
+ },
+ {
+  "id": "c52dd7118a",
+  "src": [
+   "faq:Befuddle"
+  ],
+  "cards": [
+   "Befuddle"
+  ],
+  "runnable": true,
+  "q": "Printed text: Return a character or item with cost 2 or less to their player's hand. Updated text: Return chosen character or item with cost 2 or less to their player's hand.",
+  "a": ""
+ },
+ {
+  "id": "2c4d8a0bf2",
+  "src": [
+   "faq:Belle - Strange but Special"
+  ],
+  "cards": [
+   "Belle - Strange but Special"
+  ],
+  "runnable": true,
+  "q": "When I use Belle - Strange but Special's Read a Book ability, can I place any card into my inkwell or does it need to have the inkwell icon?",
+  "a": "Belle's Read A Book ability only allows you to put another card into your inkwell; it doesn't override any other rules of the normal process of adding a card to your inkwell. The card must have the inkwell icon and you must show it to all players before putting it in your inkwell."
+ },
+ {
+  "id": "7633a3c986",
+  "src": [
+   "faq:Belle - Strange but Special"
+  ],
+  "cards": [
+   "Belle - Strange but Special"
+  ],
+  "runnable": true,
+  "q": "142/204 EN 1: Belle - Strange but Special has received a wording update to its ability READ A BOOK. The printed version says: READ A BOOK During your turn, you may put an additional card from your hand into your inkwell facedown. Updated text : READ A BOOK During your turn, you may ink an additional card.",
+  "a": ""
+ },
+ {
+  "id": "a55c3a2954",
+  "src": [
+   "faq:Belle's House - Maurice's Workshop"
+  ],
+  "cards": [
+   "Belle's House - Maurice's Workshop"
+  ],
+  "runnable": true,
+  "q": "If I have 2 characters at Belle's House - Maurice's Workshop, do I pay 2 {I} less for items?",
+  "a": "No. No matter how many characters you have at Belle's House - Maurice's Workshop, you'll only pay 1 {I} less to play items. If you have 2 copies of Belle's House - Maurice's Workshop in play and a character at each of them, however, you'll pay 2 {I} less to play items."
+ },
+ {
+  "id": "6c37a2c57e",
+  "src": [
+   "faq:Bernard - Brand-New Agent"
+  ],
+  "cards": [
+   "Bernard - Brand-New Agent"
+  ],
+  "runnable": true,
+  "q": "At the end of my turn I have 2 Bernard - Brand New Agents in play and both are exerted. If I use the first Bernard to ready the second one, can I still use the second one's I'll Check It Out ability?",
+  "a": "No. Bernard must be exerted when his ability is used."
+ },
+ {
+  "id": "92c54454a8",
+  "src": [
+   "faq:Bibbidi Bobbidi Boo"
+  ],
+  "cards": [
+   "Bibbidi Bobbidi Boo"
+  ],
+  "runnable": true,
+  "q": "I shift a copy of Mickey Mouse- Artful Rogue onto a copy of Mickey Mouse- Brave Little Tailor. If I play Bibbidi Bobbidi Boo and return that Mickey Mouse- Artful Rogue to my hand, what cost of character can I play from my hand?",
+  "a": "You can play a character of cost 7 or lower."
+ },
+ {
+  "id": "222b7e3dd6",
+  "src": [
+   "faq:Binding Contract"
+  ],
+  "cards": [
+   "Binding Contract"
+  ],
+  "runnable": true,
+  "q": "Can I exert a character I just played and an opposing character with Binding Contract?",
+  "a": "No, you cannot. In order to pay the cost of Binding Contract's ability you must exert one of your ready characters that has been in play for at least 1 whole turn."
+ },
+ {
+  "id": "1071d9ab17",
+  "src": [
+   "faq:Bucky - Squirrel Squeak Tutor"
+  ],
+  "cards": [
+   "Bucky - Squirrel Squeak Tutor"
+  ],
+  "runnable": true,
+  "q": "Starting August 9th, 2024, Bucky - Squirrel Squeak Tutor, will be changed as follows: Cost: 2 --> 3 Keyword: Ward --> No keyword ability Updated ability: \\Squeak\\ Whenever you play a Floodborn character, each opponent chooses and discards a card. --> Whenever you play a Floodborn character, if you used Shift to play them, each opponent chooses and discards a card.",
+  "a": ""
+ },
+ {
+  "id": "162580cc5b",
+  "src": [
+   "faq:Chernabog - Evildoer"
+  ],
+  "cards": [
+   "Chernabog - Evildoer",
+   "Perdita - Devoted Mother"
+  ],
+  "runnable": true,
+  "q": "If I have 10 character cards in my discard, can I use Perdita - Devoted Mother's ability Come Along, Children to play Chernabog - Evildoer from my discard?",
+  "a": "No. Chernabog's ability The Power of Evil only affects how much ink you must pay to play him, not his cost. Even if you have 10 character cards in your discard, Chernabog - Evildoer still has a cost of 10."
+ },
+ {
+  "id": "673846cc23",
+  "src": [
+   "faq:Cheshire Cat - Not All There",
+   "faq:Marshmallow - Persistent Guardian"
+  ],
+  "cards": [
+   "Cheshire Cat - Not All There",
+   "Marshmallow - Persistent Guardian"
+  ],
+  "runnable": true,
+  "q": "Are abilities on characters that occur when they're banished in a challenge considered to happen during the challenge?",
+  "a": "Abilities on characters that occur when they are banished in a challenge happen during that challenge. Example: Marshmallow - Persistent Guardian has an ability that reads, \"When this character is banished in a challenge, you may return this card to your hand,\" and Cheshire Cat - Not All There has an ability that reads, \"When this character is challenged and banished, banish the challenging character.\" If a player challenges and banishes Cheshire Cat with Marshmallow, the Cheshire Cat's ability would banish Marshmallow during the challenge, allowing the challenging player to return Marshmallow to their hand."
+ },
+ {
+  "id": "07215d81ca",
+  "src": [
+   "faq:Chief Tui - Respected Leader",
+   "faq:Heihei - Boat Snack",
+   "faq:Merlin - Self-Appointed Mentor",
+   "faq:Philoctetes - Trainer of Heroes"
+  ],
+  "cards": [
+   "Chief Tui - Respected Leader",
+   "Heihei - Boat Snack",
+   "Merlin - Self-Appointed Mentor",
+   "Philoctetes - Trainer of Heroes"
+  ],
+  "runnable": true,
+  "q": "The correct wording is \"another chosen character's {S}.\"",
+  "a": ""
+ },
+ {
+  "id": "bd074fca8c",
+  "src": [
+   "faq:Christopher Robin - Adventurer"
+  ],
+  "cards": [
+   "Christopher Robin - Adventurer"
+  ],
+  "runnable": true,
+  "q": "Can Christopher Robin- Adventurer's We'll Always Be Together ability trigger more than once in a turn?",
+  "a": "Yes, it can."
+ },
+ {
+  "id": "afa417c0c3",
+  "src": [
+   "faq:Cinderella - Stouthearted"
+  ],
+  "cards": [
+   "Cinderella - Stouthearted",
+   "Cinderella - Knight in Training",
+   "Zero to Hero"
+  ],
+  "runnable": true,
+  "q": "I control a copy of Cinderella - Knight in Training that has been in play for a turn. If I play a Zero to Hero and then shift a Cinderella - Stouthearted onto my Cinderella - Knight in Training can that Cinderella - Stouthearted challenge ready characters that turn?",
+  "a": "No. Cinderella - Stouthearted's ability is a trigger ability that happens when you play a song. If Cinderella - Stouthearted is not in play when you play a song card she will not be able to challenge even if she is played later in the turn."
+ },
+ {
+  "id": "62373018bc",
+  "src": [
+   "faq:Cogsworth - Grandfather Clock"
+  ],
+  "cards": [
+   "Cogsworth - Grandfather Clock"
+  ],
+  "runnable": true,
+  "q": "If I have 2 copies of Cogsworth- Grandfather Clock in play, how much resist do each of my characters have?",
+  "a": "Resist is an additive ability. This means that each copy of Cogsworth- grandfather Clock gives the other Resist 1 with their Unwind abilities. Any other characters you control would receive 2 total resist, one from each copy of Cogsworth."
+ },
+ {
+  "id": "c9bc637a31",
+  "src": [
+   "faq:Cogsworth - Talking Clock"
+  ],
+  "cards": [
+   "Cogsworth - Talking Clock"
+  ],
+  "runnable": true,
+  "q": "My Basil- Of Baker Street was chosen by the effect of The Beast is Mine and is currently reckless. If I have a copy of Cogsworth- Talking Clock in play and exert my Basil to gain 1 lore, can I use his Support ability?",
+  "a": "No, you cannot. Gaining lore using Cogsworth's Wait a Minute ability does not count as questing so you cannot use Support when you use it."
+ },
+ {
+  "id": "f3308bb250",
+  "src": [
+   "faq:Divebomb"
+  ],
+  "cards": [
+   "Divebomb",
+   "Felicia - Always Hungry"
+  ],
+  "runnable": true,
+  "q": "I used the Support ability of one of my questing characters to increase the Strength of my Felicia - Always Hungry to 6 {S}. Can I play Divebomb and banish that Felicia to banish an opposing character with 5 {S} or less?",
+  "a": "Yes. The character you choose to banish with Divebomb's effect must have less Strength than the character you banished with Divebomb had at the point they were banished. In this example, you could choose any opposing character with 5 {S} or less."
+ },
+ {
+  "id": "5c7e648886",
+  "src": [
+   "faq:Dr. Facilier - Agent Provocateur"
+  ],
+  "cards": [
+   "Dr. Facilier - Agent Provocateur"
+  ],
+  "runnable": true,
+  "q": "Q. If I control Dr. Facilier - Agent Provocateur and one of my Floodborn characters who used their Shift ability to be played on top of another card is banished in a challenge, do all cards in the stack go back to my hand? A. No. Because the stack of cards all go to your discard pile first and become separate cards, you could only return the top card of the stack to your hand.",
+  "a": ""
+ },
+ {
+  "id": "2eabcb7046",
+  "src": [
+   "faq:Dr. Facilier - Remarkable Gentleman"
+  ],
+  "cards": [
+   "Dr. Facilier - Remarkable Gentleman",
+   "Friends on the Other Side"
+  ],
+  "runnable": true,
+  "q": "If I play the action Friends on the Other Side while I have Dr. Facilier - Remarkable Gentleman in play, will I draw the 2 cards from my deck before resolving his Dreams Made Real ability?",
+  "a": "Dr. Facilier's effect will not occur until after you fully resolve the text on Friends on the Other Side."
+ },
+ {
+  "id": "df9cacbefa",
+  "src": [
+   "faq:Dragon Gem"
+  ],
+  "cards": [
+   "Dragon Gem"
+  ],
+  "runnable": true,
+  "q": "Can I return a copy of Alice- Growing Girl from my discard to my hand with the effect of Dragon gem?",
+  "a": "No, you cannot. Dragon Gem's ability can only be used on characters who have Support as an ability. Even though Alice's ability mentions support she herself does not have Support and therefore cannot be returned to your hand by the ability of Dragon Gem."
+ },
+ {
+  "id": "0706ff2be7",
+  "src": [
+   "faq:Fairy Godmother - Mystic Armorer"
+  ],
+  "cards": [
+   "Fairy Godmother - Mystic Armorer"
+  ],
+  "runnable": true,
+  "q": "If I quest my Fairy Godmother- Mystic Armorer and use her \"Forget the Coach, Here's a Sword\" ability and then play a Maui- Hero to All and challenge with that Maui, does he gain the Challenger +3 and \"When this character is banished in a challenge, return this card to your hand\" abilities from the \"Forget the Coach, Here's a Sword\" ability?",
+  "a": "Characters played after you use the \"Forget the Coach, Here's a Sword\" ability will not gain Challenger +3 and \"When this character is banished in a challenge, return this card to your hand\". Only characters in play when you quest with Fairy godmother gain the ability."
+ },
+ {
+  "id": "bca5cb5381",
+  "src": [
+   "faq:Fan the Flames"
+  ],
+  "cards": [
+   "Fan the Flames",
+   "Elsa - Spirit of Winter",
+   "Freeze"
+  ],
+  "runnable": true,
+  "q": "If I use Elsa - Spirit of Winter's ability Deep Freeze to exert 2 characters, can those characters be readied with an ability or effect such as Fan the Flames on their next turn?",
+  "a": "Characters exerted with the ability Deep Freeze can be readied by Fan the Flames and similar abilities."
+ },
+ {
+  "id": "7715f815cb",
+  "src": [
+   "faq:Fishbone Quill"
+  ],
+  "cards": [
+   "Fishbone Quill"
+  ],
+  "runnable": true,
+  "q": "If I use the ability of Fishbone Quill to put a card from my hand into my inkwell, should I show my opponent the card I choose?",
+  "a": "No. If an ability lets you put any card into an inkwell (regardless of whether it has an inkwell icon), you don't show the card to opponents."
+ },
+ {
+  "id": "96c0cbffe6",
+  "src": [
+   "faq:Flynn Rider - Charming Rogue"
+  ],
+  "cards": [
+   "Flynn Rider - Charming Rogue",
+   "Jafar - Keeper of Secrets"
+  ],
+  "runnable": true,
+  "q": "I have 2 cards in my hand. My Jafar - Keeper of Secrets challenges an opposing Flynn Rider - Charming Rogue. When do I use Flynn Rider's Here Comes the Smolder ability? How much damage will Flynn Rider take from the challenge, considering Jafar's ability Hidden Wonders?",
+  "a": "You use Flynn Rider - Charming Rogue's Here Comes the Smolder ability as soon as he's chosen for an opposing character's challenge. This means the challenging player must discard a card before any damage from the challenge is dealt to either character. In this case, you'll have to discard 1 of your 2 cards, so you'll have 1 card left. Jafar - Keeper of Secret's ability increases his Strength by the amount equal to the number of cards in your hand, so Jafar will have 1 Strength when he deals damage to Flynn Rider."
+ },
+ {
+  "id": "fdec9eb2f3",
+  "src": [
+   "faq:Flynn Rider - His Own Biggest Fan"
+  ],
+  "cards": [
+   "Flynn Rider - His Own Biggest Fan"
+  ],
+  "runnable": true,
+  "q": "If I am playing a 4 player game and one of my opponent's has 2 cards in hand, another has 1 card in hand and my last opponent has no cards in hand, how much lore will my Flynn Rider- His Own Biggest fan have?",
+  "a": "Flynn Rider will have 1 lore. Flynn loses one card for each card in every opponent's hand, so adding the two cards in one of your opponent's hands together with the one in the other's hand he will lose a total of 3 lore and have just 1 left."
+ },
+ {
+  "id": "f3af2de0f4",
+  "src": [
+   "faq:Freeze"
+  ],
+  "cards": [
+   "Freeze",
+   "The Queen - Wicked and Vain"
+  ],
+  "runnable": true,
+  "q": "If I use Freeze and choose to exert my opponent's The Queen - Wicked and Vain, will The Queen's exert ability I Summon Thee allow me to draw a card?",
+  "a": "No. When an ability has a cost, the card's player must pay that cost in order to use the ability. If another effect exerts The Queen, you don't get to draw the card from I Summon Thee. Additionally, you won't be able to use that ability until The Queen is readied."
+ },
+ {
+  "id": "3c8c7e02ac",
+  "src": [
+   "faq:Friar Tuck - Priest of Nottingham"
+  ],
+  "cards": [
+   "Friar Tuck - Priest of Nottingham"
+  ],
+  "runnable": true,
+  "q": "I'm playing a 2-player game and have 4 cards in my hand. My opponent has 3 cards in their hand. If I play Friar Tuck - Priest of Nottingham, who has to discard a card?",
+  "a": "Both you and your opponent. Once you've played Friar Tuck and can use his You Thieving Scoundrel ability, you have 3 cards in your hand. You and your opponent are tied for having the most cards in your hand."
+ },
+ {
+  "id": "0ea9fd78e2",
+  "src": [
+   "faq:Go the Distance"
+  ],
+  "cards": [
+   "Go the Distance"
+  ],
+  "runnable": true,
+  "q": "Can I play Go the Distance if I do not control a damaged character?",
+  "a": "Yes, you can. In this case you will only draw a card."
+ },
+ {
+  "id": "c15ad5ac3f",
+  "src": [
+   "faq:Gramma Tala - Spirit of the Ocean"
+  ],
+  "cards": [
+   "Gramma Tala - Spirit of the Ocean",
+   "Let It Go"
+  ],
+  "runnable": true,
+  "q": "My opponent plays Let It Go and chooses my Gramma Tala - Spirit of the Ocean to put into my inkwell. Do I gain lore from her ability Do You Know Who You Are?",
+  "a": "No. You can only use Gramma Tala - Spirit of the Ocean's Do You Know Who You Are? ability if she's in play when a card is put into your inkwell. When a character in play is put into a player's inkwell, the character first leaves play and then is put into the inkwell. This means Gramma Tala isn't in play to see a card being put into your inkwell, so you can't use her ability. Note that this is still the case if Gramma Tala was shifted and there's a card underneath her."
+ },
+ {
+  "id": "fea4aa8b4f",
+  "src": [
+   "faq:Gramma Tala - Storyteller"
+  ],
+  "cards": [
+   "Gramma Tala - Storyteller",
+   "Dr. Facilier - Agent Provocateur"
+  ],
+  "runnable": true,
+  "q": "Q. When more than one effect happens at the same time, what order do they resolve in? A. If multiple effects of yours happen at the same time during your turn, you choose the order in which they occur, then resolve the effects in that order. After that, each other player resolves their effects in turn, starting with the player to your left. Example: If you have Dr. Facilier - Agent Provocateur in play and your Gramma Tala - Storyteller is challenged and banished, you choose whether to return the Gramma Tala card to your hand or put it into your inkwell.",
+  "a": ""
+ },
+ {
+  "id": "6a531d4897",
+  "src": [
+   "faq:Hiram Flaversham - Toymaker"
+  ],
+  "cards": [
+   "Hiram Flaversham - Toymaker"
+  ],
+  "runnable": true,
+  "q": "Banned in Core Constructed and Infinity Constructed. Note: \"Hiram Flaversham - Toymaker\" is not removed from the game. Players are encouraged to enjoy playing with the card in their decks against friends and family. The ban only affects those participating in Disney Lorcana Challenge events or other tournaments and events using the Infinity Constructed format.",
+  "a": ""
+ },
+ {
+  "id": "813edbb69b",
+  "src": [
+   "faq:Hydra - Deadly Serpent"
+  ],
+  "cards": [
+   "Hydra - Deadly Serpent",
+   "Minnie Mouse - Always Classy",
+   "Mouse Armor"
+  ],
+  "runnable": true,
+  "q": "If I use Mouse Armor's Protection ability to give my Hydra - Deadly Serpent Resist +1 and then challenge Minnie Mouse - Always Classy with that Hydra, can I use its Watch the Teeth ability to deal damage to Minnie Mouse?",
+  "a": "No. Minnie Mouse - Always Classy has 1 {S} so will deal 1 damage to Hydra - Deadly Serpent, but Resist +1 will reduce that damage by 1 before any damage is dealt to Hydra. The Hydra won't be dealt any damage."
+ },
+ {
+  "id": "aae17ba98a",
+  "src": [
+   "faq:It Calls Me"
+  ],
+  "cards": [
+   "It Calls Me"
+  ],
+  "runnable": true,
+  "q": "If my opponent has cards in their discard, do I have to shuffle at least 1 of them into their deck when I play It Calls Me?",
+  "a": "No. You can choose any number up to 3 to shuffle into their deck, including 0."
+ },
+ {
+  "id": "b5ba31b57b",
+  "src": [
+   "faq:Jafar - Striking Illusionist"
+  ],
+  "cards": [
+   "Jafar - Striking Illusionist",
+   "Friends on the Other Side"
+  ],
+  "runnable": true,
+  "q": "If my Jafar - Striking Illusionist sings Friends on the Other Side, do I gain 2 lore due to his Power Beyond Measure ability?",
+  "a": "Yes. Exerting a character is the cost to have that character sing a song, so Jafar will already be exerted when the effect of Friends on the Other Side has you draw 2 cards."
+ },
+ {
+  "id": "5b02e2f896",
+  "src": [
+   "faq:Jafar - Striking Illusionist"
+  ],
+  "cards": [
+   "Jafar - Striking Illusionist"
+  ],
+  "runnable": true,
+  "q": "During my turn, I exerted my Jafar - Striking Illusionist to quest with him. When I draw a card at the beginning of my next turn, do I gain 1 lore from Jafar's ability Power Beyond Measure?",
+  "a": "No. The first thing players do at the beginning of their turn is ready their exerted cards. By the time you draw a card at the start of your turn, Jafar will be ready and you won't be able to use his Power Beyond Measure ability until he's exerted again."
+ },
+ {
+  "id": "5fb5376d06",
+  "src": [
+   "faq:Jim Hawkins - Space Traveler"
+  ],
+  "cards": [
+   "Jim Hawkins - Space Traveler"
+  ],
+  "runnable": true,
+  "q": "If I play a location using Jim Hawkins - Space Traveler's ability This Is It!, can I move him to that location using his Take the Helm ability?",
+  "a": "Yes. Note that you can do this as soon as either one (or both) comes into play."
+ },
+ {
+  "id": "64c4768e1d",
+  "src": [
+   "faq:Kida - Protector of Atlantis"
+  ],
+  "cards": [
+   "Kida - Protector of Atlantis",
+   "Maui - Hero to All"
+  ],
+  "runnable": true,
+  "q": "During my turn I play Kida - Protector of Atlantis. During my opponent's next turn, if they play Maui - Hero to All, does he also have -3 Strength?",
+  "a": "No. Kida's ability Perhaps We Can Save Our Future applies only to characters in play when she's played."
+ },
+ {
+  "id": "f2eaa1d413",
+  "src": [
+   "faq:King Louie - Jungle VIP"
+  ],
+  "cards": [
+   "King Louie - Jungle VIP"
+  ],
+  "runnable": true,
+  "q": "My King Louie- Jungle VIP has 6 damage on it. I use my King Louie to challenge a 2 strength character of my opponent's. If King Louie banishes the opposing character in the challenge can I use his ability before he would be banished because of the challenge?",
+  "a": "No, you cannot. Both characters involved in a challenge receive damage at the same time and are also banished due to taking damage equal to or greater than their willpower at the same time if applicable. This means that at the time King Louie's ability is able to trigger he would already be banished and therefore no longer in play. Note that this does not change if King Louie is the character being challenged instead."
+ },
+ {
+  "id": "5f451e0b1b",
+  "src": [
+   "faq:Lady Tremaine - Imperious Queen"
+  ],
+  "cards": [
+   "Lady Tremaine - Imperious Queen"
+  ],
+  "runnable": true,
+  "q": "When I play Lady Tremaine- Imperious Queen and use her Power to Rule at Last ability my opponent has a Lilo- Making a Wish and a Prince John- Greediest of All in play. When choosing which character to banish with the Power to Rule at last ability what characters can be chosen?",
+  "a": "Even though Lady Tremaine is your character your opponent chooses which character to banish with her effect. This means that despite Prince John's ward he can be chosen to be banished by the effect and therefore your opponent can choose either of their characters to banish for the Power to Rule at Last ability."
+ },
+ {
+  "id": "04001ba641",
+  "src": [
+   "faq:Let the Storm Rage On"
+  ],
+  "cards": [
+   "Let the Storm Rage On"
+  ],
+  "runnable": true,
+  "q": "Can I play Let the Storm Rage On if there are no characters in play?",
+  "a": "Yes, you can. In this case you only draw a card."
+ },
+ {
+  "id": "3c6dc605bb",
+  "src": [
+   "faq:Lucifer - Cunning Cat"
+  ],
+  "cards": [
+   "Lucifer - Cunning Cat"
+  ],
+  "runnable": true,
+  "q": "If my opponent plays a Lucifer- Cunning Cat and I have only 1 card in my hand which is a character card do I have to discard it?",
+  "a": "Yes. If you do not have an action card in hand when Lucifer- Cunning Cat is played you must choose to discard 2 cards. When you choose to discard more cards than you have left in hand you must discard as many cards as you can."
+ },
+ {
+  "id": "845e847a95",
+  "src": [
+   "faq:Lucky - The 15th Puppy"
+  ],
+  "cards": [
+   "Lucky - The 15th Puppy"
+  ],
+  "runnable": true,
+  "q": "I use Lucky - The 15th Puppy's ability Good As New and reveal 2 characters with cost 2 or less. Can I choose to add only 1 of the characters to my hand?",
+  "a": "No. When choosing which cards to add to your hand with Lucky's Good As New ability, you must add either all cost 2 or lower characters revealed or none of them."
+ },
+ {
+  "id": "e40d30af86",
+  "src": [
+   "faq:Madam Mim - Rival of Merlin"
+  ],
+  "cards": [
+   "Madam Mim - Rival of Merlin",
+   "Gruesome and Grim"
+  ],
+  "runnable": true,
+  "q": "If I use the Gruesome and Grim ability of Madam Mim- Rival of Merlin and play a character from my hand, if that character is later returned to my hand by the effect of Arthur- Wizard's Apprentice do I still banish that character at the end of the turn?",
+  "a": "No, you do not."
+ },
+ {
+  "id": "c69ac76893",
+  "src": [
+   "faq:Magic Broom - Bucket Brigade",
+   "faq:Mickey Mouse - Wayward Sorcerer"
+  ],
+  "cards": [
+   "Magic Broom - Bucket Brigade",
+   "Mickey Mouse - Wayward Sorcerer"
+  ],
+  "runnable": true,
+  "q": "If I have 2 copies of Mickey Mouse - Wayward Sorcerer in play, will my Magic Broom - Bucket Brigade cost 1 {I} less or 2 {I} less?",
+  "a": "Your Magic Broom will cost 2 {I} less, 1 {I} for each copy of Mickey Mouse - Wayward Sorcerer."
+ },
+ {
+  "id": "b8dfbaa538",
+  "src": [
+   "faq:Magic Broom - Dancing Duster"
+  ],
+  "cards": [
+   "Magic Broom - Dancing Duster"
+  ],
+  "runnable": true,
+  "q": "Can I choose an exerted character for the Power Clean ability of Magic Broom - Dancing Duster?",
+  "a": "Yes. Note that the chosen character still can't ready at the start of their next turn."
+ },
+ {
+  "id": "0aaf2f7cc1",
+  "src": [
+   "faq:Magic Broom - Swift Cleaner"
+  ],
+  "cards": [
+   "Magic Broom - Swift Cleaner"
+  ],
+  "runnable": true,
+  "q": "What cards are shuffled back into the deck by the Clean This, Clean That ability of Magic Broom - Swift Cleaner?",
+  "a": "A Broom card is any card that has \"Broom\" in its classifications."
+ },
+ {
+  "id": "af48cd2894",
+  "src": [
+   "faq:Magic Carpet - Flying Rug"
+  ],
+  "cards": [
+   "Magic Carpet - Flying Rug"
+  ],
+  "runnable": true,
+  "q": "Can I use Magic Carpet - Flying Rug's Find the Way ability to move a character of mine to an opposing location?",
+  "a": "No."
+ },
+ {
+  "id": "1322a8f23d",
+  "src": [
+   "faq:Magica De Spell - The Midas Touch"
+  ],
+  "cards": [
+   "Magica De Spell - The Midas Touch",
+   "Lucky Dime",
+   "Pawpsicle"
+  ],
+  "runnable": true,
+  "q": "I have a Lucky Dime and a Pawpsicle in play. When I quest with Magica De Spell - The Midas Touch, how much lore do I gain?",
+  "a": "When you quest with Magica De Spell - The Midas Touch, her All Mine ability has you pick one of your items and gain lore equal to its cost. Because Magica has 0 {L}, you don't gain any lore from her quest itself, only from her ability. So in this example you can choose to gain either 1 or 7 lore."
+ },
+ {
+  "id": "896d2e7e50",
+  "src": [
+   "faq:Maleficent - Mistress of All Evil"
+  ],
+  "cards": [
+   "Maleficent - Mistress of All Evil",
+   "Flounder - Voice of Reason",
+   "Beast - Tragic Hero",
+   "A Whole New World"
+  ],
+  "runnable": true,
+  "q": "I have a Beast - Tragic Hero with 4 damage and a Maleficent - Mistress of All Evil in play, and my opponent only has a Flounder - Voice of Reason. If I play A Whole New World and draw 7 cards, can I move all 4 damage counters from Beast to Flounder using Maleficent's Divination ability?",
+  "a": "No. You may use Maleficent's Divination ability every time you draw a card. If you draw multiple cards at the same time, you have that many opportunities to use the ability. After you move 2 damage counters to Flounder, who has 2 {W}, he'll be banished. Note that when you use Maleficent's Divination ability while there are no opposing characters in play, you won't be able to move any damage counters, so the ability will resolve without doing anything."
+ },
+ {
+  "id": "2f6c09f53c",
+  "src": [
+   "faq:Merlin - Crab",
+   "faq:Merlin - Goat",
+   "faq:Merlin - Rabbit",
+   "faq:Merlin - Squirrel"
+  ],
+  "cards": [
+   "Merlin - Crab",
+   "Let It Go",
+   "Merlin - Goat",
+   "Merlin - Rabbit",
+   "Merlin - Squirrel"
+  ],
+  "runnable": true,
+  "q": "If Merlin is chosen by the effect of Let it Go and placed into my inkwell does his ability trigger?",
+  "a": "Yes it does. Being placed into the inkwell facedown is treated as leaving play"
+ },
+ {
+  "id": "17f24d590c",
+  "src": [
+   "faq:Minnie Mouse - Wide-Eyed Diver"
+  ],
+  "cards": [
+   "Minnie Mouse - Wide-Eyed Diver"
+  ],
+  "runnable": true,
+  "q": "I control a Minnie Mouse- Wide-Eyed Diver that has been in play for an entire turn. I play two actions and due to her Undersea Adventure ability she gains +2 lore. If I shift a second copy of Minnie Mouse Wide-Eyed Diver onto the first copy of Minnie Mouse- Wide-Eyed Diver. How much lore would that new Wide-Eyed Diver have?",
+  "a": "3 lore. It has 1 lore base and has gained 2 lore from the ability of the first copy of Wide-Eyed Diver's Undersea Adventure ability. The lore gained from that ability remains even if the character shifts. The ability of the second copy of Wide-Eyed Diver does not add to it's total lore because it was not in play when you played your second action so it's ability does not trigger."
+ },
+ {
+  "id": "30faf3af72",
+  "src": [
+   "faq:Moana - Born Leader"
+  ],
+  "cards": [
+   "Moana - Born Leader",
+   "Alice - Growing Girl"
+  ],
+  "runnable": true,
+  "q": "I have a ready Alice - Growing Girl and Moana - Born Leader at the same location. If Moana quests while Alice is ready, will Alice be able to quest this turn?",
+  "a": "No. Moana - Born Leader's ability Welcome to My Boat is mandatory and affects all other characters at the location she's at. Even if Alice - Growing Girl is ready when Moana quests, Alice won't be able to quest later this turn. Note that Alice still won't be able to quest this turn even if she moves to a different location or the location she and Moana are at is removed from play."
+ },
+ {
+  "id": "a1bfc8c45e",
+  "src": [
+   "faq:Mother Gothel - Withered and Wicked"
+  ],
+  "cards": [
+   "Mother Gothel - Withered and Wicked"
+  ],
+  "runnable": true,
+  "q": "I control Cogsworth- Grandfather Clock and his Unwind ability is giving all of my other characters Resist +1. If I play a Mother Gothel- Withered and Wicked, how much damage will be on her?",
+  "a": "3 damage. Mother Gothel's ability does not count as damaging her so even if she has Resist she will still enter play with 3 damage counters on her."
+ },
+ {
+  "id": "d717765ef3",
+  "src": [
+   "faq:Mufasa - Betrayed Leader"
+  ],
+  "cards": [
+   "Mufasa - Betrayed Leader"
+  ],
+  "runnable": true,
+  "q": "My Mufasa- Betrayed Leader is banished and I use his The Sun Will Set ability. The card on top of my deck when the ability is used is an action card. When I return that card to the deck does it return face up or face down?",
+  "a": "Face down. All cards in the deck are face down at all times unless otherwise specified."
+ },
+ {
+  "id": "4f4aedfec5",
+  "src": [
+   "faq:Mulan - Reflecting"
+  ],
+  "cards": [
+   "Mulan - Reflecting",
+   "Be Prepared"
+  ],
+  "runnable": true,
+  "q": "I quest with my Mulan- Reflecting and use her Honor to the Ancestors ability. The card on the top of my deck is a copy of Be Prepared and I chose not to play that card. What happens to the card in this case?",
+  "a": "The card is returned to the top of your deck. Even if the card is a song card as long as you choose not to play it then the card is returned to the top of your deck, face down."
+ },
+ {
+  "id": "e9ed335714",
+  "src": [
+   "faq:On Your Feet! Now!"
+  ],
+  "cards": [
+   "On Your Feet! Now!"
+  ],
+  "runnable": true,
+  "q": "If I have a character with Resist+1 in play when I play On Your Feet! Now! will that character be able to quest after I ready them?",
+  "a": "No. On Your Feet! Now! affects all of your characters that are in play for each of its effects. First it will ready them and deal 1 damage to each of them. Those with Resist +1 will reduce that damage by 1 before any damage is dealt to them and receive no damage. All your characters will be unable to quest the rest of the turn, even if they were ready when On Your Feet! Now! was played and even if they didn't receive damage from it."
+ },
+ {
+  "id": "04aff475fa",
+  "src": [
+   "faq:Painting the Roses Red"
+  ],
+  "cards": [
+   "Painting the Roses Red"
+  ],
+  "runnable": true,
+  "q": "Can I choose the same character twice to receive the -1 strength from Painting the Roses Red?",
+  "a": "No, you cannot. If you choose more than one character with the ability of Painting the Roses Red then they must be different characters."
+ },
+ {
+  "id": "7de803544a",
+  "src": [
+   "faq:Perdita - Devoted Mother"
+  ],
+  "cards": [
+   "Perdita - Devoted Mother",
+   "Madam Mim - Snake"
+  ],
+  "runnable": true,
+  "q": "If I use Perdita - Devoted Mother's ability Come Along, Children and play Madam Mim - Snake from my discard pile, do I still have to return a character to my hand from play or banish Madam Mim?",
+  "a": "Yes. Perdita's ability Come Along, Children only plays a character without requiring you to play their ink cost. All abilities that apply when you play that character still apply."
+ },
+ {
+  "id": "749c21e811",
+  "src": [
+   "faq:Peter Pan - Lost Boy Leader"
+  ],
+  "cards": [
+   "Peter Pan - Lost Boy Leader",
+   "The Queen's Castle - Mirror Chamber",
+   "De Vil Manor - Cruella's Estate"
+  ],
+  "runnable": true,
+  "q": "I have a Peter Pan - Lost Boy Leader at The Queen's Castle - Mirror Chamber, which has 2 {L}. If I move Peter Pan to De Vil Manor - Cruella's Estate, which has 1 {L}, and then move him back to The Queen's Castle, can I use his I Came to Listen to the Stories ability to gain 2 lore?",
+  "a": "No. You must use Peter Pan - Lost Boy Leader's ability I Came to Listen to the Stories the first time he moves to a location each turn. If he hasn't moved on your turn and you move him to De Vil Manor, you gain 1 lore. You can't use his I Came to Listen to the Stories ability again that turn."
+ },
+ {
+  "id": "3f32d3be0c",
+  "src": [
+   "faq:Prince John - Greediest of All"
+  ],
+  "cards": [
+   "Prince John - Greediest of All",
+   "You Have Forgotten Me"
+  ],
+  "runnable": true,
+  "q": "I have a Prince John - Greediest of All in play and play a You Have Forgotten Me, causing my opponent to discard 2 cards. Can I choose to draw only 1 card with Prince John's I Sentence You ability?",
+  "a": "No, you cannot. When choosing to draw with Prince John's I Sentence You ability you must draw equal to the number discarded. So in this example you would either draw 2 cards if you used the I Sentence You ability or 0 if you choose not to use it."
+ },
+ {
+  "id": "8528dbcf9d",
+  "src": [
+   "faq:Prince John - Phony King"
+  ],
+  "cards": [
+   "Prince John - Phony King"
+  ],
+  "runnable": true,
+  "q": "I have 10 lore and my opponent has 12 lore. If I quest with my Prince John - Phony King, who has 2 {L}, can I use his Collect Taxes ability to make my opponent lose 2 lore?",
+  "a": "No. When a character quests, they immediately gain lore equal to their {L}. This means that in order to use Prince John - Phony King's ability Collect Taxes to have an opponent lose lore, they must have more lore than you after you've gained the 2 lore from Prince John's quest."
+ },
+ {
+  "id": "56d8203c19",
+  "src": [
+   "faq:Queen of Hearts - Capricious Monarch"
+  ],
+  "cards": [
+   "Queen of Hearts - Capricious Monarch"
+  ],
+  "runnable": true,
+  "q": "If an opposing character challenges a character during their owner's turn and is banished during the challenge can I ready my Queen of Hearts- Capricious Monarch using her Off With Their Heads! ability?",
+  "a": "Yes, you can."
+ },
+ {
+  "id": "9e5aff6bfa",
+  "src": [
+   "faq:Rapunzel - Gifted Artist"
+  ],
+  "cards": [
+   "Rapunzel - Gifted Artist",
+   "Hakuna Matata"
+  ],
+  "runnable": true,
+  "q": "Three of my characters have 2 damage each on them. If my Rapunzel- Gifted Artist sings Hakuna Matata in that situation, how many cards can I draw with her Let Your Power Shine ability?",
+  "a": "3 cards. Rapunzel- Gifted Artist's ability triggers for each individual character of yours that has damage removed from them regardless of how much damage is removed from that character."
+ },
+ {
+  "id": "81da5b0ac2",
+  "src": [
+   "faq:Ratigan - Very Large Mouse"
+  ],
+  "cards": [
+   "Ratigan - Very Large Mouse"
+  ],
+  "runnable": true,
+  "q": "If the only characters my opponent controls have greater than 3 strength can I still use Ratigan-Very Large Mouse's This is My Kingdom ability to ready one of my characters?",
+  "a": "Yes, you can. You will not be able to exert any characters using the ability but you can still do as much as you can of the ability."
+ },
+ {
+  "id": "82f4db0e57",
+  "src": [
+   "faq:Revive"
+  ],
+  "cards": [
+   "Revive"
+  ],
+  "runnable": true,
+  "q": "Play a character with cost 5 or less from your discard for free.",
+  "a": ""
+ },
+ {
+  "id": "e656b0d472",
+  "src": [
+   "faq:Sail the Azurite Sea"
+  ],
+  "cards": [
+   "Sail the Azurite Sea"
+  ],
+  "runnable": true,
+  "q": "163/204 EN 6: Sail the Azurite Sea has received a wording update to its Action. The printed version says: During your turn, you may put an additional card from your hand into your inkwell facedown. Draw a card. Updated text: This turn, you may ink an additional card. Draw a card.",
+  "a": ""
+ },
+ {
+  "id": "c0cefe3db5",
+  "src": [
+   "faq:Sheriff of Nottingham - Corrupt Official"
+  ],
+  "cards": [
+   "Sheriff of Nottingham - Corrupt Official",
+   "A Whole New World"
+  ],
+  "runnable": true,
+  "q": "I have 7 cards in my hand and Sheriff of Nottingham - Corrupt Official in play. I play A Whole New World, which makes me discard all my cards at the same time. How much damage will I be able to deal with the Sheriff's ability Taxes Should Hurt?",
+  "a": "7 damage. You can use Sheriff of Nottingham - Corrupt Official's ability Taxes Should Hurt once for each card you discard, even if you discard them at the same time. If you discard 7 cards due to the effect of A Whole New World, you may use Taxes Should Hurt up to 7 times."
+ },
+ {
+  "id": "6973c2c42c",
+  "src": [
+   "faq:Simba - Rightful Heir"
+  ],
+  "cards": [
+   "Simba - Rightful Heir"
+  ],
+  "runnable": true,
+  "q": "If I banish a shifted Floodborn card in a challenge while I have a card that lets me gain 1 lore when I banish a character, how much lore do I gain?",
+  "a": "No matter how many cards are in a shifted character's stack, they still count as a single character. Only the top card of a shifted character's stack is considered banished for the purpose of effects like this. Example: If you banish a shifted character with Simba - Rightful Heir, you still gain only 1 lore from his ability I Know What I Have to Do."
+ },
+ {
+  "id": "c00026795d",
+  "src": [
+   "faq:Sisu - Divine Water Dragon"
+  ],
+  "cards": [
+   "Sisu - Divine Water Dragon"
+  ],
+  "runnable": true,
+  "q": "When I quest with Sisu- Divine Water Dragon can I choose not to use her I Trust You ability?",
+  "a": "No, you cannot. Whenever you quest with Sisu- Divine Water Dragon you must look at the top two cards of your deck. You do not have to put one of the cards to your hand but regardless of whether you put a card in your hand or not any card you looked at and did not put in your hand must be placed on the bottom of your deck."
+ },
+ {
+  "id": "998856ebfd",
+  "src": [
+   "faq:Sleepy's Flute"
+  ],
+  "cards": [
+   "Sleepy's Flute"
+  ],
+  "runnable": true,
+  "q": "Can I use the A Silly Song ability of Sleepy's Flute even if I have not played a song this turn?",
+  "a": "Yes, you can. In this instance you would exert Sleepy's Flute for the cost of the ability but since you have not played a song during this turn you do not gain a lore."
+ },
+ {
+  "id": "da90d50c82",
+  "src": [
+   "faq:Sword in the Stone"
+  ],
+  "cards": [
+   "Sword in the Stone"
+  ],
+  "runnable": true,
+  "q": "Can I choose a character with no damage on it for Sword in the Stone's ability?",
+  "a": "Yes, you can. However the chosen character will not gain any strength."
+ },
+ {
+  "id": "aaea467015",
+  "src": [
+   "faq:Teeth and Ambitions"
+  ],
+  "cards": [
+   "Teeth and Ambitions"
+  ],
+  "runnable": true,
+  "q": "When playing Teeth and Ambitions if I choose a copy of Cinderella- Singing Sword, which has Resist 2, as my character to deal 2 damage to, can I still deal 2 damage to an opposing character as well?",
+  "a": "Yes, you can. Even in this example you can still deal 2 damage to an opposing character."
+ },
+ {
+  "id": "be0a4fb4bb",
+  "src": [
+   "faq:The Lamp"
+  ],
+  "cards": [
+   "The Lamp",
+   "Genie - Supportive Friend",
+   "Jafar - Lamp Thief"
+  ],
+  "runnable": true,
+  "q": "I have 2 copies of Jafar - Lamp Thief and 1 Genie - Supportive Friend in play. If I use the Good or Evil ability of The Lamp, what are my choices?",
+  "a": "If you have a character named Jafar in play when you use the Good or Evil ability of The Lamp, you must draw 2 cards. You can't draw more cards even if you have other Jafar characters in play. If you have a character named Genie in play, you must return a chosen character with cost 4 or less to their player's hand. Neither is optional, and if you have both a character named Jafar and a character named Genie in play, you must do both."
+ },
+ {
+  "id": "c0e5ab2767",
+  "src": [
+   "faq:The Most Diabolical Scheme"
+  ],
+  "cards": [
+   "The Most Diabolical Scheme"
+  ],
+  "runnable": true,
+  "q": "Can I play The Most Diabolical Scheme if I do not control a villain character?",
+  "a": "Yes, you can. However the first part of The Most Diabolical Scheme's ability is required to use the second part of the ability. So if you play The Most Diabolical Scheme without a villain character in play then you will not be able to banish an opposing character"
+ },
+ {
+  "id": "f077cfb436",
+  "src": [
+   "faq:The Queen - Commanding Presence"
+  ],
+  "cards": [
+   "The Queen - Commanding Presence"
+  ],
+  "runnable": true,
+  "q": "I have a The Queen- Commanding Presence and a Flounder- Voice of Reason in play. My opponent has a Mickey Mouse- True Friend and a Maleficent- Sorceress. In this situation if I quest with my The Queen- Commanding Presence and use her Who is the Fairest? Ability, what characters can I choose for each part of her effect?",
+  "a": "When using the Who is the Fairest? Ability of The Queen- Commanding Presence you must choose an opponent's character to receive -4 strength. This means that you can only choose either Mickey Mouse or Maleficent to receive -4 strength in this example. When using the second part of the Who is the Fairest? Ability you may choose any character to receive +4 strength. In this example you may choose Mickey Mouse, Maleficent, The Queen or Flounder to receive +4 strength. Note that you must choose a character for each part of the ability so you are not able to decrease the strength of a character and not increase the strength of a character."
+ },
+ {
+  "id": "ca1c510669",
+  "src": [
+   "faq:The Queen - Disguised Peddler"
+  ],
+  "cards": [
+   "The Queen - Disguised Peddler"
+  ],
+  "runnable": true,
+  "q": "Can I quest with The Queen- Peddler even though she has 0 lore?",
+  "a": "Yes, you can. When you quest with a character that has 0 lore you will not gain any lore."
+ },
+ {
+  "id": "1f4d93da45",
+  "src": [
+   "faq:The Sorcerer's Hat"
+  ],
+  "cards": [
+   "The Sorcerer's Hat"
+  ],
+  "runnable": true,
+  "q": "When naming a card for the Incredible Energy ability of The Sorcerer's Hat, what information do I need to say about the card?",
+  "a": "When naming a card for the Incredible Energy ability of The Sorcerer's Hat, you don't need to declare the version name, even if the named card is a character or location."
+ },
+ {
+  "id": "659940e4b4",
+  "src": [
+   "faq:Tiana's Palace - Jazz Restaurant"
+  ],
+  "cards": [
+   "Tiana's Palace - Jazz Restaurant"
+  ],
+  "runnable": true,
+  "q": "If my only character with Bodyguard is at Tiana's Palace - Jazz Restaurant, can my opponent challenge any of my characters?",
+  "a": "Yes. A challenging character must challenge an opposing character with Bodyguard if able, but the Night Out ability of Tiana's Palace makes characters there unable to be challenged. Therefore, challenging characters can challenge any character they'd normally be able to."
+ },
+ {
+  "id": "265693844d",
+  "src": [
+   "faq:Tinker Bell - Peter Pan's Ally"
+  ],
+  "cards": [
+   "Tinker Bell - Peter Pan's Ally"
+  ],
+  "runnable": true,
+  "q": "Challenger is additive, meaning you add up all numerical instances of it for a combined +N {S} gain. Example: If you have two of Tinker Bell - Peter Pan's Ally in play, each of them gives your Peter Pan characters Challenger +1, giving him a total of Challenger +2.",
+  "a": ""
+ },
+ {
+  "id": "75cc562362",
+  "src": [
+   "faq:Ursula - Deceiver of All"
+  ],
+  "cards": [
+   "Ursula - Deceiver of All"
+  ],
+  "runnable": true,
+  "q": "When can I play the additional song using Ursula - Deceiver of All's ability What a Deal?",
+  "a": "When using the What a Deal ability of Ursula - Deceiver of All, you must play the song immediately after you played it the first time. You can't wait until later in the turn."
+ },
+ {
+  "id": "7b6eff1898",
+  "src": [
+   "faq:Ursula - Deceiver of All"
+  ],
+  "cards": [
+   "Ursula - Deceiver of All",
+   "Let the Storm Rage On"
+  ],
+  "runnable": true,
+  "q": "The only character in play is my Ursula - Deceiver of All, who currently has 1 damage. If I have Ursula sing Let the Storm Rage On, can I use her What a Deal ability to play it again?",
+  "a": "Yes. When you play Let the Storm Rage On, if there's a character in play you can choose to deal 2 damage to, you must do so. Even if Let the Storm Rage on banishes your Ursula - Deceiver of All, you can still use her What a Deal ability. In this case you won't be able to deal 2 damage to a character, as there aren't any in play, but you still draw a card."
+ },
+ {
+  "id": "1d95099821",
+  "src": [
+   "faq:Ursula - Deceiver of All"
+  ],
+  "cards": [
+   "Ursula - Deceiver of All",
+   "The Boss is on a Roll"
+  ],
+  "runnable": true,
+  "q": "My Ursula - Deceiver of All sings The Boss is On a Roll. I choose to place 4 cards on top of my deck and 1 card on the bottom. If I use her What a Deal ability to play The Boss is On a Roll again and choose to put 1 more card on the bottom of my deck, where does my copy of The Boss is On a Roll go in relation to the other cards I placed on the bottom of my deck?",
+  "a": "The Boss is On a Roll will be the bottom-most card of your deck, regardless of how many cards you put on the bottom of your deck each time you played it. The card played a second time with Ursula - Deceiver of All's ability What a Deal is placed on the bottom of your deck after its effect has finished."
+ },
+ {
+  "id": "6bffd9340a",
+  "src": [
+   "faq:Work Together"
+  ],
+  "cards": [
+   "Work Together"
+  ],
+  "runnable": true,
+  "q": "Correct Text: Pacha: \"Put your whole back into it!\" Kuzco: \"This is my whole back!\"",
+  "a": ""
+ },
+ {
+  "id": "f7962bd8da",
+  "src": [
+   "faq:Yzma - Scary Beyond All Reason"
+  ],
+  "cards": [
+   "Yzma - Scary Beyond All Reason"
+  ],
+  "runnable": true,
+  "q": "Errata: The Cruel Irony ability was printed with an error. The printed version of Yzma-Scary Beyond All Reason's Cruel Irony ability is as follows: When you play this character, you may shuffle another chosen character into their player's deck. That player draws 2 cards.",
+  "a": ""
+ },
+ {
+  "id": "0e75cd5cab",
+  "src": [
+   "faq:Yzma - Unjustly Treated"
+  ],
+  "cards": [
+   "Yzma - Unjustly Treated"
+  ],
+  "runnable": true,
+  "q": "I'm Warning You! During your turn, whenever one of your characters banishes another character in a challenge, you may deal 1 damage to chosen character.",
+  "a": ""
+ },
+ {
+  "id": "89e697ac3d",
+  "src": [
+   "faq:Zero to Hero"
+  ],
+  "cards": [
+   "Zero to Hero"
+  ],
+  "runnable": true,
+  "q": "I currently have 10 characters and play a copy of Zero to Hero. In this case can I play a character from my hand that costs 5 ink for free using the ability of Zero to Hero?",
+  "a": "Due to the effect of Zero to Hero you pay 10 less ink to play the next character you play. If that character costs equal to or less than 10 then you play it for free (you do not exert any ink to play it). Note that even in the above instance you may only reduce the cost of a single character. Even if you have 10 characters in play when you play Zero to hero you may not play 2 5 cost characters for free, just 1 character that costs 10 or less free or a character that costs more than 10 for 10 less than their printed cost."
+ }
+]

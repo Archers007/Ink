@@ -82,6 +82,8 @@ export class Mod extends Effect {
     [/^(.+?) can't be dealt damage unless (?:he's|she's|they're|it's) being challenged$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noEffectDamage' }] })],
     [/^(.+?) can't be dealt damage$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamage' }] })],
     // "can't ready at the start of their next turn" = skip their next ready step
+    // "That character can't ready at the start of their next turn unless they're at a location." — checked as they'd ready
+    [/^(.+?) (?:can't|cannot) ready at the start of (?:their|its|his|her) next turn unless (?:they're|it's|he's|she's) at a location$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReadyOffLoc' }], dur: 'theirNext' })],
     [/^(.+?) (?:can't|cannot|doesn't|does not|don't) ready at the start of (?:their|its|his|her|its player's) next turn$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReady' }], dur: 'theirNext' })],
     [/^(.+?) (?:can't|cannot) ready at the start of your turn$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReady' }] })],
     [/^(.+?) (?:can|may) challenge ready characters$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'challengeReady' }] })],
@@ -93,7 +95,7 @@ export class Mod extends Effect {
     // "characters with cost 3 or less can't challenge this character" · "damaged characters can't challenge your characters"
     [/^(.+?) (?:can't|cannot) challenge (this character|this location|your characters|your locations|your characters or locations|them|him|her)$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[2].replace(/ or locations$/i, '')), kws: [{ kw: 'cantBeChallengedBy', by: { q: P.filter(m[1]) } }] })],
     // "opposing characters can't ready at the start of their turn" (every turn, while the static holds)
-    [/^(.+?) (?:can't|cannot) ready at the start of (?:their|its|their players'|its player's) turns?$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantReady' }] })],
+    [/^(.+?) (?:can't|cannot) ready at the start of (?:their|its|their players'|its player's) turns?$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'skipReady' }] })],
     // "chosen character counts as having +3 cost to sing songs"
     [/^(.+?) counts? as having \+(\d+) cost to sing songs$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: [{ stat: 'sing', n: +m[2] }] })],
     // "your other characters gain the Detective classification"

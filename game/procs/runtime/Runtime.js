@@ -150,9 +150,9 @@ export class Runtime {
     Act.dispatch(this, s, ev, info, fireOn);                     // generic "whenever <subject> <verb>" triggers
     // delayed triggers: the same event, heard by each player's "this turn" triggers (once per event)
     const live = (s.delayed || []).filter((d) => d.turn === s.turn);
-    if (live.length && EVENTS[ev]) {
+    if (live.length) {
       const heard = new Set();
-      EVENTS[ev](this, s, info, (c, name, pass, it) => {
+      const hear = (c, name, pass, it) => {
         for (const d of live) {
           if (!c || c.owner !== d.seat || heard.has(d) || d.used) continue;
           if (d.who === 'keep' ? !d.keep.includes(c.iid) : d.who === 'src' ? c.iid !== d.src : false) continue;   // "the next time they challenge"
@@ -161,7 +161,9 @@ export class Runtime {
           if (d.once) d.used = true;
           this.queue(s, d.seat, d.src, d.label, d.proc.do, { it: it?.length ? it : d.keep || [] }, { cond: d.proc.cond || null });
         }
-      });
+      };
+      EVENTS[ev]?.(this, s, info, hear);
+      Act.dispatch(this, s, ev, info, hear);                     // "whenever one of your characters sings a song this turn"
     }
   }
 
@@ -178,9 +180,9 @@ export class Runtime {
       const E = this.effect(st.fn);
       const skip = () => Job.next(job);
       // gates
-      // "If it's X, you may … Otherwise, …" — otherwise follows the condition when the step before had one, so declining
-      // the may leaves the card where it is (it was still X)
-      const otherwiseSkip = st.otherwise && (job.ctx.condMet != null ? job.ctx.condMet : job.ctx.did);
+      // "If it's X, you may … Otherwise, …" — otherwise happens when the condition was false or the may was declined
+      // (Prophetic Vision ruling: "or you reveal an action card and choose not to play it")
+      const otherwiseSkip = st.otherwise && (job.ctx.condMet != null ? job.ctx.condMet && !job.ctx.declined : job.ctx.did);
       // a step its gate skips cuts off its sentence: "…, then X" after it doesn't happen either (scripts/verify/gates.mjs)
       if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || otherwiseSkip) { job.ctx.did = false; job.ctx.declined = true; skip(); continue; }
       job.ctx.condMet = st.cond ? this.test(s, st.cond, job.seat, job.src, job) : null;

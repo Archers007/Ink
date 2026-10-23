@@ -232,7 +232,7 @@ export class Compiler {
     let alt;
     const target0 = steps[steps.length - 1];
     const durWords = target0?.dur ? ` ${Duration.say(target0.dur)}` : '';     // "they get +3 {strength} instead" — same duration
-    for (const t of [altText, `${altText} to that character`, `${altText} from that character`, ...(durWords ? [`${altText}${durWords}`] : [])]) {
+    for (const t of [...(durWords ? [`${altText}${durWords}`] : []), altText, `${altText} to that character`, `${altText} from that character`]) {
       try { alt = this.clause(t, ctx); break; } catch (e) { if (!(e instanceof Miss)) throw e; }
     }
     if (!alt) miss(`instead: "${altText}"`, at);
@@ -376,9 +376,12 @@ export class Compiler {
         steps.push({ fn: 'delayed', text: s, once: true, who: 'src', proc: { ...proc, ...this.check(proc) } }); continue;
       }
       if ((m = s.match(/^(?:for the rest of this turn, |this turn, )(whenever .+)$/i)) || (m = s.match(/^(whenever [^,]+?) this turn(, .+)$/i))) {
-        const t = m[2] ? `${m[1]}${m[2]}` : m[1];
+        let t = m[2] ? `${m[1]}${m[2]}` : m[1];
+        // "Whenever they challenge another character this turn, …" — about the card just acted on, not this one
+        const keep = /^whenever (?:they|he|she|that character) /i.test(t) && steps.length;
+        if (keep) t = t.replace(/^whenever (?:they|he|she|that character) (\w+?)(?:s)? /i, 'Whenever this character $1s ');
         const proc = Triggered.parse(t, this, {});
-        if (proc) { steps.push({ fn: 'delayed', text: t, proc: { ...proc, ...this.check(proc) } }); continue; }
+        if (proc) { steps.push({ fn: 'delayed', text: t, ...(keep ? { who: 'keep' } : {}), proc: { ...proc, ...this.check(proc) } }); continue; }
       }
       if ((m = s.match(/^if you do and (.+?), (.+)$/i))) { ifDid = true; cond = parseCondition(m[1], at); s = m[2]; }
       else if ((m = s.match(/^if you do,? (.+)$/i))) { ifDid = true; s = m[1]; }
@@ -416,12 +419,14 @@ export class Compiler {
           paid.effect.forEach((x) => { x.ifDid = true; });
           if (i === 0 && ifDid) paid.cost.forEach((x) => { x.ifDid = true; });
           if (i === 0 && cond) paid.cost[0].cond = cond;                   // "If it's named Kevin, you may reveal it … to gain 3 lore"
+          if (i > 0) paid.cost[0].linked = true;                           // "you may draw a card, then choose and discard a card to …"
           steps.push(...paid.cost, ...paid.effect);
           return;
         }
         if (steps.length && this.tail(part, steps[steps.length - 1])) return;
         const sts = this.compound(part, ctx);
-        if (i > 0) sts[0].linked = true;
+        // "…, then A and B" — B is part of the same sentence: cut off with A ("Otherwise, …, then each opponent loses 1 lore and you gain 1 lore")
+        if (i > 0) sts.forEach((x) => { if (!x.ifDid) x.linked = true; });
         if (i === 0 && ifDid) sts.forEach((x) => { x.ifDid = true; });
         if (i === 0 && cond) sts.forEach((x) => { x.cond = cond; });
         // "If a character sang this song, you may move them …" — them = the singers
@@ -430,6 +435,12 @@ export class Compiler {
       });
     }
     if (!steps.length) miss('no effect', at);
+    // "… choose and discard 2 cards and banish that character" — the discarded cards are in the discard, so "that
+    // character" is the one chosen before (Scar - Finally King)
+    steps.forEach((st, i) => {
+      if (i && steps[i - 1].fn === 'discard' && JSON.stringify(st.sel) === '{"ref":true}' && ['banish', 'damage', 'exert', 'ready', 'mod', 'toHand'].includes(st.fn)
+        && steps.slice(0, i - 1).some((x) => x.fn === 'choose')) st.sel = { ref: true, of: 'choose' };
+    });
     return steps;
   }
 
@@ -458,7 +469,7 @@ export class Compiler {
     // modifiers that wrap the rest
     let once = false; let during = null; let m;
     for (let guard = 0; guard < 3; guard++) {
-      if ((m = t.match(/^once (?:during your|per) turn,? (.+)$/i))) { once = true; t = m[1]; continue; }
+      if ((m = t.match(/^once (during your|per) turn,? (.+)$/i))) { once = true; if (/your/i.test(m[1])) during = 'yours'; t = m[2]; continue; }
       if ((m = t.match(/^during your turn,? (.+)$/i))) { during = 'yours'; t = m[1]; continue; }
       if ((m = t.match(/^during (?:an opponent's turn|opponents' turns|each opponent's turn),? (.+)$/i))) { during = 'opp'; t = m[1]; continue; }
       break;

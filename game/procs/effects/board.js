@@ -106,7 +106,7 @@ export class MoveFree extends Effect {
       rt.log(s, `↳ Moved ${rt.tl(s, m)} to ${rt.E.cardLabel(rt.E.D(s, s.cards[to[0]]))} for free.`, { seat: job.seat, kind: 'effect' });
       rt.E.moveChar(s, m, to[0], ev);
     }
-    job.ctx.it = moved;
+    job.ctx.it = moved; job.ctx.loc = [to[0]];                        // "That location gains Resist +2" (The Game's Afoot!)
     return moved.length > 0;
   }
   static say(st) { return `move ${[st.sel, ...(st.also || [])].map(Selector.say).join(' and ')} to ${st.to.refLoc ? 'that location' : Selector.say(st.to)} for free`; }

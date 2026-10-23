@@ -37,7 +37,7 @@ export const KEYWORD_LABEL = {
   universalShift: 'Universal Shift', classShift: 'Shift', tempShift: 'Temporary Shift', vanish: 'Vanish', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
   cantQuest: "Can't quest", cantChallenge: "Can't challenge", mustQuest: 'Must quest if able', adventurous: 'Adventurous', cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
-  noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
+  noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", skipReadyOffLoc: "Skips its next ready unless at a location", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
   mustChoose: 'Opponents must choose it if able', cantSing: "Can't sing", challengeReady: 'Can challenge ready characters', challengeReadyOf: 'Can challenge some ready characters', questFresh: 'Can quest the turn it\'s played',
 };
 
@@ -148,8 +148,9 @@ export function defenderBlocker(att, attDef, tgt, tgtDef, defenderSide) {
   if (!tgt.exerted && !mayChallengeReady(att, attDef, tgt, tgtDef)) return 'Only exerted characters can be challenged.';       // 4.6.4.2
   if (evasiveBlocks(att, attDef, tgt, tgtDef)) return 'Evasive — only characters with Evasive (or Alert) can challenge it.';
   if (!hasKw(tgt, tgtDef, 'bodyguard')) {
+    // only a Bodyguard this attacker could challenge restricts it (one that can't be challenged — Evasive, Tiana's Palace — doesn't)
     const guard = defenderSide.find(({ card, def }) => def.type === 'character' && card.exerted
-      && hasKw(card, def, 'bodyguard') && !evasiveBlocks(att, attDef, card, def));
+      && hasKw(card, def, 'bodyguard') && !defenderBlocker(att, attDef, card, def, []));
     if (guard) return `Bodyguard — you must challenge ${cardLabel(guard.def)} first.`;
   }
   return null;

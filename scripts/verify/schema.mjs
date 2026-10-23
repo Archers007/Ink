@@ -167,7 +167,7 @@ for (const [, xs] of byCard) if (xs.length > 1) {
 
 // findings that were checked by hand and are fine — rule → why
 const ALLOW = {
-  'ref.of.noSuchEarlierFn': (h) => /of=healedIds/.test(h.detail),           // a list a step keeps in ctx, not a step fn
+  'ref.of.noSuchEarlierFn': (h) => /of=(?:healedIds|loc) /.test(h.detail),     // a list a step keeps in ctx (healedIds, loc: where a move went), not a step fn
 };
 console.log(`runnable procs checked: ${d.length}\n`);
 const procsHit = new Set();

@@ -20,8 +20,9 @@ export function GATES(steps, out) {
     const o = out[i];
     // "If you do, X" — X only if the step before happened (CR 6.1.4: a "may" not done, or an effect that couldn't, isn't done)
     // "…, then X" — the same sentence: X unless the step before was cut off (declined, or skipped by its own gate)
-    // "Otherwise, X" — X only if the nearest "If …" before it was false; after a "may" with no "If", if it didn't happen
-    const otherwiseBlocked = st.otherwise && (prev.cond != null ? prev.cond : prev.happened);
+    // "Otherwise, X" — X if the nearest "If …" before it was false, or its "you may" was declined (the Prophetic Vision
+    // ruling); after a "may" with no "If", if it didn't happen
+    const otherwiseBlocked = st.otherwise && (prev.cond != null ? prev.cond && !prev.cut : prev.happened);
     if ((st.ifDid && !prev.happened) || (st.linked && prev.cut) || otherwiseBlocked) { prev = { happened: false, cut: true, cond: prev.cond }; return; }
     // "If C, X" — X only if C (checked as the step starts)
     if (st.cond && !o.cond) { prev = { happened: false, cut: true, cond: false }; return; }

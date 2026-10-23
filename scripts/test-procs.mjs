@@ -2139,6 +2139,31 @@ test('base proc: every card has one; the engine\'s stats come from it (Abu - Mis
   ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
   assert.equal(s.players[0].lore, abu.base.quest.do[0].n);
 });
+test('review fixes: "challenges another character" skips locations · "once during your turn" · start-of-turn ready ban', () => {
+  const on = (t) => C(t).on[0];
+  assert.deepEqual(on('Whenever this character challenges another character, gain 1 lore.').filter, { types: ['character'] });
+  assert.equal(on('Whenever this character challenges, gain 1 lore.').filter, undefined);
+  assert.ok(on('Whenever one of your characters challenges another character, gain 1 lore.').vs);
+  assert.equal(C('Once during your turn, whenever you draw a card, gain 1 lore.').during, 'yours');
+  assert.equal(C('Once per turn, whenever you draw a card, gain 1 lore.').during, undefined);
+  assert.equal(JSON.stringify(C("Opposing characters can't ready at the start of their turn.")).includes('skipReady'), true);
+  const herc = C("While this character is exerted, your other Hero characters can't be dealt damage unless they're being challenged.");
+  assert.equal(herc.effect.kws[0].kw, 'noEffectDamage');
+  assert.deepEqual(C('If you discarded a card this turn, this character gets +1 {strength}.').cond, { history: { ev: 'discarded', mine: true } });
+});
+test('Medallion Weights: "whenever they challenge another character this turn" listens to the chosen character', () => {
+  const mw = byName('Medallion Weights');
+  const att = vanilla((d) => d.str >= 1 && d.wp >= 3); const foe = vanilla((d) => d.wp >= 9);
+  const { s, ids } = setup({ play0: [mw, att, att], play1: [foe] }); unready(s, ids.play0);
+  s.cards[ids.play1[0]].exerted = true;
+  ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }));
+  ok(applyAction(s, 0, { type: 'choose', target: ids.play0[2] })); drain(s);
+  const hand = s.players[0].hand.length;
+  ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] })); drain(s);
+  assert.equal(s.players[0].hand.length, hand, 'a different character challenged → no draw');
+  ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[2], target: ids.play1[0] })); drain(s);
+  assert.equal(s.players[0].hand.length, hand + 1, 'the chosen character challenged → draw');
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
   const d = all.filter((x) => x.procs.some((p) => !p.exec));
