@@ -50,11 +50,28 @@ export class InkDrop extends Effect {
     [/^you and another chosen player each get (\d+|an?) ink drops?$/i, (m) => ({ fn: 'inkDrop', n: /^\d+$/.test(m[1]) ? +m[1] : 1, who: 'youAndOne' })],
     [/^each player gets (\d+|an?) ink drops?$/i, (m) => ({ fn: 'inkDrop', n: /^\d+$/.test(m[1]) ? +m[1] : 1, who: 'each' })],
   ];
-  static run(rt, s, job, st) {
+  static run(rt, s, job, st, ev) {
     // 2-player: "you and another chosen player" = you and your opponent
     const seats = st.who === 'youAndOne' ? [job.seat, ...rt.E.opponentsOf(s, job.seat).slice(0, 1)] : rt.who(s, job, st.who);
-    for (const seat of seats) {
+    const T = (job.tmp.drop ||= { i: 0 });
+    for (; T.i < seats.length; T.i++) {
+      const seat = seats[T.i];
       const p = rt.E.P(s, seat);
+      // "If you would get an ink drop, you may put the top card of your deck into your inkwell facedown and exerted instead" (CR 6.5)
+      let ask = false;
+      const e = rt.replace(s, { event: 'inkDrop', seat }, (r) => {
+        if (r.st.do !== 'deckToInk' || !p.deck.length) return undefined;
+        if (r.st.may) {
+          if (job.answer?.key !== 'inkDropInstead') { ask = true; return undefined; }
+          const no = job.answer.skip; job.answer = null;
+          if (no) return undefined;
+        }
+        rt.log(s, `↳ ${rt.E.nameOf(s, seat)} put the top card of their deck into their inkwell instead of getting an ink drop.`, { seat, kind: 'effect' });
+        rt.E.moveTo(s, p.deck[0], 'inkwell', ev, { exerted: true });
+        return null;
+      });
+      if (ask) { job.waitKey = 'inkDropInstead'; return rt.ask(s, job, { seat, confirm: true, optional: true, op: 'inkDropInstead', prompt: 'put the top card of your deck into your inkwell, exerted, instead of getting an ink drop?' }); }
+      if (!e) continue;
       p.inkDrops = (p.inkDrops || 0) + Amount.value(rt, s, job, st.n);
       rt.fire(s, 'gotInkDrop', { seat });                             // "if you got an ink drop this turn"
       rt.log(s, `↳ ${rt.E.nameOf(s, seat)} got ${st.n} ink drop${st.n === 1 ? '' : 's'} (${p.inkDrops} 💧).`, { seat, kind: 'effect' });

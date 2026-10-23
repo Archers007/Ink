@@ -92,7 +92,7 @@ export class RevealHandDiscard extends Effect {
       rt.log(s, `↳ ${rt.E.nameOf(s, o)} revealed their hand: ${hand.map((iid) => rt.E.cardLabel(rt.E.D(s, s.cards[iid]))).join(', ') || 'empty'}.`, { kind: 'effect' });
     }
     const valid = hand.filter((iid) => rt.matches(s, { ...st.filter, zone: 'hand' }, s.cards[iid], job.seat, job.src));
-    if (!valid.length) return false;
+    if (!valid.length || rt.discardBlocked(s, o)) return false;
     const picked = rt.pickFrom(s, job, st, 'rhd', valid, { n: 1, optional: false, prompt: `choose ${Query.describe(st.filter)} for them to discard.` });
     if (!picked) return null;
     return rt.each(picked, (iid) => { rt.E.moveTo(s, iid, 'discard', ev); rt.log(s, `↳ ${rt.E.nameOf(s, o)} discarded ${rt.E.cardLabel(rt.E.D(s, s.cards[iid]))}.`, { kind: 'effect' }); });
@@ -130,7 +130,7 @@ export class RevealHand extends Effect {
     }
     if (!st.discard) return true;
     const valid = hand.filter((iid) => rt.matches(s, { ...st.discard.filter, zone: 'hand' }, s.cards[iid], job.seat, job.src));
-    if (!valid.length) return false;
+    if (!valid.length || rt.discardBlocked(s, job.seat)) return false;
     const picked = st.discard.each ? valid : rt.pickFrom(s, job, st, 'rh', valid, { n: 1, optional: false, prompt: `discard ${Query.describe(st.discard.filter)}.` });
     if (!picked) return null;
     for (const iid of picked) { E.moveTo(s, iid, 'discard', ev); rt.fire(s, 'discarded', { iid, seat: job.seat }); }

@@ -17,6 +17,7 @@ import { EFFECT } from '../effects/index.js';
 import { EVENTS } from '../triggers/index.js';
 import { Act } from '../triggers/act.js';
 import { ruleValue } from '../../rulebook/rules.js';
+import { replaceEvent } from '../../rulebook/replace.js';
 import { testCondition } from '../conditions/index.js';
 import { Triggered, Static, Activated, Action } from '../kinds/index.js';
 import { DURATIONS } from '../phrases/duration.js';
@@ -83,6 +84,7 @@ export class Runtime {
       if (ev) ev.push({ k: 'mod', iid, stat: m.stat, delta: base * mult });
     }
     if (st.cls) c.mods.push({ stat: 'class', cls: st.cls, delta: 1, ...u, src: job.label });   // "gains the Detective classification"
+    if (st.rep) c.mods.push({ stat: 'replace', replace: st.rep, delta: 0, ...u, src: job.label });   // a one-shot replacement (CR 6.5)
     for (const k of st.kws || []) {
       if (k.kw === 'grant') {
         if (!c.mods.some((m) => m.stat === 'grant' && m.proc === k.proc && m.until === u.until)) c.mods.push({ stat: 'grant', proc: k.proc, ...u, src: job.label });
@@ -215,6 +217,16 @@ export class Runtime {
   staticActive(s, proc, owner, src) { return Static.active(this, s, proc, owner, src); }
   // a game rule's value for a player (game/rulebook/rules.js) — the base, or what the board's statics set
   rule(s, id, seat) { return ruleValue(this, s, id, seat); }
+  // replacement effects (CR 6.5, game/rulebook/replace.js): apply(r, ev) → modified event · null (doesn't happen) · undefined (declined)
+  replace(s, ev, apply) { return replaceEvent(this, s, ev, apply); }
+  // "If an effect would cause you to discard one or more cards, you don't discard"
+  discardBlocked(s, seat) {
+    let by = null;
+    const r = this.replace(s, { event: 'discard', seat }, (x) => { if (x.st.do !== 'prevent') return undefined; by = x.src; return null; });
+    if (r) return false;
+    this.log(s, `↳ ${this.E.nameOf(s, seat)} doesn't discard (${this.E.cardLabel(this.E.D(s, s.cards[by]))}).`, { seat, kind: 'effect' });
+    return true;
+  }
   costDelta(s, seat, c, consume = false) { return Static.costDelta(this, s, seat, c, consume); }
   onEnter(s, c) { Static.onEnter(this, s, c); }
   activate(s, seat, c, index, ev) { return Activated.activate(this, s, seat, c, index, ev); }
