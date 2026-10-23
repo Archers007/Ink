@@ -26,11 +26,12 @@ export class History extends Condition {
     [/^you didn't put any cards into your inkwell this turn$/i, () => H('inked', { mine: true, n: { lte: 0 } })],
     [new RegExp(String.raw`^you(?:'ve)? played ${NUM} or more (.+?) this turn$`, 'i'), (m, a) => H('play', { mine: true, n: { gte: N(m[1]) }, ...(/^cards?$/i.test(m[2]) ? {} : { of: filter(m[2], a) }) })],
     [/^you didn't play (?:a|an) (.+?) this turn$/i, (m, a) => H('play', { mine: true, n: { lte: 0 }, of: filter(m[1], a) })],
-    [/^you(?:'ve)? put a card under (?:one of your characters or locations|him|her|it|them|this character) this turn$/i, () => H('putUnder', { mine: true })],
+    [/^you(?:'ve)? put a card under one of your characters or locations this turn$/i, () => H('putUnder', { mine: true })],
+    [/^you(?:'ve)? put a card under (?:him|her|it|them|this character) this turn$/i, () => H('putUnder', { mine: true, onSelf: true })],
   ];
   static test(rt, s, C, env) {
     const h = C.history;
-    const n = (s.turnLog || []).filter((e) => e.ev === h.ev && (!h.notSelf || e.iid !== env.src)
+    const n = (s.turnLog || []).filter((e) => e.ev === h.ev && (!h.notSelf || e.iid !== env.src) && (!h.onSelf || e.iid === env.src)
       && (!h.mine || e.seat === env.ctl) && (!h.opp || e.seat !== env.ctl) && (!h.inChallenge || e.inChallenge)
       && (!h.of || (e.iid && rt.matches(s, h.of, s.cards[e.iid], env.ctl, env.src, { anyZone: true })))).length;
     const r = h.n || { gte: 1 };

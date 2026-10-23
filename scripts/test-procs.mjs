@@ -6,7 +6,7 @@ import { compileAbility, compileCard } from '../game/procs/index.js';
 import { canon, mergeSplitNames, unknownIcons } from '../game/procs/normalize.js';
 import { SUPPORT } from '../game/procs/index.js';
 import { createRuntime } from '../game/procs/index.js';
-import { applyAction, checkInvariants, viewFor } from '../game/engine.js';
+import { applyAction, checkInvariants, viewFor, ENGINE as E } from '../game/engine.js';
 import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
 import { RULES } from '../game/rulebook/rules.js';
 import { section } from '../game/rulebook/cr.js';
@@ -1048,6 +1048,31 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
     ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); drain(s);
     assert.equal(s.players[0].hand.length, hand - 1 + 3);
+  }
+  { // Daisy Duck - Sapphire Champion: "Your other Sapphire characters gain Resist +1" — an ink type, not a classification
+    const sap = vanilla((d) => (d.inks || []).includes('sapphire')), ruby = vanilla((d) => !(d.inks || []).includes('sapphire'));
+    const { s, ids } = setup({ play0: [byName('Daisy Duck - Sapphire Champion'), sap, ruby] });
+    ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' }));
+    const kw = (i) => { const c = s.cards[ids.play0[i]]; return kwHas(c, s.defs[c.cardId], 'resist'); };
+    assert.equal(kw(1), true); assert.equal(kw(2), false);
+  }
+  { // Maleficent's Staff: "Whenever one of your opponents' characters … is returned to their hand from play, gain 1 lore."
+    const staff = byName("Maleficent's Staff"), bef = byName('Befuddle'), foe = vanilla((d) => d.cost <= 2);
+    const { s, ids } = setup({ play0: [staff], hand0: [bef], play1: [foe], ink0: bef.cost });
+    const lore = s.players[0].lore;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.players[0].lore, lore + 1);
+  }
+  { // Willie the Giant: "can't quest or challenge unless you put a card under him this turn" — under HIM, not any of yours
+    const willie = byName('Willie the Giant - Ghost of Christmas Present'), pal = vanilla(() => true);
+    const { s, ids } = setup({ play0: [willie, pal] });
+    ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s); s.fx = [];
+    const under = (iid) => { E.putUnder(s, 0, iid, []); E.gameStateCheck(s, []); };   // fires putUnder into the turn log
+    under(ids.play0[1]);
+    assert.equal(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }).ok, false, 'a card under another character does not count');
+    under(ids.play0[0]); s.fx = [];
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
   }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');

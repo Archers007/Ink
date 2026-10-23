@@ -1089,7 +1089,7 @@ H.clearMods = (s, seat, a, ev) => {
 
 // ---------- proc runtime ----------
 
-const ENGINE = {
+export const ENGINE = {
   D, P, nameOf, log, cardLabel, prettyText, KEYWORD_LABEL, LORE_TO_WIN, RE,
   effStr, effWp, effLore, kwVal, hasKw, rand, shuffleArr, readyInk, payInk, opponentsOf,
   moveTo, banish, dealDamage, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, turnPhase, putUnder, moveChar, exertCard,
