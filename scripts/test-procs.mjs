@@ -1421,6 +1421,14 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     assert.ok(s.pending?.confirm);
     assert.equal(applyAction(s, 0, { type: 'choose', target: 'junk' }).ok, false);
   }
+  { // Kronk - Meat Hut Cook: "you may pay 1 {ink} to draw a card, then choose and discard a card" — can't pay → no draw, no discard
+    const kr = byName('Kronk - Meat Hut Cook');
+    const { s, ids } = setup({ play0: [kr], ink0: 0 }); unready(s, ids.play0);
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(kr) }));
+    for (let k = 0; k < 4 && s.pending; k++) { assert.ok(s.pending.confirm, 'no discard prompt'); ok(applyAction(s, 0, { type: 'choose', confirm: true })); }
+    assert.equal(s.players[0].hand.length, hand);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
