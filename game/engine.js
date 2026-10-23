@@ -152,7 +152,7 @@ function moveTo(s, iid, to, ev, opt = {}) {
     if (to === 'deckTop' || to === 'deckBottom') k.zone = 'deck';
     if (to === 'deckTop') p.deck.unshift(id);
     else if (to === 'deckBottom') p.deck.push(id);
-    else if (to === 'inkwell') { k.faceDown = true; k.exerted = !!opt.exerted; p.inkwell.push(id); }
+    else if (to === 'inkwell') { k.faceDown = true; k.exerted = !!opt.exerted || !!R.rule(s, 'inkExerted', k.owner); p.inkwell.push(id); }   // "cards enter opponents' inkwells exerted"
     else if (to === 'play') { k.enteredTurn = s.turn; k.drying = D(s, k).type === 'character'; p.play.push(id); }
     else p[to].push(id);
     const fromZ = { seat: c.owner, zone: from === 'play' && id !== iid ? 'play' : from };
@@ -209,6 +209,8 @@ function drawCards(s, seat, n, ev) {
 
 function gainLore(s, seat, n, ev) {
   if (!n) return;
+  if (n > 0 && !R.rule(s, 'gainLore', seat)) { log(s, `${nameOf(s, seat)} can't gain lore right now.`, { seat, kind: 'effect' }); return; }
+  if (n < 0 && !R.rule(s, 'loseLore', seat)) { log(s, `${nameOf(s, seat)} can't lose lore right now.`, { seat, kind: 'effect' }); return; }
   const p = P(s, seat);
   const before = p.lore;
   p.lore = Math.max(0, p.lore + n);  // can't go below 0 (1.11.1)
@@ -246,7 +248,7 @@ function gameStateCheck(s, ev) {
     const order = [];
     for (let k = 0, seat = s.active; k < s.players.length; k++, seat = nextSeat(s, seat)) if (!order.includes(seat)) order.push(seat);
     for (const seat of order) {
-      if (P(s, seat).lore >= LORE_TO_WIN) { win(s, seat, `reached ${P(s, seat).lore} lore`, ev); return; }
+      if (P(s, seat).lore >= R.rule(s, 'winLore', seat)) { win(s, seat, `reached ${P(s, seat).lore} lore`, ev); return; }
     }
     const doomed = [];
     for (const p of s.players) {
@@ -303,7 +305,9 @@ function startTurn(s, seat, ev) {
   gameStateCheck(s, ev);
   if (s.status !== 'playing') return;
   // Draw step (3.2.3) — the starting player skips it on the first turn of the game.
-  if (!(s.turn === 1 && seat === s.starting)) {
+  if (!R.rule(s, 'drawStep', seat)) {
+    log(s, `${nameOf(s, seat)} skips their Draw step.`, { seat });
+  } else if (!(s.turn === 1 && seat === s.starting)) {
     const { names } = drawCards(s, seat, 1, ev);
     if (names.length) log(s, `${nameOf(s, seat)} drew a card.`, { seat, priv: { seat, text: `You drew ${names[0]}.` } });
   } else {
@@ -439,12 +443,13 @@ H.mulligan = (s, seat, a, ev) => {
 
 H.ink = (s, seat, a, ev) => {
   needMain(s, seat);
-  const c = ownCard(s, seat, a.iid, 'hand');
+  const fromDiscard = s.cards[a.iid]?.zone === 'discard' && R.rule(s, 'inkFromDiscard', seat);   // "You can ink cards from your discard"
+  const c = ownCard(s, seat, a.iid, fromDiscard ? 'discard' : 'hand');
   const d = D(s, c);
   const p = P(s, seat);
-  if (!d.inkable) throw RE(`${cardLabel(d)} doesn't have the inkwell symbol.`);
+  if (!d.inkable && !(c.zone === 'hand' && R.rule(s, 'handInkable', seat))) throw RE(`${cardLabel(d)} doesn't have the inkwell symbol.`);
   if (p.inkedThisTurn >= INKS_PER_TURN + p.extraInk) throw RE("You've already put a card into your inkwell this turn.");
-  moveTo(s, c.iid, 'inkwell', ev, { reveal: true });  // inking reveals the card (4.2.1.1)
+  moveTo(s, c.iid, 'inkwell', ev, { reveal: true, exerted: R.rule(s, 'inkExerted', seat) });  // inking reveals the card (4.2.1.1)
   p.inkedThisTurn += 1;
   log(s, `${nameOf(s, seat)} inked ${cardLabel(d)} (${p.inkwell.length} ink).`, { seat });
   R.fire(s, 'inked', { seat });
@@ -667,6 +672,8 @@ H.challenge = (s, seat, a, ev) => {
   if (why) throw RE(why);
   const T = s.cards[a.target];
   if (!T || T.zone !== 'play' || T.owner === seat) throw RE('Choose an opposing character or location to challenge.');
+  const limit = R.rule(s, 'challengesPerTurn', seat);
+  if ((s.turnLog || []).filter((e) => e.ev === 'challenges').length >= limit) throw RE(`Only ${limit} challenge${limit === 1 ? '' : 's'} can happen each turn.`);
   const Td = D(s, T);
   why = defenderBlocker(A, Ad, T, Td, sideOf(s, T.owner));
   if (why) throw RE(why);
@@ -683,7 +690,7 @@ function challengeDamageStep(s, a, t, ev) {
   const A = s.cards[a]; const T = s.cards[t];
   if (!A || !T || A.zone !== 'play' || T.zone !== 'play') { s.challenge = null; log(s, '↳ The challenge ended — a character left play.', { kind: 'effect' }); return; }
   const Ad = D(s, A); const Td = D(s, T);
-  const { toDefender, toAttacker } = challengeDamage(A, Ad, T, Td);
+  const { toDefender, toAttacker } = challengeDamage(A, Ad, T, Td, { attStat: R.rule(s, 'challengeStat', A.owner), defStat: R.rule(s, 'challengeStat', T.owner) });
   ev.push({ k: 'challenge', a: A.iid, t: T.iid, toA: toAttacker, toT: toDefender });
   log(s, `↳ ${cardLabel(Ad)} dealt ${toDefender}, took ${toAttacker}.`, { kind: 'challenge' });
   if (toDefender) { T.damage += toDefender; ev.push({ k: 'damage', iid: T.iid, n: toDefender }); }
@@ -1080,6 +1087,7 @@ export function viewFor(s, seat) {
       inkDrops: p.inkDrops || 0,
       inkedThisTurn: p.inkedThisTurn,
       inkLimit: INKS_PER_TURN + p.extraInk,
+      rules: { winLore: R.rule(s, 'winLore', p.seat), handInkable: R.rule(s, 'handInkable', p.seat), inkFromDiscard: R.rule(s, 'inkFromDiscard', p.seat) },
       mulliganDone: p.mulligan.done,
       mulliganCount: p.mulligan.done ? p.mulligan.count : null,
       discard: p.discard.map((iid) => ({ iid, cardId: s.cards[iid].cardId })),

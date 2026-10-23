@@ -10,8 +10,9 @@ import { sentences } from '../phrases/text.js';
 import { Amount } from '../phrases/amount.js';
 import { Query } from '../query.js';
 import { PlayBan } from '../effects/playBan.js';
+import { parseRule } from '../../rulebook/rules.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule']);
 
 export class Static extends Kind {
   static kind = 'static';
@@ -28,6 +29,14 @@ export class Static extends Kind {
       return { kind: 'triggered', ...mods, on: [{ ev: 'play' }], ...(cond ? { cond } : {}), do: steps };
     }
     const wrap = (effect) => ({ kind: 'static', ...mods, ...(cond ? { cond } : {}), effect });
+    // a game rule the card changes (game/rulebook/rules.js) — "Opponents need 25 lore to win the game"
+    const rule = parseRule(t);
+    if (rule) {
+      const { unlessText, ...r } = rule;
+      // "each opposing player can't gain lore unless one of their characters has challenged this turn": the
+      // condition is asked of that player — "their" reads as "your" from their side
+      return wrap({ fn: 'rule', ...r, ...(unlessText ? { unless: c.condition(unlessText.replace(/\btheir\b/gi, 'your').replace(/\bthey\b/gi, 'you'), t) } : {}) });
+    }
     // "You can't play this character unless …" (the unless is already folded into cond as a not)
     if (/^you can't play this (?:character|action|item|location|song)$/i.test(t)) return wrap({ fn: 'selfBan' });
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });

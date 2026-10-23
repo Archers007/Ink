@@ -45,7 +45,7 @@ export class Heal extends Effect {
     job.ctx.healed = 0;
     return rt.each(ids, (iid) => {
       const c = s.cards[iid];
-      const n = Math.min(Amount.value(rt, s, job, st.n), c.damage);
+      const n = rt.rule(s, 'removeDamage', c.owner) ? Math.min(Amount.value(rt, s, job, st.n), c.damage) : 0;   // "damage counters can't be removed"
       c.damage -= n; job.ctx.healed += n; job.ctx.n = job.ctx.healed;
       if (n) { ev.push({ k: 'damage', iid, n: -n }); rt.fire(s, 'healed', { iid, n, seat: job.seat }); }
       rt.log(s, `↳ Removed ${n} damage from ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
