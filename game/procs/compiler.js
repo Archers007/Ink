@@ -261,6 +261,9 @@ export class Compiler {
   effects(text, ctx = {}) {
     const steps = [];
     const at = text;
+    // "Choose any number of players. They discard their hands and draw 3 cards each."
+    const anyp = text.match(/^choose any number of players\. they (.+?)(?: each)?\.?$/i);
+    if (anyp) return [{ fn: 'eachPlayer', who: 'anyPlayers', do: this.effects(secondPerson(anyp[1]).replace(/\byour hands\b/gi, 'your hand'), ctx) }];
     // "Chosen opponent chooses one: • …" · "Chosen opponent chooses YES! or NO!: • YES! … • NO! …" — they pick; in an
     // option "they …" is that player, "you" is still the controller
     const oc = text.match(/^(?:chosen|each) opponent chooses (?:one|YES! or NO!): • (.+)$/i);

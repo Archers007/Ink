@@ -1279,6 +1279,42 @@ test('cost rules (CR 1.5): each player pays more, Shift discounts, the first act
     assert.equal(before - ready(s, 0), 3, 'only the first');
   }
 });
+test('players and counts (CR 1.3, 6.7): you and another player, any number of players, "that amount", highest cost', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // If I Didn't Have You: "You and another chosen player each draw 2 cards."
+    const { s, ids } = setup({ hand0: [byName("If I Didn't Have You")] });
+    const h0 = s.players[0].hand.length - 1, h1 = s.players[1].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.deepEqual([s.players[0].hand.length, s.players[1].hand.length], [h0 + 2, h1 + 2]);
+  }
+  { // Beyond the Horizon: "Choose any number of players. They discard their hands and draw 3 cards each."
+    const { s, ids } = setup({ hand0: [byName('Beyond the Horizon')] });
+    const h1 = s.players[1].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', option: 2 })); drain(s);
+    assert.equal(s.players[1].hand.length, 3, 'opponent: discarded and drew 3');
+    assert.ok(s.players[1].discard.length >= h1);
+  }
+  { // Zero to Hero: "Count the number of characters you have in play. You pay that amount of {ink} less for the next character you play this turn."
+    const x = plain((d) => d.cost === 4);
+    const { s, ids } = setup({ hand0: [byName('Zero to Hero'), x], play0: [plain(() => true), plain(() => true)], ink0: 10 });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    const before = s.players[0].inkwell.filter((i) => !s.cards[i].exerted).length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] }));
+    assert.equal(before - s.players[0].inkwell.filter((i) => !s.cards[i].exerted).length, 2);
+  }
+  { // Duchess - Cosmopolitan Cat: "While you have a character in play with the highest cost, or tied for highest cost, this character gets +1 {lore}."
+    const duchess = byName('Duchess - Cosmopolitan Cat');
+    const big = plain((d) => d.cost >= 7), small = plain((d) => d.cost <= duchess.cost);
+    const lore = (s, iid) => viewFor(s, 0).players[0].play.find((c) => c.iid === iid).eff.lore;
+    const a = setup({ play0: [duchess, big], play1: [small] });
+    for (const x of [a]) { ok(applyAction(x.s, 0, { type: 'endTurn' })); ok(applyAction(x.s, 1, { type: 'endTurn' })); }
+    assert.equal(lore(a.s, a.ids.play0[0]), duchess.lore + 1);
+    const b = setup({ play0: [duchess], play1: [big] });
+    ok(applyAction(b.s, 0, { type: 'endTurn' })); ok(applyAction(b.s, 1, { type: 'endTurn' }));
+    assert.equal(lore(b.s, b.ids.play0[0]), duchess.lore);
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

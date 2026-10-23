@@ -19,7 +19,7 @@ export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'play
 export class Static extends Kind {
   static kind = 'static';
   static parse(t, c, mods) {
-    t = t.replace(/\.$/, '');
+    t = t.replace(/\.$/, '').replace(/, or tied for (?:the )?highest cost/i, ' or tied for highest cost');
     let cond = null;
     let m;
     if ((m = t.match(/^(?:while|if|as long as) (.+?), (.+)$/i))) { cond = c.condition(m[1], t); t = m[2]; }

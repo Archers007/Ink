@@ -3,6 +3,7 @@
 //   eachPlayer   "each player draws 2 cards" · "chosen opponent reveals their hand" — the inner steps run
 //                once per player, as that player (their choices, their "you"), before the rest of this ability
 import { Effect } from './Effect.js';
+import { Query } from '../query.js';
 import { Selector } from '../phrases/selector.js';
 import { PLAYER_SAY, playerPasses } from '../phrases/player.js';
 
@@ -32,6 +33,15 @@ export class EachPlayer extends Effect {
   static run(rt, s, job, st) {
     let seats = rt.who(s, job, st.who);
     if (st.whoIf) seats = seats.filter((x) => playerPasses(rt, s, x, job.seat, st.whoIf));   // "each opponent with more lore than you"
+    // "Choose any number of players": you, an opponent, or both (CR 1.3)
+    if (st.who === 'anyPlayers') {
+      const opts = [seats, [job.seat], rt.E.opponentsOf(s, job.seat), []];
+      if (job.answer?.key !== 'players') {
+        job.waitKey = 'players';
+        return rt.ask(s, job, { op: 'eachPlayer', choices: ['Everyone', 'Just you', 'Just your opponent(s)', 'No one'], prompt: 'choose any number of players.' });
+      }
+      seats = opts[job.answer.option] || []; job.answer = null;
+    }
     // "chosen player / chosen opponent": the controller picks one (no choice to make with only one candidate)
     if (st.who === 'chosenPlayer' || st.who === 'chosenOpp') {
       if (job.answer?.key === 'player') { seats = [seats[job.answer.option]].filter((x) => x != null); job.answer = null; }
@@ -63,4 +73,16 @@ export class Delayed extends Effect {
   }
   static check(st, missing) { if (!st.proc.exec) missing.add(`delayed trigger: ${(st.proc.why || '').replace(/^engine can't run: /, '')}`); }
   static say(st, sayStep) { return `for the rest of this turn: ${st.text}`; }
+}
+
+// "Count the number of characters you have in play." — that number is "that amount" / "that number" for what follows
+export class Count extends Effect {
+  static fn = 'count';
+  static rules = [[/^count the number of (.+?)(?: you have)? in play$/i, (m, P) => ({ fn: 'count', filter: { ...P.filter(/you have/i.test(m[0]) ? `your ${m[1]}` : m[1]) } })]];
+  static run(rt, s, job, st) {
+    job.ctx.n = rt.candidates(s, st.filter, job.seat, job.src).length;
+    rt.log(s, `↳ ${job.label}: counted ${job.ctx.n}.`, { seat: job.seat, kind: 'effect' });
+    return true;
+  }
+  static say(st) { return `count ${Query.describe(st.filter)}`; }
 }
