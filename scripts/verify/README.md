@@ -13,6 +13,13 @@ check below. `pnpm verify` runs the static ones; `pnpm test` runs all of them.
 | scenarios | the card does what its **printed text** says: for each ability whose sentences the independent phrase table reads, fire it on a small board and diff against the same run with the ability removed; declining a "may" changes nothing. `--mutate` breaks each ability (numbers +1, opposing→yours) to prove the check notices; `--gaps` lists what it can't read yet | `scenarios.mjs` |
 | properties | after every step of every simulated game: prompts are answerable, the bag drains, the game state check ran, cards out of play carry nothing, lore only drops through "lose lore" — on top of `engine.checkInvariants` | `props.mjs` (run by `scripts/sim-games.mjs`) |
 
+## Rulebook traceability
+
+`trace.mjs` finds every Comprehensive Rules citation (`CR 4.6.7`, `cr: '4.6.7'`, or a section number in a comment),
+writes the section → code → tests matrix to `cr-trace.md`, and fails on a citation of a section that doesn't exist.
+Sections with nothing cited are definitions (1.4, 1.6, 8.1), setup and cleanup (2.1, 2.4), or multiplayer and Pack Rush
+(9, 10), which the engine doesn't implement.
+
 ## The review ledger
 
 `ledger.jsonl` lists every runnable ability with a hash of its text and of its proc, and a status: **unreviewed**, **ok**

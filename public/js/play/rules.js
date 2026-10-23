@@ -128,12 +128,13 @@ export function questBlocker(card, def) {
 export function attackerBlocker(card, def) {
   if (def.type !== 'character') return 'Only characters can challenge.';
   if (card.exerted) return 'Already exerted.';
-  if (card.drying && !hasKw(card, def, 'rush')) return 'Still drying — only characters with Rush can challenge the turn they\'re played.';
+  if (card.drying && !hasKw(card, def, 'rush')) return 'Still drying — only characters with Rush can challenge the turn they\'re played.';   // Rush CR 8.9.1
   if (hasKw(card, def, 'cantChallenge')) return 'An ability says this character can\'t challenge.';
   if (hasKw(card, def, 'adventurous')) return 'Adventurous characters can\'t challenge.';
   return null;
 }
 
+// Evasive CR 8.6.1 — only a character with Evasive (or Alert, CR 8.2.1) can challenge it
 function evasiveBlocks(att, attDef, tgt, tgtDef) {
   return hasKw(tgt, tgtDef, 'evasive') && !hasKw(att, attDef, 'evasive') && !hasKw(att, attDef, 'alert');
 }

@@ -61,7 +61,7 @@ const clampInt = (v, lo, hi, dflt = 0) => {
 };
 const uniq = (a) => [...new Set(a)];
 const ZONE_NAME = { deck: 'deck', hand: 'hand', play: 'play', inkwell: 'inkwell', discard: 'discard', under: 'a stack' };
-const PUBLIC_ZONES = new Set(['play', 'discard']);
+const PUBLIC_ZONES = new Set(['play', 'discard']);   // the discard is public (CR 7.6.1); the inkwell is facedown (CR 7.5.1)
 
 function newCard(iid, cardId, owner) {
   return {
@@ -209,6 +209,7 @@ function moveChar(s, iid, loc, ev) {
   R.fire(s, 'moveHere', { iid, at: loc, ...(from != null ? { from } : {}) });
 }
 
+// CR 1.12.1–1.12.2: the top card of your own deck into your hand, one card at a time
 function drawCards(s, seat, n, ev, opt = {}) {
   const p = P(s, seat);
   let drawn = 0;
@@ -519,6 +520,7 @@ H.mulligan = (s, seat, a, ev) => {
   }
 };
 
+// CR 4.2 put a card into your inkwell (an ink card, CR 7.5.1)
 H.ink = (s, seat, a, ev) => {
   needMain(s, seat);
   const fromDiscard = s.cards[a.iid]?.zone === 'discard' && R.rule(s, 'inkFromDiscard', seat);   // "You can ink cards from your discard"
@@ -842,6 +844,7 @@ H.boost = (s, seat, a, ev) => {
   R.fire(s, 'boosted', { iid: C.iid, seat });                       // "whenever you use the Boost ability of a character"
 };
 
+// CR 4.4: use an activated ability — pay its cost, then its effect resolves (an {exert} cost needs a dry character, 4.4.2)
 H.useAbility = (s, seat, a, ev) => {
   needMain(s, seat);
   // "you may <cost> to play this character for free" — an ability used from the hand
