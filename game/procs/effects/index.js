@@ -14,7 +14,7 @@ import { FromDiscard, PlayFree } from './discardZone.js';
 import { Look } from './look.js';
 import { PayInk, CostMod, SelfCost, Enters, InkDrop, ExtraInk } from './ink.js';
 import { ChooseOne } from './chooseOne.js';
-import { Reveal, ToDeckTop, ToDiscard, PutInHand, PlayIt, RevealHandDiscard, RevealHand, PeekHand } from './reveal.js';
+import { Reveal, RevealCard, ToDeckTop, ToDiscard, PutInHand, PlayIt, RevealHandDiscard, RevealHand, PeekHand } from './reveal.js';
 import { PutUnder, MoveFree, MoveCost } from './board.js';
 import { Choose, EachPlayer, Delayed, Count } from './meta.js';
 import { ChallengeDamage, TurnStep } from './internal.js';
@@ -24,7 +24,7 @@ import { ReplaceFx, GrantReplace } from './replace.js';
 import { PlayFrom, GrantPlayFrom } from './playFrom.js';
 
 export const EFFECTS = [
-  Choose, EachPlayer, Delayed, Count, Reveal, RevealHandDiscard, RevealHand, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
+  Choose, EachPlayer, Delayed, Count, Reveal, RevealCard, RevealHandDiscard, RevealHand, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, FromUnder, ToHand, ToDeckBottom, ShuffleIn,
   InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, Exert, Ready, Discard, OppChoose, UnlessOther, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
   Search, DrawUntil, PlayBan, SelfBan, ShiftAs, MoveCost, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, PlayFrom, GrantPlayFrom, ChallengeDamage, TurnStep,

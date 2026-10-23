@@ -48,10 +48,28 @@ export class ToDiscard extends Effect {
   }
   static say(st) { return `put ${Selector.say(st.sel)} into its discard`; }
 }
+// "reveal a song card in your hand [to gain 1 lore]" — show a matching card from your hand; it stays there (CR 4.6.3 reveal)
+export class RevealCard extends Effect {
+  static fn = 'revealCard';
+  static chooses() { return true; }
+  static rules = [[/^reveal (?:a|an) (.+?) (?:in|from) your hand$/i, (m, P) => ({ fn: 'revealCard', filter: { ...P.filter(m[1]), zone: 'hand', owner: 'you' } })]];
+  static run(rt, s, job, st) {
+    const valid = rt.E.P(s, job.seat).hand.filter((iid) => rt.matches(s, st.filter, s.cards[iid], job.seat, job.src, { anyZone: true }));
+    if (!valid.length) return false;
+    const picked = rt.pickFrom(s, job, st, 'revealCard', valid, { n: 1, optional: !!st.may, prompt: `reveal ${Query.describe(st.filter)} from your hand.` });
+    if (!picked) return null;
+    if (!picked.length) return false;
+    job.ctx.it = picked;
+    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} revealed ${rt.E.cardLabel(rt.E.D(s, s.cards[picked[0]]))} from their hand.`, { seat: job.seat, kind: 'effect' });
+    return true;
+  }
+  static verb(rt, s, job, st) { return `reveal ${Query.describe(st.filter)} from your hand`; }
+  static say(st) { return `reveal ${Query.describe(st.filter)} from your hand`; }
+}
 // "put it / them / that card into your hand" (from wherever it is — usually a revealed card)
 export class PutInHand extends Effect {
   static fn = 'putInHand';
-  static rules = [[new RegExp(String.raw`^put (it|them|that card|those cards|the revealed card|the chosen card) into ${HAND}$`, 'i'), () => ({ fn: 'putInHand', sel: { ref: true } })]];
+  static rules = [[new RegExp(String.raw`^(?:reveal (?:it|that card) and )?put (it|them|that card|those cards|the revealed card|the chosen card) into ${HAND}$`, 'i'), () => ({ fn: 'putInHand', sel: { ref: true } })]];
   static run(rt, s, job, st, ev) {
     const ids = rt.targets(s, job, st, st.sel).filter((iid) => s.cards[iid].zone !== 'hand');
     return rt.each(ids, (iid) => { rt.E.moveTo(s, iid, 'hand', ev, { reveal: true }); rt.log(s, `↳ ${rt.E.nameOf(s, s.cards[iid].owner)} put ${rt.E.cardLabel(rt.E.D(s, s.cards[iid]))} into their hand.`, { kind: 'effect' }); });
