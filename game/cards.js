@@ -13,6 +13,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { compileCard, KINDS } from './procs/index.js';
+import { DECK, deckProblems } from './rulebook/deck.js';
 import { shiftCostLabel } from '../public/js/play/rules.js';
 const Base = KINDS.base;
 
@@ -252,7 +253,7 @@ export async function loadCardIndex(dbFile) {
 
 // ---------- decks ----------
 
-export const DECK_RULES = { minSize: 60, maxInks: 2, maxCopies: 4 };
+export const DECK_RULES = { minSize: DECK.minSize.base, maxInks: DECK.maxInks.base, maxCopies: DECK.maxCopies.base };
 
 // Parse "4 Mickey Mouse - Brave Little Tailor" style lists (same grammar as the builder).
 export function parseDeckText(index, text) {
@@ -288,7 +289,6 @@ export function resolveDeck(index, input) {
   }
   const defs = [];
   const counts = [];
-  const perFull = new Map();
   const inks = new Set();
   for (const [id, qtyRaw] of pairs) {
     const def = index.byId.get(String(id));
@@ -297,14 +297,10 @@ export function resolveDeck(index, input) {
     if (!qty) continue;
     counts.push([def.id, qty]);
     for (let i = 0; i < qty; i++) defs.push(def);
-    perFull.set(nameKey(def.full), (perFull.get(nameKey(def.full)) || 0) + qty);
     def.inks.forEach((i) => inks.add(i));
   }
-  const problems = [];
-  if (defs.length < DECK_RULES.minSize) problems.push(`needs at least ${DECK_RULES.minSize} cards (has ${defs.length})`);
+  const problems = deckProblems(defs);                       // CR 1.10.1 + cards that adjust it (game/rulebook/deck.js)
   if (defs.length > 200) problems.push('way too many cards');
-  if (inks.size > DECK_RULES.maxInks) problems.push(`max ${DECK_RULES.maxInks} ink types (has ${inks.size})`);
-  for (const [key, n] of perFull) if (n > DECK_RULES.maxCopies) problems.push(`more than ${DECK_RULES.maxCopies} copies of ${index.byFull.get(key)?.full || key}`);
   return {
     name,
     defs,

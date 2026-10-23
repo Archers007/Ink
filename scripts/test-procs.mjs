@@ -11,6 +11,8 @@ import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
 import { RULES } from '../game/rulebook/rules.js';
 import { section } from '../game/rulebook/cr.js';
 import { TURN } from '../game/rulebook/turn.js';
+import { deckProblems } from '../game/rulebook/deck.js';
+import { namesOf } from '../game/procs/classifiers/named.js';
 
 const C = (text, type = 'character', name = '') => compileAbility({ name, text }, type);
 
@@ -921,6 +923,45 @@ test('rulebook: cards change win lore, draw step, lore gain/loss, damage removal
     ok(applyAction(s, 1, { type: 'ink', iid: ids.hand1[0] }));
     assert.equal(s.cards[ids.hand1[0]].exerted, true);
   }
+});
+test('deck construction (CR 1.10.1.3): cards that change copy limits and ink types', () => {
+  const amber = (d) => d.type === 'character' && d.inks?.length === 1 && d.inks[0] === 'amber' && !d.procs.some((p) => p.effect?.fn === 'deck');
+  const pup = byName('Dalmatian Puppy - Tail Wagger');
+  assert.deepEqual(deckProblems([...Array(60).fill(pup)]), [], '99 copies allowed');
+  const slipper = byName('The Glass Slipper');
+  assert.ok(deckProblems(Array(60).fill(slipper)).some((x) => /more than 2 copies/.test(x)), 'only 2 copies');
+  const filler = all.filter((d) => amber(d) && d.procs.length === 0).slice(0, 15);
+  const base = Array.from({ length: 60 }, (_, k) => filler[k % filler.length]);
+  assert.ok(deckProblems(base).every((x) => !/copies|ink/.test(x)), 'base deck legal');
+  const five = Array(5).fill(filler[0]);
+  assert.ok(deckProblems([...five, ...base.slice(5)]).some((x) => /more than 4 copies/.test(x)));
+});
+test('"Name a card" (CR 5.2.6): the named card matches by name, not version', () => {
+  const hat = byName("The Sorcerer's Hat");
+  const guy = all.find((d) => d.type === 'character' && !d.abilities.length);
+  const { s, ids } = setup({ play0: [hat], hand0: [guy] });
+  const p = s.players[0];
+  const g = ids.hand0[0]; p.hand.splice(p.hand.indexOf(g), 1); p.deck.unshift(g); s.cards[g].zone = 'deck';
+  ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }));
+  assert.ok(s.pending?.choices?.includes(guy.name), 'the names in the game');
+  ok(applyAction(s, 0, { type: 'choose', option: s.pending.choices.indexOf(guy.name) })); drain(s);
+  assert.equal(s.cards[g].zone, 'hand', 'named it right → into the hand');
+  const { s: s2, ids: i2 } = setup({ play0: [hat] });
+  const top = s2.players[0].deck[0];
+  ok(applyAction(s2, 0, { type: 'useAbility', iid: i2.play0[0], index: 0 }));
+  const wrong = s2.pending.choices.findIndex((n) => n !== s2.defs[s2.cards[top].cardId].name);
+  ok(applyAction(s2, 0, { type: 'choose', option: wrong })); drain(s2);
+  assert.equal(s2.players[0].deck[0], top, 'wrong name → back on top');
+  const fj = all.find((d) => /&/.test(d.name));
+  if (fj) assert.ok(namesOf(fj).includes(fj.name.split(' & ')[0].toLowerCase()), 'a & name answers to each name');
+});
+test('"Each player plays with the top card of their deck face up" shows it to everyone', () => {
+  const card = all.find((d) => d.procs.some((p) => p.effect?.rule === 'topFaceUp' && p.effect.who === 'each') && d.type !== 'action');
+  const { s } = setup({ play0: [card] });
+  const v = viewFor(s, 1);
+  assert.equal(v.players[0].deckTop?.iid, s.players[0].deck[0]);
+  assert.equal(v.players[1].deckTop?.iid, s.players[1].deck[0]);
+  assert.equal(viewFor(setup({}).s, 1).players[0].deckTop, null);
 });
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');

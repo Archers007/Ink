@@ -50,6 +50,10 @@ export const RULES = {
     cr: '4.2.1.3', base: false, say: 'cards enter the inkwell exerted',
     phrases: [[/^cards enter (opponents'|your) inkwells? exerted$/i, (m) => ({ who: /opponents/i.test(m[1]) ? 'opp' : 'you', set: true })]],
   },
+  topFaceUp: {
+    cr: '7.2.2', base: false, say: 'top card of the deck is face up',      // 7.2.2: the deck stays facedown — unless a card says
+    phrases: [[/^(each player|each opponent) plays? with the top card of their deck face ?up$/i, (m) => ({ who: whoOf(/opponent/i.test(m[1]) ? 'opponents' : 'each'), set: true })]],
+  },
 };
 
 // static text → { rule, who, set, unlessText? } | null

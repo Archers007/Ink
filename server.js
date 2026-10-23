@@ -553,6 +553,9 @@ function findDeckObject(arr, expectedId) {
 // ----- static -----
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
 
+// the rulebook modules the client shares with the engine (deck construction limits)
+app.use('/rulebook', express.static(path.join(__dirname, 'game', 'rulebook'), { index: false }));
+
 // three.js for the Play board (served from node_modules, no CDN needed)
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), { maxAge: '7d' }));
 
