@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { loadCardIndex } from '../../game/cards.js';
 import { newGame, applyAction, checkInvariants } from '../../game/engine.js';
 
-const DB = process.env.CARDS_DB || 'cache/cards.db';
+const DB = process.env.CARDS_DB || 'cache/sanitized.db';
 if (!existsSync(DB)) { console.error(`no ${DB} — start the server once to download it`); process.exit(1); }
 export const index = await loadCardIndex(DB);
 export const all = [...index.byFull.values()];

@@ -6,7 +6,7 @@ Online Disney Lorcana for two players at `/play`. Host a room, send the invite l
 
 | Piece | File | Notes |
 |---|---|---|
-| Card index | `game/cards.js` | Reads the imported `cache/cards.db` (Ravensburger's data on dreamborn's printings) with `node:sqlite`, normalises keywords/abilities, parses decklists, validates Constructed rules, generates 4 demo decks |
+| Card index | `game/cards.js` | Reads the imported `cache/sanitized.db` (Ravensburger's data on dreamborn's printings) with `node:sqlite`, normalises keywords/abilities, parses decklists, validates Constructed rules, generates 4 demo decks |
 | Rules engine | `game/engine.js` | Pure, server-authoritative state machine. `applyAction()` is atomic (an illegal action rolls back fully). `viewFor(seat)` hides hands/decks/inkwells |
 | Shared rules | `public/js/play/rules.js` | Legality helpers imported by **both** server and client, so they can't drift |
 | Lobby | `game/lobby.js` | WebSocket rooms at `/ws/play`: create/join/spectate, deck select, ready/start, chat, reconnect tokens, rate limiting, idle cleanup |

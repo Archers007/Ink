@@ -13,7 +13,7 @@ Pipeline per card (all deterministic, no AI):
   5. find the dark ability-name banners → OCR them on their own, then blank them
   6. template-match the stat icons ({S} {W} {L} {I} {E}) → record them, then blank them
   7. OCR what's left (tesseract), slot the icons back in by position
-  8. diff against the cards.db text; when the DB is missing an icon the card has, patch it in
+  8. diff against the sanitized.db text; when the DB is missing an icon the card has, patch it in
 
 Usage:
   uv run tools/card-scan/scan.py                 # whole pool → cache/scan/results.jsonl + summary.json (a check — the build doesn't read it)
@@ -38,7 +38,7 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-DB = ROOT / "cache" / "cards.db"
+DB = ROOT / "cache" / "sanitized.db"
 IMG_DIR = ROOT / "cache" / "card-img"
 OUT_DIR = ROOT / "cache" / "scan"
 TPL_DIR = Path(__file__).resolve().parent / "templates"

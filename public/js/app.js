@@ -783,7 +783,7 @@ function wireUI() {
     e.preventDefault();
     alert(
       'Ink — Lorcana deck builder\n\n' +
-      '· Card data fetched from dreamborn.ink (cards.db / prices.db)\n' +
+      '· Card data: Ravensburger (cards.disneylorcana.com) merged onto dreamborn.ink (sanitized.db / prices.db)\n' +
       '· Queried locally via sql.js\n' +
       '· Optional sign-in syncs your Dreamborn collection\n\n' +
       'Found a bug or have an idea? Open an issue:\n' +

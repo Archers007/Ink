@@ -68,7 +68,7 @@ test('compile: deterministic — same text, same proc', () => {
 test('support: every supported fn has a runtime executor; every runnable proc only uses supported parts', () => {
   const R = createRuntime({});                        // throws if support.js lists a fn runtime.js lacks
   for (const f of SUPPORT.fn) assert.equal(typeof R.FN[f], 'function', f);
-  const db = new DatabaseSync('cache/cards.db', { readOnly: true });
+  const db = new DatabaseSync('cache/sanitized.db', { readOnly: true });
   db.exec("ATTACH DATABASE 'cache/proc.db' AS p");
   const fns = new Set();
   const walk = (x) => { if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') { if (x.fn) fns.add(x.fn); Object.values(x).forEach(walk); } };

@@ -17,7 +17,7 @@ const GAMES = Number(process.argv[2] || 50);
 const SEED = Number(process.argv[3] || 1);
 const CHAOS = process.argv.includes('--chaos');
 
-const index = await loadCardIndex(path.join(__dirname, '..', 'cache', 'cards.db'));
+const index = await loadCardIndex(path.join(__dirname, '..', 'cache', 'sanitized.db'));
 console.log(`cards: ${index.size}, demo decks: ${index.demoDecks.map((d) => d.name).join(' | ')}`);
 for (const d of index.demoDecks) {
   const r = resolveDeck(index, d);

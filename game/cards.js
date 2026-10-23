@@ -1,6 +1,6 @@
 // Server-side card index for Play mode.
 //
-// Reads cache/cards.db (tools/import-cards.mjs: Ravensburger's card data merged onto dreamborn's printings —
+// Reads cache/sanitized.db (tools/import-cards.mjs: Ravensburger's card data merged onto dreamborn's printings —
 // the same SQLite file the deck builder downloads) with Node's built-in node:sqlite, and normalises each row
 // into a compact "card def" the rules engine and the 3D client both understand.
 //
@@ -160,7 +160,7 @@ export function isFullyAutomated(def) {
 const RUNS_ITSELF = new Set(['triggered', 'activated', 'static', 'action']);
 export const hasAutomatedText = (def) => (def.procs || []).some((p) => p.exec && RUNS_ITSELF.has(p.kind));
 
-// cards.db `rulings` + cache/proc.db (built by tools/import-cards.mjs → tools/compile-procs.mjs) — or compile
+// sanitized.db `rulings` + cache/proc.db (built by tools/import-cards.mjs → tools/compile-procs.mjs) — or compile
 // the DB text now
 export function loadProcs(dbFile, DatabaseSync) {
   const procFile = path.join(path.dirname(dbFile), 'proc.db');
@@ -216,7 +216,7 @@ export async function loadCardIndex(dbFile) {
   const db = new DatabaseSync(dbFile, { readOnly: true });
   let rows;
   try {
-    const flavor = db.prepare('PRAGMA table_info(cards)').all().some((c) => c.name === 'flavor') ? ',flavor' : '';   // imported cards.db
+    const flavor = db.prepare('PRAGMA table_info(cards)').all().some((c) => c.name === 'flavor') ? ',flavor' : '';   // imported sanitized.db
     rows = db.prepare(`SELECT id,name,title,cost,type,number,colorMask,keywords,lore,strength,willpower,movement,
                               ink,characteristics,abilities,rarity,setId,franchise,formats${flavor} FROM cards`).all();
   } finally {
