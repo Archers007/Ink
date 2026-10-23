@@ -42,6 +42,7 @@ export class Amount {
     if (n && n.per?.count?.thisWay) return n.n * (job.ctx.n || 0);
     if (n && n.per) return n.n * Amount.count(rt, s, n.per, job.seat, job.src);
     if (n && n.healed) return job.ctx.healed || 0;
+    if (n && n.last) return job.ctx.n || 0;                                // "that much" — what the last step dealt / lost
     return 0;
   }
   static count(rt, s, per, ctl, src) {
@@ -64,6 +65,7 @@ export class Amount {
     if (n?.stat) return `${n.of === 'self' ? "this card's" : n.of === 'loc' ? "that location's" : "that card's"} ${n.stat === 'cost' ? 'cost' : n.stat === 'damage' ? 'damage' : STAT_WORD[n.stat]}${n.max != null ? ` (max ${n.max})` : ''}`;
     if (n?.per) return `${n.n} for each ${Amount.sayPer(n.per)}`;
     if (n?.healed) return 'the damage removed';
+    if (n?.last) return 'that much';
     return '?';
   }
   static sayPer(per) {

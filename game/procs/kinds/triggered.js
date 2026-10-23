@@ -27,7 +27,7 @@ export class Triggered extends Kind {
   }
 
   // runtime: queue every trigger on card `c` listening for `ev` that passes `pass` (into the bag)
-  static fire(rt, s, c, ev, pass, it) {
+  static fire(rt, s, c, ev, pass, it, info = {}) {
     rt.procsOf(s, c).forEach((proc, k) => {
       if (proc.kind !== 'triggered') return;
       const on = proc.on.find((o) => o.ev === ev && (!pass || pass(o)));
@@ -43,7 +43,8 @@ export class Triggered extends Kind {
       }
       // self-subject triggers ('whenever this character moves, he gets +3'): he/she = this card until a step picks something
       const cx = s.challengeCtx || s.challenge;                    // "the challenging character / player"
-      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}), ...(cx ? { cx: { a: cx.a, t: cx.t } } : {}) }, { cond: proc.cond || null });
+      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}), ...(cx ? { cx: { a: cx.a, t: cx.t } } : {}),
+        ...(typeof info.n === 'number' ? { n: info.n } : {}) }, { cond: proc.cond || null });   // n: how much the event dealt ("deal that much damage")
     });
   }
 }

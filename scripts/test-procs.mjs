@@ -749,6 +749,37 @@ test('comparisons · same name · once-per-turn free ability', () => {
     assert.equal(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }).ok, false, 'once per turn');
   }
 });
+test('players with a condition · that much damage · loses a keyword · reveal and discard', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Lady Tremaine: "each opponent with more lore than you loses 1 lore"
+    const lt = byName('Lady Tremaine - Overbearing Matriarch');
+    for (const [mine, theirs, after] of [[0, 5, 4], [5, 3, 3]]) {
+      const { s, ids } = setup({ hand0: [lt] });
+      s.players[0].lore = mine; s.players[1].lore = theirs;
+      ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+      assert.equal(s.players[1].lore, after);
+      assert.equal(s.players[0].lore, mine, 'you lose nothing');
+    }
+  }
+  { // Hydra: "Whenever this character takes damage, deal that much damage to chosen opposing character."
+    const hydra = byName('Hydra - Deadly Serpent');
+    const zap = all.find((d) => d.type === 'action' && d.procs.every((p) => p.exec) && /^Deal 2 damage to chosen character\.$/.test(d.abilities[0]?.text || ''));
+    const foe = plain((d) => d.wp >= 4);
+    const { s, ids } = setup({ hand0: [zap], play0: [hydra], play1: [foe] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].damage, 2, 'the same 2 damage');
+  }
+  { // Shed Your Weary Load: "Chosen opponent reveals their hand and discards each non-character card revealed this way."
+    const shed = byName('Shed Your Weary Load');
+    const ch = plain(() => true), it = all.find((d) => d.type === 'item');
+    const { s, ids } = setup({ hand0: [shed], play1: [ch, it] });
+    for (const iid of ids.play1) { s.players[1].play.splice(s.players[1].play.indexOf(iid), 1); s.cards[iid].zone = 'hand'; s.players[1].hand.push(iid); }
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].zone, 'hand', 'the character stays');
+    assert.equal(s.cards[ids.play1[1]].zone, 'discard', 'the item is discarded');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

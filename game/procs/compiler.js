@@ -19,7 +19,7 @@ import { parseCondition, conditionOf } from './conditions/index.js';
 import { EFFECTS, EFFECT, Look } from './effects/index.js';
 import { KINDS, KeywordLine, KEYWORD_START, Action, Activated, Triggered, Static } from './kinds/index.js';
 import { SUPPORT } from './support.js';
-import { PLAYER_RX, playerOf } from './phrases/player.js';
+import { PLAYER_RX, playerOf, playerIf } from './phrases/player.js';
 
 export { Miss };
 const SONG_REMINDER = /^\(?(?:a|an) character with cost \d+ or more can \{exert\} to sing this song for free\.?\)?$/i;
@@ -61,6 +61,7 @@ export class Compiler {
     if ((m = s.match(/^you may (.+)$/i))) { may = true; s = m[1]; }
     s = lc(s);
     s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
+    s = s.replace(/ damage each (to|from) /i, ' damage $1 ');                // "deal 1 damage each to up to 2 chosen characters"
     let dur;
     [s, dur] = Duration.take(s);
     // "for each X, <clause>" → the clause's amount/mod is multiplied
@@ -83,9 +84,12 @@ export class Compiler {
     // chooses and discards a card" · "have each opponent choose and discard a card" → the clause in the 2nd
     // person, run as that player (phrases/player.js)
     let ep;
-    if ((ep = s.match(PLAYER_RX))) {
-      const steps = this.effects(`${ep[2] ? 'you may ' : ''}${/^have /i.test(s) ? ep[3] : secondPerson(ep[3])}`, ctx);
-      return { fn: 'eachPlayer', who: playerOf(ep[1]), do: steps, ...(may ? { may: true } : {}) };
+    // a "you" in the original text is still the controller ("each opponent loses 1 lore and you gain 1 lore") — the
+    // compound splitter handles those, not the other player
+    if ((ep = s.match(PLAYER_RX)) && !/\b(?:you|your|yours)\b/i.test(ep[4])) {
+      const steps = this.effects(`${ep[3] ? 'you may ' : ''}${/^have /i.test(s) ? ep[4] : secondPerson(ep[4])}`, ctx);
+      const whoIf = playerIf(ep[2]);
+      return { fn: 'eachPlayer', who: playerOf(ep[1]), ...(whoIf ? { whoIf } : {}), do: steps, ...(may ? { may: true } : {}) };
     }
     // "<effect> unless <condition>"
     if ((ep = s.match(/^(.+?) unless (.+)$/i))) {

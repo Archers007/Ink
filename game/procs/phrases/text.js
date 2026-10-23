@@ -15,9 +15,9 @@ export const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 export const SUBJ = String.raw`(?:this character|he|she|it|they)`;
 export const OBJ = String.raw`(?:him|her|it|them|this character)`;
 
-export const HAND = String.raw`(?:their player's|its player's|their owner's|its owner's|your|their|his|her|its) hands?`;
-export const DECK = String.raw`(?:their player's|its player's|their owner's|its owner's|your|their) decks?`;
-export const INKWELL = String.raw`(?:their player's|its player's|their owner's|your|their) inkwells?`;
+export const HAND = String.raw`(?:their players'|their player's|its player's|their owner's|its owner's|your|their|his|her|its) hands?`;
+export const DECK = String.raw`(?:their players'|their player's|its player's|their owner's|its owner's|your|their) decks?`;
+export const INKWELL = String.raw`(?:their players'|their player's|its player's|their owner's|your|their) inkwells?`;
 
 // Split into sentences on . or ! — but not inside quotes (granted abilities) or "..."
 export function sentences(t) {

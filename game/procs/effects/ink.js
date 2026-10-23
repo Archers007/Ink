@@ -64,3 +64,14 @@ export class InkDrop extends Effect {
   static verb(rt, s, job, st) { return `get ${st.n} ink drop${st.n === 1 ? '' : 's'}`; }
   static say(st) { return `${st.who === 'youAndOne' ? 'you and another chosen player each get' : st.who === 'each' ? 'each player gets' : 'get'} ${st.n} ink drop${st.n === 1 ? '' : 's'}`; }
 }
+// "you may ink an additional card this turn" — one more card into the inkwell this turn
+export class ExtraInk extends Effect {
+  static fn = 'extraInk';
+  static rules = [[/^(?:you may )?(?:ink|put) an additional card(?: into your inkwell)?(?: this turn)?$/i, () => ({ fn: 'extraInk' })]];
+  static run(rt, s, job) {
+    rt.E.P(s, job.seat).extraInk = (rt.E.P(s, job.seat).extraInk || 0) + 1;
+    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} may put an additional card into their inkwell this turn.`, { seat: job.seat, kind: 'effect' });
+    return true;
+  }
+  static say() { return 'you may ink an additional card this turn'; }
+}

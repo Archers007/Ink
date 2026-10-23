@@ -11,7 +11,7 @@ export class Discard extends Effect {
     [new RegExp(String.raw`^(?:choose and )?discard ${NUM} cards?( at random)?$`, 'i'), (m) => ({ fn: 'discard', who: 'you', n: N(m[1]), random: !!m[2] || undefined })],
     [/^(?:choose and )?discard (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'you', n: 1, filter: P.filter(m[1]) })],
     [/^(?:each|chosen) opponent (?:chooses and )?discards (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'opp', n: 1, filter: P.filter(m[1]) })],
-    [/^discard your hand$/i, () => ({ fn: 'discard', who: 'you', all: true })],
+    [/^discard (?:your hand|all (?:the )?cards in your hand)$/i, () => ({ fn: 'discard', who: 'you', all: true })],
     [/^each (?:player|opponent) discards their hand$/i, (m) => ({ fn: 'discard', who: /player/.test(m[0]) ? 'each' : 'opp', all: true })],
   ];
   static run(rt, s, job, st, ev) {

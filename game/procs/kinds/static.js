@@ -21,6 +21,7 @@ export class Static extends Kind {
     let m;
     if ((m = t.match(/^(?:while|if|as long as) (.+?), (.+)$/i))) { cond = c.condition(m[1], t); t = m[2]; }
     if ((m = t.match(/^(.+?) unless (.+)$/i))) { const u = { not: c.condition(m[2], t) }; cond = cond ? { all: [cond, u] } : u; t = m[1]; }
+    if (!cond && (m = t.match(/^(.+?) while (?!here$|challenging)(.+)$/i))) { try { cond = c.condition(m[2], t); t = m[1]; } catch { /* not a condition */ } }
     // "this character may enter play exerted [to X]" = when you play it, you may exert it [to X]
     if ((m = t.match(/^this character may enter play exerted(?: to (.+))?$/i))) {
       const steps = [{ fn: 'exert', sel: { self: true }, may: true }, ...(m[1] ? c.effects(m[1]).map((x, i) => (i === 0 ? { ...x, ifDid: true } : x)) : [])];

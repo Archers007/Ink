@@ -22,11 +22,12 @@ export class LoseLore extends Effect {
   static fn = 'loseLore';
   static rules = [
     [/^(?:each|chosen) opponent loses (\d+) lore$/i, (m) => ({ fn: 'loseLore', n: +m[1], who: 'opp' })],
+    [/^(?:you )?lose (\d+) lore$/i, (m) => ({ fn: 'loseLore', n: +m[1], who: 'you' })],             // as the player an eachPlayer runs
     [/^(?:each|chosen) opponent loses lore equal to (?:that|their|his|her|its) (?:character's )?\{lore\}$/i, () => ({ fn: 'loseLore', n: { stat: 'lore', of: 'ref' }, who: 'opp' })],
   ];
   static run(rt, s, job, st, ev) {
     job.ctx.n = 0;
-    for (const o of rt.who(s, job, 'opp')) {
+    for (const o of rt.who(s, job, st.who === 'you' ? 'you' : 'opp')) {
       const before = rt.E.P(s, o).lore;
       rt.E.gainLore(s, o, -Amount.value(rt, s, job, st.n), ev);
       job.ctx.n += before - rt.E.P(s, o).lore;
@@ -34,5 +35,5 @@ export class LoseLore extends Effect {
     }
     return true;
   }
-  static say(st) { return `each opponent loses ${Amount.say(st.n)} lore`; }
+  static say(st) { return `${st.who === 'you' ? 'you lose' : 'each opponent loses'} ${Amount.say(st.n)} lore`; }
 }
