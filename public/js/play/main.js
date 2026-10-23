@@ -2,6 +2,7 @@
 import { Net } from './net.js';
 import { Board } from './board.js';
 import { IMG } from './textures.js';
+import { install, installable } from '../pwa.js';
 import {
   LORE_TO_WIN, KEYWORD_HELP, KEYWORD_LABEL, cardLabel, prettyText, effectiveKeywords,
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker, singValue,
@@ -531,6 +532,7 @@ function hoverPreview(info) {
   if (S.targeting?.preview && info?.iid && S.targeting.valid.has(info.iid)) {
     $('#bannerPreview').textContent = S.targeting.preview(info.iid);
   } else if ($('#bannerPreview')) $('#bannerPreview').textContent = '';
+  if (isMobile()) { el.hidden = true; return; }                                       // nothing hovers on a touch screen
   // hand cards already zoom in 3D; the inspector already shows the selected card
   if (!info?.cardId || (info.zone === 'hand' && info.seat === you()) || info.iid === S.selected) { el.hidden = true; return; }
   hoverTimer = setTimeout(() => {
@@ -655,6 +657,8 @@ function renderLog() {
   el.innerHTML = v.log.map((l) => `<div class="l ${l.kind} ${l.seat === you() ? 'me' : l.seat != null ? 'them' : ''}">${esc(l.text)}</div>`).join('');
   if (atBottom || v.log.at(-1)?.n !== S.logSeen) el.scrollTop = el.scrollHeight;
   S.logSeen = v.log.at(-1)?.n;
+  const t = $('#ticker');                                                             // phones: the latest line, under the top bar
+  if (t) t.textContent = v.log.at(-1)?.text || '';
 }
 function renderChat() {
   for (const box of document.querySelectorAll('.chat-msgs')) {
@@ -847,6 +851,8 @@ function renderLobby() {
         <button class="big" id="botBtn">🤖 Practice vs bot</button>
       </div>
       <label class="check"><input type="checkbox" id="publicChk"> List my room publicly</label>
+      ${installable() ? '<div class="lob-row"><button class="ghost" id="installBtn">📲 Install the app</button></div>' : ''}
+      ${/iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone ? '<p class="muted small">📲 On iPhone or iPad: Share → “Add to Home Screen” installs Ink as an app.</p>' : ''}
       <div class="lob-join">
         <input id="joinCode" maxlength="5" placeholder="ROOM CODE" value="${esc(new URL(location.href).searchParams.get('room') || '')}">
         <button id="joinBtn">Join</button>
@@ -863,6 +869,7 @@ function renderLobby() {
     $('#joinBtn').onclick = () => nameOk() && net.send({ t: 'join', code: $('#joinCode').value.trim(), name: S.name });
     $('#joinCode').onkeydown = (e) => { if (e.key === 'Enter') $('#joinBtn').click(); };
     $('#refreshRooms').onclick = () => net.send({ t: 'rooms' });
+    $('#installBtn')?.addEventListener('click', install);
     el.querySelectorAll('.pr').forEach((b) => b.onclick = () => nameOk() && net.send({ t: 'join', code: b.dataset.code, name: S.name }));
     return;
   }
@@ -954,6 +961,15 @@ function renderAll() {
 }
 $('#endTurn').onclick = () => act({ type: 'endTurn' });
 $('#toolsBtn').onclick = openTools;
+// phones: log / chat / tools live in a drawer behind ☰
+const drawer = (open) => document.body.classList.toggle('drawer', open);
+$('#menuBtn').onclick = () => drawer(!document.body.classList.contains('drawer'));
+$('#drawerClose').onclick = () => drawer(false);
+$('#drawerTools').onclick = () => { drawer(false); openTools(); };
+$('#drawerHelp').onclick = () => { drawer(false); openHelp(); };
+$('#drawerLeave').onclick = () => { drawer(false); net.send({ t: 'leave' }); };
+$('#drawerConcede').onclick = () => { drawer(false); if (confirm('Concede this game?')) act({ type: 'concede' }); };
+window.addEventListener('ink:installable', () => { if (!S.view) renderLobby(); });
 bindChat($('#gameChat'));
 window.addEventListener('keydown', (e) => {
   if (e.target.matches('input, textarea, select')) return;
@@ -967,10 +983,24 @@ window.addEventListener('keydown', (e) => {
 });
 function updateInsets() {
   const hud = !$('#hud').hidden;
+  if (isMobile()) { board.setInsets(hud ? { left: 124, right: 112 } : { left: 0, right: 0 }); return; }   // the two rails (play.css)
   const narrow = innerWidth < 1100;
   board.setInsets(hud ? { left: narrow ? 216 : 262, right: narrow ? 248 : 318 } : { left: 0, right: 0 });
 }
-window.addEventListener('resize', updateInsets);
+// phones (a coarse pointer, or a short window): the MTG Arena-style layout in play.css (body.mobile); portrait asks to rotate
+const mobileMq = matchMedia('(pointer: coarse) and (max-width: 1100px), (max-height: 520px)');
+const portraitMq = matchMedia('(orientation: portrait)');
+function isMobile() { return document.body.classList.contains('mobile'); }
+function applyDevice() {
+  document.body.classList.toggle('mobile', mobileMq.matches);
+  document.body.classList.toggle('portrait', portraitMq.matches);
+  board.setMobile(mobileMq.matches);
+  updateInsets();
+}
+window.addEventListener('resize', applyDevice);
+mobileMq.addEventListener('change', applyDevice);
+portraitMq.addEventListener('change', applyDevice);
+applyDevice();
 renderLobby();
 renderTopbar();
 // debug handle for automated tests

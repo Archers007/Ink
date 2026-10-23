@@ -246,6 +246,8 @@ export class Board {
 
   // ---------- camera ----------
   setInsets(insets) { this.insets = insets; this.resize(); }
+  // phones: frame the table closer (less depth to fit, the hand hugging the bottom edge), lift a tapped hand card
+  setMobile(on) { if (this.mobile === !!on) return; this.mobile = !!on; this.resize(); if (this.view) this.render(this.view, this.defs, []); }
   resize() {
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
@@ -258,11 +260,12 @@ export class Board {
     const fovV = THREE.MathUtils.degToRad(this.camera.fov);
     const tanH = Math.tan(fovV / 2) * this.camera.aspect * (free / w);
     const needW = 92 / (2 * tanH);
-    const needH = 74 / (2 * Math.tan(fovV / 2));
+    const needH = (this.mobile ? 62 : 74) / (2 * Math.tan(fovV / 2));
     const dist = Math.max(needW, needH);
-    const elev = THREE.MathUtils.degToRad(58);
-    this.camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist + 2);
-    this.camera.lookAt(0, 0, 2);
+    const elev = THREE.MathUtils.degToRad(this.mobile ? 55 : 58);
+    const focusZ = this.mobile ? 5 : 2;
+    this.camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist + focusZ);
+    this.camera.lookAt(0, 0, focusZ);
     this.camera.setViewOffset(w, h, (right - left) / 2, 0, w, h);
     this.camera.updateProjectionMatrix();
   }
@@ -449,20 +452,21 @@ export class Board {
       if (mine && pl.hand) {
         const n = pl.hand.length;
         const step = Math.min(W * 1.22 + 0.4, 70 / Math.max(1, n));
+        const handZ = this.mobile ? L.handZ - 3.5 : L.handZ;                       // phones: the hand sits higher, fully on screen
         pl.hand.forEach((c, i) => {
           const o = get(c.iid, anchor(seat, 'deck'));
           o.setFace(c.cardId);
           o.info = { iid: c.iid, zone: 'hand', seat, cardId: c.cardId };
           o.setBadges('', () => {});
           const x = (i - (n - 1) / 2) * step;
-          const hovered = this.hover === o && !this.drag;
-          const lifted = hovered || this.ui.multi.has(c.iid);
+          const hovered = !this.mobile && this.hover === o && !this.drag;          // no hover on a touch screen: a tap selects
+          const lifted = hovered || this.ui.multi.has(c.iid) || (this.mobile && this.ui.selected === c.iid);
           const arc = Math.abs(i - (n - 1) / 2) * 0.18;
-          o.setProxy({ x, y: 8 + i * 0.05, z: L.handZ + arc, tilt: 0.55, scale: 1.22 });
+          o.setProxy({ x, y: 8 + i * 0.05, z: handZ + arc, tilt: 0.55, scale: 1.22 });
           if (this.drag?.obj === o) return;
           put(o, {
-            x, y: 8 + i * 0.05 + (lifted ? 4 : 0), z: L.handZ + arc + (lifted ? -8.5 : 0),
-            yaw: 0, tilt: 0.55, flip: 0, scale: hovered ? 1.55 : 1.22,
+            x, y: 8 + i * 0.05 + (lifted ? 4 : 0), z: handZ + arc + (lifted ? -8.5 : 0),
+            yaw: 0, tilt: 0.55, flip: 0, scale: hovered || (this.mobile && lifted) ? 1.55 : 1.22,
           });
         });
       } else {
@@ -617,8 +621,10 @@ export class Board {
 
   // ---------- UI state (selection + targeting glow) ----------
   setUi(ui) {
+    const was = this.ui.selected;
     Object.assign(this.ui, ui);
-    this.refreshGlow();
+    if (this.mobile && 'selected' in ui && ui.selected !== was && this.view) this.render(this.view, this.defs, []);   // re-fan the hand (lift)
+    else this.refreshGlow();
   }
   refreshGlow() {
     const { selected, targets, multi, targetColor } = this.ui;

@@ -223,3 +223,95 @@ i.hx { display: inline-block; width: 11px; height: 12px; vertical-align: -1px; c
 
 .insp-proc { float: right; font-size: 11px; color: #8a90a6; text-decoration: none; border: 1px solid #2a3042; border-radius: 5px; padding: 1px 6px; }
 .insp-proc:hover { color: #e6e8ef; }
+
+/* ---------- phones (landscape): the MTG Arena-style table ----------
+   body.mobile is set by main.js for a coarse pointer or a short window. Left rail: the two player plates. Right rail:
+   menu, End turn. The 3D table fills the middle (board.setMobile frames it closer). Log/chat live in a slide-in drawer. */
+:root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); }
+#rotate { display: none; position: fixed; inset: 0; z-index: 50; place-items: center; background: var(--bg); text-align: center; padding: 24px; }
+#rotate .ph { display: block; font-size: 56px; margin-bottom: 8px; animation: tilt 2.6s ease-in-out infinite; }
+#rotate b { font-size: 18px; color: var(--gold2); }
+@keyframes tilt { 0%, 25% { transform: rotate(0); } 55%, 75% { transform: rotate(90deg); } 100% { transform: rotate(90deg); } }
+body.mobile.portrait #rotate { display: grid; }
+#menuBtn, #ticker, #sideHead { display: none; }
+
+body.mobile { font-size: 13px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; overscroll-behavior: none; }
+body.mobile #board { height: 100dvh; }   /* the browser's own bars come and go */
+body.mobile .first { display: none; }
+body.mobile input, body.mobile select, body.mobile textarea { font-size: 16px; }   /* iOS zooms into smaller inputs */
+body.mobile #topbar { height: 28px; padding: 0 calc(52px + var(--sar)) 0 calc(8px + var(--sal)); top: var(--sat); gap: 8px; font-size: 12px; }
+body.mobile #topbar .brand, body.mobile #topbar .code { display: none; }
+body.mobile #topbar .turn { font-size: 12.5px; }
+body.mobile #topbar a.ghost, body.mobile #topbar #helpBtn, body.mobile #topbar #copyInvite, body.mobile #topbar #concedeBtn { display: none; }   /* in the ☰ drawer instead */
+body.mobile #ticker { display: block; position: fixed; top: calc(28px + var(--sat)); left: 50%; transform: translateX(-50%); z-index: 2; max-width: 54vw;
+  font-size: 11.5px; color: var(--muted); background: rgba(7, 8, 20, .55); padding: 1px 8px; border-radius: 8px; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mobile #ticker:empty { display: none; }
+body.mobile #menuBtn { display: block; position: fixed; top: calc(2px + var(--sat)); right: calc(6px + var(--sar)); z-index: 4; width: 40px; height: 26px; padding: 0; font-size: 16px; line-height: 1; }
+
+body.mobile .plate { left: calc(6px + var(--sal)); width: 112px; padding: 5px 7px; border-radius: 10px; }
+body.mobile .plate.opp { top: calc(32px + var(--sat)); }
+body.mobile .plate.me { bottom: calc(6px + var(--sab)); }
+body.mobile .pl-name { font-size: 12.5px; }
+body.mobile .turn-tag, body.mobile .first { font-size: 9px; padding: 0 4px; }
+body.mobile .lore-row { margin: 1px 0; }
+body.mobile .lore-num { font-size: 26px; }
+body.mobile .lore-of { font-size: 11px; }
+body.mobile .pips { grid-template-columns: repeat(10, 1fr); gap: 1px 2px; margin-bottom: 4px; }
+body.mobile .pips i { height: 5px; }
+body.mobile .counts { font-size: 11px; gap: 1px 6px; }
+body.mobile .counts em { display: none; }
+body.mobile .inkbar { gap: 2px; margin-top: 3px; }
+body.mobile .inkbar i { width: 9px; height: 9px; }
+
+body.mobile #controls { right: calc(6px + var(--sar)); bottom: calc(6px + var(--sab)); flex-direction: column; align-items: stretch; gap: 5px; }
+body.mobile #endTurn { min-width: 0; width: 100px; min-height: 60px; border-radius: 16px; font-size: 13.5px; padding: 6px 8px; white-space: normal; line-height: 1.15; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+body.mobile #toolsBtn { padding: 5px 8px; font-size: 12px; }
+
+body.mobile #banner { top: calc(28px + var(--sat)); max-width: calc(100vw - 280px); padding: 4px 8px; gap: 6px; font-size: 12px; border-radius: 10px; }
+body.mobile #banner .pick { flex-wrap: nowrap; overflow-x: auto; max-width: 56vw; }
+body.mobile #banner .pick img { width: 52px; }
+body.mobile #banner button { padding: 5px 9px; }
+
+body.mobile #inspector { top: calc(30px + var(--sat)); right: calc(114px + var(--sar)); width: min(296px, 44vw);   /* left of the rail: End turn stays tappable */ max-height: calc(100vh - 38px - var(--sat) - var(--sab)); padding: 8px; border-radius: 12px; }
+body.mobile .insp-imgwrap:not(.land) .insp-img { max-height: 22vh; }
+body.mobile .insp-body { display: flex; flex-direction: column; }
+body.mobile .acts { order: -1; margin: 0 0 8px; }          /* what you can do comes first, like Arena's action sheet */
+body.mobile .insp-owner { order: 1; }
+body.mobile .insp-name { font-size: 14px; }
+body.mobile .insp-name small { font-size: 11.5px; }
+body.mobile .insp-meta, body.mobile .insp-text { font-size: 11.5px; }
+body.mobile .insp-stats { font-size: 15px; }
+body.mobile .acts .act { padding: 9px 10px; font-size: 13px; }
+body.mobile #preview { display: none; }
+body.mobile #toasts { bottom: calc(76px + var(--sab)); }
+
+body.mobile #side { top: 0; bottom: 0; right: 0; width: min(380px, 80vw); padding: calc(8px + var(--sat)) calc(8px + var(--sar)) calc(8px + var(--sab)) 8px; z-index: 6;
+  background: var(--panel); border-left: 1px solid var(--line); transform: translateX(100%); transition: transform .22s ease; }
+body.mobile.drawer #side { transform: none; }
+body.mobile #sideHead { display: flex; gap: 6px; flex-wrap: wrap; }
+body.mobile #sideHead #drawerClose { margin-left: auto; }
+body.mobile #log { font-size: 12px; border-radius: 10px; }
+
+body.mobile .modal-card { padding: 12px 14px; max-height: 94vh; border-radius: 14px; }
+body.mobile .modal-card h2 { font-size: 24px; }
+body.mobile .modal-card h3 { font-size: 16px; }
+body.mobile .mull { gap: 6px; }
+body.mobile .mc { width: 86px; flex-basis: 86px; }
+body.mobile .peek { gap: 8px; }
+body.mobile .pk { width: 96px; }
+body.mobile .disc { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); min-width: 0; gap: 6px; }
+body.mobile .tools { min-width: 0; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+body.mobile #lobby { padding: calc(8px + var(--sat)) calc(10px + var(--sar)) calc(8px + var(--sab)) calc(10px + var(--sal)); align-items: start; }
+body.mobile .lobby-card { padding: 12px 14px; border-radius: 12px; }
+body.mobile .lobby-card h1 { font-size: 20px; margin: 0 0 8px; }
+body.mobile .lobby-card h1 span { font-size: 12px; }
+body.mobile .field { margin: 6px 0; }
+body.mobile .lob-row { margin: 8px 0; gap: 8px; }
+body.mobile .lob-join { margin: 10px 0 6px; }
+body.mobile .pubrooms { margin: 8px 0; padding: 6px 10px; }
+body.mobile .seats { gap: 6px; }
+body.mobile .seat { padding: 8px; min-height: 0; }
+body.mobile .deckpick textarea { min-height: 64px; }
+body.mobile .chatbox { margin-top: 8px; padding-top: 6px; }
+body.mobile .chatbox .chat-msgs { max-height: 60px; }

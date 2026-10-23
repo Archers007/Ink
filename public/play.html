@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <title>Ink ▸ Play Lorcana</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070814">
+<meta name="description" content="Play Disney Lorcana in your browser — the rules engine runs every card.">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ink">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,12 +28,21 @@
 
   <div id="hud" hidden>
     <div id="topbar"></div>
+    <div id="ticker"></div>
+    <button id="menuBtn" class="ghost" title="Log, chat &amp; tools" aria-label="Menu">☰</button>
     <div class="plate opp" id="plateOpp"></div>
     <div class="plate me" id="plateMe"></div>
     <div id="banner" hidden></div>
     <aside id="inspector" hidden></aside>
     <div id="preview" hidden></div>
     <div id="side">
+      <div id="sideHead">
+        <button id="drawerTools" class="sm">🧰 Tools</button>
+        <button id="drawerHelp" class="sm">? Help</button>
+        <button id="drawerConcede" class="sm danger">Concede</button>
+        <button id="drawerLeave" class="sm">Leave room</button>
+        <button id="drawerClose" class="sm ghost" aria-label="Close">✕</button>
+      </div>
       <div id="log"></div>
       <form id="gameChat" class="chat-form"><input placeholder="Chat…" maxlength="280"><button>↵</button></form>
       <div class="chat-msgs mini"></div>
@@ -36,9 +53,11 @@
     </div>
   </div>
 
+  <div id="rotate"><div><span class="ph">📱</span><b>Turn your phone sideways</b><p class="muted">Ink plays in landscape, like a table.</p></div></div>
   <div id="modal" hidden></div>
   <div id="toasts"></div>
 
+  <script type="module" src="/js/pwa.js"></script>
   <script type="module" src="/js/play/main.js"></script>
 </body>
 </html>

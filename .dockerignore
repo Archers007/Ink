@@ -12,6 +12,8 @@ scripts
 !.env.example
 *.log
 .DS_Store
+__pycache__
+tools/card-scan/templates
 
 # Docker / compose files aren't needed inside the image
 Dockerfile
