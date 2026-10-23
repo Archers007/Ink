@@ -65,6 +65,7 @@ export class Selector {
     if (s.both) return s.both.map(Selector.say).join(' and ');
     if (s.self) return 'this card';
     if (s.role) return `the ${s.role} character`;
+    if (s.singers) return 'the characters who sang it';
     if (s.ref && s.pron) return 'him/her';
     if (s.ref) return 'that card';
     if (s.all) return `each ${Query.describe(s.all)}`;

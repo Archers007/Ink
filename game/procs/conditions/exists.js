@@ -87,13 +87,13 @@ export class Did extends Condition {
       return { did: a.id, ...(c.self ? { self: true } : { of: c.F }), n: c.n, ...(vs ? { vs } : {}) };
     }],
   ];
-  static test(rt, s, C, env) {
+  static count(rt, s, C, env) {
     const a = ACT[C.did];
-    const k = (s.turnLog || []).filter((e) => e.ev === a.ev && e.iid != null && actFlagsOk(a, e)
+    return (s.turnLog || []).filter((e) => e.ev === a.ev && e.iid != null && actFlagsOk(a, e)
       && (C.self ? e.iid === env.src : rt.matches(s, C.of, s.cards[e.iid], env.ctl, env.src, { anyZone: true }))
       && (!C.vs || (e.other != null && rt.matches(s, C.vs, s.cards[e.other], env.ctl, env.src, { anyZone: true })))).length;
-    return countOk(C.n, k);
   }
+  static test(rt, s, C, env) { return countOk(C.n, Did.count(rt, s, C, env)); }
   static say(C) { return `this turn: ${C.n.lte === 0 ? 'no' : C.n.gte > 1 ? `${C.n.gte}+` : 'a'} ${C.self ? 'this card' : Query.describe(C.of)} ${C.did}`; }
 }
 
@@ -115,4 +115,19 @@ export class Challenging extends Condition {
     return !!t && rt.matches(s, C.vs, t, env.ctl, env.src);
   }
   static say(C) { return C.challenging === 't' ? 'this character is being challenged' : `this character is challenging${C.vs ? ` ${Query.describe(C.vs)}` : ''}`; }
+}
+
+// "an opponent has more characters in play than you" · "you have more items in play than each opponent"
+export class MoreThan extends Condition {
+  static key = 'moreThan';
+  static rules = [[/^(an opponent|you) (?:has|have) more (.+?) in play than (you|each opponent|an opponent)$/i, (m, at) => {
+    const F = tryFilter(m[2]);
+    return F ? { moreThan: F, who: /^you$/i.test(m[1]) ? 'you' : 'opp' } : undefined;
+  }]];
+  static test(rt, s, C, env) {
+    const n = (seat) => rt.candidates(s, { ...C.moreThan, owner: undefined }, seat, env.src).filter((id) => s.cards[id].owner === seat).length;
+    const mine = n(env.ctl), theirs = rt.E.opponentsOf(s, env.ctl).map(n);
+    return C.who === 'you' ? theirs.every((x) => mine > x) : theirs.some((x) => x > mine);
+  }
+  static say(C) { return `${C.who === 'you' ? 'you have' : 'an opponent has'} more ${Query.describe(C.moreThan)}`; }
 }

@@ -23,6 +23,7 @@ export class Prompter {
     const T = (job.tmp[key] ||= { acc: [] });
     if (!sel) return [];
     if (sel.self) return s.cards[job.src] ? [job.src] : [];
+    if (sel.singers) return (s.cards[job.src]?.singers || []).filter((id) => s.cards[id]?.zone === 'play');
     if (sel.both) {                                                      // each part in turn; the second sees the first as "it"
       const out = [];
       for (let k = 0; k < sel.both.length; k++) {

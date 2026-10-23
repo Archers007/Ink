@@ -4,9 +4,9 @@ import { Classification } from './classification.js';
 import { Named } from './named.js';
 import { Cost } from './cost.js';
 import { Strength, Willpower, LoreValue } from './stats.js';
-import { Damaged, Undamaged } from './damage.js';
+import { Damaged, Undamaged, DamageCount } from './damage.js';
 import { Exerted, Ready } from './exerted.js';
-import { Under } from './under.js';
+import { Under, PlayedTurn } from './under.js';
 import { AtLocation, Here } from './location.js';
 import { NotType } from './notType.js';
 import { Not } from './not.js';
@@ -14,8 +14,8 @@ import { Compare, SameName } from './compare.js';
 
 export { KEYWORDS, RESTRICTIONS, KEYWORD_ALT, keywordId, kwLabel } from './keyword.js';
 
-export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, Damaged, Undamaged,
-  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName];
+export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, DamageCount, Damaged, Undamaged,
+  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn];
 export { Compare };
 const BY_ID = new Map(CLASSIFIERS.map((C) => [C.id, C]));
 

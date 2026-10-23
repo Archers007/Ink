@@ -11,3 +11,9 @@ export class Under extends Classifier {
     return m ? [{ under: true }, m[0].length] : null;
   }
 }
+// "a song card you played this turn"
+export class PlayedTurn extends Classifier {
+  static id = 'playedTurn';
+  static test(x, card, def, env) { return !!env.s && (env.E.P(env.s, env.ctl).playedThisTurn || []).includes(card.iid); }
+  static say() { return 'you played this turn'; }
+}

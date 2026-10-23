@@ -85,6 +85,7 @@ function filter1(phrase, at) {
       if (o === 'your') F.owner = 'you'; else if (/opponent/.test(o)) F.owner = 'opp';
     }
     else if ((m = s.match(/^(?:at|in) (?:a |any )?locations?\b\s*/i))) W.push({ atLocation: true });
+    else if ((m = s.match(/^(?:that )?you(?:'ve)? played this turn\b\s*/i))) W.push({ playedTurn: true });
     else if ((m = s.match(/^(?:that|who) (?:has|have) (?:a card|one or more cards) under (?:it|them|him|her)\b\s*/i))) W.push({ under: true });
     else if ((m = s.match(/^without (?:an? )?/i))) {
       const r = parseWith(s.slice(m[0].length));

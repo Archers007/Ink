@@ -803,6 +803,26 @@ test('unions: chosen and all others with the same name · each X and each Y · f
     }
   }
 });
+test('free self-play static · songs know who sang them', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Pudge: "If you have a character named Lilo in play, you can play this character for free."
+    const pudge = byName('Pudge - Controls the Weather');
+    const lilo = all.find((d) => d.type === 'character' && d.name === 'Lilo');
+    const { s, ids } = setup({ hand0: [pudge], play0: [lilo], ink0: 0 });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.equal(s.cards[ids.hand0[0]].zone, 'play', 'free with Lilo');
+  }
+  { // People Gonna Come Here: "Play a location from your hand or discard for free. If a character sang this song, you may move them to that location for free."
+    const song = byName('People Gonna Come Here');
+    const loc = all.find((d) => d.type === 'location' && !d.abilities.length);
+    const singer = plain((d) => d.cost >= song.cost);
+    const { s, ids } = setup({ hand0: [song, loc], play0: [singer] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'sing', singers: [ids.play0[0]] }));
+    for (let k = 0; k < 6 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : { target: pd.valid.includes(ids.hand0[1]) ? ids.hand0[1] : pd.valid[0] }) })); }
+    assert.equal(s.cards[ids.hand0[1]].zone, 'play');
+    assert.equal(s.cards[ids.play0[0]].atLocation, ids.hand0[1], 'the singer moved there');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

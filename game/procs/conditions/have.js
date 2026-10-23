@@ -13,6 +13,8 @@ export class Have extends Condition {
     [/^you have (a|an|another) (.+?) in play$/i, (m, a) => { const F = filter(m[2], a); if (/another/i.test(m[1])) F.other = true; return { have: F, n: 1 }; }],
     [/^you have (?:a|an) (.+?) (here|at this location)$/i, (m, a) => { const F = filter(m[1], a); (F.with ||= []).push({ here: true }); return { have: F, n: 1 }; }],
     [/^you have no (.+?) in play$/i, (m, a) => ({ have: filter(m[1], a), n: 0, exactly: true })],
+    [/^you (?:don't|do not) have (?:a|an|any) (.+?) in play$/i, (m, a) => ({ have: filter(m[1], a), n: 0, exactly: true })],
+    [/^you have any in play (with .+)$/i, (m, a) => ({ have: filter(`characters ${m[1]}`, a), n: 1 })],          // "… any in play with 10 {strength} or more"
     [/^(?:an|chosen|each) opponent has (?:a|an) (.+?) in play$/i, (m, a) => ({ have: at(filter(m[1], a), null, 'opp'), n: 1 })],
     [/^(?:an|chosen|each) opponent has (?:a|an) (.+?)$/i, (m, a) => ({ have: at(filter(m[1], a), null, 'opp'), n: 1 })],
     [/^you have (?:a|an) (.+?) in your (discard|hand)$/i, (m, a) => ({ have: at(filter(m[1], a), m[2], 'you'), n: 1 })],
