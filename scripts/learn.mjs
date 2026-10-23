@@ -14,6 +14,9 @@
 //   node scripts/learn.mjs --show <n>      every ability behind template #n
 //   node scripts/learn.mjs --top 40        more templates
 //   node scripts/learn.mjs --accept        make this run the baseline (only with no regressions, or --force) + rebuild proc.db
+//   node scripts/learn.mjs --features      the engine-feature backlog: every miss sorted into the mechanic it needs
+//                                          (game/rulebook/features.js), ranked by cards it would finish, with the
+//                                          rulebook section to build it to (--features <id> lists its cards)
 //
 // The loop: run → pick the top template → generalise the class that owns it (an effects/ / triggers/ /
 // conditions/ / classifiers/ rule) → run again → no regressions? → --accept → repeat.
@@ -25,6 +28,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileAbility } from '../game/procs/index.js';
+import { FEATURES, featureOf } from '../game/rulebook/features.js';
+import { quote } from '../game/rulebook/cr.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DB = path.join(ROOT, 'cache/sanitized.db');
@@ -117,6 +122,28 @@ if (show != null) {
   if (!g) { console.error(`no template #${show}`); process.exit(1); }
   console.log(`#${show}  ${g.k}\n  ${g.items.length} abilities · ${g.cards} cards · finishes ${g.finishes}\n`);
   for (const x of g.items) console.log(`  ${x.card}\n    miss: ${x.frag}\n    text: ${x.text}\n`);
+  process.exit(0);
+}
+// ---- the engine-feature backlog ----
+if (flag('--features')) {
+  const by = new Map(FEATURES.map((f) => [f.id, { f, items: [] }]));
+  by.set('other', { f: { id: 'other', cr: '', build: 'no feature matched — a phrasing for the compiler (see the templates)' }, items: [] });
+  for (const x of bad) by.get(featureOf(x.text)?.id || 'other').items.push(x);
+  for (const g of by.values()) {
+    const cards = new Set(g.items.map((x) => x.card));
+    g.cards = cards.size;
+    g.finishes = [...cards].filter((c) => badByCard.get(c).every((x) => g.items.includes(x))).length;
+  }
+  const one = arg('--features');
+  if (one && by.has(one)) {
+    const g = by.get(one);
+    console.log(`${g.f.id} · CR ${g.f.cr} — ${g.f.cr ? quote(g.f.cr, 300) : ''}\n  build: ${g.f.build}\n`);
+    for (const x of g.items) console.log(`  ${x.card}\n    ${x.text}\n`);
+    process.exit(0);
+  }
+  const list = [...by.values()].filter((g) => g.items.length).sort((a, b) => (a.f.id === 'other') - (b.f.id === 'other') || b.finishes - a.finishes || b.items.length - a.items.length);
+  console.log(`engine-feature backlog — ${bad.length} abilities on ${badByCard.size} cards\n\n  finish  abil  feature           CR       build`);
+  for (const g of list) console.log(`  ${String(g.finishes).padStart(6)}  ${String(g.items.length).padStart(4)}  ${g.f.id.padEnd(16)}  ${(g.f.cr || '').padEnd(7)}  ${g.f.build.slice(0, 110)}`);
   process.exit(0);
 }
 const pct = (a, b) => ((100 * a) / b).toFixed(1);
