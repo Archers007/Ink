@@ -10,6 +10,8 @@ export class Discard extends Effect {
     [new RegExp(String.raw`^(?:each|chosen) opponent (?:chooses and )?discards ${NUM} cards?( at random)?$`, 'i'), (m) => ({ fn: 'discard', who: 'opp', n: N(m[1]), random: !!m[2] || undefined })],
     [new RegExp(String.raw`^each player (?:chooses and )?discards ${NUM} cards?( at random)?$`, 'i'), (m) => ({ fn: 'discard', who: 'each', n: N(m[1]), random: !!m[2] || undefined })],
     [new RegExp(String.raw`^(?:choose and )?discard ${NUM} cards?( at random)?$`, 'i'), (m) => ({ fn: 'discard', who: 'you', n: N(m[1]), random: !!m[2] || undefined })],
+    // "each opponent chooses and discards a card for each card that was under him"
+    [/^(?:each|chosen) opponent (?:chooses and )?discards a card for each (.+)$/i, (m, P) => ({ fn: 'discard', who: 'opp', n: { n: 1, per: Amount.forEach(m[1], P.at) } })],
     [/^(?:choose and )?discard that many cards$/i, () => ({ fn: 'discard', who: 'you', n: { last: true } })],   // as many as were just drawn
     [/^(?:choose and )?discard (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'you', n: 1, filter: P.filter(m[1]) })],
     [/^(?:each|chosen) opponent (?:chooses and )?discards (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'opp', n: 1, filter: P.filter(m[1]) })],

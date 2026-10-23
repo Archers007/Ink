@@ -60,7 +60,7 @@ export class ToInkwell extends Move {
   static fn = 'toInkwell';
   static past = 'Put $ into their inkwell';
   static rules = [[new RegExp(String.raw`^put (.+?) into ${INKWELL} facedown( and exerted)?$`, 'i'), (m, P) => ({ fn: 'toInkwell', sel: P.sel(m[1]), exerted: !!m[2] })]];
-  static move(rt, s, iid, ev, st) { rt.E.moveTo(s, iid, 'inkwell', ev, { exerted: !!st.exerted }); }
+  static move(rt, s, iid, ev, st) { rt.E.moveTo(s, iid, 'inkwell', ev, { exerted: !!st.exerted, fromUnder: s.cards[iid].zone === 'under' }); }
   static verb() { return 'put into the inkwell'; }
   static say(st) { return `put ${Selector.say(st.sel)} into its inkwell${st.exerted ? ' exerted' : ''}`; }
 }
@@ -71,6 +71,7 @@ export class FromUnder extends Effect {
   static fn = 'fromUnder';
   static rules = [
     [/^put all cards from under (her|him|them|it|this character|this location|this item) into your hand$/i, () => ({ fn: 'fromUnder', sel: { self: true }, to: 'hand' })],
+    [/^return all cards under (?:her|him|them|it|this character) to your hand$/i, () => ({ fn: 'fromUnder', sel: { self: true }, to: 'hand' })],
     [/^put all cards from under (.+?) on the bottom of their player's deck in a random order$/i, (m, P) => ({ fn: 'fromUnder', sel: P.sel(m[1]), to: 'deckBottom' })],
   ];
   static run(rt, s, job, st, ev) {

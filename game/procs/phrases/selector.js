@@ -19,6 +19,8 @@ export class Selector {
     if (both) return both;
     if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|discarded character|those characters|each of them|both of them)$/i.test(p)) return { ref: true };
     let m;
+    // "any number of cards from under your characters and locations"
+    if ((m = p.match(/^(any number of|up to (\d+)) cards from under your (?:characters|locations|characters and locations|characters or locations)$/i))) return { chosen: { zone: 'under', owner: 'you' }, upTo: m[2] ? +m[2] : 99 };
     if ((m = p.match(new RegExp(String.raw`^up to ${NUM} (?:other )?chosen (.+)$`, 'i')))) {
       const F = filter(m[2], at); if (/^up to \S+ other/i.test(p)) F.other = true;
       return { chosen: F, upTo: N(m[1]) };

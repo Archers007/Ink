@@ -1113,6 +1113,56 @@ test('play from another zone (CR 4.3): paid plays, triggers in the discard, play
     assert.equal(s.players[0].deck.at(-1), ids.play0[1], 'on the bottom, not in the discard');
   }
 });
+test('cards under (CR 8.4): counts, "was under", put self / a discard card under, play from under, under → inkwell', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  const stack = (s, iid, n) => { for (let k = 0; k < n; k++) { const p = s.players[s.cards[iid].owner]; const top = p.deck.shift(); s.cards[top].zone = 'under'; s.cards[top].parent = iid; s.cards[top].faceDown = true; s.cards[iid].under.push(top); } };
+  { // Goofy - Ghost of Jacob Marley: "When this character is banished, each opponent chooses and discards a card for each card that was under him."
+    const goofy = byName('Goofy - Ghost of Jacob Marley');
+    const big = plain((d) => d.str >= 9 || d.str >= goofy.wp);
+    const { s, ids } = setup({ play0: [big], play1: [goofy] });
+    stack(s, ids.play1[0], 2); s.cards[ids.play1[0]].exerted = true; unready(s, ids.play0);
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].zone, 'discard');
+    assert.equal(s.players[0].hand.length, hand - 2, 'two discards');
+  }
+  { // Roo - Little Helper: "{exert} — Put this character facedown under one of your characters or locations with Boost."
+    const roo = byName('Roo - Little Helper');
+    const booster = all.find((d) => d.type === 'character' && typeof d.kw?.boost === 'number');
+    const { s, ids } = setup({ play0: [roo, booster] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: roo.procs.findIndex((p) => p.kind === 'activated') }));
+    drain(s);
+    assert.equal(s.cards[ids.play0[0]].zone, 'under');
+    assert.deepEqual(s.cards[ids.play0[1]].under, [ids.play0[0]]);
+  }
+  { // The Black Cauldron: put a character card from your discard under it faceup; "This turn, you may play characters from under this item."
+    const bc = byName('The Black Cauldron');
+    const x = plain((d) => d.cost <= 3);
+    const { s, ids } = setup({ play0: [bc, x], ink0: 10 });
+    ok(applyAction(s, 0, { type: 'moveCard', iid: ids.play0[1], to: 'discard' }));
+    const acts = bc.procs.map((p, i) => [p, i]).filter(([p]) => p.kind === 'activated').map(([, i]) => i);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: acts[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].zone, 'under');
+    assert.equal(s.cards[ids.play0[1]].faceDown, false, 'faceup');
+    s.cards[ids.play0[0]].exerted = false;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: acts[1] })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.play0[1] }));
+    assert.equal(s.cards[ids.play0[1]].zone, 'play');
+    assert.deepEqual(s.cards[ids.play0[0]].under, []);
+  }
+  { // Visiting Christmas Past: "Put any number of cards from under your characters and locations into your inkwell facedown and exerted."
+    const v = byName('Visiting Christmas Past');
+    const x = plain(() => true);
+    const { s, ids } = setup({ hand0: [v], play0: [x] });
+    stack(s, ids.play0[0], 2);
+    const under = [...s.cards[ids.play0[0]].under], ink = s.players[0].inkwell.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (const u of under) ok(applyAction(s, 0, { type: 'choose', target: u }));
+    drain(s);
+    assert.equal(s.players[0].inkwell.length, ink + 2);
+    assert.deepEqual(s.cards[ids.play0[0]].under, []);
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

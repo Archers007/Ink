@@ -11,10 +11,13 @@ import { Effect } from './Effect.js';
 import { N, NUM, plural } from '../phrases/text.js';
 import { filter, tryFilter } from '../phrases/filter.js';
 import { Query } from '../query.js';
+import { Amount } from '../phrases/amount.js';
 
 export class Look extends Effect {
   static fn = 'look';
   static rules = [
+    // "look at a number of cards from the top of your deck equal to the number of cards under him"
+    [/^look at a number of cards from the top of your deck equal to the number of cards under (?:him|her|it|them|this character)$/i, () => ({ fn: 'look', n: { n: 1, per: { count: { under: true } } } })],
     // "of your deck" · "of chosen player's deck" · "of each opponent's deck" [+ "and put them back in any order"]
     [/^look at the top (\d+ cards|card) of (your|chosen player's|each opponent's|an opponent's) deck( and put them back in any order)?$/i, (m) => ({
       fn: 'look', n: m[1] === 'card' ? 1 : parseInt(m[1], 10),
@@ -25,7 +28,7 @@ export class Look extends Effect {
   // a following sentence that belongs to this look ("Put one into your hand and the rest on the bottom…")
   static tail(sentence, st, at) {
     let m;
-    const t = sentence.replace(/\.$/, '');
+    const t = sentence.replace(/\.$/, '').replace(/ and put the (rest|other) /i, ' and the $1 ');   // "Put one into your hand and put the rest on the bottom …"
     if ((m = t.match(new RegExp(String.raw`^you may reveal (?:(a|an|up to ${NUM}) )?(.+?) and put (?:it|them) into your hand$`, 'i')))) {
       const f = tryFilter(m[3]);                                       // else "up to 1 X and up to 1 Y" / "any number of X": the distribution
       if (f) { st.pick = { filter: f, n: m[2] ? N(m[2]) : 1, may: true, to: 'hand', reveal: true }; return true; }
@@ -166,7 +169,7 @@ export class Look extends Effect {
     }
     if (st.of === 'opp' && !st.pick && !st.rest && !st.scry) {           // "look at the top card of each opponent's deck"
       for (const o of E.opponentsOf(s, job.seat)) {
-        const top = E.P(s, o).deck.slice(0, st.n);
+        const top = E.P(s, o).deck.slice(0, Amount.value(rt, s, job, st.n));
         rt.log(s, `↳ ${E.nameOf(s, job.seat)} looked at the top ${plural(top.length, 'card')} of ${E.nameOf(s, o)}'s deck.`, { seat: job.seat, kind: 'effect', priv: { seat: job.seat, text: `↳ Top of ${E.nameOf(s, o)}'s deck: ${top.map(lbl).join(', ') || 'nothing'}.` } });
       }
       return true;
@@ -174,7 +177,7 @@ export class Look extends Effect {
     const seat = st.of === 'chosen' ? job.tmp.lookSeat : st.of === 'opp' ? E.opponentsOf(s, job.seat)[0] : job.seat;
     const whose = seat === job.seat ? 'their' : `${E.nameOf(s, seat)}'s`;
     const p = E.P(s, seat);
-    const T = (job.tmp.look ||= { cards: p.deck.slice(0, st.n) });
+    const T = (job.tmp.look ||= { cards: p.deck.slice(0, Amount.value(rt, s, job, st.n)) });
     if (!T.logged) {
       T.logged = true;
       if (st.reveal) for (const iid of T.cards) ev.push({ k: 'reveal', seat, iid, cardId: s.cards[iid].cardId });
@@ -231,9 +234,9 @@ export class Look extends Effect {
     job.ctx.it = picked;
     return picked.length > 0 || !st.pick;
   }
-  static verb(rt, s, job, st) { return `look at the top ${plural(st.n, 'card')} of ${st.of ? "a player's" : 'your'} deck`; }
+  static verb(rt, s, job, st) { return `look at the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')} of ${st.of ? "a player's" : 'your'} deck`; }
   static say(st) {
-    if (st.slots) return `${st.reveal ? 'reveal' : 'look at'} the top ${plural(st.n, 'card')}; ${st.slots.map((x) => `${x.may ? 'may ' : ''}${x.n === 'any' ? 'any number of' : x.n === 'each' ? 'each' : x.upTo ? `up to ${x.n}` : x.n} ${Object.keys(x.filter || {}).length ? Query.describe(x.filter) : 'card'} → ${x.to}`).join('; ')}${st.rest ? `; rest → ${st.rest}` : ''}`;
-    return `look at the top ${plural(st.n, 'card')}${st.of === 'chosen' ? " of chosen player's deck" : st.of === 'opp' ? " of each opponent's deck" : ''}${st.pick ? `; ${st.pick.may ? 'may ' : ''}${st.pick.reveal ? 'reveal' : 'take'} ${st.pick.n} ${Query.describe(st.pick.filter)} into hand` : ''}${st.rest ? `; rest to ${st.rest}` : ''}${st.scry === 'discard' ? '; keep on top or discard' : st.scry ? '; put on top or bottom' : ''}`;
+    if (st.slots) return `${st.reveal ? 'reveal' : 'look at'} the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')}; ${st.slots.map((x) => `${x.may ? 'may ' : ''}${x.n === 'any' ? 'any number of' : x.n === 'each' ? 'each' : x.upTo ? `up to ${x.n}` : x.n} ${Object.keys(x.filter || {}).length ? Query.describe(x.filter) : 'card'} → ${x.to}`).join('; ')}${st.rest ? `; rest → ${st.rest}` : ''}`;
+    return `look at the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')}${st.of === 'chosen' ? " of chosen player's deck" : st.of === 'opp' ? " of each opponent's deck" : ''}${st.pick ? `; ${st.pick.may ? 'may ' : ''}${st.pick.reveal ? 'reveal' : 'take'} ${st.pick.n} ${Query.describe(st.pick.filter)} into hand` : ''}${st.rest ? `; rest to ${st.rest}` : ''}${st.scry === 'discard' ? '; keep on top or discard' : st.scry ? '; put on top or bottom' : ''}`;
   }
 }

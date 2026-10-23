@@ -9,12 +9,13 @@ const COSTS = {
   banishSelf: [/^banish this (?:item|character|location)$/i, () => true, true, () => 'banish this'],
   discard: [/^(?:choose and )?discard (?:a|an) (.+)$/i, (m, c, at) => (m[1].toLowerCase() === 'card' ? {} : c.filter(m[1], at)), true, (v) => `discard a ${Query.describe(v)}`],
   exertOther: [/^\{exert\} (?:one of your|an?) (.+)$|^exert (?:one of your|an?) (.+)$/i, (m, c, at) => { const F = c.filter(`your ${m[1] || m[2]}`, at); return { ...F, with: [...(F.with || []), { ready: true }] }; }, true, (v) => `exert a ${Query.describe(v)}`],
-  banishOther: [/^banish one of your (.+)$/i, (m, c, at) => c.filter(`your ${m[1]}`, at), true, (v) => `banish a ${Query.describe(v)}`],
+  banishOther: [/^banish (?:one of your|chosen) (.+?)(?: of yours)?$/i, (m, c, at) => c.filter(`your ${m[1]}`, at), true, (v) => `banish a ${Query.describe(v)}`],
+  banishN: [/^banish (\d+|two|three) of your (.+)$/i, (m, c, at) => ({ n: { two: 2, three: 3 }[m[1].toLowerCase()] || +m[1], filter: c.filter(`your ${m[2]}`, at) }), true, (v) => `banish ${v.n} ${Query.describe(v.filter)}`],
   healSelf: [/^remove (\d+) damage from this character$/i, (m) => +m[1], false, (v) => `remove ${v} damage from this`],
   inkSelf: [/^put this (?:character|item) into your inkwell facedown$/i, () => true, false, () => 'put this into your inkwell'],
 };
 export const COST_SUPPORT = new Set(Object.entries(COSTS).filter(([, v]) => v[2]).map(([k]) => k));
-const HEAD = /^((?:\{exert\}|\d+ \{ink\}|banish this (?:item|character|location)|choose and discard (?:a|an?) (?:\w+ )?card|discard (?:a|an?) (?:\w+ )?card|(?:exert|\{exert\}) (?:one of your|an?|\d+) [^—]+?|banish one of your [^—]+?|put [^—]+? into your inkwell facedown|remove \d+ damage from this character|[, ]+)+) — (.+)$/i;
+const HEAD = /^((?:\{exert\}|\d+ \{ink\}|banish this (?:item|character|location)|choose and discard (?:a|an?) (?:\w+ )?card|discard (?:a|an?) (?:\w+ )?card|(?:exert|\{exert\}) (?:one of your|an?|\d+) [^—]+?|banish (?:one of your|chosen|\d+ of your|two of your) [^—]+?|put [^—]+? into your inkwell facedown|remove \d+ damage from this character|[, ]+)+) — (.+)$/i;
 
 export class Activated extends Kind {
   static kind = 'activated';
@@ -54,6 +55,7 @@ export class Activated extends Kind {
       if (d.type === 'character' && c.drying) throw E.RE("Characters can't ⟳ the turn they're played (drying).");
     }
     for (const k of ['banishOther', 'exertOther']) if (cost[k] && !rt.candidates(s, cost[k], seat, c.iid).length) throw E.RE(`You have no ${Query.describe(cost[k])} to ${k === 'banishOther' ? 'banish' : 'exert'} for this cost.`);
+    if (cost.banishN && rt.candidates(s, cost.banishN.filter, seat, c.iid).length < cost.banishN.n) throw E.RE(`You need ${cost.banishN.n} ${Query.describe(cost.banishN.filter)} to banish for this cost.`);
     if (cost.discard && !E.P(s, seat).hand.some((iid) => rt.matches(s, { ...cost.discard, zone: 'hand' }, s.cards[iid], seat, c.iid))) throw E.RE('You have no card to discard for this cost.');
     E.payInk(s, seat, cost.ink || 0);
     const paid = [];
@@ -66,6 +68,7 @@ export class Activated extends Kind {
       ...(cost.discard ? [{ fn: 'discard', who: 'you', n: 1, filter: cost.discard }] : []),
       ...(cost.exertOther ? [{ fn: 'exert', sel: { chosen: cost.exertOther }, cost: true }] : []),
       ...(cost.banishOther ? [{ fn: 'banish', sel: { chosen: cost.banishOther }, cost: true }] : []),
+      ...(cost.banishN ? [{ fn: 'banish', sel: { chosen: cost.banishN.filter, upTo: cost.banishN.n, exactly: true }, cost: true }] : []),
       ...proc.do,
     ];
     if (cost.banishSelf) { rt.log(s, `↳ ${E.cardLabel(d)} was banished to pay for it.`, { kind: 'effect' }); E.banish(s, c.iid, ev, 'cost'); }

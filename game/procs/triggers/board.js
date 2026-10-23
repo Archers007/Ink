@@ -89,6 +89,12 @@ export class PutUnder extends Trigger {
   static rules = [[/^whenever you put a card under this (?:character|location)$/i, () => [{ ev: 'putUnder' }]]];
   static say() { return 'you put a card under this'; }
 }
+// "Whenever you use the Boost ability of a character" — them = that character
+export class Boosted extends Trigger {
+  static ev = 'boostAny';
+  static rules = [[/^whenever you use the boost ability of a character$/i, () => [{ ev: 'boostAny' }]]];
+  static say() { return 'you use Boost'; }
+}
 export class PutUnderAny extends Trigger {
   static ev = 'putUnderAny';
   static rules = [[/^whenever you put a card under one of your (other )?(.+)$/i, (m, P) => [{ ev: 'putUnderAny', filter: { ...P.filter(m[2]), ...(m[1] ? { other: true } : {}) } }]]];
@@ -147,6 +153,7 @@ export const events = {
   supported(rt, s, info, fireOn) { const t = s.cards[info.iid]; for (const x of rt.inPlay(s, t.owner)) fireOn(x, 'supportedAny', (o) => rt.matches(s, o.filter, t, x.owner, x.iid), [t.iid]); },
   shiftedOnto(rt, s, info, fireOn) { fireOn(s.cards[info.iid], 'shiftedOnto', (o) => !o.filter || rt.matches(s, o.filter, s.cards[info.by], s.cards[info.by].owner, info.iid, { anyZone: true }), [info.by]); },
   chosenByOpp(rt, s, info, fireOn) { fireOn(s.cards[info.iid], 'chosenByOpp'); },
+  boosted(rt, s, info, fireOn) { for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'boostAny', null, [info.iid]); },
   inkDropUsed(rt, s, info, fireOn) { for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'inkDropUsed'); },
   leavesDiscard(rt, s, info, fireOn) { for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'leavesDiscard', null, [info.iid]); },
   discarded(rt, s, info, fireOn) {

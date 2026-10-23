@@ -16,7 +16,8 @@ export class Amount {
     let m;
     if ((m = p.match(/^card in (your|an opponent's|each opponent's) (hand|discard)$/i))) return { count: { zone: m[2], owner: m[1] === 'your' ? 'you' : 'opp', size: true } };
     if ((m = p.match(/^(.+?) card in your (discard|hand)$/i))) { const F = filter(m[1] + ' card', at); F.zone = m[2]; F.owner = 'you'; return { count: F }; }
-    if (/^card under (?:this character|him|her|it)$/i.test(p)) return { count: { under: true } };
+    // "for each card under him" · "for each card that was under them" (it left play — what was under it then)
+    if ((m = p.match(/^card (that (?:was|were) )?under (this character|him|her|it|them)$/i))) return { count: { under: true, ...(m[1] ? { was: true } : {}), ...(/^them$/i.test(m[2]) ? { pron: true } : {}) } };
     if (/^(?:1 )?damage on (?:this character|him|her|it)$/i.test(p)) return { count: { damageOnSelf: true } };
     if (/^(?:1 )?damage on (?:them|that character)$/i.test(p)) return { count: { damageOnRef: true } };
     if ((m = p.match(/^(?:1 )?damage on (.+)$/i))) return { count: { damageOn: filter(m[1], at) } };
@@ -57,7 +58,10 @@ export class Amount {
     const me = s.cards[src];
     if (c.thisWayOf) return (job?.ctx.it || []).filter((id) => rt.matches(s, c.thisWayOf, s.cards[id], ctl, src, { anyZone: true })).length;
     if (c.did) return Did.count(rt, s, c.did, { ctl, src, job });
-    if (c.under) return me ? me.under.length : 0;
+    if (c.under) {
+      const ref = c.pron && (job?.ctx.it || [])[0] != null && !job.ctx.selfSubj ? s.cards[job.ctx.it[0]] : me;   // "them": the card the trigger is about
+      return ref ? (c.was ? ref.lastUnder || [] : ref.under).length : 0;
+    }
     if (c.damageOnSelf) return me ? me.damage : 0;
     if (c.damageOnRef) return 0;                                      // counted per target by the effect
     if (c.damageOn) return rt.candidates(s, c.damageOn, ctl, src).reduce((n, id) => n + (s.cards[id].damage || 0), 0);
