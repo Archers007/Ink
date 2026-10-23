@@ -39,6 +39,8 @@ export class HealedThisWay extends Condition {
 export class RefIs extends Condition {
   static key = 'refIs';
   static rules = [
+    // "If the moved character is a Knight" — the card the trigger was about, even after a step picked another
+    [/^the moved character is (?:a|an) (.+?)$/i, (m, a) => ({ refIs: filter(m[1], a), trig: true })],
     [/^(?:a|an) (.+?) (?:was|is) chosen$/i, (m, a) => ({ refIs: filter(m[1], a) })],
     [/^(?:it is|it's|that card is|that character is|the chosen character is|they're|he's|she's|they are|he is|she is|the moved character is) (?:a|an) (.+?)$/i, (m, a) => ({ refIs: filter(m[1], a) })],
     // "its card type is: • character" (a chooseOne-style list collapsed to one type)
@@ -69,7 +71,7 @@ export class RefIs extends Condition {
     return { refIs: c.F, n: c.n };
   }
   static test(rt, s, C, env) {
-    const it = (env.job?.ctx.it || []).filter((id) => s.cards[id]);
+    const it = ((C.trig ? env.job?.ctx.trigIt : env.job?.ctx.it) || []).filter((id) => s.cards[id]);
     if (C.n) return countOk(C.n, it.filter((id) => rt.matches(s, C.refIs, s.cards[id], env.ctl, env.src, { anyZone: true })).length);
     const id = it[0];
     return !!id && rt.matches(s, C.refIs, s.cards[id], env.ctl, env.src, { anyZone: true });

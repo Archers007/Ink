@@ -41,6 +41,8 @@ export class Selector {
       return { chosen: F, upTo: N(m[2]), ...(m[1] ? {} : { exactly: true }) };
     }
     if (/^all (?:of )?(?:the )?cards in your hand$/i.test(p)) return { all: { zone: 'hand', owner: 'you' } };
+    // "2 cards at random from your inkwell" — picked by the game (CR 6.7)
+    if ((m = p.match(new RegExp(String.raw`^${NUM} cards? at random from (your|their) (inkwell|hand|discard)$`, 'i')))) return { all: { zone: m[3].toLowerCase(), owner: 'you' }, random: N(m[1]) };
     if (/^this card from your discard$/i.test(p)) return { self: true };
     if ((m = p.match(/^(another|a) chosen (.+)$/i))) { const F = filter(m[2], at); if (m[1].toLowerCase() === 'another') F.other = true; return { chosen: F }; }
     // "another 2 chosen characters of yours" — exactly that many

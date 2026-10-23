@@ -31,8 +31,8 @@ export class Amount {
     // "for each item banished this way" · "for each item card put into your discard this way" — what the last step moved
     if ((m = p.match(/^(.+?) (?:banished|put into (?:your|their) discard|discarded|moved|returned|revealed|exerted|readied) this way$/i))) return { count: { thisWayOf: filter(m[1], at) } };
     // "for each opposing character banished in a challenge this turn" — the turn log, counted like the "did" condition
-    const did = Did.rules[0][0].exec(p);
-    if (did) { const C = Did.rules[0][1](did, at); if (C) return { count: { did: C } }; }
+    const did = Did.rules[0][0].exec(p.replace(/^(.+?) (banished|challenged|quested)( in a challenge)? this turn$/i, '$1 was $2$3 this turn'));   // "opposing character banished in a challenge this turn"
+    if (did) { const C = Did.rules[0][1](did, at); if (C) return { count: { did: C } }; }   // (exec'd on the rewritten phrase)
     return { count: filter(p, at) };
   }
   static value(rt, s, job, n) {

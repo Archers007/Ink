@@ -43,6 +43,12 @@ export class Prompter {
       if (sel.nth != null) return it.length > 1 ? [it.at(sel.nth)] : [];
       return it.length || job.i > 0 ? it : s.cards[job.src] ? [job.src] : [];
     }
+    if (sel.all && sel.random) {                                       // "2 cards at random from your inkwell"
+      const pool = rt.candidates(s, sel.all, job.seat, job.src, job.ctx.it).filter(o.keep || (() => true));
+      const got = [];
+      while (got.length < sel.random && pool.length) got.push(...pool.splice(Math.floor(rt.E.rand(s) * pool.length), 1));
+      return got;
+    }
     if (sel.all) return rt.candidates(s, sel.all, job.seat, job.src, job.ctx.it).filter(o.keep || (() => true));
     if (!sel.chosen) return [];
     this.take(job, key, T);

@@ -1354,6 +1354,44 @@ test('abilities and targeting (CR 6.6, 8.15): can\'t gain, lose and can\'t gain,
     assert.equal(s.cards[ids.play1[1]].zone, 'play');
   }
 });
+test('move all damage (1.9.2), at random, the first time each turn, who was challenged this turn', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Can't Hold It Back Anymore: "Exert chosen opposing character. Move all damage counters from all other characters to that character."
+    const x = plain((d) => d.wp >= 9 || d.wp >= 6), y = plain((d) => d.wp >= 4);
+    const { s, ids } = setup({ hand0: [byName("Can't Hold It Back Anymore")], play0: [y], play1: [x, y] });
+    s.cards[ids.play0[0]].damage = 1; s.cards[ids.play1[1]].damage = 2;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].damage, 3);
+    assert.equal(s.cards[ids.play0[0]].damage + s.cards[ids.play1[1]].damage, 0);
+  }
+  { // Mufasa - Ruler of Pride Rock: "exert all cards in your inkwell, then return 2 cards at random from your inkwell to your hand."
+    const { s, ids } = setup({ hand0: [byName('Mufasa - Ruler of Pride Rock')], ink0: 10 });
+    const ink = s.players[0].inkwell.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].inkwell.length, ink - 2);
+  }
+  { // Vine Entrance - Ominous Passageway: "The first time a Floodborn character moves here each turn, you may deal 1 damage to chosen character."
+    const vine = byName('Vine Entrance - Ominous Passageway');
+    const fb = all.find((d) => d.type === 'character' && (d.classes || []).includes('floodborn') && !d.abilities.some((a) => /move/i.test(a.text)));
+    const foe = plain((d) => d.wp >= 5);
+    const { s, ids } = setup({ play0: [vine, fb, fb], play1: [foe], ink0: 10 });
+    unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'move', iid: ids.play0[1], location: ids.play0[0] }));
+    for (let k = 0; k < 4 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : { target: ids.play1[0] }) })); }
+    ok(applyAction(s, 0, { type: 'move', iid: ids.play0[2], location: ids.play0[0] }));
+    drain(s);
+    assert.equal(s.cards[ids.play1[0]].damage, 1, 'only the first time');
+  }
+  { // Last Stand: "Banish chosen character who was challenged this turn."
+    const a = plain((d) => d.str >= 1 && d.wp >= 3), t1 = plain((d) => d.wp >= 6), t2 = plain((d) => d.wp >= 6);
+    const { s, ids } = setup({ hand0: [byName('Last Stand')], play0: [a], play1: [t1, t2] });
+    unready(s, ids.play0); for (const iid of ids.play1) s.cards[iid].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.deepEqual(s.pending.valid, [ids.play1[0]]);
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

@@ -13,6 +13,7 @@ export class MoveHere extends Trigger {
     [/^whenever (?:you move a character here|a character moves here)$/i, () => [{ ev: 'moveHere' }]],
     [/^when(?:ever)? you move a character here from a location$/i, () => [{ ev: 'moveHere', fromLoc: true }]],
     [/^whenever you move an? (.+) here$/i, (m, P) => [{ ev: 'moveHere', filter: P.filter(m[1]) }]],
+    [/^whenever an? (.+?) moves here$/i, (m, P) => [{ ev: 'moveHere', filter: P.filter(m[1]) }]],
   ];
   static say(o) { return `a ${o.filter ? Query.describe(o.filter) : 'character'} moves here`; }
 }
