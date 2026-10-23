@@ -16,6 +16,8 @@ export class Draw extends Effect {
     [/^draw (?:that many|that number of) cards(?: plus (\d+))?$/i, (m) => ({ fn: 'draw', n: { itCount: true, ...(m[1] ? { plus: +m[1] } : {}) } })],
     [/^draw a card from the bottom of your deck$/i, () => ({ fn: 'draw', n: 1, bottom: true })],
     [/^draw a card for each (.+)$/i, (m, P) => ({ fn: 'draw', n: { n: 1, per: Amount.forEach(m[1], P.at) } })],
+    // "Chosen player draws a card for each different ink type of characters you have in play" — counted on your side
+    [/^chosen player draws a card for each (.+)$/i, (m, P) => ({ fn: 'eachPlayer', who: 'chosenPlayer', do: [{ fn: 'draw', n: { n: 1, per: { ...Amount.forEach(m[1], P.at), byCtl: true } } }] })],
     [new RegExp(String.raw`^(?:you )?draw cards until you have ${NUM} cards? in your hand$`, 'i'), (m) => ({ fn: 'draw', upTo: N(m[1]) })],
   ];
   static run(rt, s, job, st, ev) {

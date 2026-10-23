@@ -54,7 +54,7 @@ export class Amount {
       return n.max != null ? Math.min(v, n.max) : v;
     }
     if (n && n.per?.count?.thisWay) return n.n * (job.ctx.n || 0);
-    if (n && n.per) return n.n * Amount.count(rt, s, n.per, job.seat, job.src, job);
+    if (n && n.per) return n.n * Amount.count(rt, s, n.per, n.per.byCtl ? job.ctx.ctl ?? job.seat : job.seat, job.src, job);   // byCtl: "… you have" said to a chosen player
     if (n && n.handOver != null) return Math.max(0, rt.E.P(s, job.seat).hand.length - n.handOver);   // "discard until you have 2"
     if (n && n.healed) return job.ctx.healed || 0;
     if (n && n.itCount) return (job.ctx.it || []).length + (n.plus || 0);   // "that number of cards [plus 1]"
