@@ -249,6 +249,8 @@ export class Compiler {
     for (const sent of sentences(text)) {
       const last = steps[steps.length - 1];
       if (last?.fn === 'look' && Look.tail(sent, last, at)) continue;
+      // "Reveal the top 2 cards of your deck. Put revealed character cards into your hand." — a reveal with a distribution
+      if (last?.fn === 'reveal' && !last.sel && Look.distribute(sent.replace(/[.!]$/, ''), last, at)) { last.fn = 'look'; last.reveal = true; continue; }
       let s = sent.replace(/[.!]$/, '').trim();
       let ifDid = false;
       let cond = null;
@@ -270,6 +272,11 @@ export class Compiler {
         st[0].otherwise = true; steps.push(...st); continue;
       }
       s.split(/,? then,? /i).forEach((part, i) => {
+        const prev = steps[steps.length - 1];
+        if (i > 0 && prev?.fn === 'look' && Look.tail(part, prev, at)) return;      // "look at the top 2 …, then put one into your hand …"
+        // "look at the top card of your deck and put it on either the top or the bottom of your deck"
+        const lk = part.match(/^(look at the top .+? of (?:your|chosen player's) deck) and (put .+)$/i);
+        if (lk) { const st = this.clause(lk[1], ctx); if (st.fn === 'look' && Look.tail(lk[2], st, at)) { steps.push(st); return; } }
         const paid = this.payTo(part, ctx);
         if (paid) {
           // "you may pay 2 {ink} to draw a card" — the cost, then the rest only if it was paid
