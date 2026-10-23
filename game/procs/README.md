@@ -5,8 +5,7 @@ The engine runs the proc whenever the ability fires. Nothing is interpreted mid-
 The same text always compiles to the same proc.
 
 ```
-tools/card-scan  →  cache/scan/results.jsonl  scan verdict per card (DB text vs card image)
-build-rulings    →  cache/rulings.db         vote DB / scan / lorcanajson → cards · printings · rulings (db_text, scan_text, lj_text, text, proc_id)
+import-cards     →  cache/cards.db           Ravensburger's card data on dreamborn's printings → cards · rules · rulings (text, proc_id) · diffs
 compile-procs    →  cache/proc.db            procs (proc_id = hash of the proc JSON, kind, exec, why, fns, json); fills rulings.proc_id
 game/cards.js    →  def.procs                linked to every printing at load (falls back to compiling DB text)
 procs/runtime.js →  engine                  fire(event) → queue → pump → s.pending prompts
@@ -14,8 +13,9 @@ procs/runtime.js →  engine                  fire(event) → queue → pump →
 ```
 
 ```sh
-pnpm build:rulings               # cards.db + scan results → rulings.db
-pnpm build:procs                 # rulings.db → proc.db + coverage (add --misses for what to build next)
+pnpm build:cards                 # dreamborn.db + cards.disneylorcana.com → cards.db → proc.db (both steps below)
+pnpm build:import                # → cards.db only (--refresh re-reads the official page)
+pnpm build:procs                 # cards.db rulings → proc.db + coverage (add --misses for what to build next)
 pnpm test:procs                  # compiler + runtime scenarios
 pnpm test:chaos                  # 200 bot games with random decks of every runnable card
 open http://localhost:3000/procs # lookup UI   (API: /api/procs/search?q=  /api/procs/card?full=  /api/procs/stats)

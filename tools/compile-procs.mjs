@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Build step: cache/rulings.db (tools/build-rulings.mjs) → cache/proc.db, and every ruling's proc_id filled in.
+// Build step: cache/cards.db `rulings` (tools/import-cards.mjs) → cache/proc.db, and every ruling's proc_id filled in.
 //
 //   node tools/compile-procs.mjs            compile + coverage summary
 //   node tools/compile-procs.mjs --misses   + the top reasons abilities didn't compile (what to build next)
 //
 // proc.db `procs` holds one row per distinct proc: proc_id = hash of its JSON, so the same text compiles to the
-// same proc and cards that share an ability share a row. The ability's name/text stay on the ruling.
+// same proc and cards that share an ability share a row. The ability's name/text stay on the ruling in cards.db.
 // Deterministic: same rulings → same proc ids.
 
 import { existsSync, rmSync } from 'node:fs';
@@ -16,11 +16,11 @@ import { fileURLToPath } from 'node:url';
 import { compileAbility } from '../game/procs/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RULINGS = path.join(ROOT, 'cache/rulings.db');
+const CARDS = path.join(ROOT, 'cache/cards.db');
 const OUT = path.join(ROOT, 'cache/proc.db');
 const showMisses = process.argv.includes('--misses');
 
-if (!existsSync(RULINGS)) { console.error('cache/rulings.db missing — run `node tools/build-rulings.mjs` first.'); process.exit(1); }
+if (!existsSync(CARDS)) { console.error('cache/cards.db missing — run `node tools/import-cards.mjs` first.'); process.exit(1); }
 
 rmSync(OUT, { force: true });
 const out = new DatabaseSync(OUT);
@@ -37,8 +37,8 @@ out.exec(`
 `);
 const insProc = out.prepare('INSERT OR IGNORE INTO procs VALUES (?,?,?,?,?,?)');
 
-const rulings = new DatabaseSync(RULINGS);
-const rows = rulings.prepare('SELECT r.id, r.card_key, r.name, r.text, c.type FROM rulings r JOIN cards c USING (card_key) ORDER BY r.card_key, r.idx').all();
+const rulings = new DatabaseSync(CARDS);
+const rows = rulings.prepare('SELECT r.id, r.card_key, r.name, r.text, c.type FROM rulings r JOIN rules c USING (card_key) ORDER BY r.card_key, r.idx').all();
 const setProc = rulings.prepare('UPDATE rulings SET proc_id = ? WHERE id = ?');
 
 const fnsOf = (p) => {
@@ -69,7 +69,7 @@ for (const r of rows) {
 }
 out.exec('COMMIT'); rulings.exec('COMMIT');
 
-const cards = rulings.prepare('SELECT count(*) n FROM cards').get().n;
+const cards = rulings.prepare('SELECT count(*) n FROM rules').get().n;
 const blocked = [...cardOk.values()].filter((v) => !v).length;   // cards without rulings (vanillas) have nothing to run
 const distinct = out.prepare('SELECT count(*) n FROM procs').get().n;
 out.close(); rulings.close();

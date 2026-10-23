@@ -1,11 +1,11 @@
 # card-scan
 
 Reads each card's rules text **off the card image** and cross-checks it against `cache/cards.db`.
-Deterministic — OpenCV + tesseract, no AI. Runs at build time; nothing here runs mid-game.
+Deterministic — OpenCV + tesseract, no AI. Optional: the card build doesn't run it.
 
-Why: dreamborn's text sometimes drops stat icons (Webby – Mystery Enthusiast reads
-"gets +1 this turn"; the card says `+1 {strength}`). The image is the source of truth for icons,
-the DB is the source of truth for spelling.
+`cache/cards.db` takes its text from Ravensburger's own catalog (`tools/import-cards.mjs`), which already has
+every icon dreamborn's text used to drop (all 165 cards the scan used to patch). The scan is a spot check: a
+`match` means the printed card says what the build compiles; anything else is worth a look.
 
 ## Run
 
@@ -19,19 +19,6 @@ Outputs (gitignored, in `cache/scan/`):
 - `results.jsonl` — one row per card: status, icons found, banners, scanned text, diff problems
 - `icon-fixes.json` — card id → DB abilities with the missing icons patched in
 - `summary.json` — counts per status
-
-## Which cards need the scan?
-
-`node tools/card-scan/needs-ocr.mjs` flags cards whose DB text lost an icon, from the text alone (`+1 this turn`,
-`pay 2 to`, a cost that starts with `—`, …). Against the last full scan it catches all 164 icon-fix cards; the other
-50 it flags are printings the scan didn't read. close / mismatch cards are OCR trouble, which the DB text can't
-predict, so the full scan still runs.
-
-Each pattern lives in `PATTERNS` with real card text it must flag and must pass. To add or tune one:
-
-    pnpm needs-ocr --missed            # icon-fix cards nothing catches: DB text + where the icon went
-    pnpm needs-ocr --pattern stat-mod  # what one pattern flags, matched words in [brackets], ✓ = scan agrees
-    pnpm needs-ocr --check             # every pattern vs its examples (runs in pnpm test)
 
 ## Pipeline
 
@@ -56,22 +43,3 @@ Each pattern lives in `PATTERNS` with real card text it must flag and must pass.
 | `db-suspect` | scan looks right, DB looks broken (empty text, icon became a digit, missing ability) |
 | `mismatch` | OCR or layout trouble, or a real DB difference — manual review  |
 
-Only `match` / `icon-fix` cards should feed the ability compiler automatically.
-
-## Settling the text: a three-source vote
-
-There's no hand-kept corrections file. `tools/build-rulings.mjs` settles every card by a vote between the DB, the
-card image (this scan) and lorcanajson (`cache/lorcanajson.json`, community-transcribed from the printed cards with
-official errata applied; `scripts/build-cards.mjs` downloads it):
-
-| sources | the ruling gets | `source` |
-|---|---|---|
-| the scan found icons the DB dropped | DB words + scanned icons | `db+icons` |
-| DB and lorcanajson agree | the DB text | `db` |
-| card image and DB agree, lorcanajson doesn't | the DB text — unless the set release notes in `docs/rules/` print lorcanajson's wording | `db` · `errata` |
-| the DB disagrees with both | lorcanajson's text | `lorcanajson` |
-
-Keyword lines are left out of the comparison (the DB keeps keywords in a column of their own) and added from
-lorcanajson when the DB text doesn't print them. Each row's `rules` (`source` db · db+icons · scan, and
-`verified`) is the scan's side of the vote; `rulings.db` keeps all three texts per ability (`db_text`,
-`scan_text`, `lj_text`).

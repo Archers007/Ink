@@ -7,8 +7,8 @@ themes). Best viewed in Netscape Navigator 3.0+ (or, fine, anything modern).
 
 ## What it does
 
-- **Card catalog** — 2,900+ Lorcana cards across all sets, fetched from
-  `dreamborn.ink`'s public `cards.db` and queried locally via `sql.js`.
+- **Card catalog** — 2,680 Lorcana cards (3,450+ printings) across all sets: Ravensburger's official card data
+  (cards.disneylorcana.com) merged onto `dreamborn.ink`'s public `cards.db`, queried locally via `sql.js`.
 - **Deck builder** — left-click to add, right-click to remove, hover for a preview.
   Live legality: 60 cards, ≤ 2 inks, ≥ 30 inkable, ≤ 4 copies per unique card.
 - **Sign-in (optional)** — Dreamborn email/password → Firebase Identity Toolkit →
@@ -78,9 +78,10 @@ Notes:
 
 - The image is a small `node:24-alpine` build, runs as the non-root `node`
   user, and ships a `HEALTHCHECK`.
-- `cards.db` / `prices.db` are **not** baked in — the server downloads them
-  from dreamborn.ink into `/app/cache` on first boot, so the container needs
-  outbound internet. The `ink-cache` volume persists them across restarts.
+- `cards.db` / `prices.db` are **not** baked in — the server downloads dreamborn's
+  DBs and Ravensburger's card gallery into `/app/cache` on first boot and builds
+  `cards.db` from them, so the container needs outbound internet. The `ink-cache`
+  volume persists them across restarts.
 - The persistent visit-stats DB lives in `/app/data/ink.db`; the `ink-data`
   volume keeps it (and the running hit count) across restarts.
 - Set the published host port with `INK_PORT` (the app always listens on
@@ -123,7 +124,10 @@ docker compose up --build          # starts ink + cloudflared
 
 `cards.db` and `prices.db` are SQLite files cached on disk for 1 hour. The
 browser loads them via `sql.js` and runs queries client-side — no per-card
-network calls.
+network calls. `cards.db` is built by `tools/import-cards.mjs`: dreamborn's
+printings (ids, sets, rarity — decks, collections and prices key on them) with
+every rules field (cost, inkable, stats, classifications, keywords, text,
+flavour, FAQ) taken from Ravensburger's catalog, which is the source of truth.
 
 Site visits are recorded server-side into a small persistent SQLite DB
 (`data/ink.db`, via Node's built-in `node:sqlite`). It survives restarts and
@@ -152,7 +156,7 @@ public/dreamborn-sniffer.js  Console-paste fetch/XHR/WebSocket recorder
 
 | Path                      | Source                                              | Notes                          |
 | ------------------------- | --------------------------------------------------- | ------------------------------ |
-| `/api/cards.db`           | `dreamborn.ink/cache/en/cards.db`                   | 1h cache                       |
+| `/api/cards.db`           | `dreamborn.ink/cache/en/cards.db` + `cards.disneylorcana.com` | 1h cache, official page re-read daily |
 | `/api/prices.db`          | `dreamborn.ink/cache/prices/{cur}/prices.db`        | 1h cache                       |
 | `/api/login`              | Firebase Identity Toolkit → dreamborn `/api/auth/login` | issues `ink_sid` cookie    |
 | `/api/me`                 | (session lookup)                                    | who am I                       |

@@ -1,122 +1,44 @@
 #!/usr/bin/env node
-// Card build in rounds: check the DB text → OCR what it flags → compile → OCR what got stuck → compile → …
+// Card build: dreamborn's printings + Ravensburger's card data → cache/cards.db → compiled procs in cache/proc.db.
 //
-//   node scripts/build-cards.mjs             rounds until no stuck card is left unscanned (max 5)
-//   node scripts/build-cards.mjs --all       rescan every card first (the old full run, ~2.5 min on 12 jobs)
-//   node scripts/build-cards.mjs --no-scan   build once from the scan results already in cache/scan/results.jsonl
+//   node scripts/build-cards.mjs             import + compile (downloads what's missing)
+//   node scripts/build-cards.mjs --refresh   re-read cards.disneylorcana.com first
 //
-// round 1  DB check: needs-ocr.mjs flags cards whose DB text dropped an icon, and lorcanajson flags cards
-//          whose DB text says something else; those get OCR'd, then build-rulings + compile-procs settles
-//          each card by a vote between the three sources.
-// round 2+ stuck: a card with a manual ruling that was never OCR'd may just have bad DB text — OCR those,
-//          build again. Stops when a round has nothing new to OCR. Results accumulate in results.jsonl, so
-//          a card is OCR'd once until --all.
+// 1. cache/dreamborn.db   dreamborn.ink's cards.db (printing ids, sets, rarity — decks / collections / prices key on it)
+// 2. tools/import-cards.mjs   merges Ravensburger's catalog onto it: cards.db `cards` (dreamborn's shape, official
+//    values), `rules` (one row per card: flavour, FAQ), `rulings` (one per ability), `diffs` (what it corrected)
+// 3. tools/compile-procs.mjs  rulings → proc.db, proc_id filled in
+// Deterministic: same inputs → same rows. tools/card-scan/scan.py can still check the result against card images.
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flagCards } from '../tools/card-scan/needs-ocr.mjs';
-import { LORCANAJSON_URL, loadLorcanaJson, ljAbilities, rulesKey } from '../tools/card-scan/lorcanajson.mjs';
-import { splitDbAbilities } from '../game/procs/normalize.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const C = (f) => path.join(ROOT, 'cache', f);
-const RESULTS = C('scan/results.jsonl');
-const TODO = C('scan/todo.txt');
-const all = process.argv.includes('--all'), noScan = process.argv.includes('--no-scan');
+const DREAMBORN_DB_URL = 'https://dreamborn.ink/cache/en/cards.db';
 
-const run = (cmd, args, quiet = false) => {
-  const r = spawnSync(cmd, args, { cwd: ROOT, stdio: ['ignore', quiet ? 'ignore' : 'inherit', 'inherit'], env: { ...process.env, NODE_NO_WARNINGS: '1' } });
-  if (r.status !== 0) { console.error(`build-cards: \`${cmd} ${args.join(' ')}\` failed`); process.exit(1); }
+const run = (args) => {
+  const r = spawnSync(process.execPath, args, { cwd: ROOT, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, NODE_NO_WARNINGS: '1' } });
+  if (r.status !== 0) { console.error(`build-cards: \`node ${args.join(' ')}\` failed`); process.exit(1); }
 };
-const scanned = () => new Set(existsSync(RESULTS) ? readFileSync(RESULTS, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l).full) : []);
-const scan = (names, why) => {
-  if (!names.length) return console.error(`build-cards: ${why}: nothing new to OCR`);
-  console.error(`build-cards: ${why}: scanning ${names.length} card${names.length === 1 ? '' : 's'}…`);
-  writeFileSync(TODO, names.join('\n') + '\n');
-  run('uv', ['run', 'tools/card-scan/scan.py', '--jobs', '12', '--names-file', TODO], true);
-};
-const build = () => { run('node', ['tools/build-rulings.mjs'], true); run('node', ['tools/compile-procs.mjs'], true); };
 
-if (!existsSync(C('cards.db'))) { console.error('cache/cards.db missing — start the server once to download it'); process.exit(1); }
-if (!existsSync(C('lorcanajson.json'))) {
-  console.error(`build-cards: downloading ${LORCANAJSON_URL}…`);
-  const res = await fetch(LORCANAJSON_URL).catch((e) => ({ ok: false, statusText: e.message }));
-  if (res.ok) writeFileSync(C('lorcanajson.json'), Buffer.from(await res.arrayBuffer()));
-  else console.error(`build-cards: lorcanajson download failed (${res.statusText}) — voting with cards.db + scan only`);
+if (!existsSync(C('dreamborn.db'))) {
+  console.error(`build-cards: downloading ${DREAMBORN_DB_URL}…`);
+  const res = await fetch(DREAMBORN_DB_URL, { headers: { referer: 'https://dreamborn.ink/builder' } }).catch((e) => ({ ok: false, statusText: e.message }));
+  if (!res.ok) { console.error(`build-cards: dreamborn download failed (${res.statusText})`); process.exit(1); }
+  writeFileSync(C('dreamborn.db'), Buffer.from(await res.arrayBuffer()));
 }
+run(['tools/import-cards.mjs', ...(process.argv.includes('--refresh') ? ['--refresh'] : [])]);
+run(['tools/compile-procs.mjs']);
 
-// cards whose DB text (no printing of it) agrees with lorcanajson
-function disagreesWithLj() {
-  const LJ = loadLorcanaJson(C('lorcanajson.json'));
-  if (!LJ) return [];
-  const db = new DatabaseSync(C('cards.db'), { readOnly: true });
-  const keys = new Map();
-  for (const r of db.prepare("SELECT name, title, abilities FROM cards WHERE language = 'en'").all()) {
-    const full = r.title ? `${r.name} - ${r.title}` : r.name;
-    let abs = [];
-    try { abs = (JSON.parse(r.abilities || '[]') || []).flatMap((a) => splitDbAbilities(a.name || '', a.description ?? a.text ?? '')); } catch {}
-    (keys.get(full) || keys.set(full, new Set()).get(full)).add(rulesKey(abs));
-  }
-  db.close();
-  return [...keys].filter(([k, ks]) => LJ.has(k) && !ks.has(rulesKey(ljAbilities(LJ.get(k))))).map(([k]) => k);
-}
-
-const STUCK = `SELECT DISTINCT c.card_key FROM rulings r JOIN cards c USING (card_key) JOIN p.procs USING (proc_id)
-  WHERE procs.exec = 0 AND c.scan_status IS NULL AND c.source != 'keywords' ORDER BY c.card_key`;   // keyword-only cards have no text to read
-const state = () => {
-  const db = new DatabaseSync(C('rulings.db'), { readOnly: true });
-  db.exec(`ATTACH DATABASE '${C('proc.db')}' AS p`);
-  const cards = db.prepare('SELECT count(*) n FROM cards').get().n;
-  const blocked = db.prepare('SELECT count(DISTINCT card_key) n FROM rulings JOIN p.procs USING (proc_id) WHERE procs.exec = 0').get().n;
-  const stuck = db.prepare(STUCK).all().map((r) => r.card_key);
-  db.close();
-  return { runnable: cards - blocked, stuck };
-};
-const rounds = [];
-const round = (why, names) => {
-  scan(names, `round ${rounds.length + 1} (${why})`);
-  build();
-  const st = state();
-  rounds.push({ why, ocr: names.length, ...st });
-  return st;
-};
-
-if (all) {
-  console.error('build-cards: --all: scanning every card…');
-  run('uv', ['run', 'tools/card-scan/scan.py', '--jobs', '12'], true);
-  round('full scan', []);
-} else if (noScan) {
-  round('no scan', []);
-} else {
-  const done = scanned();
-  const flagged = [...await flagCards(C('cards.db'))].filter(([, c]) => c.flags.length).map(([k]) => k);
-  const differs = disagreesWithLj();
-  let st = round(`DB check: ${flagged.length} flagged + ${differs.length} differ from lorcanajson`, [...new Set([...flagged, ...differs])].filter((k) => !done.has(k)).sort());
-  // a card the scan can't read (not in its pool) stays stuck — try each card once, so the rounds always end
-  const tried = new Set();
-  for (let next = st.stuck; next.length && rounds.length < 5; next = st.stuck.filter((k) => !tried.has(k))) {
-    next.forEach((k) => tried.add(k));
-    st = round(`${next.length} stuck, never OCR'd`, next);
-  }
-}
-
-console.log('round  OCR\'d  runnable  stuck   why');
-for (const [i, r] of rounds.entries()) console.log(`${String(i + 1).padStart(5)}  ${String(r.ocr).padStart(5)}  ${String(r.runnable).padStart(8)}  ${String(r.stuck.length).padStart(5)}   ${r.why}`);
-
-const db = new DatabaseSync(C('rulings.db'), { readOnly: true });
+const db = new DatabaseSync(C('cards.db'), { readOnly: true });
 db.exec(`ATTACH DATABASE '${C('proc.db')}' AS p`);
 const q = (sql) => db.prepare(sql).get();
-const cards = q('SELECT count(*) n, sum(scan_status IS NOT NULL) scanned FROM cards');
-const ab = q('SELECT count(*) n, sum(procs.exec) ok FROM rulings JOIN p.procs USING (proc_id)');
+const cards = q('SELECT count(*) n FROM rules').n;
 const blocked = q('SELECT count(DISTINCT card_key) n FROM rulings JOIN p.procs USING (proc_id) WHERE procs.exec = 0').n;
-const stillStuck = q(`SELECT count(DISTINCT c.card_key) n FROM rulings r JOIN cards c USING (card_key) JOIN p.procs USING (proc_id)
-  WHERE procs.exec = 0 AND c.scan_status IS NULL AND c.source != 'keywords'`).n;
+const sources = db.prepare('SELECT source, count(*) n FROM rules GROUP BY source').all();
 db.close();
-const pct = (a, b) => ((100 * a) / b).toFixed(1);
-console.log(`cards:     ${cards.n} (${cards.scanned} scanned)`);
-console.log(`abilities: ${ab.ok}/${ab.n} runnable (${pct(ab.ok, ab.n)}%)`);
-console.log(`cards:     ${cards.n - blocked}/${cards.n} fully runnable (${pct(cards.n - blocked, cards.n)}%)`);
-if (stillStuck) console.log(`⚠ ${stillStuck} manual cards have no scan result (no card image?)`);
+console.log(`\ncards.db:  ${cards} cards (${sources.map((s) => `${s.n} ${s.source}`).join(' · ')}), ${cards - blocked} fully runnable (${((100 * (cards - blocked)) / cards).toFixed(1)}%)`);
