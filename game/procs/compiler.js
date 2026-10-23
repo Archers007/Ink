@@ -18,6 +18,7 @@ import { Duration } from './phrases/duration.js';
 import { parseCondition, conditionOf } from './conditions/index.js';
 import { EFFECTS, EFFECT, Look } from './effects/index.js';
 import { parseReplace } from '../rulebook/replace.js';
+import { PLAY_FROM_TAIL } from './effects/playFrom.js';
 import { KINDS, KeywordLine, KEYWORD_START, Action, Activated, Triggered, Static } from './kinds/index.js';
 import { SUPPORT } from './support.js';
 import { PLAYER_RX, playerOf, playerIf } from './phrases/player.js';
@@ -240,6 +241,8 @@ export class Compiler {
   tail(sentence, last) {
     const t = sentence.replace(/[.!]$/, '').trim();
     if (/^this damage can't be reduced by resist$/i.test(t) && last.fn === 'damage') { last.noResist = true; return true; }
+    // "…from your discard for free, then put it on the bottom of your deck instead of into your discard" — where the played action goes
+    if (/^(?:if you do, )?put (?:it|that card|that action card|that song) on the bottom of your deck instead of into your discard$/i.test(t) && (last.fn === 'playFree' || last.fn === 'playIt')) { last.after = 'deckBottom'; return true; }
     return false;
   }
 
@@ -268,6 +271,7 @@ export class Compiler {
       // "Reveal the top 2 cards of your deck. Put revealed character cards into your hand." — a reveal with a distribution
       if (last?.fn === 'reveal' && !last.sel && Look.distribute(sent.replace(/[.!]$/, ''), last, at)) { last.fn = 'look'; last.reveal = true; continue; }
       let s = sent.replace(/[.!]$/, '').trim();
+      if (last?.fn === 'grantPlayFrom' && PLAY_FROM_TAIL.test(s)) { last.exerted = true; if (PLAY_FROM_TAIL.exec(s)[1]) last.sameNameBan = true; continue; }
       let ifDid = false;
       let cond = null;
       let m;
@@ -334,7 +338,13 @@ export class Compiler {
     }
     t = stripReminders(t);
     if (!t) return { kind: 'reminder' };
-    if (spell) return Action.parse(t, this);
+    if (spell) {
+      // "Deal 2 damage to chosen character. During your turn, when you discard this card, you may play it from your
+      // discard." — a triggered ability on the action card itself, apart from what it does when played
+      const tr = t.match(/^(.+?[.!]) ((?:during your turn, )?when(?:ever)? you discard this card, .+)$/i);
+      if (tr) return { ...Action.parse(tr[1], this), alsoProc: this.text(tr[2], 'character', named) };
+      return Action.parse(t, this);
+    }
 
     // modifiers that wrap the rest
     let once = false; let during = null; let m;
@@ -359,6 +369,7 @@ export class Compiler {
   check(proc) {
     const missing = new Set();
     KINDS[proc.kind]?.check(proc, missing, SUPPORT);
+    if (proc.alsoProc) KINDS[proc.alsoProc.kind]?.check(proc.alsoProc, missing, SUPPORT);
     if (proc.kind !== 'keyword' && proc.kind !== 'reminder') {
       walk(proc, (st) => {
         if (st.fn && st !== proc.effect) {

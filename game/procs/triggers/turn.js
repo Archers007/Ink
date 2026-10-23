@@ -14,9 +14,12 @@ export class TurnEnd extends Trigger {
   static say(o) { return `${o.whose === 'opp' ? "an opponent's" : o.whose === 'each' ? "each player's" : 'your'} turn ends`; }
 }
 // every card in play hears it; `whose` says whose turn it listens for (none = its owner's)
+// — and cards in a discard hear the ones marked fromDiscard ("if this card is in your discard")
 const each = (rt, s, info, fireOn, ev) => {
-  for (const p of s.players) for (const c of rt.inPlay(s, p.seat)) {
-    fireOn(c, ev, (o) => (o.whose === 'each' ? true : o.whose === 'opp' ? c.owner !== info.seat : c.owner === info.seat));
+  const whose = (c) => (o) => (o.whose === 'each' ? true : o.whose === 'opp' ? c.owner !== info.seat : c.owner === info.seat);
+  for (const p of s.players) {
+    for (const c of rt.inPlay(s, p.seat)) fireOn(c, ev, (o) => !o.fromDiscard && whose(c)(o));
+    for (const iid of [...p.discard]) { const c = s.cards[iid]; fireOn(c, ev, (o) => !!o.fromDiscard && whose(c)(o)); }
   }
 };
 export const events = {

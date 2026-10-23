@@ -66,13 +66,19 @@ export class PlayIt extends Effect {
     [/^play (this character|this card|this item|this location) (?:from your discard )?for free(?: and (?:it|he|she) enters? play exerted)?$/i, (m) => ({ fn: 'playIt', self: true, ...(/exerted$/i.test(m[0]) ? { exerted: true } : {}) })],
     [/^play (him|her) (?:from your discard )?for free$/i, () => ({ fn: 'playIt' })],                        // the card just acted on ("If that character is named Tod, you may play him for free")
     [/^play (it|that character|that card|that song|that item) (?:again )?from your discard for free$/i, () => ({ fn: 'playIt' })],
+    // paying its cost (CR 4.3 — "You pay all costs"): "you may play it" · "play it as if it were in your hand" ·
+    // "play this character from your discard" · "play her and she enters play exerted"
+    [/^play (it|her|him|them|that character|that card|this character|this card)(?: from your discard)?(?: as if it were in your hand)?(?: and (?:it|he|she|they) enters? play exerted)?$/i, (m) => ({
+      fn: 'playIt', pay: true, ...(/^this /i.test(m[1]) ? { self: true } : /^(?:her|him)$/i.test(m[1]) ? { pron: true } : {}), ...(/exerted$/i.test(m[0]) ? { exerted: true } : {}) })],
   ];
   static run(rt, s, job, st, ev) {
-    const ids = (st.self ? [job.src] : job.ctx.it || []).filter((iid) => s.cards[iid] && s.cards[iid].zone !== 'play' && s.cards[iid].owner === job.seat);
-    return rt.each(ids.slice(0, 1), (iid) => { rt.E.playFree(s, job.seat, iid, ev); if (st.exerted && s.cards[iid].zone === 'play') s.cards[iid].exerted = true; });
+    const it = job.ctx.it || [];
+    const ids = (st.self || (st.pron && !it.length) ? [job.src] : it).filter((iid) => s.cards[iid] && s.cards[iid].zone !== 'play' && s.cards[iid].owner === job.seat);   // "play her" = this card, unless a step picked one
+    if (!ids.length) return false;
+    return rt.each(ids.slice(0, 1), (iid) => rt.E.playFree(s, job.seat, iid, ev, { pay: !!st.pay, exerted: !!st.exerted, after: st.after }));
   }
-  static verb() { return 'play it for free'; }
-  static say(st) { return `play that card for free${st.exerted ? ' (enters exerted)' : ''}`; }
+  static verb(rt, s, job, st) { return st.pay ? 'play it (paying its cost)' : 'play it for free'; }
+  static say(st) { return `play that card${st.pay ? ', paying its cost' : ' for free'}${st.exerted ? ' (enters exerted)' : ''}${st.after === 'deckBottom' ? ', then put it on the bottom of the deck' : ''}`; }
 }
 // "chosen opponent reveals their hand and discards a non-character card of your choice"
 export class RevealHandDiscard extends Effect {

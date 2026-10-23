@@ -2,6 +2,7 @@
 import { Keyword } from './keyword.js';
 import { Classification } from './classification.js';
 import { Named, NamedCard } from './named.js';
+import { Inkable } from './inkable.js';
 import { Cost } from './cost.js';
 import { Strength, Willpower, LoreValue } from './stats.js';
 import { Damaged, Undamaged, DamageCount } from './damage.js';
@@ -15,7 +16,7 @@ import { Compare, SameName } from './compare.js';
 export { KEYWORDS, RESTRICTIONS, KEYWORD_ALT, keywordId, kwLabel } from './keyword.js';
 
 export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, DamageCount, Damaged, Undamaged,
-  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn, NamedCard];
+  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn, NamedCard, Inkable];
 export { Compare };
 const BY_ID = new Map(CLASSIFIERS.map((C) => [C.id, C]));
 

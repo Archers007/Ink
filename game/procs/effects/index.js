@@ -21,12 +21,13 @@ import { ChallengeDamage, TurnStep } from './internal.js';
 import { RuleFx, DeckFx } from './rule.js';
 import { NameCard } from './name.js';
 import { ReplaceFx, GrantReplace } from './replace.js';
+import { PlayFrom, GrantPlayFrom } from './playFrom.js';
 
 export const EFFECTS = [
   Choose, EachPlayer, Delayed, Reveal, RevealHandDiscard, RevealHand, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, ToHand, ToDeckBottom, ShuffleIn,
   InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, Exert, Ready, Discard, OppChoose, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
-  Search, DrawUntil, PlayBan, SelfBan, ShiftAs, MoveCost, FromUnder, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, ChallengeDamage, TurnStep,
+  Search, DrawUntil, PlayBan, SelfBan, ShiftAs, MoveCost, FromUnder, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, PlayFrom, GrantPlayFrom, ChallengeDamage, TurnStep,
 ];
 export const EFFECT = Object.fromEntries(EFFECTS.map((C) => [C.fn, C]));
 export { Look, Mod };

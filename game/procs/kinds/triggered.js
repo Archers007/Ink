@@ -16,6 +16,9 @@ export class Triggered extends Kind {
     }
     let body = t.slice(ci + 2);
     let cond;
+    // "At the start of your turn, if this card is in your discard, …" — the trigger listens from the discard
+    const fd = body.match(/^if this card is in your discard, (.+)$/i);
+    if (fd) { on = on.map((o) => ({ ...o, fromDiscard: true })); body = fd[1]; }
     const m = body.match(/^if (.+?), (.+)$/i);
     if (m && !/^if you do/i.test(body)) { cond = c.condition(m[1], t); body = m[2]; }
     return { kind: 'triggered', on, ...mods, ...(cond ? { cond } : {}), do: c.effects(body, { refIsSelf: true }) };

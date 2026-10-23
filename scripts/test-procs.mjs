@@ -1066,6 +1066,53 @@ test('deck order (CR 7.2.3): N / any number / all cards to the top or bottom of 
     assert.equal(s.cards[pi].zone, 'hand');
   }
 });
+test('play from another zone (CR 4.3): paid plays, triggers in the discard, play permissions, deck bottom instead', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  const toDiscard = (s, iid) => ok(applyAction(s, s.cards[iid].owner, { type: 'moveCard', iid, to: 'discard' }));
+  const pass = (s) => { ok(applyAction(s, s.active, { type: 'endTurn' })); drain(s); };
+  { // Lilo - Escape Artist: "At the start of your turn, if this card is in your discard, you may play her and she enters play exerted."
+    const lilo = byName('Lilo - Escape Artist');
+    const { s, ids } = setup({ play0: [lilo] });
+    toDiscard(s, ids.play0[0]);
+    pass(s);
+    for (const iid of s.players[0].inkwell) s.cards[iid].exerted = false;
+    ok(applyAction(s, 1, { type: 'endTurn' }));
+    assert.equal(s.pending?.seat, 0, 'asked from the discard');
+    ok(applyAction(s, 0, { type: 'choose', confirm: true })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].zone, 'play');
+    assert.equal(s.cards[ids.play0[0]].exerted, true);
+  }
+  { // The Horned King - Merciless Master: "While this character is exerted, you may play characters from your discard. If you do, they enter play exerted."
+    const hk = byName('The Horned King - Merciless Master');
+    const x = plain((d) => d.cost <= 3);
+    const { s, ids } = setup({ play0: [hk, x] });
+    toDiscard(s, ids.play0[1]);
+    assert.equal(applyAction(s, 0, { type: 'play', iid: ids.play0[1] }).ok, false, 'not while ready');
+    s.cards[ids.play0[0]].exerted = true;
+    assert.deepEqual(viewFor(s, 0).players[0].playableFrom, [ids.play0[1]]);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.play0[1] }));
+    assert.equal(s.cards[ids.play0[1]].zone, 'play');
+    assert.equal(s.cards[ids.play0[1]].exerted, true);
+  }
+  { // Remember Me: "For the rest of this turn, you may play characters from your discard. If you do, they enter play exerted and you can't play characters with the same name …"
+    const x = plain((d) => d.cost <= 2);
+    const { s, ids } = setup({ hand0: [byName('Remember Me'), x], play0: [x], ink0: 12 });
+    toDiscard(s, ids.play0[0]);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.play0[0] }));
+    assert.equal(s.cards[ids.play0[0]].exerted, true);
+    assert.equal(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] }).ok, false, 'no second copy by name');
+  }
+  { // Max Goof - Chart Topper: "you may play a song card with cost 4 or less from your discard for free, then put it on the bottom of your deck instead of into your discard."
+    const max = byName('Max Goof - Chart Topper');
+    const song = all.find((d) => d.type === 'song' && d.cost <= 4 && d.procs.every((p) => p.exec) && d.procs.some((p) => p.do?.[0]?.fn === 'draw'));
+    const { s, ids } = setup({ play0: [max, song] });
+    toDiscard(s, ids.play0[1]); unready(s, [ids.play0[0]]);
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
+    for (let k = 0; k < 6 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : pd.valid?.includes(ids.play0[1]) ? { target: ids.play0[1] } : { skip: true }) })); }
+    assert.equal(s.players[0].deck.at(-1), ids.play0[1], 'on the bottom, not in the discard');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1
