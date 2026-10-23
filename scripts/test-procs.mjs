@@ -1252,6 +1252,29 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[1] })); drain(s);
     assert.equal(s.cards[ids.hand0[1]].zone, 'play');
   }
+  { // Belle - Strange but Special: "During your turn, you may ink an additional card." — two Belles, three cards (CR 4.2.3.1)
+    const belle = byName('Belle - Strange but Special');
+    const { s, ids } = setup({ play0: [belle, belle] });
+    ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+    const hand = s.players[0].hand.filter((iid) => s.defs[s.cards[iid].cardId].inkable);
+    for (let k = 0; k < 3; k++) ok(applyAction(s, 0, { type: 'ink', iid: hand[k] }));
+    assert.equal(applyAction(s, 0, { type: 'ink', iid: hand[3] }).ok, false);
+  }
+  { // Zeus - Mr. Lightning Bolts: "he gets +{strength} equal to the {strength} of chosen character this turn"
+    const zeus = byName('Zeus - Mr. Lightning Bolts'), big = vanilla((d) => d.str >= 4), foe = vanilla((d) => d.wp >= 9 || d.wp >= 6);
+    const { s, ids } = setup({ play0: [zeus, big], play1: [foe] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] }));
+    if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] }));
+    drain(s);
+    assert.ok(s.cards[ids.play0[0]].mods.some((m) => m.stat === 'str' && m.delta === big.str));
+  }
+  { // Meilin Lee - Lead Vocalist: "This character can't sing songs without Sing Together."
+    const ml = byName('Meilin Lee - Lead Vocalist'), song = all.find((d) => d.type === 'song' && d.cost <= 2);
+    const { s, ids } = setup({ play0: [ml], hand0: [song] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+    assert.equal(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'sing', singers: [ids.play0[0]] }).ok, false);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);

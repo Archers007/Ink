@@ -95,7 +95,7 @@ export class Runtime {
     for (const m of st.mods || []) {
       // nOf: the size comes from a stat, read once as the effect resolves ("equal to this character's {lore}")
       // nOf.last: "equal to that number" — what the step before counted
-      const of = m.nOf && !m.nOf.last && s.cards[m.nOf.of === 'target' ? iid : job.src];
+      const of = m.nOf && !m.nOf.last && s.cards[m.nOf.of === 'target' ? iid : m.nOf.of === 'ref' ? (job.ctx.byFn?.choose || job.ctx.it || [])[0] : job.src];
       const base = m.nOf?.last ? m.n * (job.ctx.n || 0) : m.nOf ? (of ? m.n * Math.max(0, this.statOf(s, of, m.nOf.stat)) : 0) : m.n;
       c.mods.push({ stat: m.stat, delta: base * mult, ...u, src: job.label });
       if (ev) ev.push({ k: 'mod', iid, stat: m.stat, delta: base * mult });

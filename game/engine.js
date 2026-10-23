@@ -526,7 +526,7 @@ H.ink = (s, seat, a, ev) => {
   const d = D(s, c);
   const p = P(s, seat);
   if (!d.inkable && !(c.zone === 'hand' && R.rule(s, 'handInkable', seat))) throw RE(`${cardLabel(d)} doesn't have the inkwell symbol.`);
-  if (p.inkedThisTurn >= INKS_PER_TURN + p.extraInk) throw RE("You've already put a card into your inkwell this turn.");
+  if (p.inkedThisTurn >= R.rule(s, 'inksPerTurn', seat) + p.extraInk) throw RE("You've already put a card into your inkwell this turn.");
   moveTo(s, c.iid, 'inkwell', ev, { reveal: true, exerted: R.rule(s, 'inkExerted', seat) });  // inking reveals the card (4.2.1.1)
   p.inkedThisTurn += 1;
   log(s, `${nameOf(s, seat)} inked ${cardLabel(d)} (${p.inkwell.length} ink).`, { seat });
@@ -1176,7 +1176,7 @@ export function viewFor(s, seat) {
       inkReady: readyInk(s, p.seat),
       inkDrops: p.inkDrops || 0,
       inkedThisTurn: p.inkedThisTurn,
-      inkLimit: INKS_PER_TURN + p.extraInk,
+      inkLimit: R.rule(s, 'inksPerTurn', p.seat) + p.extraInk,
       rules: { winLore: R.rule(s, 'winLore', p.seat), handInkable: R.rule(s, 'handInkable', p.seat), inkFromDiscard: R.rule(s, 'inkFromDiscard', p.seat) },
       // cards outside the hand an ability lets this player play right now ("you may play characters from your discard")
       playableFrom: i === seat && s.status === 'playing' && s.active === seat

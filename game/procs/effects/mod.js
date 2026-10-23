@@ -58,9 +58,9 @@ export class Mod extends Effect {
     [/^(.+?) can't challenge and must quest(?: during their next turn)? if able(?: during their next turn)?$/i, (m, P) => P.D(({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantChallenge' }, { kw: 'mustQuest' }], ...(/next turn/i.test(m[0]) && !P.dur ? { dur: 'theirNext' } : {}) }))],
     [new RegExp(String.raw`^(.+?) (?:can't|cannot) (${VERBS})(?: or (${VERBS}))?$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [m[2], m[3]].filter(Boolean).map((x) => ({ kw: CANT[x.toLowerCase()] })) })],
     // "loses {strength} equal to this character's {lore}" · "gets +{strength} equal to their {willpower}"
-    [/^(.+?) (loses |gets \+|gains \+)\{(strength|willpower|lore)\} equal to (this character's|her|his|their|its) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({
+    [/^(.+?) (loses |gets \+|gains \+)\{(strength|willpower|lore)\} equal to (this character's|her|his|their|its|that character's) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({
       fn: 'mod', sel: P.sel(m[1]),
-      mods: [{ stat: STAT[m[3]], n: /^loses/i.test(m[2]) ? -1 : 1, nOf: { stat: STAT[m[5]], of: /^(their|its)$/i.test(m[4]) ? 'target' : 'self' } }],
+      mods: [{ stat: STAT[m[3]], n: /^loses/i.test(m[2]) ? -1 : 1, nOf: { stat: STAT[m[5]], of: /^(their|its)$/i.test(m[4]) ? 'target' : /^that/i.test(m[4]) ? 'ref' : 'self' } }],
     })],
     // "chosen character loses {strength} equal to that number" (after "Count the number of …")
     [/^(.+?) (loses |gets \+|gains \+|gets -)\{(strength|willpower|lore)\} equal to that number$/i, (m, P) => P.D({
@@ -70,6 +70,7 @@ export class Mod extends Effect {
     [/^add (?:his|her|its|this character's) \{(strength|willpower|lore)\} to (.+?)'s? \{(strength|willpower|lore)\}$/i, (m, P) => P.D({
       fn: 'mod', sel: P.sel(m[2]), mods: [{ stat: STAT[m[3]], n: 1, nOf: { stat: STAT[m[1]], of: 'self' } }],
     })],
+    [/^(.+?) can't sing songs without sing together$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantSingSolo' }] })],
     // damage prevention
     [/^(.+?) takes? no damage from (?:the )?challenges?$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noChallengeDamage' }], ...(/the challenge$/i.test(m[0]) ? { dur: 'turn' } : P.dur ? { dur: P.dur } : {}) })],
     [/^(.+?) takes? no damage while challenging$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamageChallenging' }] })],
