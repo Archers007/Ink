@@ -9,7 +9,7 @@ import { PlayBan, SelfBan, ShiftAs } from './playBan.js';
 import { Exert, Ready } from './exert.js';
 import { Mod } from './mod.js';
 import { Discard } from './discard.js';
-import { OppChoose } from './oppChoose.js';
+import { OppChoose, UnlessOther } from './oppChoose.js';
 import { FromDiscard, PlayFree } from './discardZone.js';
 import { Look } from './look.js';
 import { PayInk, CostMod, SelfCost, Enters, InkDrop, ExtraInk } from './ink.js';
@@ -26,7 +26,7 @@ import { PlayFrom, GrantPlayFrom } from './playFrom.js';
 export const EFFECTS = [
   Choose, EachPlayer, Delayed, Reveal, RevealHandDiscard, RevealHand, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, FromUnder, ToHand, ToDeckBottom, ShuffleIn,
-  InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, Exert, Ready, Discard, OppChoose, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
+  InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, Exert, Ready, Discard, OppChoose, UnlessOther, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
   Search, DrawUntil, PlayBan, SelfBan, ShiftAs, MoveCost, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, PlayFrom, GrantPlayFrom, ChallengeDamage, TurnStep,
 ];
 export const EFFECT = Object.fromEntries(EFFECTS.map((C) => [C.fn, C]));

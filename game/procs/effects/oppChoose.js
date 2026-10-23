@@ -38,3 +38,32 @@ export class OppChoose extends Effect {
   }
   static say(st) { return `each opponent chooses one of their ${Query.describe(st.filter)} and ${ACT[st.act] || `deals ${st.n} damage to it`}`; }
 }
+
+// "<effect> unless their player pays 1 {ink}" · "draw 2 cards unless that character's player puts that card on the bottom
+// of their deck" (CR 6.1.4: the player named decides). They're asked; if they pay, the effect doesn't happen.
+//   { fn: 'unlessOther', who: 'refOwner' | 'challenger', pay: { ink } | { toDeckBottom: 'ref' }, do: [steps] }
+export class UnlessOther extends Effect {
+  static fn = 'unlessOther';
+  static rules = [];                                  // built by the compiler (it needs the inner clause)
+  static run(rt, s, job, st, ev) {
+    const { E } = rt;
+    const o = rt.who(s, job, st.who)[0];
+    const ref = s.cards[(job.ctx.it || [])[0]];
+    const can = o != null && (st.pay.ink != null ? E.readyInk(s, o) >= st.pay.ink : !!ref && ref.zone === 'play' && ref.owner === o);
+    if (can && job.answer?.key === 'unless') {
+      const a = job.answer; job.answer = null;
+      if (!a.skip) {
+        if (st.pay.ink != null) { E.payInk(s, o, st.pay.ink); rt.log(s, `↳ ${E.nameOf(s, o)} paid ${st.pay.ink} ink to stop it.`, { seat: o, kind: 'effect' }); }
+        else { rt.log(s, `↳ ${E.nameOf(s, o)} put ${E.cardLabel(E.D(s, ref))} on the bottom of their deck to stop it.`, { seat: o, kind: 'effect' }); E.moveTo(s, ref.iid, 'deckBottom', ev); }
+        return false;
+      }
+    } else if (can) {
+      job.waitKey = 'unless';
+      return rt.ask(s, job, { seat: o, confirm: true, optional: true, op: 'unlessPay', harmful: false,
+        prompt: `${st.pay.ink != null ? `pay ${st.pay.ink} ink` : `put ${E.cardLabel(E.D(s, ref))} on the bottom of your deck`} to stop: ${st.text}?` });
+    }
+    job.steps.splice(job.i + 1, 0, ...st.do.map((x) => ({ ...x })));
+    return true;
+  }
+  static say(st, sayStep) { return `${st.do.map(sayStep).join(', ')} — unless ${st.who === 'challenger' ? 'the challenging player' : "that card's player"} ${st.pay.ink != null ? `pays ${st.pay.ink} {ink}` : 'puts that card on the bottom of their deck'}`; }
+}

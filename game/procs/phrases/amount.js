@@ -22,6 +22,7 @@ export class Amount {
     if (/^(?:1 )?damage on (?:them|that character)$/i.test(p)) return { count: { damageOnRef: true } };
     if ((m = p.match(/^(?:1 )?damage on (.+)$/i))) return { count: { damageOn: filter(m[1], at) } };
     if ((m = p.match(/^lore you have$/i))) return { count: { lore: true } };
+    if (/^(?:opponent|player) who (?:doesn't|didn't|does not)$/i.test(p)) return { count: { didnt: true } };   // after "each opponent may …"
     if ((m = p.match(/^different ink type of (.+)$/i))) return { count: { inks: filter(m[1], at) } };
     // "for each 1 damage removed this way" · "for each damage counter moved this way" · "for each 1 lore lost this way"
     if (/^(?:1 )?(?:damage(?: counter)?|lore|card) (?:removed|moved|lost|discarded|put \w+) this way$/i.test(p)) return { count: { thisWay: true } };
@@ -58,6 +59,7 @@ export class Amount {
     const me = s.cards[src];
     if (c.thisWayOf) return (job?.ctx.it || []).filter((id) => rt.matches(s, c.thisWayOf, s.cards[id], ctl, src, { anyZone: true })).length;
     if (c.did) return Did.count(rt, s, c.did, { ctl, src, job });
+    if (c.didnt) return job?.ctx.tally?.didnt.length || 0;
     if (c.under) {
       const ref = c.pron && (job?.ctx.it || [])[0] != null && !job.ctx.selfSubj ? s.cards[job.ctx.it[0]] : me;   // "them": the card the trigger is about
       return ref ? (c.was ? ref.lastUnder || [] : ref.under).length : 0;

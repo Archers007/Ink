@@ -33,9 +33,10 @@ const COST_VERB = /^(?:you may )?(?:pay|exert|\{exert\}|banish|discard|choose an
 const VERB3 = /\b(draws|loses|gains|puts|discards|chooses|exerts|shuffles|reveals|pays|returns|deals|banishes|readies|plays|removes|moves|looks|gets|takes|mills)\b/gi;
 export function secondPerson(t) {
   return t.replace(VERB3, (v) => (/ies$/i.test(v) ? v.slice(0, -3) + 'y' : /(sh|ch|ss|x)es$/i.test(v) ? v.slice(0, -2) : v.slice(0, -1)))
-    .replace(/\btheir\b/gi, 'your').replace(/\bthey have\b/gi, 'you have').replace(/\bthey\b/gi, 'you');
+    .replace(/\btheir\b/gi, 'your').replace(/\btheirs\b/gi, 'yours').replace(/\bthey have\b/gi, 'you have').replace(/\bthey\b/gi, 'you');
 }
 
+const INNER = new WeakMap();                                         // an eachPlayer step → its inner text (2nd person), for follow-up sentences
 export class Compiler {
   // phrase helpers handed to every rule:  P.sel("chosen character"), P.filter("Hero character"), P.D(step)…
   P(at, ctx = {}, dur = null) {
@@ -62,6 +63,7 @@ export class Compiler {
     let m;
     if ((m = s.match(/^you may (.+)$/i))) { may = true; s = m[1]; }
     s = lc(s);
+    s = s.replace(/^you (?=(?:draw|look|reveal|return|banish|exert|ready|choose|put)\b)/i, '');   // "you draw a card" = "draw a card"
     s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
     s = s.replace(/ damage each (to|from) /i, ' damage $1 ');
     s = s.replace(/( on the (?:top|bottom) of (?:your|their|their players'|its owner's|their player's) decks?) in any order$/i, '$1');   // CR 7.2.3: the player picks the order                // "deal 1 damage each to up to 2 chosen characters"
@@ -90,9 +92,18 @@ export class Compiler {
     // a "you" in the original text is still the controller ("each opponent loses 1 lore and you gain 1 lore") — the
     // compound splitter handles those, not the other player
     if ((ep = s.match(PLAYER_RX)) && !/\b(?:you|your|yours)\b/i.test(ep[4])) {
-      const steps = this.effects(`${ep[3] ? 'you may ' : ''}${/^have /i.test(s) ? ep[4] : secondPerson(ep[4])}`, ctx);
+      const inner = `${ep[3] ? 'you may ' : ''}${/^have /i.test(s) ? ep[4] : secondPerson(ep[4])}`;
+      const steps = this.effects(inner, ctx);
       const whoIf = playerIf(ep[2]);
-      return { fn: 'eachPlayer', who: playerOf(ep[1]), ...(whoIf ? { whoIf } : {}), do: steps, ...(may ? { may: true } : {}) };
+      const st = { fn: 'eachPlayer', who: playerOf(ep[1]), ...(whoIf ? { whoIf } : {}), do: steps, ...(may ? { may: true } : {}) };
+      INNER.set(st, inner);
+      return st;
+    }
+    // "<effect> unless their player pays 1 {ink}" — the other player decides (effects/oppChoose.js UnlessOther)
+    if ((ep = s.match(/^(.+?) unless (their player|that character's player|its player|the challenging player) (pays (\d+) \{ink\}|puts that card on the bottom of their deck)$/i))) {
+      const st = this.clause(ep[1], ctx);
+      const who = /challenging/i.test(ep[2]) || st.sel?.role === 'challenger' ? 'challenger' : 'refOwner';
+      return { fn: 'unlessOther', who, pay: ep[4] ? { ink: +ep[4] } : { toDeckBottom: 'ref' }, text: ep[1], do: [st], ...(may ? { may: true } : {}) };
     }
     // "<effect> unless <condition>"
     if ((ep = s.match(/^(.+?) unless (.+)$/i))) {
@@ -250,6 +261,20 @@ export class Compiler {
   effects(text, ctx = {}) {
     const steps = [];
     const at = text;
+    // "Chosen opponent chooses one: • …" · "Chosen opponent chooses YES! or NO!: • YES! … • NO! …" — they pick; in an
+    // option "they …" is that player, "you" is still the controller
+    const oc = text.match(/^(?:chosen|each) opponent chooses (?:one|YES! or NO!): • (.+)$/i);
+    if (oc) {
+      const opts = oc[1].split(/ • /).map((o) => o.trim());
+      const optSteps = (o) => sentences(o.replace(/^(?:YES|NO)! /i, '')).flatMap((sent) => {
+        const they = sent.match(/^they (.+)$/i);
+        if (!they) return this.effects(sent, ctx);
+        const third = they[1].replace(/^(\w+)|(?<= and )(\w+)/g, (v) => (/(?:s|sh|ch|x)$/i.test(v) ? `${v}es` : `${v}s`));   // "reveal … and discard" → "reveals … and discards"
+        const sts = this.effects(`chosen opponent ${third}`, ctx);
+        return sts.map((x) => (x.fn === 'eachPlayer' && x.who === 'chosenOpp' ? { ...x, who: 'chooser' } : x));
+      });
+      return [{ fn: 'chooseOne', by: 'opp', labels: opts.map((o) => o.replace(/\.$/, '')), options: opts.map(optSteps) }];
+    }
     // "Choose one: • …" · "you may choose one: • …" (neither is fine) · "choose one of the following. If X, choose both instead: • …"
     const CHOOSE = /(?:you may )?choose one(?: of the following)?(?:\. if (.+?), choose both instead)?: • /i;
     const chooseAt = text.search(CHOOSE);
@@ -270,6 +295,12 @@ export class Compiler {
       if (last?.fn === 'look' && Look.tail(sent, last, at)) continue;
       // "Reveal the top 2 cards of your deck. Put revealed character cards into your hand." — a reveal with a distribution
       if (last?.fn === 'reveal' && !last.sel && Look.distribute(sent.replace(/[.!]$/, ''), last, at)) { last.fn = 'look'; last.reveal = true; continue; }
+      // "Each opponent reveals the top card of their deck. If it's a character card, they may put it into their hand.
+      // Otherwise, they put it on the bottom of their deck." — the follow-ups are that player's too
+      if (last?.fn === 'eachPlayer' && INNER.has(last) && last.do.some((x) => x.fn === 'reveal' || x.fn === 'look') && /^(?:if it's .+?, they |otherwise, (?:they )?put it .*\btheir\b|they )/i.test(sent)) {
+        const inner = `${INNER.get(last)}. ${secondPerson(sent.replace(/[.!]$/, ''))}`;
+        try { last.do = this.effects(inner, ctx); INNER.set(last, inner); continue; } catch (e) { if (!(e instanceof Miss)) throw e; }
+      }
       let s = sent.replace(/[.!]$/, '').trim();
       if (last?.fn === 'grantPlayFrom' && PLAY_FROM_TAIL.test(s)) { last.exerted = true; if (PLAY_FROM_TAIL.exec(s)[1]) last.sameNameBan = true; continue; }
       let ifDid = false;

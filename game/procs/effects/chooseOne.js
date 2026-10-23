@@ -26,11 +26,13 @@ export class ChooseOne extends Effect {
     if (job.answer?.key === 'chooseOne') {
       const k = job.answer.option; job.answer = null;
       job.steps.splice(job.i + 1, 0, ...clone(st.options[k]));
-      rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} chose: ${st.labels?.[k] || `option ${k + 1}`}.`, { seat: job.seat, kind: 'effect' });
+      rt.log(s, `↳ ${rt.E.nameOf(s, st.by === 'opp' ? job.ctx.chooser ?? job.seat : job.seat)} chose: ${st.labels?.[k] || `option ${k + 1}`}.`, { seat: job.seat, kind: 'effect' });
       return true;
     }
     job.waitKey = 'chooseOne';
-    return rt.ask(s, job, { op: 'chooseOne', choices: st.labels || st.options.map((o, k) => `Option ${k + 1}`), prompt: 'choose one.' });
+    // "Chosen opponent chooses one" — they answer; "they …" in the options is them
+    const by = st.by === 'opp' ? (job.ctx.chooser ??= rt.E.opponentsOf(s, job.seat)[0]) : job.seat;
+    return rt.ask(s, job, { seat: by, op: 'chooseOne', choices: st.labels || st.options.map((o, k) => `Option ${k + 1}`), prompt: 'choose one.' });
   }
-  static say(st, sayStep) { return `choose one: ${st.options.map((o, i) => `(${i + 1}) ${o.map(sayStep).join(', ')}`).join('  ')}`; }
+  static say(st, sayStep) { return `${st.by === 'opp' ? 'chosen opponent chooses' : 'choose'} one: ${st.options.map((o, i) => `(${i + 1}) ${o.map(sayStep).join(', ')}`).join('  ')}`; }
 }
