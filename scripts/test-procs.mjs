@@ -601,13 +601,50 @@ test('player subjects · moving several to one location · free moves', () => {
   }
 });
 test('"if you removed an ink drop to play this action" · "that character had a card under them"-style ref conditions', () => {
-  const act = all.find((d) => d.type === 'action' && d.procs.every((p) => p.exec) && d.abilities.some((a) => /removed an ink drop to play this action/i.test(a.text)));
+  const act = byName('Jousting Match');                                // deal 2 — or 5 if an ink drop paid for it
   const target = all.find((d) => d.type === 'character' && !d.abilities.length && d.wp >= 6);
   for (const drops of [0, 1]) {
     const { s, ids } = setup({ hand0: [act], play1: [target], ink0: act.cost - drops });
     s.players[0].inkDrops = drops;
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
     assert.equal(s.cards[ids.play1[0]].damage, drops ? 5 : 2, `${drops} ink drop(s) paid`);
+  }
+});
+test('deck distributions: inkwell / top / bottom · reveal each · any number · either top or bottom', () => {
+  const top = (s, n) => s.players[0].deck.slice(0, n);
+  { // "Look at the top 3 cards of your deck. Put one into your inkwell facedown and exerted, one on the top of your deck, and one on the bottom of your deck."
+    const act = byName('Everything Else Is Obsolete');
+    const { s, ids } = setup({ hand0: [act] });
+    const [a, b, c] = top(s, 3);
+    const ink = s.players[0].inkwell.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (const want of [a, b, c]) if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: s.pending.valid.includes(want) ? want : s.pending.valid[0] }));
+    drain(s);
+    assert.equal(s.players[0].inkwell.length, ink + 1, 'one into the inkwell');
+    assert.ok(s.cards[a].zone === 'inkwell' && s.players[0].deck[0] === b && s.players[0].deck.at(-1) === c);
+  }
+  { // "Reveal the top 2 cards of your deck. Put revealed character cards into your hand. Put the rest on the bottom …"
+    const inv = byName('Invited to the Ball');
+    const { s, ids } = setup({ hand0: [inv] });
+    const two = top(s, 2);
+    const chars = two.filter((iid) => s.defs[s.cards[iid].cardId].type === 'character');
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    for (const iid of two) assert.equal(s.cards[iid].zone, chars.includes(iid) ? 'hand' : 'deck');
+    for (const iid of two.filter((x) => !chars.includes(x))) assert.equal(s.players[0].deck.at(-1), iid);
+  }
+  { // "Put one on either the top or the bottom of your deck and the other into your inkwell facedown and exerted."
+    const cin = byName('Cinderella - Unintentional Icon');
+    const { s, ids } = setup({ play0: [cin] });
+    const [a, b] = top(s, 2);
+    const ink = s.players[0].inkwell.length;
+    ok(applyAction(s, 0, { type: 'endTurn' }));
+    for (let k = 0; k < 6 && s.pending; k++) {
+      const pd = s.pending;
+      ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? (pd.op === 'scry' ? { skip: true } : {}) : { target: pd.valid.includes(a) ? a : pd.valid[0] }) }));
+    }
+    assert.equal(s.players[0].inkwell.length, ink + 1);
+    assert.equal(s.cards[b].zone, 'inkwell', 'the other card went to the inkwell');
+    assert.equal(s.players[0].deck[0], a, 'kept on top');
   }
 });
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
