@@ -153,11 +153,13 @@ export function defenderBlocker(att, attDef, tgt, tgtDef, defenderSide) {
 }
 
 // Challenge damage (4.6.6 + Challenger 8.5 + Resist 8.8). Negative strength deals 0.
-export function challengeDamage(att, attDef, tgt, tgtDef) {
-  const atk = Math.max(0, effStr(att, attDef) + kwVal(att, attDef, 'challenger'));
+// opts.attStat / defStat: which stat deals the damage ('str' — or 'wp': "your characters deal damage with their {willpower}")
+export function challengeDamage(att, attDef, tgt, tgtDef, opts = {}) {
+  const dmg = (c, d, stat) => (stat === 'wp' ? effWp(c, d) : effStr(c, d));
+  const atk = Math.max(0, dmg(att, attDef, opts.attStat) + kwVal(att, attDef, 'challenger'));
   const safe = (c, d, ...k) => ['noDamage', 'noChallengeDamage', ...k].some((x) => hasKw(c, d, x));   // "takes no damage from challenges"
   const toDefender = safe(tgt, tgtDef) ? 0 : Math.max(0, atk - kwVal(tgt, tgtDef, 'resist'));
-  const back = tgtDef.type === 'character' ? Math.max(0, effStr(tgt, tgtDef)) : 0;  // locations deal no damage
+  const back = tgtDef.type === 'character' ? Math.max(0, dmg(tgt, tgtDef, opts.defStat)) : 0;  // locations deal no damage
   const toAttacker = safe(att, attDef, 'noDamageChallenging') ? 0 : Math.max(0, back - kwVal(att, attDef, 'resist'));
   return { toDefender, toAttacker };
 }

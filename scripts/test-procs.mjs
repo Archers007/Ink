@@ -8,6 +8,8 @@ import { SUPPORT } from '../game/procs/index.js';
 import { createRuntime } from '../game/procs/index.js';
 import { applyAction, checkInvariants, viewFor } from '../game/engine.js';
 import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
+import { RULES } from '../game/rulebook/rules.js';
+import { section } from '../game/rulebook/cr.js';
 
 const C = (text, type = 'character', name = '') => compileAbility({ name, text }, type);
 
@@ -821,6 +823,91 @@ test('free self-play static · songs know who sang them', () => {
     for (let k = 0; k < 6 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : { target: pd.valid.includes(ids.hand0[1]) ? ids.hand0[1] : pd.valid[0] }) })); }
     assert.equal(s.cards[ids.hand0[1]].zone, 'play');
     assert.equal(s.cards[ids.play0[0]].atLocation, ids.hand0[1], 'the singer moved there');
+  }
+});
+// ---------- rulebook: game rules as values cards change (game/rulebook/rules.js) ----------
+test('rulebook: every RULES entry cites a CR section that exists in the rulebook text', () => {
+  for (const [id, r] of Object.entries(RULES)) assert.ok(section(r.cr), `${id}: CR ${r.cr} not in the rulebook`);
+});
+test('rulebook: cards change win lore, draw step, lore gain/loss, damage removal, challenges, inking', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  const pass = (s) => { ok(applyAction(s, s.active, { type: 'endTurn' })); drain(s); };
+  { // Donald Duck - Flustered Sorcerer: "Opponents need 25 lore to win the game."
+    const { s, ids } = setup({ play0: [byName('Donald Duck - Flustered Sorcerer')] });
+    assert.equal(viewFor(s, 1).players[1].rules.winLore, 25);
+    assert.equal(viewFor(s, 0).players[0].rules.winLore, 20, 'only opponents');
+    s.players[1].lore = 22; pass(s);
+    assert.equal(s.status, 'playing', '22 lore is not enough');
+    void ids;
+  }
+  { // Arthur - Determined Squire: "Skip your turn's Draw step."
+    const { s } = setup({ play0: [byName('Arthur - Determined Squire')] });
+    pass(s); const h = s.players[0].hand.length; pass(s);
+    assert.equal(s.players[0].hand.length, h, 'no draw');
+    assert.ok(s.log.some((l) => /skips their Draw step/.test(l.text)));
+  }
+  { // Koda - Talkative Cub: "During opponents' turns, you can't lose lore."
+    const { s } = setup({ play0: [byName('Koda - Talkative Cub')] });
+    s.players[0].lore = 5; pass(s);
+    ok(applyAction(s, 1, { type: 'lore', seat: 0, delta: -2 }));
+    assert.equal(s.players[0].lore, 5, "can't lose on their turn");
+    pass(s); ok(applyAction(s, 0, { type: 'lore', delta: -2 }));
+    assert.equal(s.players[0].lore, 3, 'can on yours');
+  }
+  { // Peter Pan - Never Land Prankster: "While exerted, each opposing player can't gain lore unless one of their characters has challenged this turn."
+    const pp = byName('Peter Pan - Never Land Prankster');
+    const q = plain((d) => d.lore >= 1);
+    const { s, ids } = setup({ play0: [pp], play1: [q] });
+    s.cards[ids.play0[0]].exerted = true;
+    pass(s); s.cards[ids.play0[0]].exerted = true; unready(s, ids.play1);
+    const lore = s.players[1].lore;
+    ok(applyAction(s, 1, { type: 'quest', iid: ids.play1[0] })); drain(s);
+    assert.equal(s.players[1].lore, lore, 'no lore');
+  }
+  { // Vision Slab: "Damage counters can't be removed."
+    const heal = all.find((d) => d.type === 'action' && d.procs.length === 1 && d.procs[0].exec && /^Remove up to \d+ damage from chosen character\.$/.test(d.abilities[0]?.text || ''));
+    const hurt = plain((d) => d.wp >= 4);
+    const { s, ids } = setup({ play0: [byName('Vision Slab'), hurt], hand0: [heal] });
+    s.cards[ids.play0[1]].damage = 2;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].damage, 2);
+  }
+  { // Prince Charming - Protector of the Realm: "Each turn, only one character can challenge."
+    const a = plain((d) => d.str >= 1 && d.wp >= 3), t = plain((d) => d.wp >= 9 || d.wp >= 5);
+    const { s, ids } = setup({ play0: [byName('Prince Charming - Protector of the Realm'), a, a], play1: [t, t] });
+    unready(s, ids.play0); for (const id of ids.play1) s.cards[id].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] }));
+    assert.equal(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[2], target: ids.play1[1] }).ok, false);
+  }
+  { // Dale - Ready for His Shot: "During challenges, your characters deal damage with their {willpower} instead of their {strength}."
+    const a = plain((d) => d.wp > d.str + 1), t = plain((d) => d.wp >= 9);
+    const { s, ids } = setup({ play0: [byName('Dale - Ready for His Shot'), a], play1: [t] });
+    unready(s, ids.play0); s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] }));
+    assert.equal(s.cards[ids.play1[0]].damage, Math.min(a.wp, t.wp));
+  }
+  { // Hidden Inkcaster: "All cards in your hand count as having {inkable}."
+    const un = all.find((d) => d.type === 'character' && !d.inkable);
+    const { s, ids } = setup({ play0: [byName('Hidden Inkcaster')], hand0: [un] });
+    assert.equal(viewFor(s, 0).players[0].rules.handInkable, true);
+    ok(applyAction(s, 0, { type: 'ink', iid: ids.hand0[0] }));
+    assert.equal(s.cards[ids.hand0[0]].zone, 'inkwell');
+  }
+  { // Moana - Curious Explorer: "You can ink cards from your discard."
+    const ink = all.find((d) => d.type === 'character' && d.inkable && !d.abilities.length);
+    const { s, ids } = setup({ play0: [byName('Moana - Curious Explorer'), ink] });
+    ok(applyAction(s, 0, { type: 'moveCard', iid: ids.play0[1], to: 'discard' }));
+    ok(applyAction(s, 0, { type: 'ink', iid: ids.play0[1] }));
+    assert.equal(s.cards[ids.play0[1]].zone, 'inkwell');
+  }
+  { // Daisy Duck - Paranormal Investigator: "While this character is exerted, cards enter opponents' inkwells exerted."
+    const ink = all.find((d) => d.type === 'character' && d.inkable && !d.abilities.length);
+    const { s, ids } = setup({ play0: [byName('Daisy Duck - Paranormal Investigator')], hand1: [ink] });
+    s.cards[ids.play0[0]].exerted = true;
+    pass(s); s.cards[ids.play0[0]].exerted = true;
+    ok(applyAction(s, 1, { type: 'ink', iid: ids.hand1[0] }));
+    assert.equal(s.cards[ids.hand1[0]].exerted, true);
   }
 });
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {

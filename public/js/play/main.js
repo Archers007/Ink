@@ -333,7 +333,8 @@ function actionsFor(found) {
       }
     }
     const inked = me().inkedThisTurn >= me().inkLimit;
-    P('Put into inkwell  ⬡', () => act({ type: 'ink', iid: c.iid }), !def.inkable ? 'No inkwell symbol — this card can\'t be inked.' : inked ? 'You already inked this turn.' : null);
+    const inkable = def.inkable || me().rules?.handInkable;              // "All cards in your hand count as having {inkable}"
+    P('Put into inkwell  ⬡', () => act({ type: 'ink', iid: c.iid }), !inkable ? 'No inkwell symbol — this card can\'t be inked.' : inked ? 'You already inked this turn.' : null);
     M('Play for free', () => act({ type: 'play', iid: c.iid, mode: 'free' }));
     M('Play with cost change…', () => {
       const n = prompt(`Cost adjustment for ${def.name} (e.g. -2 or 1):`, '-1');
@@ -714,8 +715,10 @@ function openDiscard(seat, refresh = false) {
       ${mine ? `<button class="sm" data-to="play" data-i="${c.iid}" ${['action', 'song'].includes(D(c.cardId)?.type) ? 'disabled' : ''}>→ play</button>` : ''}
       <button class="sm" data-to="deckTop" data-i="${c.iid}">→ deck top</button>
       <button class="sm" data-to="deckBottom" data-i="${c.iid}">→ bottom</button>
-      ${mine ? `<button class="sm" data-to="inkwell" data-i="${c.iid}">→ inkwell</button>` : ''}</div>` : ''}</div>`).join('')}</div>` : '<p class="muted">Empty.</p>'}
+      ${mine ? `<button class="sm" data-to="inkwell" data-i="${c.iid}">→ inkwell</button>` : ''}
+      ${mine && p.rules?.inkFromDiscard && D(c.cardId)?.inkable ? `<button class="sm" data-ink="${c.iid}" title="Ink it (your ink for the turn)">⬡ ink</button>` : ''}</div>` : ''}</div>`).join('')}</div>` : '<p class="muted">Empty.</p>'}
     <div class="modal-actions"><button data-close>Close</button></div>`, (el) => {
+    el.querySelectorAll('[data-ink]').forEach((b) => b.onclick = () => act({ type: 'ink', iid: b.dataset.ink }));   // "You can ink cards from your discard"
     el.querySelectorAll('[data-to]').forEach((b) => b.onclick = () => act({ type: 'moveCard', iid: b.dataset.i, to: b.dataset.to, exerted: b.dataset.to === 'inkwell' }));
   }, 'discard');
 }

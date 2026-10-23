@@ -16,6 +16,7 @@ import { Query } from '../query.js';
 import { EFFECT } from '../effects/index.js';
 import { EVENTS } from '../triggers/index.js';
 import { Act } from '../triggers/act.js';
+import { ruleValue } from '../../rulebook/rules.js';
 import { testCondition } from '../conditions/index.js';
 import { Triggered, Static, Activated, Action } from '../kinds/index.js';
 import { DURATIONS } from '../phrases/duration.js';
@@ -211,6 +212,9 @@ export class Runtime {
   statics(s) { Static.apply(this, s); }
   playBlocked(s, seat, c) { return Static.playBlocked(this, s, seat, c); }
   moveDelta(s, seat, c, loc) { return Static.moveDelta(this, s, seat, c, loc); }
+  staticActive(s, proc, owner, src) { return Static.active(this, s, proc, owner, src); }
+  // a game rule's value for a player (game/rulebook/rules.js) — the base, or what the board's statics set
+  rule(s, id, seat) { return ruleValue(this, s, id, seat); }
   costDelta(s, seat, c, consume = false) { return Static.costDelta(this, s, seat, c, consume); }
   onEnter(s, c) { Static.onEnter(this, s, c); }
   activate(s, seat, c, index, ev) { return Activated.activate(this, s, seat, c, index, ev); }
