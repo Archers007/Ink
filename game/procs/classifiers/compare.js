@@ -72,6 +72,16 @@ export class SameName extends Classifier {
   }
   static say(x) { return `with the same name as ${x.sameName === 'self' ? 'this card' : 'that card'}`; }
 }
+// "the item you played has a different name than each other item you have in play" — no other matching card of yours shares it
+export class UniqueName extends Classifier {
+  static id = 'uniqueName';
+  static test(x, card, def, env) {
+    if (!env.s) return false;
+    return !env.E.P(env.s, env.ctl).play.some((iid) => iid !== card.iid && env.E.D(env.s, env.s.cards[iid]).name === def.name
+      && (!x.uniqueName.types || x.uniqueName.types.includes(env.E.D(env.s, env.s.cards[iid]).type)));
+  }
+  static say(x) { return `with a different name than each other ${x.uniqueName.types?.join('/') || 'card'} you have in play`; }
+}
 // "a character in play with the highest cost, or tied for highest cost" — among every character in play
 export class HighestCost extends Classifier {
   static id = 'highestCost';

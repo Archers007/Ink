@@ -9,6 +9,8 @@ export class HandSize extends Condition {
     [new RegExp(String.raw`^you have ${NUM} or more cards in your hand$`, 'i'), (m) => ({ hand: { gte: N(m[1]) } })],
     [new RegExp(String.raw`^you have ${NUM} or fewer cards in your hand$`, 'i'), (m) => ({ hand: { lte: N(m[1]) } })],
     [/^you have no cards in your hand$/i, () => ({ hand: { lte: 0 } })],
+    [new RegExp(String.raw`^you have more than ${NUM} cards in your hand$`, 'i'), (m) => ({ hand: { gte: N(m[1]) + 1 } })],
+    [new RegExp(String.raw`^you have fewer than ${NUM} cards in your hand$`, 'i'), (m) => ({ hand: { lte: N(m[1]) - 1 } })],
     [/^(?:an|each|chosen) opponent has no cards in (?:their|his|her) hand$/i, (m) => ({ hand: { lte: 0 }, who: /^each/i.test(m[0]) ? 'eachOpp' : 'opp' })],
   ];
   static test(rt, s, C, env) {

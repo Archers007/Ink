@@ -1,5 +1,6 @@
 // "<trigger>, [if <cond>,] effect"   { kind:'triggered', on:[{ev,…}], once?, during?, cond?, do:[step] }
 import { Kind, sayDuring } from './Kind.js';
+import { secondPerson } from '../compiler.js';
 import { parseTrigger, sayTrigger, TRIGGER } from '../triggers/index.js';
 
 export class Triggered extends Kind {
@@ -19,6 +20,11 @@ export class Triggered extends Kind {
     // "At the start of your turn, if this card is in your discard, …" — the trigger listens from the discard
     const fd = body.match(/^if this card is in your discard, (.+)$/i);
     if (fd) { on = on.map((o) => ({ ...o, fromDiscard: true })); body = fd[1]; }
+    // "At the end of each player's turn, if they have more than 2 cards in their hand, they …" — they = the player whose
+    // turn it is; the whole effect is theirs
+    if (on.every((o) => /^turn(?:Start|End)$/.test(o.ev) && (o.whose === 'each' || o.whose === 'opp')) && /^(?:if )?they\b/i.test(body)) {
+      return { kind: 'triggered', on, ...mods, do: [{ fn: 'eachPlayer', who: 'active', do: c.effects(secondPerson(body), { refIsSelf: true }) }] };
+    }
     const m = body.match(/^if (.+?), (.+)$/i);
     if (m && !/^if you do/i.test(body)) { cond = c.condition(m[1], t); body = m[2]; }
     return { kind: 'triggered', on, ...mods, ...(cond ? { cond } : {}), do: c.effects(body, { refIsSelf: true }) };

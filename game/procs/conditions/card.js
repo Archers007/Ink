@@ -36,11 +36,33 @@ export class HealedThisWay extends Condition {
   static test(rt, s, C, env) { return (env.job?.ctx.healed || 0) > 0; }
   static say() { return 'damage was removed this way'; }
 }
+// "if it has the same name as the chosen card" (the card picked first) · "… as a card in your discard" (another one)
+export class SameNameAs extends Condition {
+  static key = 'sameNameAs';
+  static rules = [
+    [/^it has the same name as the chosen card$/i, () => ({ sameNameAs: 'chosen' })],
+    [/^it has the same name as a card in your discard$/i, () => ({ sameNameAs: 'discard' })],
+  ];
+  static test(rt, s, C, env) {
+    const ctx = env.job?.ctx || {};
+    const id = (ctx.it || [])[0] ?? (ctx.trigIt || [])[0];
+    const c = id != null && s.cards[id];
+    if (!c) return false;
+    const name = rt.E.D(s, c).name;
+    if (C.sameNameAs === 'chosen') {
+      const first = Object.values(ctx.byFn || {}).flat().find((x) => x !== id && s.cards[x]);
+      return !!first && rt.E.D(s, s.cards[first]).name === name;
+    }
+    return rt.E.P(s, env.ctl).discard.some((x) => x !== id && rt.E.D(s, s.cards[x]).name === name);
+  }
+  static say(C) { return C.sameNameAs === 'chosen' ? 'it has the same name as the chosen card' : 'it has the same name as a card in your discard'; }
+}
 export class RefIs extends Condition {
   static key = 'refIs';
   static rules = [
     // "If the moved character is a Knight" — the card the trigger was about, even after a step picked another
     [/^the moved character is (?:a|an) (.+?)$/i, (m, a) => ({ refIs: filter(m[1], a), trig: true })],
+    [/^the (item|character|location) you played has a different name than each other (item|character|location) you have in play$/i, (m) => ({ refIs: { types: [m[1].toLowerCase()], with: [{ uniqueName: { types: [m[2].toLowerCase()] } }] }, trig: true })],
     [/^(?:a|an) (.+?) (?:was|is) chosen$/i, (m, a) => ({ refIs: filter(m[1], a) })],
     [/^(?:it is|it's|that card is|that character is|the chosen character is|they're|he's|she's|they are|he is|she is|the moved character is) (?:a|an) (.+?)$/i, (m, a) => ({ refIs: filter(m[1], a) })],
     // "its card type is: • character" (a chooseOne-style list collapsed to one type)

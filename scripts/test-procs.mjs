@@ -1198,6 +1198,35 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     const { s, ids } = setup({ play0: [sc] });
     assert.equal(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }).ok, false, 'not from play');
   }
+  { // Goliath - Clan Leader: "At the end of each player's turn, if they have more than 2 cards in their hand, they choose and discard
+    // cards until they have 2" — they = the player whose turn ended, and that player picks
+    const gol = byName('Goliath - Clan Leader');
+    const { s, ids } = setup({ play0: [gol] });
+    const n1 = s.players[1].hand.length;
+    ok(applyAction(s, 0, { type: 'endTurn' }));
+    while (s.pending) { assert.equal(s.pending.seat, 0); ok(applyAction(s, 0, { type: 'choose', target: s.pending.valid[0] })); }
+    assert.equal(s.players[0].hand.length, 2);
+    ok(applyAction(s, 1, { type: 'endTurn' }));
+    while (s.pending) { assert.equal(s.pending.seat, 1); ok(applyAction(s, 1, { type: 'choose', target: s.pending.valid[0] })); }
+    assert.ok(n1 > 2 && s.players[1].hand.length === 2);
+  }
+  { // Ariel - Collector of Oddities: "For each item with a different name you have in play, this character gets +1 {lore}."
+    const ar = byName('Ariel - Collector of Oddities'), items = all.filter((d) => d.type === 'item' && d.procs.every((p) => p.kind === 'activated'));
+    const [a, b] = [items[0], items.find((d) => d.name !== items[0].name)];
+    const { s, ids } = setup({ play0: [ar, a, a, b] });
+    ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+    assert.equal(viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[0]).eff.lore, ar.lore + 2);
+  }
+  { // I'm Never Not by Your Side: "Remove up to 4 damage total from any number of your characters. You gain 1 lore for each 1 damage removed"
+    const song = byName("I'm Never Not by Your Side"), a = vanilla((d) => d.wp >= 4);
+    const { s, ids } = setup({ hand0: [song], play0: [a, a], ink0: song.cost });
+    s.cards[ids.play0[0]].damage = 3; s.cards[ids.play0[1]].damage = 3;
+    const lore = s.players[0].lore;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] })); drain(s);
+    assert.deepEqual([s.cards[ids.play0[0]].damage, s.cards[ids.play0[1]].damage], [0, 2]);
+    assert.equal(s.players[0].lore, lore + 4);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
