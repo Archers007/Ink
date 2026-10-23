@@ -22,8 +22,10 @@ import { RuleFx, DeckFx } from './rule.js';
 import { NameCard } from './name.js';
 import { ReplaceFx, GrantReplace } from './replace.js';
 import { PlayFrom, GrantPlayFrom } from './playFrom.js';
+import { PeekInkwell, ReturnOne, ReadyPick, Settle, GainShift, FreeAbility, ReadyLimit, RevealedBest, RevealedRest, Distribute, ShiftFrom, RevealSame } from './extra.js';
 
 export const EFFECTS = [
+  Distribute, PeekInkwell, ReturnOne, ReadyPick, Settle, ReadyLimit, RevealedBest, RevealedRest, ShiftFrom, GainShift, FreeAbility, RevealSame,
   Choose, EachPlayer, Delayed, Count, Reveal, RevealCard, RevealHandDiscard, RevealHand, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, FromUnder, ToHand, ToDeckBottom, ShuffleIn,
   InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, InkwellFx, Exert, Ready, Discard, OppChoose, UnlessOther, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,

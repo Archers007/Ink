@@ -51,7 +51,12 @@ export class Triggered extends Kind {
       if (!rt.duringOk(s, proc, c.owner)) return;
       if (on.during && !rt.duringOk(s, { during: on.during }, c.owner)) return;   // "… and whenever he banishes … during your turn"
       if (on.whileCond && !rt.test(s, on.whileCond, c.owner, c.iid)) return;
-      if (proc.once) {
+      if (proc.once === 2) {                                           // "Twice during your turn, whenever …"
+        c.once ||= {};
+        const n = c.once[k]?.turn === s.turn ? c.once[k].n : 0;
+        if (n >= 2) return;
+        c.once[k] = { turn: s.turn, n: n + 1 };
+      } else if (proc.once) {
         c.once ||= {};
         if (c.once[k] === s.turn) return;
         c.once[k] = s.turn;

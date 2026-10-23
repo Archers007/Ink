@@ -2201,10 +2201,166 @@ test('re-review fixes: effect-inked cards trigger · trades count as banishing �
     assert.equal(s.cards[ids.play0[0]].exerted, false);
   }
 });
+test('last 17 (a): granted Shift (Anna, Maleficent & Diablo) · free ability (Maui\'s Fish Hook) · reveal cost (Merlin\'s Wand) · Metamorphosis', () => {
+  const shiftIdx = (d, f) => d.shifts.findIndex(f);
+  { // Anna - Soothing Sister: Shift 0 only once a card has left a discard this turn
+    const anna = byName('Anna - Soothing Sister'); const base = byName('Anna - Little Sister');
+    const { s, ids } = setup({ hand0: [anna], play0: [base], ink0: 0 });
+    const k = shiftIdx(anna, (x) => x.granted);
+    assert.equal(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', shift: k, target: ids.play0[0] }).ok, false, 'no card left a discard yet');
+    const d = s.players[0].deck.pop(); s.cards[d].zone = 'discard'; s.players[0].discard.push(d);
+    E.moveTo(s, d, 'hand', []);                                         // a card leaves the discard
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', shift: k, target: ids.play0[0] })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'play'); assert.equal(s.cards[ids.play0[0]].zone, 'under');
+  }
+  { // Maleficent & Diablo: 5 character cards from the discard to the deck bottom, in the order given
+    const md = byName('Maleficent & Diablo - Evil Incarnate'); const base = byName('Diablo - Obedient Raven');
+    const { s, ids } = setup({ hand0: [md], play0: [base], ink0: 0 });
+    const five = s.players[0].deck.splice(0, 5); for (const x of five) { s.cards[x].zone = 'discard'; s.players[0].discard.push(x); }
+    const k = shiftIdx(md, (x) => x.cost.bottomFromDiscard);
+    assert.equal(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', shift: k, target: ids.play0[0], bottom: five.slice(0, 4) }).ok, false, 'needs all 5');
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', shift: k, target: ids.play0[0], bottom: five })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'play'); assert.deepEqual(s.players[0].deck.slice(-5), five);
+  }
+  { // Maui's Fish Hook: Shapeshift for free (still {exert}) with a Maui in play
+    const hook = byName("Maui's Fish Hook"); const maui = byName('Maui - Soaring Demigod');
+    const idx = hook.procs.findIndex((p) => p.kind === 'activated');
+    { const { s, ids } = setup({ play0: [hook], ink0: 0 }); unready(s, ids.play0);
+      assert.equal(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }).ok, false, 'no Maui → it costs 2 ink'); }
+    { const { s, ids } = setup({ play0: [hook, maui], ink0: 0 }); unready(s, ids.play0);
+      ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx })); drain(s);
+      assert.equal(s.cards[ids.play0[0]].exerted, true, 'still exerts'); }
+  }
+  { // Merlin's Wand: reveal 2 same-name cards → the next card with that name costs 1 less
+    const wand = byName("Merlin's Wand"); const two = vanilla((d) => d.cost === 2);
+    const { s, ids } = setup({ play0: [wand], hand0: [two, two], ink0: 1 }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[0] })); ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[1] })); drain(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));          // 2-cost card for 1 ink
+    assert.equal(s.cards[ids.hand0[0]].zone, 'play');
+  }
+  { // Metamorphosis: shift a character with Shift from the discard, for free
+    const meta = byName('Metamorphosis'); const tod = byName('Tod - Knows All the Tricks'); const base = all.find((d) => d.name === 'Tod' && d.full !== tod.full && d.type === 'character');
+    const { s, ids } = setup({ hand0: [meta, tod], play0: [base], ink0: 3 });
+    E.moveTo(s, ids.hand0[1], 'discard', []);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.hand0[1]].zone, 'play'); assert.equal(s.cards[ids.play0[0]].zone, 'under');
+    assert.equal(s.players[0].inkwell.filter((x) => s.cards[x].exerted).length, 3, 'paid only for Metamorphosis');
+  }
+});
+const toTop = (s, seat, iid) => { const p = s.players[seat]; for (const z of ['hand', 'deck', 'play', 'discard']) { const i = p[z].indexOf(iid); if (i >= 0) p[z].splice(i, 1); } s.cards[iid].zone = 'deck'; p.deck.unshift(iid); };
+const endPair = (s) => { ok(applyAction(s, 0, { type: 'endTurn', force: true })); drain(s); ok(applyAction(s, 1, { type: 'endTurn', force: true })); drain(s); };
+test('last 17 (b): inkwell looks (Minnie, Pongo) · ready limit (Marshmallow) · each-player reveals (Thomas O\'Malley, Colors of the Wind) · Eeyore', () => {
+  { // Minnie Mouse - Urban Visionary: either "may" → exert the inkwell; neither → nothing (ruling)
+    const minnie = byName('Minnie Mouse - Urban Visionary');
+    for (const look of [false, true]) {
+      const { s, ids } = setup({ play0: [minnie], ink0: 3 }); s.cards[ids.play0[0]].exerted = true;
+      ok(applyAction(s, 0, { type: 'endTurn', force: true }));
+      for (let k = 0; k < 4 && s.pending?.seat === 0; k++) ok(applyAction(s, 0, { type: 'choose', ...(s.pending.op === 'peekInkwell' && look ? { confirm: true } : { skip: true }) }));
+      assert.equal(s.players[0].inkwell.every((x) => s.cards[x].exerted), look, look ? 'looked → inkwell exerted' : 'declined both → not');
+    }
+  }
+  { // Pongo - Dear Old Dad: a Puppy in the inkwell is played for free at the start of the turn
+    const pongo = byName('Pongo - Dear Old Dad'); const pup = byName('Copper - Creative Storyteller');
+    const { s, ids } = setup({ play0: [pongo], hand0: [pup], ink0: 2 });
+    E.moveTo(s, ids.hand0[0], 'inkwell', []);
+    endPair(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'play');
+  }
+  { // Marshmallow - Cranky Climber: the opponent readies only 1 of their characters next turn — their pick
+    const mm = byName('Marshmallow - Cranky Climber'); const foe = vanilla((d) => d.wp >= 2);
+    const { s, ids } = setup({ play0: [mm], play1: [foe, foe] }); unready(s, ids.play0);
+    for (const x of ids.play1) s.cards[x].exerted = true;
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'endTurn', force: true }));
+    assert.equal(s.pending?.seat, 1); ok(applyAction(s, 1, { type: 'choose', target: ids.play1[1] }));
+    assert.deepEqual(ids.play1.map((x) => s.cards[x].exerted), [true, false]);
+  }
+  { // Thomas O'Malley - Savvy Vagabond: the highest-cost revealed card (each one tied) → hand, the rest → bottom
+    const tom = byName("Thomas O'Malley - Savvy Vagabond"); const five = vanilla((d) => d.cost === 5); const two = vanilla((d) => d.cost === 2);
+    for (const [mine, theirs] of [[five, five], [two, five]]) {
+      const { s, ids } = setup({ play0: [tom], hand0: [mine], hand1: [theirs] }); unready(s, ids.play0);
+      toTop(s, 0, ids.hand0[0]); toTop(s, 1, ids.hand1[0]);
+      ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+      assert.equal(s.cards[ids.hand1[0]].zone, 'hand');
+      assert.equal(s.cards[ids.hand0[0]].zone, mine === five ? 'hand' : 'deck', 'a tie → both into hand');
+      if (mine === two) assert.equal(s.players[0].deck.at(-1), ids.hand0[0], 'the rest → bottom');
+    }
+  }
+  { // Colors of the Wind: one card per different ink type revealed (Steel + Amethyst → 2)
+    const cotw = byName('Colors of the Wind'); const steel = byName('Kit Cloudkicker - Unpredictable Courier'); const ame = byName('Tinker Bell - Curious Fairy');
+    const { s, ids } = setup({ hand0: [cotw, steel], hand1: [ame] });
+    toTop(s, 0, ids.hand0[1]); toTop(s, 1, ids.hand1[0]);
+    const h = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].hand.length, h - 1 + 2);
+  }
+  { // Eeyore - In the Way: the chosen opposing character doesn't ready at the start of their next turn
+    const ee = byName('Eeyore - In the Way'); const foe = vanilla((d) => d.wp >= 2);
+    const { s, ids } = setup({ hand0: [ee], play1: [foe] }); s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'endTurn', force: true })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].exerted, true);
+  }
+});
+test('last 17 (c): Flippant Taunt · Let\'s Get Dangerous · Sugar Rush Speedway · The Family Scattered · The Frozen Vine · Tod', () => {
+  { // Flippant Taunt: Reckless until the start of your next turn; the 2+-opponents half doesn't apply in a 2-player game
+    const ft = byName('Flippant Taunt'); const foe = vanilla((d) => d.wp >= 2);
+    const { s, ids } = setup({ hand0: [ft], play1: [foe] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(kwHas(s.cards[ids.play1[0]], foe, 'reckless'), true); assert.equal(kwHas(s.cards[ids.play1[0]], foe, 'cantChallenge'), false);
+  }
+  { // Let's Get Dangerous: each player reveals their top card; a character may be played for free
+    const lgd = byName("Let's Get Dangerous");
+    const { s, ids } = setup({ hand0: [lgd] });
+    const before = [0, 1].map((x) => s.players[x].play.length);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.deepEqual([0, 1].map((x) => s.players[x].play.length), before.map((n) => n + 1), 'each played the revealed character');
+  }
+  { // Sugar Rush Speedway - Starting Line: exert + 1 damage to a character here → move it to another location for free
+    const srs = byName('Sugar Rush Speedway - Starting Line'); const loc = byName('Zootopia - Tundratown'); const me = vanilla((d) => d.wp >= 3);
+    const { s, ids } = setup({ play0: [srs, loc, me], ink0: 0 }); unready(s, ids.play0);
+    s.cards[ids.play0[2]].atLocation = ids.play0[0];
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: 0 })); drain(s);
+    const c = s.cards[ids.play0[2]];
+    assert.deepEqual([c.exerted, c.damage, c.atLocation], [true, 1, ids.play0[1]]);
+  }
+  { // The Family Scattered: the opponent's 3 characters → one to hand, one to the deck bottom, one to the deck top
+    const fs = byName('The Family Scattered'); const foe = vanilla((d) => d.wp >= 2);
+    const { s, ids } = setup({ hand0: [fs], play1: [foe, foe, foe] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    const z = ids.play1.map((x) => s.cards[x].zone).sort();
+    assert.deepEqual(z, ['deck', 'deck', 'hand']);
+    assert.ok(ids.play1.includes(s.players[1].deck[0]) && ids.play1.includes(s.players[1].deck.at(-1)), 'one on top, one on the bottom');
+  }
+  { // The Frozen Vine: banished with an exerted character here → back to hand; with none → stays in the discard
+    const vine = byName('The Frozen Vine - Monstrous Plant'); const me = vanilla((d) => d.wp >= 3);
+    for (const exerted of [true, false]) {
+      const { s, ids } = setup({ play0: [vine, me, me] }); unready(s, ids.play0);
+      Object.assign(s.cards[ids.play0[1]], { atLocation: ids.play0[0], exerted });
+      s.cards[ids.play0[0]].damage = 4;
+      ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[2] })); drain(s);   // the game state check banishes it
+      assert.equal(s.cards[ids.play0[0]].zone, exerted ? 'hand' : 'discard');
+    }
+  }
+  { // Tod - Knows All the Tricks: chosen by an action → may ready, twice during your turn
+    const tod = byName('Tod - Knows All the Tricks'); const gj = byName('Good Job!');
+    const { s, ids } = setup({ play0: [tod], hand0: [gj, gj, gj] });
+    const readied = [];
+    for (const k of [0, 1, 2]) {
+      s.cards[ids.play0[0]].exerted = true;
+      ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[k] }));
+      if (s.pending?.valid) ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] }));
+      drain(s);
+      readied.push(!s.cards[ids.play0[0]].exerted);
+    }
+    assert.deepEqual(readied, [true, true, false]);
+  }
+});
 test('demo decks are built only from fully-runnable cards', () => {
   void FILLER;
-  const d = all.filter((x) => x.procs.some((p) => !p.exec));
-  assert.ok(d.length > 0 && d.length < all.length);
+  const d = all.filter((x) => x.procs.some((p) => !p.exec && p.kind !== 'reminder'));
+  assert.deepEqual(d.map((x) => x.full), [], 'every card runs');
 });
 
 done();

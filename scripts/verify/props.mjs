@@ -16,8 +16,10 @@ export function props(s, prev, a) {
     if ((pl.inkDrops || 0) < 0) out.push('negative ink drops');                                            // CR 1.13.1.2
     for (const iid of pl.play) {
       const c = s.cards[iid]; const d = s.defs[c.cardId];
-      // the game state check ran (CR 1.8.1.4: a character or location with damage ≥ willpower is banished)
-      if ((d.type === 'character' || d.type === 'location') && d.wp != null && c.damage >= effWp(c, d) && s.status === 'playing') out.push(`${d.full} has ${c.damage} damage, {willpower} ${effWp(c, d)}`);
+      // the game state check ran (CR 1.8.1.4: a character or location with damage ≥ willpower is banished) — unless an
+      // ability is still resolving (waiting on a choice): the check comes once all its effects are done (CR 6.7.5, 1.8.5)
+      const midAbility = !!s.pending && s.fx?.length > 0;
+      if ((d.type === 'character' || d.type === 'location') && d.wp != null && c.damage >= effWp(c, d) && s.status === 'playing' && !midAbility) out.push(`${d.full} has ${c.damage} damage, {willpower} ${effWp(c, d)}`);
       if (c.damage < 0) out.push(`${d.full} has negative damage`);
       if (c.atLocation && !(s.cards[c.atLocation]?.zone === 'play' && s.cards[c.atLocation].owner === c.owner)) out.push(`${d.full} is at a location that isn't in play`);
       if (d.type === 'location' && c.exerted) out.push(`${d.full}: locations can't be exerted`);              // CR 5.6

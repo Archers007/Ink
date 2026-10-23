@@ -143,7 +143,9 @@ function moveTo(s, iid, to, ev, opt = {}) {
   const wasUnder = from === 'play' ? [...c.under] : null;           // "for each card that was under him"
   detach(s, c);
   if (from === 'play' && D(s, c).type === 'location') {
-    for (const pl of s.players) for (const id of pl.play) if (s.cards[id].atLocation === iid) s.cards[id].atLocation = null;
+    const here = [];                                                // who was here as it left ("if there was an exerted character here")
+    for (const pl of s.players) for (const id of pl.play) if (s.cards[id].atLocation === iid) { here.push(id); s.cards[id].atLocation = null; }
+    c.lastHere = here;
   }
   for (const id of stack) {
     const k = s.cards[id];
@@ -346,13 +348,23 @@ const STEPS = {
   ready(s, seat) {                                                  // 3.2.1
     const p = P(s, seat);
     const readied = [];
+    // "can't ready more than 1 of their characters at the start of their next turn" (Marshmallow - Cranky Climber):
+    // their characters wait; the player picks which to ready, in the bag
+    const limit = p.readyLimit && p.readyLimit.after < s.turn ? p.readyLimit.n : null;
+    if (limit != null) delete p.readyLimit;
+    const held = [];
     for (const iid of p.play) {
       const c = s.cards[iid];
       if (hasKw(c, D(s, c), 'cantReady') || hasKw(c, D(s, c), 'skipReady') || (hasKw(c, D(s, c), 'skipReadyOffLoc') && !c.atLocation)) continue;
+      if (limit != null && D(s, c).type === 'character') { if (c.exerted) held.push(iid); continue; }
       if (c.exerted) readied.push(iid);
       c.exerted = false;
     }
     for (const iid of readied) R.fire(s, 'ready', { iid });
+    if (held.length && limit > 0) {
+      log(s, `↳ ${nameOf(s, seat)} can ready only ${limit} of their characters this turn.`, { seat, kind: 'effect' });
+      R.queue(s, seat, held[0], 'Ready step', [{ fn: 'readyPick', n: limit }], { it: held });
+    }
     for (const iid of p.inkwell) s.cards[iid].exerted = false;
     for (const pl of s.players) for (const iid of pl.play) {         // 3.2.1.3 "until the start of your next turn"
       const c = s.cards[iid];
@@ -481,6 +493,9 @@ function sideOf(s, seat) {
   return P(s, seat).play.map((id) => ({ card: s.cards[id], def: D(s, s.cards[id]) }));
 }
 
+// a Shift option an ability grants only while a condition holds ("If a card left a player's discard this turn, …")
+export const shiftCondOk = (s, seat, c, opt) => !opt.spec.cond || R.test(s, opt.spec.cond, seat, c.iid);
+
 // Bodyguard (CR 8.3.2) or "This character may enter play exerted": the player may play it exerted
 export function mayEnterExerted(s, c, d) {
   return hasKw(c, d, 'bodyguard') || R.procsOf(s, c).some((p) => p.kind === 'static' && p.exec && p.effect?.fn === 'enterExertedOpt');
@@ -578,16 +593,9 @@ function playFree(s, seat, iid, ev, opt = {}) {
   P(s, seat).playedThisTurn.push(iid);
   const mv = c.zone === 'under' ? { fromUnder: true } : {};
   if (d.type === 'action' || d.type === 'song') {
-    moveTo(s, iid, 'discard', ev, mv);
     ev.push({ k: 'reveal', seat, iid, cardId: d.id });
     log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
-    const cast = R.castAction(s, seat, c);
-    if (!cast) manualActionText(s, d);
-    // "then put it on the bottom of your deck instead of into your discard" — once its effect is done (Ursula - Deceiver of All ruling)
-    if (opt.after === 'deckBottom') {
-      if (cast) s.fx[s.fx.length - 1].steps.push({ fn: 'toDeckBottom', sel: { self: true } });
-      else moveTo(s, iid, 'deckBottom', ev);
-    }
+    castSpell(s, seat, c, ev, mv, opt.after === 'deckBottom' ? 'deckBottom' : 'discard');
     R.fire(s, 'play', { iid });
     return true;
   }
@@ -599,6 +607,16 @@ function playFree(s, seat, iid, ev, opt = {}) {
   R.fire(s, 'entersPlay', { iid });
   return true;
 }
+// An action is in play while its effect resolves, then goes to the discard (CR 4.3.5 — Everyone Knows Juanita ruling:
+// it doesn't count toward "10 or more cards in your discard") — or where the effect that played it says ("then put it
+// on the bottom of your deck instead of into your discard": after its effect — Ursula - Deceiver of All ruling)
+function castSpell(s, seat, c, ev, mv = {}, after = 'discard') {
+  moveTo(s, c.iid, 'play', ev, mv);
+  if (R.castAction(s, seat, c)) { s.fx[s.fx.length - 1].steps.push({ fn: 'settle', to: after }); return true; }
+  manualActionText(s, D(s, c));
+  moveTo(s, c.iid, after === 'deckBottom' ? 'deckBottom' : 'discard', ev);
+  return false;
+}
 function manualActionText(s, d) {
   for (const ab of d.abilities) {
     const text = prettyText(ab.text).replace(/^\s*Sing Together \d+\s*\([^)]*\)\s*/i, '').replace(/^\s*\([^)]*sing this song[^)]*\)\s*/i, '');
@@ -606,13 +624,14 @@ function manualActionText(s, d) {
   }
 }
 
-H.play = (s, seat, a, ev) => { needMain(s, seat); playCard(s, seat, { ...a, free: false }, ev); };
+// (free / exertedFx / fromZone are for effects that play a card — never from a player's action)
+H.play = (s, seat, a, ev) => { needMain(s, seat); playCard(s, seat, { ...a, free: false, exertedFx: false, fromZone: null }, ev); };
 // a.free: an effect plays it for free (Mickey Mouse - Trumpeter: "Play a character for free" may use an ink Shift — ruling)
 function playCard(s, seat, a, ev) {
   // from the hand — or from the discard / under a card when an ability allows it (CR 4.3)
   const c0 = s.cards[a.iid];
-  const perm = c0 && c0.zone !== 'hand' ? R.playFromPerm(s, seat, c0) : null;
-  const from = perm ? c0.zone : 'hand';
+  const perm = c0 && c0.zone !== 'hand' && c0.zone !== a.fromZone ? R.playFromPerm(s, seat, c0) : null;
+  const from = perm ? c0.zone : a.fromZone && c0?.zone === a.fromZone ? a.fromZone : 'hand';   // "shift a character from your discard
   const c = ownCard(s, seat, a.iid, from);
   const d = D(s, c);
   const p = P(s, seat);
@@ -643,6 +662,7 @@ function playCard(s, seat, a, ev) {
     const opts = shiftOptions(d);
     const opt = Number.isInteger(a.shift) ? opts[a.shift] : opts.find((o) => o.kind === a.shiftKind) || opts[0];
     if (!opt) throw RE(`${cardLabel(d)} doesn't have Shift.`);
+    if (!shiftCondOk(s, seat, c, opt)) throw RE(`${cardLabel(d)} doesn't have ${opt.label} right now — its condition isn't met.`);   // "If …, this card gains Shift 0"
     const ts = uniq(Array.isArray(a.targets) ? a.targets : [a.target]).map((id) => s.cards[id]);
     const [lo, hi] = shiftOntoCount(opt);
     if (ts.length < lo || ts.length > hi || ts.some((t) => !t || t.owner !== seat || t.zone !== 'play') || !shiftOntoOk(opt, d, ts.map((t) => D(s, t)))) {
@@ -659,6 +679,13 @@ function playCard(s, seat, a, ev) {
       if ((p.inkDrops || 0) < cost.inkDrops) throw RE(`${opt.label}: remove ${cost.inkDrops} ink drops — you have ${p.inkDrops || 0}.`);
       p.inkDrops -= cost.inkDrops; p.usedDropTurn = s.turn; c.paidDrops = cost.inkDrops; R.fire(s, 'inkDropUsed', { seat });
       how = `by ${opt.label} onto ${onto}, removing ${cost.inkDrops} ink drops`;
+    } else if (cost.bottomFromDiscard != null) {                     // "put 5 character cards from your discard on the bottom of your deck in any order"
+      const bs = uniq(Array.isArray(a.bottom) ? a.bottom : []).map((id) => s.cards[id]);
+      if (bs.length !== cost.bottomFromDiscard || bs.some((x) => !x || x.owner !== seat || x.zone !== 'discard' || (cost.type && D(s, x).type !== cost.type))) {
+        throw RE(`${opt.label}: choose ${cost.bottomFromDiscard} ${cost.type || ''} cards from your discard, in the order they go to the bottom of your deck.`);
+      }
+      for (const x of bs) moveTo(s, x.iid, 'deckBottom', ev);
+      how = `by ${opt.label} onto ${onto}, putting ${bs.length} cards from the discard on the bottom of the deck`;
     } else {                                                          // "Shift: Discard an action card"
       const ds = uniq(Array.isArray(a.discard) ? a.discard : []).map((id) => s.cards[id]);
       if (ds.some((x) => !x || x.owner !== seat || x.zone !== 'hand' || x.iid === c.iid) || !shiftDiscardOk(opt, ds.map((x) => D(s, x)))) {
@@ -698,11 +725,10 @@ function playCard(s, seat, a, ev) {
   }
 
   if (d.type === 'action' || d.type === 'song') {
-    moveTo(s, c.iid, 'discard', ev, from === 'under' ? { fromUnder: true } : {});
     ev.push({ k: 'reveal', seat, iid: c.iid, cardId: d.id });
     log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
     p.playedThisTurn.push(c.iid);
-    if (!R.castAction(s, seat, c)) manualActionText(s, d);
+    castSpell(s, seat, c, ev, from === 'under' ? { fromUnder: true } : {});
     // each singer "sings the song" (CR 8.12.3); their triggers join the bag after the song's effect
     for (const iid of sungBy) R.fire(s, 'sings', { iid, song: c.iid });
     R.fire(s, 'play', { iid: c.iid, paid, singers: sungBy });

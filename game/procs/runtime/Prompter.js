@@ -101,6 +101,7 @@ export class Prompter {
     if (T.vanished) return T.acc;
     T.vanished = true;
     for (const iid of T.acc) if (s.cards[iid] && s.cards[iid].owner !== job.seat) rt.fire(s, 'chosenByOpp', { iid });
+    for (const iid of T.acc) if (s.cards[iid]) rt.fire(s, 'chosen', { iid, by: job.src });   // "whenever this character is chosen for an action or an item's ability"
     const src = s.cards[job.src];
     const type = src && rt.E.D(s, src).type;
     if (type !== 'action' && type !== 'song') return T.acc;

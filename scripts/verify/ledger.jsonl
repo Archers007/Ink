@@ -69,7 +69,7 @@
 {"key":"Amazu's Inkcaster#0","text":"7d7a985d15a7","proc":"1bf22a59cb2c","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Amber Chromicon#0","text":"374afc2ecfe8","proc":"bc4442a6e072","status":"approx","by":"review agent","at":"2026-10-23","note":"approx: 'up to N from each/any number' removes the max from every card (the how-much prompt only runs for a single target); choosing less is never offered (only matters at 1 for niche heal triggers)."}
 {"key":"Amber Coil#0","text":"6e51bc7e73ed","proc":"ea31e32eb8c3","status":"ok","by":"review agent","at":"2026-10-23"}
-{"key":"Ambush!#0","text":"cb5a0d925e93","proc":"9fcbc3e76cce","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Ambush!#0","text":"cb5a0d925e93","proc":"e4dace186bf6","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Amethyst Chromicon#0","text":"8a7bdfa6278e","proc":"d82bc87fe34b","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Amethyst Coil#0","text":"e230a789a005","proc":"9b196d1d75ff","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Amos Slade - Tenacious Tracker#0","text":"b969680a4943","proc":"a2b19df73f45","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
@@ -99,6 +99,7 @@
 {"key":"Anna - Making Snow Plans#0","text":"f32d5a3b17e6","proc":"aca58e81c872","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Anna - Mystical Majesty#0","text":"ccaefac641f8","proc":"8e933f1a5e0a","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Anna - Mystical Majesty#1","text":"2f5409f077ed","proc":"8d8db4d77e66","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Anna - Soothing Sister#0","text":"91b071c18994","proc":"ca724d22e4d3","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Anna - Soothing Sister#1","text":"c56dc11ec01a","proc":"fd24a9663862","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Anna - True-Hearted#0","text":"c2b26cbf9106","proc":"590594186002","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Anna - Trusting Sister#0","text":"5f4937629e20","proc":"0816c678058f","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -502,6 +503,7 @@
 {"key":"Cogsworth - Talking Clock#0","text":"c3d1d7209a7a","proc":"ff74d57b3117","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Coldstone - Reincarnated Cyborg#0","text":"f6c47b29c69e","proc":"42360f12aee6","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Colonel Hathi - On the March#0","text":"018ac8292f73","proc":"3333df158c6e","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Colors of the Wind#1","text":"b59bafb3cfdf","proc":"d8bd4474d0c2","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Come Out and Fight!#0","text":"593d0c64345d","proc":"42e40845d5b6","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Containment Unit#0","text":"554107c50b4f","proc":"14cf327d3f7a","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Containment Unit#1","text":"10ac6d668179","proc":"e436c06fe250","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -725,6 +727,7 @@
 {"key":"Education or Elimination#1","text":"4afab19f703e","proc":"5f92bf03541c","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Eeyore - Hunny Scholar#0","text":"0409be07686c","proc":"cd0f7db9df0a","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Eeyore - In the Way#0","text":"e3eda922ab59","proc":"d31e7cfef889","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Eeyore - In the Way#1","text":"e8ccd54c7e31","proc":"4cd7e7bb052d","status":"approx","by":"lead","at":"2026-10-23","note":"one choice per opponent, not forced to one of each opponent's characters (2-player: the same)"}
 {"key":"Eeyore - Overstuffed Donkey#0","text":"03879fb1b91f","proc":"194cdddf83c7","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Eilonwy - Princess of Llyr#0","text":"f32d5a3b17e6","proc":"aca58e81c872","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Elinor - Bespelled Queen#0","text":"5d378af6f85a","proc":"a9571fa6a131","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
@@ -823,6 +826,7 @@
 {"key":"Flash - Records Specialist#1","text":"8eb1cdb39d88","proc":"d3efe1961ba5","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Flintheart Glomgold - Lone Cheater#0","text":"b6e80a3afcfb","proc":"d8f1716a8094","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Flintheart Glomgold - Scheming Billionaire#0","text":"f21b41fc4da4","proc":"887d084ff37b","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Flippant Taunt#0","text":"6738f2c64773","proc":"cb22eb254362","status":"approx","by":"lead","at":"2026-10-23","note":"2-player: the 2+-opponents half reads \"can't challenge your characters or locations\" as can't challenge (the only ones it could challenge there)"}
 {"key":"Flit - Reflective Hummingbird#0","text":"4145246abf15","proc":"dc88231a5845","status":"approx","by":"review agent","at":"2026-10-23","note":"moveDamage only asks how much when max > 1 (effects/damage.js MoveDamage.run), and the source must be a damaged character (keep filter); with no 'may', up to 1 always moves exactly 1 when any legal damaged source exists — you can't choose 0 / an undamaged source"}
 {"key":"Flora - Good Fairy#0","text":"2e7b3a886dc4","proc":"bd1cf25505e3","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Flora - Strong-Willed Fairy#0","text":"13886c117371","proc":"4d4a2586d419","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -1492,6 +1496,7 @@
 {"key":"Lester the Possum - Park Mascot#1","text":"b68079e0f9ee","proc":"27412761fcb4","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Let It Go#1","text":"ec0a14ede609","proc":"a22d911185e2","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Let the Storm Rage On#1","text":"52bcb5cf2870","proc":"8fd24377afa5","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Let's Get Dangerous#1","text":"cdf87eff30fa","proc":"aee7c68e2e6a","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Leviathan's Lair - Dangerous Ground#0","text":"367eb1f4024d","proc":"db1bc4f43b74","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Lexington - Fearless Flier#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Lexington - Fearless Flier#1","text":"d59daba01cb4","proc":"40cc9b4f46e9","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -1646,6 +1651,7 @@
 {"key":"Make the Potion#0","text":"683aae54af29","proc":"77d433a6bd1f","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Making Magic#0","text":"6d49e7d495b6","proc":"08bb9774b6a5","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Maleficent & Diablo - Evil Incarnate#0","text":"ce37bff21315","proc":"799fe8928fee","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
+{"key":"Maleficent & Diablo - Evil Incarnate#1","text":"a342c1644e25","proc":"5d44afbaf941","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Maleficent & Diablo - Evil Incarnate#2","text":"21a688e953c7","proc":"c84001788fb1","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Maleficent - Formidable Queen#0","text":"a1da7c68e9fc","proc":"dc4369754aaf","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Maleficent - Formidable Queen#1","text":"bf8d54a7bb51","proc":"e541e6e57cda","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -1672,6 +1678,7 @@
 {"key":"Marie - Caught in the Act#0","text":"4c920128f721","proc":"7c7707f934fe","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Marie - Favored Kitten#0","text":"cebb4b6c170f","proc":"f3c44694700f","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Markowski - Space Trooper#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
+{"key":"Marshmallow - Cranky Climber#0","text":"6c7df4acfe6d","proc":"196920edd084","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Marshmallow - Persistent Guardian#0","text":"74b98c9aaf8b","proc":"8f681486699e","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Marshmallow - Terrifying Snowman#0","text":"44cb070c8d6a","proc":"472cde0d0a19","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Mattias - Arendelle General#0","text":"b4527794a77c","proc":"652bf1901688","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -1687,6 +1694,7 @@
 {"key":"Maui - Stubborn Trickster#0","text":"a75f7950b3b4","proc":"4bb8ae1c9554","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Maui - Whale#0","text":"88b499bc19e6","proc":"c5307d64a217","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Maui - Whale#1","text":"71d1908a744d","proc":"c8840582b73f","status":"ok","by":"lead","at":"2026-10-23","note":"lead review after the he/this-character and search→put-in-hand fixes"}
+{"key":"Maui's Fish Hook#0","text":"f3434d9e077a","proc":"a7f6a126211d","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Maui's Fish Hook#1","text":"68817ab02e45","proc":"231ef9821c34","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Maui's Place of Exile - Hidden Island#0","text":"be79968c49a3","proc":"4c860259acbc","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Maurice - Unconventional Inventor#0","text":"9062cad23ce2","proc":"740e3acbb32a","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -1764,8 +1772,10 @@
 {"key":"Merlin's Carpetbag#0","text":"105ae8bec0ed","proc":"05342e66b2a7","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Merlin's Cottage - The Wizard's Home#0","text":"8283045f3772","proc":"f1819fdeed1c","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Merlin's Shop and Smithy - Magical Market#0","text":"e9420ec31fab","proc":"1034ca816219","status":"ok","by":"review agent","at":"2026-10-23"}
+{"key":"Merlin's Wand#0","text":"ab469a8383ef","proc":"8480d30d20b4","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Merryweather - Feisty Fairy#0","text":"31d20079cb16","proc":"3f8eb1d5cc6a","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Merryweather - Good Fairy#0","text":"c121f6106192","proc":"d1a3d310645a","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Metamorphosis#0","text":"92aeb369917a","proc":"21d065133bed","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Mickey Mouse & Minnie Mouse - Adventuring Duo#0","text":"c90ec7d0d888","proc":"f0048d76b769","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Mickey Mouse & Minnie Mouse - Adventuring Duo#1","text":"0f2de3f08681","proc":"8078df3dad29","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Mickey Mouse - Amber Champion#0","text":"a6312ef0620b","proc":"cc27d76e6df2","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -1860,6 +1870,7 @@
 {"key":"Minnie Mouse - Sweetheart Princess#1","text":"b0b3e2cc65a6","proc":"8b21bba47287","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Minnie Mouse - Tiny Tim's Mother#0","text":"f32d5a3b17e6","proc":"aca58e81c872","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Minnie Mouse - Urban Visionary#0","text":"31d20079cb16","proc":"3f8eb1d5cc6a","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
+{"key":"Minnie Mouse - Urban Visionary#1","text":"cc82f8d5a810","proc":"aa8d1119f550","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Minnie Mouse - Wide-Eyed Diver#0","text":"b0542ad91e8e","proc":"3eb616755bc7","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Minnie Mouse - Wide-Eyed Diver#1","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Minnie Mouse - Wide-Eyed Diver#2","text":"c781a89c8d48","proc":"565917e07001","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -2139,7 +2150,7 @@
 {"key":"Perdita - On the Lookout#0","text":"d9fc7bdb4a6b","proc":"550490a301e8","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Perdita - Playful Mother#0","text":"f1d1b7112a67","proc":"f31c6685462a","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Perdita - Playful Mother#1","text":"42cfd859267c","proc":"ac9e05f5afbe","status":"ok","by":"claude-review","at":"2026-10-23"}
-{"key":"Performance Review#0","text":"f77f86178d42","proc":"778df55b40c0","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Performance Review#0","text":"f77f86178d42","proc":"9263fc6290af","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Perilous Maze - Watery Labyrinth#0","text":"95604248e734","proc":"4c3858b1bab4","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Perla - Nimble Seamstress#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Perla - Nimble Seamstress#1","text":"f32d5a3b17e6","proc":"aca58e81c872","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
@@ -2232,6 +2243,7 @@
 {"key":"Pocahontas - Peacekeeper#1","text":"c3f11d13d674","proc":"0c34ce097a3b","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Pocahontas - Steadfast Traveler#0","text":"ac395d14e024","proc":"3de7122339c4","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Poisoned Apple#0","text":"757a35a80011","proc":"b363aeed0a45","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Pongo - Dear Old Dad#0","text":"e4c0c79cf397","proc":"5d0a3b0b09aa","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Pongo - Determined Father#0","text":"0261817cd72b","proc":"440c6d3790fd","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Pongo - Ol' Rascal#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Pooh Pirate Ship#0","text":"a8edd925333e","proc":"2c68357d652d","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -2686,7 +2698,7 @@
 {"key":"Stitch - Little Trickster#0","text":"3cf4dbda9dba","proc":"a40d96e24ba5","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Stitch - Naughty Experiment#0","text":"9ed724b166cd","proc":"2b1e49337ff3","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Stitch - Rock Star#0","text":"77951fa33711","proc":"8e933f1a5e0a","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
-{"key":"Stitch - Rock Star#1","text":"a63a729da73d","proc":"1ad8d82636b3","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Stitch - Rock Star#1","text":"a63a729da73d","proc":"40283858609b","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Stitch - Team Underdog#0","text":"9c736dbcd74c","proc":"0fb31afc5585","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Stolen Scimitar#0","text":"ffea1435e6c4","proc":"e67bb69537e0","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Stopped Chaos in Its Tracks#1","text":"52da3198943f","proc":"6581a5dbc506","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -2698,6 +2710,7 @@
 {"key":"Sudden Chill#1","text":"f762065a411d","proc":"2aa75e6de198","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Sudden Scare#0","text":"fec54cb9578e","proc":"e6a81ac99d50","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Sugar Rush Speedway - Finish Line#0","text":"28b8ba5d75af","proc":"daeee777fa3e","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Sugar Rush Speedway - Starting Line#0","text":"e90439c32f2d","proc":"2d662daeb4e7","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Sulley & Boo - Scare Buddies#0","text":"623fa5cf318b","proc":"0de6e2ec88ab","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Sulley & Boo - Scare Buddies#1","text":"f1fa1914d7d8","proc":"b30bc2dd7698","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Sulley - Protective Monster#0","text":"23349944263d","proc":"dbc79f30728d","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -2770,7 +2783,9 @@
 {"key":"The Colonel - Old Sheepdog#0","text":"627773a36f98","proc":"a1069d75996d","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"The Dodo - Outlandish Storyteller#0","text":"c87a40d81e32","proc":"90e1b7f38234","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"The Family Madrigal#1","text":"5081c7ab0b0c","proc":"c7de5208dd6c","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"The Family Scattered#0","text":"666a85330d9b","proc":"e817482ff0fb","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"The Fates - Only One Eye#0","text":"990d7b5a9c8b","proc":"662dd69e2ad9","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"The Frozen Vine - Monstrous Plant#0","text":"de0b19f01b4e","proc":"91a00932e06f","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"The Game's Afoot!#0","text":"83ab82e455df","proc":"8002876604a2","status":"ok","by":"review agent","at":"2026-10-23","note":"moveFree records ctx.loc; Resist goes to that location."}
 {"key":"The Glass Slipper#0","text":"8b9ffe6d2aaa","proc":"91086cf6977d","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"The Glass Slipper#1","text":"a22f2dbfd01d","proc":"2b38610235ff","status":"ok","by":"lead","at":"2026-10-23","note":"lead review after the he/this-character and search→put-in-hand fixes"}
@@ -2868,6 +2883,7 @@
 {"key":"This Is Business#0","text":"53bce5e48666","proc":"5813e4ff4e60","status":"approx","by":"claude-review","at":"2026-10-23","note":"'chosen opponent chooses' compiled as by:'opp' (the opponent chooses; 2-player shortcut for chosen opponent)"}
 {"key":"This Is My Family#1","text":"b86a63325277","proc":"8df96dfc3c41","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Thomas O'Malley - Feline Charmer#0","text":"31d20079cb16","proc":"3f8eb1d5cc6a","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
+{"key":"Thomas O'Malley - Savvy Vagabond#0","text":"d01358162f36","proc":"231e530a0e8e","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Though I Have to Say Goodbye#1","text":"a0e8459540d9","proc":"5ba243094864","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Three Arrows#0","text":"95cd90a53c4d","proc":"442d1c0892bd","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Thumper - Young Bunny#0","text":"3599446e8756","proc":"e67a1c0946ab","status":"ok","by":"claude-review","at":"2026-10-23"}
@@ -2902,7 +2918,7 @@
 {"key":"Tinker Bell - Giant Fairy#1","text":"7bfea7268f89","proc":"ae991888443a","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Tinker Bell - Giant Fairy#2","text":"8d171ba1dfc2","proc":"d7bb3a11b032","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Tinker Bell - Insistent Fairy#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
-{"key":"Tinker Bell - Insistent Fairy#1","text":"43a88e4b6ed4","proc":"d34ce854fa4c","status":"ok","by":"claude-review","at":"2026-10-23"}
+{"key":"Tinker Bell - Insistent Fairy#1","text":"43a88e4b6ed4","proc":"d7c8a59adcea","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Tinker Bell - Most Helpful#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Tinker Bell - Most Helpful#1","text":"ac0f445ce7ed","proc":"f1a0e605b9c8","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Tinker Bell - Peter Pan's Ally#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
@@ -2926,6 +2942,7 @@
 {"key":"Tod - Clever Fox#0","text":"fe8d6fe7b9f8","proc":"f64688e93d86","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Tod - Knows All the Tricks#0","text":"ce37bff21315","proc":"799fe8928fee","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Tod - Knows All the Tricks#1","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
+{"key":"Tod - Knows All the Tricks#2","text":"b91b4a8ab373","proc":"728c7bf1c2eb","status":"ok","by":"lead","at":"2026-10-23","note":"lead review + in-play test (scripts/test-procs.mjs \"last 17\" / oracles batch5)"}
 {"key":"Tod - Nimble Fox#0","text":"98e057c7bea1","proc":"ce3b3f61ba99","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}
 {"key":"Tod - Playful Kit#0","text":"e87b2682764f","proc":"598348a8c257","status":"ok","by":"claude-review","at":"2026-10-23"}
 {"key":"Tong - Survivor#0","text":"c085a670628a","proc":"f8f0f2851669","status":"ok","by":"keyword line","note":"keywords are read from the keyword table, not phrased text"}

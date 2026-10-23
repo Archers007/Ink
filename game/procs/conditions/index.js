@@ -6,13 +6,13 @@ import { SelfIs } from './self.js';
 import { HandSize, MoreCards, OppMoreCards } from './hand.js';
 import { OppMoreLore, YouMoreLore, LoreAmount } from './lore.js';
 import { YourTurn, PlayedThisTurn } from './turn.js';
-import { EnteredExerted, Shifted, RefIs, SameNameAs, WasUnder, PaidWithDrop, Sang, HealedThisWay, TheyDont, NthDraw } from './card.js';
+import { WasHere, Opponents, EnteredExerted, Shifted, RefIs, SameNameAs, WasUnder, PaidWithDrop, Sang, HealedThisWay, TheyDont, NthDraw } from './card.js';
 import { History } from './history.js';
 import { Inkwell, Compare, FewerInHand, FirstTurnSecond, HasInkDrop } from './player.js';
 import { Exists, Did, Challenging, MoreThan } from './exists.js';
 
 export const CONDITIONS = [AnyOf, NotCond, HasInkDrop, History, Inkwell, Compare, FewerInHand, FirstTurnSecond, HandSize, MoreCards, OppMoreCards, OppMoreLore, YouMoreLore, LoreAmount,
-  Have, SameNameAs, SelfIs, TheyDont, NthDraw, PlayedThisTurn, YourTurn, Shifted, PaidWithDrop, Sang, HealedThisWay, WasUnder, EnteredExerted, RefIs, Challenging, Did, MoreThan, Exists, AllOf];   // generic ones last: specific wording wins
+  Have, SameNameAs, SelfIs, TheyDont, NthDraw, PlayedThisTurn, YourTurn, Shifted, PaidWithDrop, Sang, HealedThisWay, WasUnder, EnteredExerted, Opponents, WasHere, RefIs, Challenging, Did, MoreThan, Exists, AllOf];   // generic ones last: specific wording wins
 const BY_KEY = new Map(CONDITIONS.map((C) => [C.key, C]));
 
 export function conditionOf(C) {

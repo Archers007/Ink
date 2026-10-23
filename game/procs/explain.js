@@ -6,7 +6,7 @@ import { sayCondition } from './conditions/index.js';
 import { Amount } from './phrases/amount.js';
 
 function step(st) {
-  const gate = st.ifDid ? 'if you did, ' : st.otherwise ? 'otherwise, ' : st.linked ? 'then ' : '';
+  const gate = st.ifDid ? 'if you did, ' : st.ifAny ? 'if you did either, ' : st.otherwise ? 'otherwise, ' : st.linked ? 'then ' : '';
   const E = EFFECT[st.fn];
   const body = E ? E.say(st, step) : st.fn;
   const alt = st.instead ? ` — instead, if ${sayCondition(st.instead.cond)}: ${step({ fn: st.fn, sel: st.sel, ...st.instead.step })}` : '';

@@ -37,6 +37,16 @@ export function secondPerson(t) {
 }
 
 const INNER = new WeakMap();                                         // an eachPlayer step → its inner text (2nd person), for follow-up sentences
+// "Each player shuffles their deck and then reveals the top card. Each player who reveals a character card may play that
+// character for free. Otherwise, put the revealed cards on the bottom of their player's deck." (Let's Get Dangerous) —
+// the same as the usual "Each player reveals the top card of their deck. If it's a character card, they may …" form
+function eachPlayerWords(sent) {
+  return sent
+    .replace(/^(each player) (\w+s) their deck and then (\w+s) the top card([.!]?)$/i, '$1 $2 their deck, then $3 the top card of their deck$4')
+    .replace(/^each player who reveals (?:a|an) (.+?) card may (play|put) that (?:character|card|item) (.+?)([.!]?)$/i, "If it's a $1 card, they may $2 it $3$4")
+    .replace(/^otherwise, put the revealed cards on the bottom of their player's deck([.!]?)$/i, 'Otherwise, they put it on the bottom of their deck$1');
+}
+
 export class Compiler {
   // phrase helpers handed to every rule:  P.sel("chosen character"), P.filter("Hero character"), P.D(step)…
   P(at, ctx = {}, dur = null) {
@@ -74,7 +84,7 @@ export class Compiler {
     let dur;
     [s, dur] = Duration.take(s);
     // "for each X, <clause>" → the clause's amount/mod is multiplied
-    const fe = s.match(/^for each (.+?), (.+)$/i);
+    const fe = !/^for each opposing player, /i.test(s) && s.match(/^for each (.+?), (.+)$/i);   // (a per-player choice is its own wording — Choose)
     if (fe) {
       const st = this.clause(fe[2], ctx);
       const per = Amount.forEach(fe[1], raw);
@@ -335,7 +345,9 @@ export class Compiler {
       });
       return steps;
     }
-    for (const sent of sentences(text)) {
+    // "you may look at … and then you may return one …" — two separate "may"s, each its own choice (not "then": declining
+    // the first doesn't cut off the second — Minnie Mouse - Urban Visionary ruling)
+    for (const sent of sentences(text.replace(/ and then (you may) /gi, '. $1 ')).map(eachPlayerWords)) {
       const last = steps[steps.length - 1];
       const lk = last?.fn === 'look' ? last : last?.fn === 'playIt' && steps[steps.length - 2]?.fn === 'look' ? steps[steps.length - 2] : null;
       if (lk && Look.tail(sent, lk, at)) continue;                     // (past "you may play it for free instead")
@@ -383,6 +395,16 @@ export class Compiler {
         const proc = Triggered.parse(t, this, {});
         if (proc) { steps.push({ fn: 'delayed', text: t, ...(keep ? { who: 'keep' } : {}), proc: { ...proc, ...this.check(proc) } }); continue; }
       }
+      // "chosen opposing character gains Reckless and, if you have 2 or more opponents, can't challenge your characters or
+      // locations" — the second half only under its condition (same duration, same character)
+      if ((m = s.match(/^((until the start of your next turn|this turn),? )?(.+?) and, if (you have \d+ or more opponents), (.+)$/i))) {
+        const first = this.effects(`${m[1] || ''}${m[3]}`, ctx);
+        const rest = m[5].replace(/^can't challenge your characters or locations$/i, "can't challenge");   // they're the only ones it could challenge
+        const second = this.effects(`${m[1] || ''}that character ${rest}`, ctx).map((x) => ({ ...x, cond: parseCondition(m[4], at) }));
+        steps.push(...first, ...second); continue;
+      }
+      // "If you do either, …" — after two "you may"s: if either happened (Minnie Mouse - Urban Visionary ruling)
+      if ((m = s.match(/^if you do either,? (.+)$/i))) { steps.push(...this.effects(m[1], ctx).map((x, i) => (i === 0 ? { ...x, ifAny: true } : { ...x, linked: true }))); continue; }
       if ((m = s.match(/^if you do and (.+?), (.+)$/i))) { ifDid = true; cond = parseCondition(m[1], at); s = m[2]; }
       else if ((m = s.match(/^if you do,? (.+)$/i))) { ifDid = true; s = m[1]; }
       s = s.replace(/ instead and (it|they) enters? play exerted$/i, ' and $1 enters play exerted instead');   // The Queen - Diviner
@@ -417,6 +439,7 @@ export class Compiler {
         if (paid) {
           // "you may pay 2 {ink} to draw a card" — the cost, then the rest only if it was paid
           paid.effect.forEach((x) => { x.ifDid = true; });
+          paid.cost.forEach((x) => { if (x.fn === 'exert') x.cost = true; });   // exerting to pay needs a ready character
           if (i === 0 && ifDid) paid.cost.forEach((x) => { x.ifDid = true; });
           if (i === 0 && cond) paid.cost[0].cond = cond;                   // "If it's named Kevin, you may reveal it … to gain 3 lore"
           if (i > 0) paid.cost[0].linked = true;                           // "you may draw a card, then choose and discard a card to …"
@@ -435,6 +458,15 @@ export class Compiler {
       });
     }
     if (!steps.length) miss('no effect', at);
+    // "from there" / "return one": the zone the step before looked at ("look at the cards in your inkwell")
+    const ZONE_OF = { peekInkwell: 'inkwell' };
+    steps.forEach((st, i) => {
+      const F = st.filter?.zone === 'there' ? st.filter : st.sel?.chosen?.zone === 'there' ? st.sel.chosen : null;
+      if (!F) return;
+      const z = steps.slice(0, i).reverse().map((x) => ZONE_OF[x.fn]).find(Boolean);
+      if (!z) miss('"there" has no zone before it', at);
+      F.zone = z;
+    });
     // "… choose and discard 2 cards and banish that character" — the discarded cards are in the discard, so "that
     // character" is the one chosen before (Scar - Finally King)
     steps.forEach((st, i) => {
@@ -473,7 +505,7 @@ export class Compiler {
     // modifiers that wrap the rest
     let once = false; let during = null; let m;
     for (let guard = 0; guard < 3; guard++) {
-      if ((m = t.match(/^once (during your|per) turn,? (.+)$/i))) { once = true; if (/your/i.test(m[1])) during = 'yours'; t = m[2]; continue; }
+      if ((m = t.match(/^(once|twice) (during your|per) turn,? (.+)$/i))) { once = /twice/i.test(m[1]) ? 2 : true; if (/your/i.test(m[2])) during = 'yours'; t = m[3]; continue; }   // Tod: "Twice during your turn"
       if ((m = t.match(/^during your turn,? (.+)$/i))) { during = 'yours'; t = m[1]; continue; }
       if ((m = t.match(/^during (?:an opponent's turn|opponents' turns|each opponent's turn),? (.+)$/i))) { during = 'opp'; t = m[1]; continue; }
       break;

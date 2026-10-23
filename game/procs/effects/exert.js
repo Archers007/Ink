@@ -4,7 +4,7 @@ import { Selector } from '../phrases/selector.js';
 export class Exert extends Effect {
   static fn = 'exert';
   static harmful = true;
-  static rules = [[/^exert (.+)$/i, (m, P) => ({ fn: 'exert', sel: P.sel(m[1]) })]];
+  static rules = [[/^(?:exert|\{exert\}) (.+)$/i, (m, P) => ({ fn: 'exert', sel: P.sel(m[1]) })]];   // "{exert} chosen character here" (a cost)
   static run(rt, s, job, st, ev) {
     // an already exerted character can be chosen (it stays exerted — Magic Broom - Dancing Duster ruling); a cost needs a ready one
     const ids = rt.targets(s, job, st, st.sel, 'sel', { keep: (iid) => (!st.cost || !s.cards[iid].exerted) && rt.E.D(s, s.cards[iid]).type !== 'location' });

@@ -1,7 +1,7 @@
 // Cards out of your discard / hand: "return a character card from your discard to your hand" · "play a song for free"
 import { Effect } from './Effect.js';
 import { Query } from '../query.js';
-import { shiftOptions, shiftTargetOk } from '../../../public/js/play/rules.js';
+import { freeShifts } from './extra.js';
 
 export class FromDiscard extends Effect {
   static fn = 'fromDiscard';
@@ -28,8 +28,8 @@ export class PlayFree extends Effect {
   static rules = [
     // "play or shift a Robot character … for free" — a free play may use Shift anyway (run below), so it's the same play
     [/^play or shift (?:a|an) (.+?) for free$/i, (m, P) => ({ fn: 'playFree', filter: { ...P.filter(m[1]), zone: 'hand', owner: 'you' }, orShift: true })],
-    [/^play (?:a|an) (.+?) (?:from your (hand|discard) )?for free$/i, (m, P) => {
-      const F = P.filter(m[1]); F.zone = m[2] || 'hand'; F.owner = 'you';
+    [/^play (?:a|an) (.+?) (?:from (?:your (hand|discard)|(there)) )?for free$/i, (m, P) => {
+      const F = P.filter(m[1]); F.zone = m[2] || m[3] || 'hand'; F.owner = 'you';   // "from there": the zone the step before looked at
       return { fn: 'playFree', filter: F };
     }],
     // "you may play those characters from your discard for free" — the ones that were under this card
@@ -68,8 +68,7 @@ export class PlayFree extends Effect {
     if (c.zone !== 'hand' && st.filter.zone === 'hand') return viaPlay({ mode: 'free' });   // a permission's card: it says how it enters (exerted, same-name ban)
     // a free play may use an ink-cost Shift (the Shift cost is what's waived — Mickey Mouse - Trumpeter ruling)
     if (d.type === 'character' && !st.after) {
-      const shifts = shiftOptions(d).flatMap((opt, k) => (opt.spec.cost.ink == null || opt.spec.onto.by === 'duo' || opt.spec.onto.by === 'combo' ? []
-        : rt.E.P(s, job.seat).play.filter((t) => t !== iid && shiftTargetOk(opt, d, rt.E.D(s, s.cards[t]))).map((t) => ({ k, t }))));
+      const shifts = freeShifts(rt, s, job.seat, iid);
       if (shifts.length) {
         if (job.answer?.key !== 'freeShift') {
           job.waitKey = 'freeShift';

@@ -65,6 +65,7 @@
   "Ursula - Deceiver of All#0|again": "\"play that song again\" — the song is in the discard either way",
   "Ursula - Whisper of Vanessa#0|gains": "second verb of \"gets X and gains Y\" — the compiler reads it from the first",
   "Ursula - Whisper of Vanessa#1|gains": "second verb of \"gets X and gains Y\" — the compiler reads it from the first",
-  "Vitalisphere#0|gets": "second verb of \"gains X and gets Y\""
+  "Vitalisphere#0|gets": "second verb of \"gains X and gets Y\"",
+  "Anna - Soothing Sister#0|{ink}": "\"Shift 0 {ink}\" = \"Shift 0\": a Shift number is always ink (the keyword line reads both)"
  }
 }
