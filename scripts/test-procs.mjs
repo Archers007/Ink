@@ -11,6 +11,7 @@ import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
 import { RULES } from '../game/rulebook/rules.js';
 import { section } from '../game/rulebook/cr.js';
 import { TURN } from '../game/rulebook/turn.js';
+import { FEATURES } from '../game/rulebook/features.js';
 import { deckProblems } from '../game/rulebook/deck.js';
 import { namesOf } from '../game/procs/classifiers/named.js';
 
@@ -832,6 +833,7 @@ test('free self-play static · songs know who sang them', () => {
 test('rulebook: every RULES entry cites a CR section that exists in the rulebook text', () => {
   for (const [id, r] of Object.entries(RULES)) assert.ok(section(r.cr), `${id}: CR ${r.cr} not in the rulebook`);
   for (const [ph, P] of Object.entries(TURN)) for (const x of [P, ...(P.steps || [])]) assert.ok(section(x.cr), `${ph}/${x.step || ''}: CR ${x.cr} not in the rulebook`);
+  for (const f of FEATURES) assert.ok(section(f.cr), `feature ${f.id}: CR ${f.cr} not in the rulebook`);
 });
 test('turn flow (CR 3.2): "at the start of your turn" resolves in the Set step, before the Draw step', () => {
   const mill = byName('Remote Inklands - Desert Ruins');   // "At the start of your turn, put the top card of your deck into your discard."
