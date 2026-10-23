@@ -48,7 +48,7 @@ export function subject(np, at = np) {
   let m;
   if ((m = p.match(/^this character or (.+)$/i))) { self = true; p = m[1]; }
   let own = null;
-  if ((m = p.match(/^one of (your|their|your opponents'|an opponent's) (.+)$/i))) { own = /^your$/i.test(m[1]) ? 'you' : 'opp'; p = m[2]; }
+  if ((m = p.match(/^one of (your opponents'|an opponent's|your|their) (.+)$/i))) { own = /^your$/i.test(m[1]) ? 'you' : 'opp'; p = m[2]; }
   else if ((m = p.match(/^(?:a|an|any) (.+?) of (yours|theirs)$/i))) { own = m[2] === 'yours' ? 'you' : 'opp'; p = m[1]; }
   else if ((m = p.match(/^(?:a|an|any) (.+)$/i))) p = m[1];
   const F = filter(p, at);
