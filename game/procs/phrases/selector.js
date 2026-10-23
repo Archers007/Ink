@@ -29,6 +29,10 @@ export class Selector {
       const F = filter(m[2], at); if (/^up to \S+ other/i.test(p)) F.other = true;
       return { chosen: F, upTo: N(m[1]) };
     }
+    // "any number of chosen opposing characters with total {strength} 10 or less" — picks that fit the budget
+    if ((m = p.match(/^any number of (?:chosen )?(.+?) with total \{(strength|willpower|lore)\} (\d+) or less$/i))) {
+      return { chosen: filter(m[1], at), upTo: 99, total: { stat: { strength: 'str', willpower: 'wp', lore: 'lore' }[m[2].toLowerCase()], lte: +m[3] } };
+    }
     if ((m = p.match(/^any number of (?:your |chosen )?(other )?(.+)$/i))) { const F = filter(/^any number of your/i.test(p) ? `your ${m[2]}` : m[2], at); if (m[1]) F.other = true; return { chosen: F, upTo: 99 }; }
     // "a card from your hand", "an item card from your discard", "a card from chosen player's discard"
     if ((m = p.match(/^(?:a|an) (character|item) here$/i))) return { chosen: filter(`${m[1]} here`, at) };   // "ready a character here"

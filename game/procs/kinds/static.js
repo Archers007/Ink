@@ -35,6 +35,12 @@ export class Static extends Kind {
       return { kind: 'triggered', ...mods, on: [{ ev: 'play' }], ...(cond ? { cond } : {}), do: steps };
     }
     const wrap = (effect) => ({ kind: 'static', ...mods, ...(cond ? { cond } : {}), effect });
+    // two board changes in one sentence: "opposing characters can't exert to sing songs and your Pirate characters gain Resist +1"
+    if ((m = t.match(/^(.+?) and ((?:your|opposing|each|all) .+)$/i))) {
+      let a, b;
+      try { a = Static.parse(m[1], c, {}); b = Static.parse(m[2], c, {}); } catch { a = b = null; }
+      if (a?.kind === 'static' && b?.kind === 'static' && a.effect.fn === 'mod' && b.effect.fn === 'mod' && !a.cond && !b.cond) return { ...wrap(a.effect), also: [b.effect] };
+    }
     // a game rule the card changes (game/rulebook/rules.js) — "Opponents need 25 lore to win the game"
     // "you may play characters from your discard. If you do, they enter play exerted." (CR 4.3)
     { const [a, b] = t.split(/\. (?=if you do)/i); const pm = a.match(PLAY_FROM); if (pm && (!b || PLAY_FROM_TAIL.test(b))) return wrap({ fn: 'playFrom', ...playFromOf(pm), ...(b ? { exerted: true } : {}) }); }
@@ -121,7 +127,7 @@ export class Static extends Kind {
     c.miss(`static: "${t}"`, t);
   }
   static check(p, missing, S) { if (!S.static.has(p.effect.fn)) missing.add(`static ${p.effect.fn}`); }
-  static explain(p, X) { return [X.tag('static'), `${p.cond ? `WHILE ${X.cond(p.cond)}: ` : 'ALWAYS: '}${X.step(p.effect)}${sayDuring(p)}`]; }
+  static explain(p, X) { return [X.tag('static'), `${p.cond ? `WHILE ${X.cond(p.cond)}: ` : 'ALWAYS: '}${[p.effect, ...(p.also || [])].map(X.step).join(' and ')}${sayDuring(p)}`]; }
 
   // runtime: is this static on (its turn window + condition)?
   static active(rt, s, proc, owner, src) { return proc.kind === 'static' && proc.exec && rt.duringOk(s, proc, owner) && rt.test(s, proc.cond, owner, src); }
@@ -136,11 +142,12 @@ export class Static extends Kind {
       const c = s.cards[iid];
       for (const proc of rt.procsOf(s, c, which)) {
         if (proc.kind !== 'static' || proc.effect.fn !== 'mod' || !Static.active(rt, s, proc, c.owner, c.iid)) continue;
-        const st = proc.effect;
         const job = { seat: c.owner, src: c.iid, label: rt.labelOf(s, c, proc), ctx: { it: [] }, tmp: {} };
-        const ids = st.sel.self ? [c.iid] : st.sel.all ? rt.candidates(s, st.sel.all, c.owner, c.iid) : [];
-        const mult = st.per ? Amount.count(rt, s, st.per, c.owner, c.iid) : 1;
-        for (const id of ids) rt.addMods(s, job, st, id, null, mult);
+        for (const st of [proc.effect, ...(proc.also || [])]) {          // "… can't exert to sing songs and your Pirate characters gain Resist +1"
+          const ids = st.sel.self ? [c.iid] : st.sel.all ? rt.candidates(s, st.sel.all, c.owner, c.iid) : [];
+          const mult = st.per ? Amount.count(rt, s, st.per, c.owner, c.iid) : 1;
+          for (const id of ids) rt.addMods(s, job, st, id, null, mult);
+        }
       }
     }
   }

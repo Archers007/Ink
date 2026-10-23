@@ -1348,6 +1348,27 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     assert.equal(s.cards[ids.play0[0]].zone, 'discard');
     assert.equal(s.cards[ids.hand0[0]].zone, 'play');
   }
+  { // Pete - Space Pirate: "While this character is exerted, opposing characters can't exert to sing songs and your Pirate characters gain Resist +1."
+    const pete = byName('Pete - Space Pirate'), pirate = vanilla((d) => (d.classes || []).includes('pirate')) || all.find((d) => d.type === 'character' && (d.classes || []).includes('pirate') && !d.kw?.resist);
+    const foe = vanilla(() => true);
+    const { s, ids } = setup({ play0: [pete, pirate], play1: [foe] });
+    s.cards[ids.play0[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'endTurn' })); s.cards[ids.play0[0]].exerted = true; E.gameStateCheck(s, []);
+    const kw = (iid, k) => kwHas(s.cards[iid], s.defs[s.cards[iid].cardId], k);
+    assert.equal(kw(ids.play1[0], 'cantSing'), true);
+    assert.equal(kw(ids.play0[1], 'resist'), true);
+  }
+  { // The Leviathan - Guardian of Atlantis: "banish any number of chosen opposing characters with total {strength} 10 or less"
+    const lev = byName('The Leviathan - Guardian of Atlantis'), foe = vanilla((d) => d.str === 4);
+    const { s, ids } = setup({ hand0: [lev], play1: [foe, foe, foe], ink0: lev.cost });
+    s.turnLog = [{ ev: 'toDiscard', seat: 0 }, { ev: 'toDiscard', seat: 0 }];
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[1] }));
+    assert.ok(!s.pending || !s.pending.valid?.length, 'a third 4 {strength} would pass 10');
+    drain(s);
+    assert.equal(s.players[1].play.length, 1);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);

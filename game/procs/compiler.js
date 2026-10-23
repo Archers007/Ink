@@ -67,6 +67,7 @@ export class Compiler {
     s = s.replace(/^you (?=(?:draw|look|reveal|return|banish|exert|ready|choose|put|discard)\b)/i, '');   // "you draw a card" = "draw a card"
     s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
     s = s.replace(/ damage each (to|from) /i, ' damage $1 ');
+    s = s.replace(/^choose (\d+) (cards? from .+?) and put them (on the (?:top|bottom) of .+|into .+)$/i, 'put $1 $2 $3');   // "Choose 3 cards from … and put them on the bottom …"
     s = s.replace(/^also /i, '');                                       // "If …, you may also banish chosen character" 
     s = s.replace(/^give (.+?) (\+\d+ \{\w+\}) and ([A-Z]\w*(?: \+\d+)?)( .+)?$/, '$1 gets $2 and gains $3$4');   // "give this character +1 {lore} and Evasive …"
     s = s.replace(/( on the (?:top|bottom) of (?:your|their|their players'|its owner's|their player's) decks?) in any order$/i, '$1');   // CR 7.2.3: the player picks the order                // "deal 1 damage each to up to 2 chosen characters"

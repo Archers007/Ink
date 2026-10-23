@@ -59,6 +59,11 @@ export class Prompter {
       .filter((iid) => !T.acc.includes(iid))
       .filter((iid) => s.cards[iid].owner === job.seat || !rt.E.hasKw(s.cards[iid], rt.E.D(s, s.cards[iid]), 'ward'));   // Ward (8.15)
     if (o.keep) valid = valid.filter(o.keep);
+    if (sel.total) {                                                   // "with total {strength} 10 or less"
+      const stat = (iid) => Math.max(0, rt.statOf(s, s.cards[iid], sel.total.stat));
+      const left = sel.total.lte - T.acc.reduce((n, iid) => n + stat(iid), 0);
+      valid = valid.filter((iid) => stat(iid) <= left);
+    }
     // "Opponents must choose this character for actions and abilities if able"
     const must = valid.filter((iid) => s.cards[iid].owner !== job.seat && rt.E.hasKw(s.cards[iid], rt.E.D(s, s.cards[iid]), 'mustChoose'));
     if (must.length) valid = must;
