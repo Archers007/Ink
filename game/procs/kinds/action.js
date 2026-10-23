@@ -20,7 +20,8 @@ export class Action extends Kind {
   }
   // runtime: queue every runnable action proc on the card; false → the card is resolved by hand
   static cast(rt, s, seat, c) {
-    const procs = rt.procsOf(s, c).filter((p) => p.kind !== 'reminder' && p.kind !== 'keyword');
+    // a trigger printed on the action ("When you discard this card, …" — Look What You've Done) isn't part of what it does
+    const procs = rt.procsOf(s, c).filter((p) => p.kind !== 'reminder' && p.kind !== 'keyword' && p.kind !== 'triggered');
     if (!procs.length || !procs.every((p) => p.exec && p.kind === 'action')) return false;
     rt.queue(s, seat, c.iid, rt.E.cardLabel(rt.E.D(s, c)), procs.flatMap((p) => p.do));
     return true;

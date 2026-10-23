@@ -129,7 +129,14 @@ export class Look extends Effect {
         continue;
       }
       if (sl.n === 'each' && !sl.may) got = valid;
-      else {
+      // "You may put each character card with cost 2 or less into your hand" — all of them or none (Lucky - The 15th Puppy ruling)
+      else if (sl.n === 'each') {
+        if (job.answer?.key !== `each${T.slot}`) {
+          job.waitKey = `each${T.slot}`;
+          return rt.ask(s, job, { confirm: true, optional: true, op: 'lookEach', cards: valid.map((iid) => ({ iid, cardId: s.cards[iid].cardId })), prompt: `put ${valid.map(lbl).join(', ')} ${sl.to === 'hand' ? 'into your hand' : `→ ${sl.to}`}? (all of them, or none)` });
+        }
+        got = job.answer.skip ? [] : valid; job.answer = null;
+      } else {
         const n = sl.n === 'any' || sl.n === 'each' ? valid.length : sl.n;
         const optional = !!sl.may || sl.n === 'any' || !!sl.upTo;
         if (!optional && valid.length <= n) got = valid;

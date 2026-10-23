@@ -13,7 +13,9 @@ class Move extends Effect {
     const ids = rt.targets(s, job, st, st.sel, 'sel', { keep: this.keep(s) });
     if (!ids) return null;
     if (!(this.fn === 'banish' && st.sel?.self)) job.ctx.it = ids;
-    return rt.each(ids, (iid) => { rt.log(s, `↳ ${this.past.replace('$', rt.tl(s, iid))}.`, { seat: job.seat, kind: 'effect' }); this.move(rt, s, iid, ev, st); });
+    // a card going from a hidden zone to another (hand → facedown inkwell, hand → deck) isn't named in the public log (Fishbone Quill ruling)
+    const hidden = (iid) => ['hand', 'deck'].includes(s.cards[iid].zone) && this.fn !== 'toHand';
+    return rt.each(ids, (iid) => { rt.log(s, `↳ ${this.past.replace('$', hidden(iid) ? `a card from ${s.cards[iid].zone === 'hand' ? 'their hand' : 'their deck'}` : rt.tl(s, iid))}.`, { seat: job.seat, kind: 'effect' }); this.move(rt, s, iid, ev, st); });
   }
 }
 export class Banish extends Effect {
@@ -24,7 +26,11 @@ export class Banish extends Effect {
     const ids = rt.targets(s, job, st, st.sel);
     if (!ids) return null;
     job.ctx.it = ids;
-    return rt.each(ids.filter((iid) => s.cards[iid].zone === 'play'), (iid) => rt.E.banish(s, iid, ev, job.label));
+    // an ability the challenge triggered resolves during it: a challenger or defender it banishes is "banished in a
+    // challenge" (Cheshire Cat - Not All There + Marshmallow - Persistent Guardian ruling)
+    const prev = s.challengeCtx;
+    if (job.ctx.cx && !prev) s.challengeCtx = job.ctx.cx;
+    try { return rt.each(ids.filter((iid) => s.cards[iid].zone === 'play'), (iid) => rt.E.banish(s, iid, ev, job.label)); } finally { s.challengeCtx = prev; }
   }
   static verb() { return 'banish'; }
   static say(st) { return `banish ${Selector.say(st.sel)}`; }

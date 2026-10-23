@@ -6,7 +6,8 @@ export class Exert extends Effect {
   static harmful = true;
   static rules = [[/^exert (.+)$/i, (m, P) => ({ fn: 'exert', sel: P.sel(m[1]) })]];
   static run(rt, s, job, st, ev) {
-    const ids = rt.targets(s, job, st, st.sel, 'sel', { keep: (iid) => !s.cards[iid].exerted && rt.E.D(s, s.cards[iid]).type !== 'location' });
+    // an already exerted character can be chosen (it stays exerted — Magic Broom - Dancing Duster ruling); a cost needs a ready one
+    const ids = rt.targets(s, job, st, st.sel, 'sel', { keep: (iid) => (!st.cost || !s.cards[iid].exerted) && rt.E.D(s, s.cards[iid]).type !== 'location' });
     if (!ids) return null;
     job.ctx.it = ids;
     return rt.each(ids, (iid) => { rt.E.exertCard(s, s.cards[iid]); ev.push({ k: 'exert', iid }); rt.log(s, `↳ Exerted ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' }); });

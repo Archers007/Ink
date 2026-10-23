@@ -43,3 +43,10 @@ export class SelfBan extends Effect {
   static staticOnly = true;
   static say() { return "you can't play this card"; }
 }
+// static-only: "This character may enter play exerted [to X]." — like Bodyguard (CR 8.3.2), the player decides as they
+// play it (Merida - Wisp Conjurer ruling); the "to X" part is a play trigger that needs it to have entered exerted
+export class EnterExertedOpt extends Effect {
+  static fn = 'enterExertedOpt';
+  static staticOnly = true;
+  static say() { return 'this card may enter play exerted'; }
+}

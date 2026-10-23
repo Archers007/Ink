@@ -8,7 +8,7 @@ const COSTS = {
   ink: [/^(\d+) \{ink\}$/, (m) => +m[1], true, (v) => `${v} {ink}`],
   banishSelf: [/^banish this (?:item|character|location)$/i, () => true, true, () => 'banish this'],
   discard: [/^(?:choose and )?discard (?:a|an) (.+)$/i, (m, c, at) => (m[1].toLowerCase() === 'card' ? {} : c.filter(m[1], at)), true, (v) => `discard a ${Query.describe(v)}`],
-  exertOther: [/^\{exert\} (?:one of your|an?) (.+)$|^exert (?:one of your|an?) (.+)$/i, (m, c, at) => { const F = c.filter(`your ${m[1] || m[2]}`, at); return { ...F, with: [...(F.with || []), { ready: true }] }; }, true, (v) => `exert a ${Query.describe(v)}`],
+  exertOther: [/^\{exert\} (?:one of your|an?) (.+)$|^exert (?:one of your|an?) (.+)$/i, (m, c, at) => { const F = c.filter(`your ${m[1] || m[2]}`, at); return { ...F, with: [...(F.with || []), { ready: true }, { dry: true }] }; }, true, (v) => `exert a ${Query.describe(v)}`],
   banishOther: [/^banish (?:one of your|chosen) (.+?)(?: of yours)?$/i, (m, c, at) => c.filter(`your ${m[1]}`, at), true, (v) => `banish a ${Query.describe(v)}`],
   banishN: [/^banish (\d+|two|three) of your (.+)$/i, (m, c, at) => ({ n: { two: 2, three: 3 }[m[1].toLowerCase()] || +m[1], filter: c.filter(`your ${m[2]}`, at) }), true, (v) => `banish ${v.n} ${Query.describe(v.filter)}`],
   healSelf: [/^remove (\d+) damage from this character$/i, (m) => +m[1], false, (v) => `remove ${v} damage from this`],

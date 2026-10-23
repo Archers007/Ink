@@ -62,10 +62,14 @@ export class Triggered extends Kind {
         if (c.firsts[key] === s.turn) return;
         c.firsts[key] = s.turn;
       }
+      // "Whenever your opponent discards 1 or more cards" — one trigger for all the cards one step discards; ctx.n counts them
+      const batch = on.batch ? `${c.iid}:${k}:${s.fx?.[0] ? `${s.fx[0].src}:${s.fx[0].label}:${s.fx[0].i}` : s.turn}` : null;
+      const prior = batch && (s.fx || []).find((j) => j.batch === batch && j.i === 0 && !j.condChecked && !j.answer);
+      if (prior) { prior.ctx.it.push(...(it || [])); prior.ctx.trigIt.push(...(it || [])); prior.ctx.n = (prior.ctx.n ?? 1) + (info.n ?? 1); return; }
       // self-subject triggers ('whenever this character moves, he gets +3'): he/she = this card until a step picks something
       const cx = s.challengeCtx || s.challenge;                    // "the challenging character / player"
-      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], trigIt: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}), ...(cx ? { cx: { a: cx.a, t: cx.t } } : {}),
-        ...(typeof info.n === 'number' ? { n: info.n } : {}) }, { cond: proc.cond || null });   // n: how much the event dealt ("deal that much damage")
+      rt.queue(s, c.owner, c.iid, label, proc.do, { it: [...(it || [])], trigIt: [...(it || [])], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}), ...(cx ? { cx: { a: cx.a, t: cx.t } } : {}),
+        ...(typeof info.n === 'number' ? { n: info.n } : batch ? { n: 1 } : {}) }, { cond: proc.cond || null, ...(batch ? { batch } : {}) });   // n: how much the event dealt ("deal that much damage")
     });
   }
 }

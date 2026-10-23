@@ -113,11 +113,12 @@ export class OppDraws extends Trigger {
   static rules = [[/^whenever (?:an opponent|they|your opponent) draws? a card(?: during their turn)?$/i, (m) => [{ ev: 'oppDraw', ...(/during their turn/i.test(m[0]) ? { theirTurn: true } : {}) }]]];
   static say(o) { return `an opponent draws a card${o.theirTurn ? ' during their turn' : ''}`; }
 }
-// "Whenever your opponent discards 1 or more cards" — heard once per card ("draw a card for each card discarded")
+// "Whenever an opponent discards a card" — heard once per card · "… discards 1 or more cards" — once for all the cards
+// one step discards ("draw a card for each card discarded": all of them or none — Prince John - Greediest of All ruling)
 export class OppDiscards extends Trigger {
   static ev = 'oppDiscards';
-  static rules = [[/^whenever (?:your opponent|an opponent) discards (?:1 or more cards|a card)$/i, () => [{ ev: 'oppDiscards' }]]];
-  static say() { return 'an opponent discards a card'; }
+  static rules = [[/^whenever (?:your opponent|an opponent) discards (1 or more cards|a card)$/i, (m) => [{ ev: 'oppDiscards', ...(/^1/.test(m[1]) ? { batch: true } : {}) }]]];
+  static say(o) { return `an opponent discards ${o.batch ? '1 or more cards' : 'a card'}`; }
 }
 // "Whenever you put 1 or more cards into your discard from your deck"
 export class Milled extends Trigger {

@@ -77,7 +77,9 @@ function choosePlay(s, seat) {
     if (isSpell(d) || playBlocked(s, seat, c.iid)) continue;          // "You can't play this character unless …"
     if (d.cost <= ink) {
       const val = d.cost * 10 + (d.type === 'character' ? 5 : 0) + (d.lore || 0);
-      if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, mode: 'ink' }; }
+      // "may enter play exerted to draw a card": take the bonus
+      const exertFor = (d.procs || []).some((x) => x.kind === 'static' && x.effect?.fn === 'enterExertedOpt' && x.alsoProc);
+      if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, mode: 'ink', ...(exertFor ? { enterExerted: true } : {}) }; }
     }
     for (const opt of shiftOptions(d)) {
       const plan = shiftPlan(s, seat, c, d, opt, ink);

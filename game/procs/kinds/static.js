@@ -15,7 +15,7 @@ import { KEYWORD_ALT, keywordId } from '../classifiers/keyword.js';
 import { parseDeckRule } from '../../rulebook/deck.js';
 import { PLAY_FROM, PLAY_FROM_TAIL, playFromOf } from '../effects/playFrom.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck', 'replace', 'playFrom']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck', 'replace', 'playFrom', 'enterExertedOpt']);
 
 export class Static extends Kind {
   static kind = 'static';
@@ -30,10 +30,10 @@ export class Static extends Kind {
     // "… can't be dealt damage unless they're being challenged" is about each of them (the noEffectDamage keyword)
     if (!/ unless you pay \d+ \{ink\}$/i.test(t) && !/can't be dealt damage unless (?:he's|she's|they're|it's) being challenged$/i.test(t) && (m = t.match(/^(.+?) unless (.+)$/i))) { const u = { not: c.condition(m[2], t) }; cond = cond ? { all: [cond, u] } : u; t = m[1]; }
     if (!cond && (m = t.match(/^(.+?) while (?!here$|challenging)(.+)$/i))) { try { cond = c.condition(m[2], t); t = m[1]; } catch { /* not a condition */ } }
-    // "this character may enter play exerted [to X]" = when you play it, you may exert it [to X]
+    // "this character may enter play exerted [to X]" — chosen as it's played (like Bodyguard); X when it did
     if ((m = t.match(/^this character may enter play exerted(?: to (.+))?$/i))) {
-      const steps = [{ fn: 'exert', sel: { self: true }, may: true }, ...(m[1] ? c.effects(m[1]).map((x, i) => (i === 0 ? { ...x, ifDid: true } : x)) : [])];
-      return { kind: 'triggered', ...mods, on: [{ ev: 'play' }], ...(cond ? { cond } : {}), do: steps };
+      const also = m[1] ? { alsoProc: { kind: 'triggered', on: [{ ev: 'play' }], cond: cond ? { all: [cond, { enteredExerted: true }] } : { enteredExerted: true }, do: c.effects(m[1]) } } : {};
+      return { kind: 'static', ...mods, ...(cond ? { cond } : {}), effect: { fn: 'enterExertedOpt' }, ...also };
     }
     const wrap = (effect) => ({ kind: 'static', ...mods, ...(cond ? { cond } : {}), effect });
     // two board changes in one sentence: "opposing characters can't exert to sing songs and your Pirate characters gain Resist +1"
@@ -176,7 +176,8 @@ export class Static extends Kind {
   // how: 'play' (paying its cost) | 'shift' (paying a Shift cost; onto = the card(s) it goes on top of)
   static costDelta(rt, s, seat, c, consume, how = 'play', onto = []) {
     let delta = 0;
-    const kindOk = (e) => !!e.shift === (how === 'shift');
+    // a plain cost reduction also lowers a Shift cost (Pluto - Friendly Pooch ruling); a Shift-only one lowers only that
+    const kindOk = (e) => !e.shift || how === 'shift';
     const times = (e, ctl, src) => (e.per ? Amount.count(rt, s, e.per, ctl, src) : 1);
     const p = rt.E.P(s, seat);
     for (const proc of rt.procsOf(s, c)) {
@@ -198,7 +199,7 @@ export class Static extends Kind {
     }
     p.costMods = (p.costMods || []).filter((m) => m.turn === s.turn);
     for (const m of [...p.costMods]) {
-      if (!!m.shift !== (how === 'shift') || !rt.matches(s, m.filter, c, seat, null, { anyZone: true })) continue;
+      if (!kindOk(m) || !rt.matches(s, m.filter, c, seat, null, { anyZone: true })) continue;
       delta -= m.n;
       if (consume && m.next) p.costMods.splice(p.costMods.indexOf(m), 1);
     }

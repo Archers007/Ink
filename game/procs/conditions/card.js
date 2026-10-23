@@ -9,10 +9,18 @@ import { counted, countOk } from '../phrases/acts.js';
 const REF = String.raw`(?:it|that card|that character|that item|that location|that song|the chosen (?:character|card|item)|the banished (?:character|item|card|location|[A-Z][\w'-]*)|the moved character|the challenging character|the revealed card|the discarded card|they|he|she)`;
 const PAST_THIS_WAY = String.raw`discarded|returned|banished|revealed|put|moved|exerted|readied|chose|played`;
 
+// "This character may enter play exerted to draw a card" — the draw needs it to have (engine: c.enteredExerted)
+export class EnteredExerted extends Condition {
+  static key = 'enteredExerted';
+  static rules = [];
+  static test(rt, s, C, env) { return !!s.cards[env.src]?.enteredExerted; }
+  static say() { return 'this card entered play exerted'; }
+}
 export class Shifted extends Condition {
   static key = 'shifted';
   static rules = [[/^you used shift to play (?:him|her|it|them|this character)$/i, () => ({ shifted: true })]];
-  static test(rt, s, C, env) { return !!s.cards[env.src]?.shifted; }
+  // "Whenever you play a Floodborn character, if you used Shift to play them" — the card the trigger is about (Bucky)
+  static test(rt, s, C, env) { const t = (env.job?.ctx?.trigIt || [])[0]; return !!s.cards[t != null && s.cards[t]?.zone === 'play' ? t : env.src]?.shifted; }
   static say() { return 'you used Shift to play it'; }
 }
 // "if you removed an ink drop to play her / this action" — ink drops paid part of this card's cost (engine: c.paidDrops)

@@ -264,6 +264,7 @@ oracle('73fbebcfe3', '"him" is this Pedro only', () => {
   assert.equal(s.cards[ids.hand0[0]].damage, 1, 'entered with 1 damage');
   for (let k = 0; k < 4 && s.pending; k++) {
     if (s.pending.confirm) { yes(s); continue; }
+    if (s.pending.choices) { ok(applyAction(s, 0, { type: 'choose', option: 0 })); continue; }   // how much: all of it
     assert.ok(!s.pending.valid.includes(old), 'the other Pedro is not a choice');
     choose(s, ids.hand0[0]);
   }
@@ -544,6 +545,9 @@ oracle('751184fef6', 'active player loses', () => {
   const { s, ids } = setup({ hand0: [awnw] });
   for (const p of s.players) for (const iid of p.deck.splice(3)) { s.cards[iid].zone = 'discard'; p.discard.push(iid); }
   ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s, 'no');
+  // CR 1.8.1.2: a player loses when their turn ends with no cards in their deck — the active player's turn ends first
+  assert.equal(s.players[0].deck.length + s.players[1].deck.length, 0, 'both decks emptied');
+  ok(applyAction(s, 0, { type: 'endTurn', force: true }));
   assert.notEqual(s.status, 'playing', 'the game is over');
   assert.equal(s.winner, 1, 'seat 0 (active) lost');
 });
