@@ -16,8 +16,11 @@ export function GATES(steps, out) {
   const ran = [];
   // prev: the step before — did it happen, was it cut off (declined, or never reached), and its "If …" result
   let prev = { happened: true, cut: false, cond: null };              // before the first step: nothing to depend on
+  let any = false;                                                    // did any step so far happen ("If you do either")
   steps.forEach((st, i) => {
     const o = out[i];
+    // "If you do either, X" — X if any step before it happened (Minnie Mouse - Urban Visionary ruling)
+    if (st.ifAny && !any) { prev = { happened: false, cut: true, cond: prev.cond }; return; }
     // "If you do, X" — X only if the step before happened (CR 6.1.4: a "may" not done, or an effect that couldn't, isn't done)
     // "…, then X" — the same sentence: X unless the step before was cut off (declined, or skipped by its own gate)
     // "Otherwise, X" — X if the nearest "If …" before it was false, or its "you may" was declined (the Prophetic Vision
@@ -30,6 +33,7 @@ export function GATES(steps, out) {
     if (st.may && !o.accept) { prev = { happened: false, cut: true, cond: st.cond ? true : null }; return; }
     ran.push(i);
     prev = { happened: o.did, cut: false, cond: st.cond ? true : null };
+    if (o.did) any = true;
   });
   return ran;
 }
@@ -67,7 +71,7 @@ const lists = new Map();                                              // shape �
 for (const x of runnable()) {
   const top = x.p.do || [];
   if (!top.length || top.some((st) => st.repeat || st.instead)) continue;   // repeat / instead expand first — the step stays the same
-  const shape = top.map((st) => ({ may: !!st.may, ifDid: !!st.ifDid, linked: !!st.linked, otherwise: !!st.otherwise, cond: !!st.cond, __chooses: !!EFFECT[st.fn]?.chooses(st) }));
+  const shape = top.map((st) => ({ may: !!st.may, ifDid: !!st.ifDid, ifAny: !!st.ifAny, linked: !!st.linked, otherwise: !!st.otherwise, cond: !!st.cond, __chooses: !!EFFECT[st.fn]?.chooses(st) }));
   const k = JSON.stringify(shape);
   if (!lists.has(k)) lists.set(k, { shape, ex: x });
 }

@@ -10,4 +10,4 @@ export class Kind {
   static explain(proc, X) { return [X.tag(this.kind)]; }
 }
 export const modsOf = (p) => ({ ...(p.once ? { once: true } : {}), ...(p.during ? { during: p.during } : {}) });
-export const sayDuring = (p) => `${p.during ? ` — during ${p.during === 'yours' ? 'your' : "an opponent's"} turn` : ''}${p.once ? ' — once per turn' : ''}`;
+export const sayDuring = (p) => `${p.during ? ` — during ${p.during === 'yours' ? 'your' : "an opponent's"} turn` : ''}${p.once ? ` — ${p.once === 2 ? 'twice' : 'once'} per turn` : ''}`;

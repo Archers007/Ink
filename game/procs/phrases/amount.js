@@ -26,6 +26,8 @@ export class Amount {
     if ((m = p.match(/^(?:1 )?damage on (.+)$/i))) return { count: { damageOn: filter(m[1], at) } };
     if ((m = p.match(/^lore you have$/i))) return { count: { lore: true } };
     if (/^(?:opponent|player) who (?:doesn't|didn't|does not)$/i.test(p)) return { count: { didnt: true } };   // after "each opponent may …"
+    // "for each different ink type of cards revealed this way" — after "each player reveals …" (a dual-ink card counts both)
+    if (/^different ink type of cards revealed this way$/i.test(p)) return { count: { inksRevealed: true } };
     if ((m = p.match(/^different ink type of (.+)$/i))) return { count: { inks: filter(m[1], at) } };
     // "for each 1 damage removed this way" · "for each damage counter moved this way" · "for each 1 lore lost this way"
     if (/^(?:1 )?(?:damage(?: counter)?|lore|card) (?:removed|moved|lost|discarded|put \w+) this way$/i.test(p)) return { count: { thisWay: true } };
@@ -77,6 +79,7 @@ export class Amount {
     if (c.damageOnRef) return 0;                                      // counted per target by the effect
     if (c.damageOn) return rt.candidates(s, c.damageOn, ctl, src).reduce((n, id) => n + (s.cards[id].damage || 0), 0);
     if (c.lore) return rt.E.P(s, ctl).lore;
+    if (c.inksRevealed) return new Set((job?.ctx.tally?.revealed || []).filter((id) => s.cards[id]).flatMap((id) => rt.E.D(s, s.cards[id]).inks || [])).size;
     if (c.inks) return new Set(rt.candidates(s, c.inks, ctl, src).flatMap((id) => rt.E.D(s, s.cards[id]).inks || [])).size;
     if (c.size) {
       const seats = c.owner === 'opp' ? rt.E.opponentsOf(s, ctl) : [ctl];
@@ -97,6 +100,7 @@ export class Amount {
   static sayPer(per) {
     const c = per.count;
     if (c.thisWay) return 'one done this way';
+    if (c.inksRevealed) return 'different ink type among the cards revealed this way';
     if (c.under) return `card ${c.was ? 'that was ' : ''}under ${c.pron ? 'the card the trigger is about' : 'this'}`;
     if (c.didnt) return 'player who didn\'t';
     if (c.damageOnSelf) return 'damage on this';

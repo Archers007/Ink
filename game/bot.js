@@ -3,7 +3,7 @@
 // ink → play characters/items/locations → profitable challenges → quest → end turn.
 // Card abilities and actions/songs are ignored (it inks those instead).
 
-import { D, readyInk, playBlocked } from './engine.js';
+import { D, readyInk, playBlocked, shiftCondOk } from './engine.js';
 import {
   LORE_TO_WIN, questBlocker, attackerBlocker, defenderBlocker, challengeDamage,
   effWp, effLore, hasKw, shiftOptions, shiftOntoOk, shiftDiscardOk,
@@ -51,7 +51,13 @@ function shiftPlan(s, seat, c, d, opt, ink) {
   const cost = opt.spec.cost;
   if (cost.ink != null && cost.ink > ink) return null;
   if (cost.inkDrops != null && (p.inkDrops || 0) < cost.inkDrops) return null;
-  let discard;
+  if (!shiftCondOk(s, seat, c, opt)) return null;                     // "If …, this card gains Shift 0"
+  let discard, bottom;
+  if (cost.bottomFromDiscard != null) {                               // the cheapest cards of that type from the discard
+    const pool = cardsIn(s, p.discard).filter((x) => !cost.type || D(s, x).type === cost.type).sort((a, b) => D(s, a).cost - D(s, b).cost);
+    if (pool.length < cost.bottomFromDiscard) return null;
+    bottom = pool.slice(0, cost.bottomFromDiscard).map((x) => x.iid);
+  }
   if (cost.discard != null) {
     const pool = cardsIn(s, p.hand).filter((x) => x.iid !== c.iid && shiftDiscardOk({ spec: { cost: { ...cost, discard: 1 } } }, [D(s, x)]))
       .sort((a, b) => D(s, a).cost - D(s, b).cost);
@@ -64,7 +70,7 @@ function shiftPlan(s, seat, c, d, opt, ink) {
     for (const a of mine) for (const b of mine) if (!targets.length && a !== b && shiftOntoOk(opt, d, [D(s, a), D(s, b)])) targets = [a, b];
   }
   if (!targets.length) return null;
-  return { mode: 'shift', shiftKind: opt.kind, targets: targets.map((t) => t.iid), ...(discard ? { discard } : {}) };
+  return { mode: 'shift', shift: shiftOptions(d).findIndex((o) => o.spec === opt.spec), targets: targets.map((t) => t.iid), ...(discard ? { discard } : {}), ...(bottom ? { bottom } : {}) };
 }
 
 function choosePlay(s, seat) {

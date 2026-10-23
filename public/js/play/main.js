@@ -235,9 +235,26 @@ function canDrag(info) {
 }
 // Shift by its spec: pick what it goes on top of (one card, or two for Duo / Combo), then any discard cost, then play
 function startShift(iid, def, opt, onto = null) {
-  const play = (targets, discard) => act({ type: 'play', iid, mode: 'shift', shiftKind: opt.kind, targets, ...(discard ? { discard } : {}) });
+  const shift = shiftOptions(def).findIndex((o) => o.spec === opt.spec);
+  const play = (targets, discard, bottom) => act({ type: 'play', iid, mode: 'shift', shift, targets, ...(discard ? { discard } : {}), ...(bottom ? { bottom } : {}) });
   const pay = (targets) => {
     const cost = opt.spec.cost;
+    if (cost.bottomFromDiscard != null) {                               // "put 5 character cards from your discard on the bottom of your deck in any order"
+      const pool = me().discard.filter((x) => !cost.type || D(x.cardId)?.type === cost.type);
+      const order = [];
+      openModal(`<h3>${esc(opt.label)}: choose ${cost.bottomFromDiscard} ${esc(cost.type || '')} cards</h3><p class="muted">They go on the bottom of your deck in the order you pick them.</p>
+        <div class="disc">${pool.map((x) => `<div class="dc"><img src="${IMG(x.cardId)}" alt="${esc(cardLabel(D(x.cardId)))}"><div class="dca"><button class="sm" data-b="${x.iid}">pick</button></div></div>`).join('')}</div>
+        <div class="modal-actions"><span id="bN">0 / ${cost.bottomFromDiscard}</span><button id="bGo" disabled>Shift</button><button data-close>Cancel</button></div>`, (el) => {
+        el.querySelectorAll('[data-b]').forEach((b) => b.onclick = () => {
+          const i = order.indexOf(b.dataset.b);
+          if (i >= 0) order.splice(i, 1); else if (order.length < cost.bottomFromDiscard) order.push(b.dataset.b);
+          el.querySelectorAll('[data-b]').forEach((x) => { const k = order.indexOf(x.dataset.b); x.textContent = k >= 0 ? `#${k + 1}` : 'pick'; });
+          $('#bN').textContent = `${order.length} / ${cost.bottomFromDiscard}`; $('#bGo').disabled = order.length !== cost.bottomFromDiscard;
+        });
+        $('#bGo').onclick = () => { closeModal(); play(targets, null, [...order]); };
+      });
+      return;
+    }
     if (cost.discard == null) return play(targets);
     const valid = new Set(me().hand.filter((h) => h.iid !== iid && shiftDiscardOk({ spec: { cost: { ...cost, discard: 1 } } }, [D(h.cardId)])).map((h) => h.iid));
     startTargeting({
@@ -314,6 +331,7 @@ function actionsFor(found) {
       const why = !valid.length ? `No ${opt.spec.onto.by === 'item' ? 'matching item' : 'matching character'} of yours in play.`
         : cost.ink != null ? lacking(cost.ink)
         : cost.inkDrops != null ? ((me().inkDrops || 0) < cost.inkDrops ? `Needs ${cost.inkDrops} ink drops — you have ${me().inkDrops || 0}.` : null)
+        : cost.bottomFromDiscard != null ? (me().discard.filter((x) => !cost.type || D(x.cardId)?.type === cost.type).length < cost.bottomFromDiscard ? `Needs ${cost.bottomFromDiscard} ${cost.type || ''} cards in your discard.` : null)
         : me().hand.filter((h) => h.iid !== c.iid && shiftDiscardOk({ spec: { cost: { ...cost, discard: 1 } } }, [D(h.cardId)])).length < cost.discard ? `Needs ${opt.cost} in hand.` : null;
       P(label, () => startShift(c.iid, def, opt), why);
     }

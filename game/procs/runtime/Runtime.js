@@ -188,7 +188,8 @@ export class Runtime {
       // (Prophetic Vision ruling: "or you reveal an action card and choose not to play it")
       const otherwiseSkip = st.otherwise && (job.ctx.condMet != null ? job.ctx.condMet && !job.ctx.declined : job.ctx.did);
       // a step its gate skips cuts off its sentence: "…, then X" after it doesn't happen either (scripts/verify/gates.mjs)
-      if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || otherwiseSkip) { job.ctx.did = false; job.ctx.declined = true; skip(); continue; }
+      // "If you do either, …" — if any step before it in this ability happened
+      if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || (st.ifAny && !job.ctx.anyDid) || otherwiseSkip) { job.ctx.did = false; job.ctx.declined = true; skip(); continue; }
       job.ctx.condMet = st.cond ? this.test(s, st.cond, job.seat, job.src, job) : null;
       if (st.cond && !job.ctx.condMet) { job.ctx.did = false; job.ctx.declined = true; skip(); continue; }
       // "for each X, <targeted step>" — the step once per X, counted as it starts
@@ -224,6 +225,7 @@ export class Runtime {
       const declined = st.may && E.chooses(st) && Object.values(job.tmp).some((t) => t && t.done && !t.acc?.length);
       job.ctx.did = !!r;
       job.ctx.declined = declined;
+      if (r && !declined) job.ctx.anyDid = true;
       if (st.may && (!r || declined)) didnt(job);
       if (declined) this.log(s, `↳ ${this.E.nameOf(s, job.seat)} chose not to (${job.label}).`, { seat: job.seat, kind: 'effect' });
       skip();

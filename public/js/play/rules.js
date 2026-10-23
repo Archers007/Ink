@@ -217,6 +217,7 @@ export function parseShift(text) {
   return sp.cost ? sp : null;
 }
 export const shiftCostLabel = (c) => (c.ink != null ? `${c.ink} ⬡` : c.inkDrops != null ? `remove ${c.inkDrops} ink drop${c.inkDrops === 1 ? '' : 's'}`
+  : c.bottomFromDiscard != null ? `${c.bottomFromDiscard} ${c.type ? `${c.type} ` : ''}cards from your discard → deck bottom`
   : `discard ${c.discard} ${c.type ? `${c.type} ` : ''}card${c.discard === 1 ? '' : 's'}`);
 const SHIFT_KIND = { name: 'shift', class: 'classShift', any: 'universalShift', duo: 'duoShift', combo: 'comboShift', item: 'potatoShift' };
 

@@ -8,6 +8,7 @@ export class Damage extends Effect {
   static rules = [
     [/^deal (\d+) damage to (.+?) for each (.+)$/i, (m, P) => ({ fn: 'damage', n: { n: +m[1], per: P.forEach(m[3]) }, sel: P.sel(m[2]) })],
     [/^deal (\d+) damage to (.+)$/i, (m, P) => ({ fn: 'damage', n: +m[1], sel: P.sel(m[2]) })],
+    [/^deal (him|her|them|it) (\d+) damage$/i, (m, P) => ({ fn: 'damage', n: +m[2], sel: P.sel(m[1]) })],   // "… and deal them 1 damage"
     [/^deal (?:that much|the same amount of) damage to (.+)$/i, (m, P) => ({ fn: 'damage', n: { last: true }, sel: P.sel(m[1]) })],
     [/^deal damage equal to (?:their|his|her|its|this character's) \{strength\} to (.+)$/i, (m, P) => ({ fn: 'damage', n: { stat: 'str', of: P.ctx.refIsSelf ? 'self' : 'ref' }, sel: P.sel(m[1]) })],
     [/^deal damage to (.+?) equal to (?:their|his|her|its|this character's) \{strength\}$/i, (m, P) => ({ fn: 'damage', n: { stat: 'str', of: P.ctx.refIsSelf ? 'self' : 'ref' }, sel: P.sel(m[1]) })],

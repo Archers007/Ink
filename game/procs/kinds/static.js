@@ -14,8 +14,9 @@ import { parseRule } from '../../rulebook/rules.js';
 import { KEYWORD_ALT, keywordId } from '../classifiers/keyword.js';
 import { parseDeckRule } from '../../rulebook/deck.js';
 import { PLAY_FROM, PLAY_FROM_TAIL, playFromOf } from '../effects/playFrom.js';
+import { parseShift } from '../../../public/js/play/rules.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck', 'replace', 'playFrom', 'enterExertedOpt']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck', 'replace', 'playFrom', 'enterExertedOpt', 'gainShift', 'freeAbility']);
 
 export class Static extends Kind {
   static kind = 'static';
@@ -36,6 +37,17 @@ export class Static extends Kind {
       return { kind: 'static', ...mods, ...(cond ? { cond } : {}), effect: { fn: 'enterExertedOpt' }, ...also };
     }
     const wrap = (effect) => ({ kind: 'static', ...mods, ...(cond ? { cond } : {}), effect });
+    // a Shift this card gains: "this card gains Shift 0 {ink}" (Anna - Soothing Sister) · "you may put 5 character cards
+    // from your discard on the bottom of your deck in any order to shift this character for free" (Maleficent & Diablo)
+    if ((m = t.match(/^this (?:card|character) gains ((?:[A-Z][a-z]+ )*Shift \d+(?: \{ink\})?)$/))) {
+      const spec = parseShift(m[1]);
+      if (spec) return wrap({ fn: 'gainShift', spec });
+    }
+    if ((m = t.match(/^you may put (\d+) (character|action|item) cards from your discard on the bottom of your deck in any order to shift this character for free$/i))) {
+      return wrap({ fn: 'gainShift', spec: { label: 'Shift', cost: { bottomFromDiscard: +m[1], type: m[2].toLowerCase() } } });
+    }
+    // "you may use this item's Shapeshift ability for free" (CR 6.1.7.1: every cost but {exert})
+    if ((m = t.match(/^you may use this (?:item|character|location)'s (.+?) ability for free$/i))) return wrap({ fn: 'freeAbility', name: m[1] });
     // two board changes in one sentence: "opposing characters can't exert to sing songs and your Pirate characters gain Resist +1"
     if ((m = t.match(/^(.+?) and ((?:your|opposing|each|all) .+)$/i))) {
       let a, b;

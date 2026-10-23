@@ -20,6 +20,8 @@ export class PayInk extends Effect {
 export class CostMod extends Effect {
   static fn = 'costMod';
   static rules = [
+    // "for the next card you play with that name" (Merlin's Wand)
+    [/^(?:you )?pay (\d+) \{ink\} less for the next (.+?) you play (with .+)$/i, (m, P) => ({ fn: 'costMod', n: +m[1], filter: P.filter(`${m[2]} ${m[3]}`), next: true, ...(P.dur ? { dur: P.dur } : {}) })],
     [/^(?:you )?pay (\d+) \{ink\} less (?:for the next (.+?) you play|to play (.+?))$/i, (m, P) => ({ fn: 'costMod', n: +m[1], filter: P.filter(m[2] || m[3]), next: !!m[2] || undefined, ...(P.dur ? { dur: P.dur } : {}) })],
     [/^(?:you )?pay that amount of \{ink\} less for the next (.+?) you play$/i, (m, P) => ({ fn: 'costMod', n: { last: true }, filter: P.filter(m[1]), next: true, ...(P.dur ? { dur: P.dur } : {}) })],
     [/^(?:you )?pay (\d+) \{ink\} less for the next (.+?) you shift$/i, (m, P) => ({ fn: 'costMod', n: +m[1], filter: P.filter(m[2]), next: true, shift: true, ...(P.dur ? { dur: P.dur } : {}) })],
@@ -27,7 +29,9 @@ export class CostMod extends Effect {
   static run(rt, s, job, st) {
     const n = Amount.value(rt, s, job, st.n);
     if (!n) return false;
-    rt.E.P(s, job.seat).costMods.push({ n, filter: st.filter, next: !!st.next, ...(st.shift ? { shift: true } : {}), turn: s.turn, src: job.label });
+    // "with that name": the name as it is now — a later "name a card" doesn't change it
+    const fix = (F) => (F?.with?.some((w) => w.namedCard) && s.named ? { ...F, with: F.with.map((w) => (w.namedCard ? { named: (s.named.names || [s.named.name]).map((x) => x.toLowerCase()) } : w)) } : F);
+    rt.E.P(s, job.seat).costMods.push({ n, filter: fix(st.filter), next: !!st.next, ...(st.shift ? { shift: true } : {}), turn: s.turn, src: job.label });
     rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} pays ${n} ink less for the next ${Query.describe(st.filter)} this turn.`, { seat: job.seat, kind: 'effect' });
     return true;
   }

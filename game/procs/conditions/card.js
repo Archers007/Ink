@@ -9,6 +9,20 @@ import { counted, countOk } from '../phrases/acts.js';
 const REF = String.raw`(?:it|that card|that character|that item|that location|that song|the chosen (?:character|card|item)|the banished (?:character|item|card|location|[A-Z][\w'-]*)|the moved character|the challenging character|the revealed card|the discarded card|they|he|she)`;
 const PAST_THIS_WAY = String.raw`discarded|returned|banished|revealed|put|moved|exerted|readied|chose|played`;
 
+// "When this location is banished, if there was an exerted character here" — who was here as it left (engine: lastHere)
+export class WasHere extends Condition {
+  static key = 'wasHere';
+  static rules = [[/^there was (?:a|an) (.+?) here$/i, (m, a) => ({ wasHere: filter(m[1], a) })]];
+  static test(rt, s, C, env) { return (s.cards[env.src]?.lastHere || []).some((id) => s.cards[id] && rt.matches(s, C.wasHere, s.cards[id], env.ctl, env.src, { anyZone: true })); }
+  static say(C) { return `there was a ${Query.describe(C.wasHere)} here when it left play`; }
+}
+// "if you have 2 or more opponents" (Flippant Taunt — only in a multiplayer game)
+export class Opponents extends Condition {
+  static key = 'opponents';
+  static rules = [[/^you have (\d+) or more opponents$/i, (m) => ({ opponents: { gte: +m[1] } })]];
+  static test(rt, s, C, env) { return rt.E.opponentsOf(s, env.ctl).length >= C.opponents.gte; }
+  static say(C) { return `you have ${C.opponents.gte}+ opponents`; }
+}
 // "This character may enter play exerted to draw a card" — the draw needs it to have (engine: c.enteredExerted)
 export class EnteredExerted extends Condition {
   static key = 'enteredExerted';

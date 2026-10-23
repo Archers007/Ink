@@ -201,6 +201,10 @@ function attachProcs(def, built) {
   // Shift, every variant (CR 8.10.8): one spec per Shift line — cost · what it goes on top of · temporary
   // (public/js/play/rules.js parseShift). The engine, bot and client play shifts from def.shifts alone.
   const shifts = def.procs.flatMap((p) => (p.kind === 'keyword' ? p.kws : [])).map((k) => k.shift).filter(Boolean);
+  // …plus a Shift its own abilities give it ("this card gains Shift 0 {ink}" while a condition holds — the engine checks
+  // it as it's played; "put 5 character cards from your discard on the bottom of your deck … to shift this character")
+  const printedOnto = shifts[0]?.onto || { by: 'name' };
+  for (const p of def.procs) if (p.kind === 'static' && p.exec && p.effect?.fn === 'gainShift') shifts.push({ temp: false, ...p.effect.spec, onto: p.effect.spec.onto || printedOnto, ...(p.cond ? { cond: p.cond } : {}), granted: true });
   // …and what this card counts as when something shifts onto it (Morph, Turbo — "counts as being named X for Shift")
   const as = def.procs.filter((p) => p.kind === 'static' && p.exec && !p.cond && p.effect?.fn === 'shiftAs').map((p) => p.effect);
   if (as.length) def.shiftAs = { names: as.flatMap((e) => e.names || []), any: as.some((e) => e.any), anyName: as.some((e) => e.anyName) };

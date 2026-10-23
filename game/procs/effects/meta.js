@@ -15,6 +15,7 @@ export class Choose extends Effect {
       const phrase = w === 'one of your' || w === 'one of their' ? `one of your ${m[2]}` : /^up to/.test(w) ? `${w} chosen ${m[2]}` : `${w === 'another' ? 'another' : 'a'} chosen ${m[2]}`;
       return { fn: 'choose', sel: P.sel(phrase) };
     }],
+    [/^for each opposing player, (you may )?choose (?:a|an) (character|item|location) of theirs$/i, (m) => ({ fn: 'choose', sel: { chosen: { owner: 'opp', types: [m[2].toLowerCase()] } }, eachOpp: true, ...(m[1] ? { may: true } : {}) })],
     // "choose 2 of your characters" · "Choose 2 characters of yours" — exactly that many (fewer only if you have fewer)
     [/^choose (\d+) (?:of your (.+)|(.+?) of yours)$/i, (m, P) => {
       const F = P.filter(`your ${m[2] || m[3]}`);
@@ -23,13 +24,15 @@ export class Choose extends Effect {
   ];
   static chooses() { return true; }
   static run(rt, s, job, st) {
-    const ids = rt.targets(s, job, st, st.sel);
+    // "for each opposing player, you may choose a character of theirs" — one per opponent
+    const sel = st.eachOpp ? { ...st.sel, upTo: rt.E.opponentsOf(s, job.seat).length } : st.sel;
+    const ids = rt.targets(s, job, st, sel);
     if (!ids) return null;
     job.ctx.it = ids;
     return ids.length > 0;
   }
   static verb() { return 'choose'; }
-  static say(st) { return `choose ${Selector.say(st.sel).replace(/^chosen /, '')}`; }
+  static say(st) { return `${st.eachOpp ? 'for each opposing player, ' : ''}choose ${Selector.say(st.sel).replace(/^chosen /, '')}${st.eachOpp ? ' of theirs' : ''}`; }
 }
 
 export class EachPlayer extends Effect {

@@ -48,6 +48,13 @@ export class ChosenByOpp extends Trigger {
   static rules = [[/^whenever an opponent chooses this (?:character|item|location) for an action or ability$/i, () => [{ ev: 'chosenByOpp' }]]];
   static say() { return "an opponent's action or ability chooses this"; }
 }
+// "Whenever this character is chosen for an action or an item's ability" (by anyone — Tod - Knows All the Tricks)
+export class Chosen extends Trigger {
+  static selfSubject = true;
+  static ev = 'chosen';
+  static rules = [[/^whenever this (?:character|item|location) is chosen for an action or an item's ability$/i, () => [{ ev: 'chosen', by: ['action', 'song', 'item'] }]]];
+  static say(o) { return `this is chosen for ${o.by.filter((t) => t !== 'song').map((t) => (t === 'item' ? "an item's ability" : 'an action')).join(' or ')}`; }
+}
 export class InkDropUsed extends Trigger {
   static ev = 'inkDropUsed';
   static rules = [[/^whenever you remove an ink drop$/i, () => [{ ev: 'inkDropUsed' }]]];
@@ -222,6 +229,7 @@ export const events = {
   supported(rt, s, info, fireOn) { const t = s.cards[info.iid]; for (const x of rt.inPlay(s, t.owner)) fireOn(x, 'supportedAny', (o) => rt.matches(s, o.filter, t, x.owner, x.iid), [t.iid]); },
   shiftedOnto(rt, s, info, fireOn) { fireOn(s.cards[info.iid], 'shiftedOnto', (o) => !o.filter || rt.matches(s, o.filter, s.cards[info.by], s.cards[info.by].owner, info.iid, { anyZone: true }), [info.by]); },
   chosenByOpp(rt, s, info, fireOn) { fireOn(s.cards[info.iid], 'chosenByOpp'); },
+  chosen(rt, s, info, fireOn) { const by = s.cards[info.by]; const t = by && rt.E.D(s, by).type; fireOn(s.cards[info.iid], 'chosen', (o) => !o.by || o.by.includes(t)); },
   boosted(rt, s, info, fireOn) { for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'boostAny', null, [info.iid]); },
   inkDropUsed(rt, s, info, fireOn) { for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'inkDropUsed'); },
   leavesDiscard(rt, s, info, fireOn) { for (const x of rt.inPlay(s, info.seat)) fireOn(x, 'leavesDiscard', null, [info.iid]); },
