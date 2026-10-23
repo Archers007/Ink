@@ -30,4 +30,4 @@ export function playerPasses(rt, s, seat, ctl, w) {
   return true;
 }
 export const playerOf = (w) => PLAYERS.find(([rx]) => new RegExp(`^(?:${rx})$`, 'i').test(w))?.[1];
-export const PLAYER_SAY = { each: 'each player', opp: 'each opponent', chosenPlayer: 'chosen player', chosenOpp: 'chosen opponent', refOwner: "that card's player", challenger: 'the challenging player', you: 'you' };
+export const PLAYER_SAY = { each: 'each player', opp: 'each opponent', chosenPlayer: 'chosen player', chosenOpp: 'chosen opponent', refOwner: "that card's player", challenger: 'the challenging player', chooser: 'that opponent', you: 'you' };

@@ -19,6 +19,8 @@ import { Act } from '../triggers/act.js';
 import { ruleValue } from '../../rulebook/rules.js';
 import { replaceEvent } from '../../rulebook/replace.js';
 
+// a player offered a "may" by another's effect who didn't do it
+const didnt = (job) => { const t = job.ctx.tally; if (t && !t.didnt.includes(job.seat)) t.didnt.push(job.seat); };
 // a card's procs, with any second ability folded into one (an action's "when you discard this card, …")
 const OWN = new WeakMap();
 const ownProcs = (d) => {
@@ -74,6 +76,7 @@ export class Runtime {
     if (w === 'challenger') { const cx = job.ctx.cx || s.challenge; return [s.cards[cx?.a]?.owner].filter((x) => x != null); }
     if (w === 'chosenPlayer') return s.players.filter((p) => !p.out).map((p) => p.seat);
     if (w === 'chosenOpp') return this.E.opponentsOf(s, job.seat);
+    if (w === 'chooser') return [job.ctx.chooser ?? this.E.opponentsOf(s, job.seat)[0]];   // the opponent who chose ("They …")
     return w === 'each' ? s.players.filter((p) => !p.out).map((p) => p.seat) : w === 'opp' ? this.E.opponentsOf(s, job.seat) : [job.seat];
   }
   duringOk(s, proc, owner) { return !proc.during || (proc.during === 'yours' ? s.active === owner : s.active !== owner); }
@@ -175,7 +178,7 @@ export class Runtime {
       if (st.may && !E.chooses(st) && !job.tmp.mayOk) {
         if (job.answer?.key === 'may') {
           const a = job.answer; job.answer = null;
-          if (a.skip) { this.log(s, `↳ ${this.E.nameOf(s, job.seat)} chose not to (${job.label}).`, { seat: job.seat, kind: 'effect' }); job.ctx.did = false; job.ctx.declined = true; skip(); continue; }
+          if (a.skip) { this.log(s, `↳ ${this.E.nameOf(s, job.seat)} chose not to (${job.label}).`, { seat: job.seat, kind: 'effect' }); job.ctx.did = false; job.ctx.declined = true; didnt(job); skip(); continue; }
           job.tmp.mayOk = true;
         } else {
           job.waitKey = 'may';
@@ -190,6 +193,7 @@ export class Runtime {
       const declined = st.may && E.chooses(st) && Object.values(job.tmp).some((t) => t && t.done && !t.acc?.length);
       job.ctx.did = !!r;
       job.ctx.declined = declined;
+      if (st.may && (!r || declined)) didnt(job);
       if (declined) this.log(s, `↳ ${this.E.nameOf(s, job.seat)} chose not to (${job.label}).`, { seat: job.seat, kind: 'effect' });
       skip();
       this.E.gameStateCheck(s, ev);

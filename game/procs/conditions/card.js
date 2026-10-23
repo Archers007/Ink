@@ -76,3 +76,11 @@ export class RefIs extends Condition {
   }
   static say(C) { return `that card is a ${Query.describe(C.refIs)}`; }
 }
+// "The challenging player may choose and discard a card. If they don't, you gain 2 lore." — another player declined
+// (or couldn't do) the "may" they were offered (effects/meta.js EachPlayer keeps the tally)
+export class TheyDont extends Condition {
+  static key = 'didnt';
+  static rules = [[/^(?:they|he|she|that player) (?:don't|doesn't|didn't|do not|does not)$/i, () => ({ didnt: true })]];
+  static test(rt, s, C, env) { return (env.job?.ctx.tally?.didnt.length || 0) > 0; }
+  static say() { return "they didn't"; }
+}

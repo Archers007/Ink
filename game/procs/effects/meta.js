@@ -42,7 +42,9 @@ export class EachPlayer extends Effect {
     }
     // turn order from the active player (CR 1.6.2)
     const order = [...seats].sort((a, b) => ((a - s.active + s.players.length) % s.players.length) - ((b - s.active + s.players.length) % s.players.length));
-    const jobs = order.map((seat) => rt.makeJob(seat, job.src, job.label, st.do, { it: job.ctx.it }));
+    // tally: who declined a "may" ("For each opponent who doesn't, …" · "If they don't, …")
+    const tally = (job.ctx.tally = { didnt: [] });
+    const jobs = order.map((seat) => rt.makeJob(seat, job.src, job.label, st.do, { it: job.ctx.it, tally }));
     s.fx.splice(0, 0, ...jobs);                       // ahead of this job → they resolve before its next step
     return true;
   }

@@ -1163,6 +1163,58 @@ test('cards under (CR 8.4): counts, "was under", put self / a discard card under
     assert.deepEqual(s.cards[ids.play0[0]].under, []);
   }
 });
+test('the other player decides (CR 6.1.4): "who doesn\'t", "unless their player pays", "chosen opponent chooses"', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  const pass = (s) => { ok(applyAction(s, s.active, { type: 'endTurn' })); drain(s); };
+  { // Sign the Scroll: "Each opponent may choose and discard a card. For each opponent who doesn't, you gain 2 lore."
+    const { s, ids } = setup({ hand0: [byName('Sign the Scroll')] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.equal(s.pending?.seat, 1, 'the opponent decides');
+    ok(applyAction(s, 1, { type: 'choose', skip: true })); drain(s);
+    assert.equal(s.players[0].lore, 2);
+  }
+  { // … and when they discard, no lore
+    const { s, ids } = setup({ hand0: [byName('Sign the Scroll')] });
+    const hand = s.players[1].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 1, { type: 'choose', confirm: true }));
+    ok(applyAction(s, 1, { type: 'choose', target: s.pending.valid[0] })); drain(s);
+    assert.equal(s.players[1].hand.length, hand - 1);
+    assert.equal(s.players[0].lore, 0);
+  }
+  { // Source of the Vine: "Whenever an opposing character quests, you gain 1 lore unless their player pays 1 {ink}."
+    const q = plain((d) => d.lore >= 1);
+    const { s, ids } = setup({ play0: [byName('Source of the Vine')], play1: [q, q] });
+    pass(s);
+    const ink = s.players[1].deck.splice(0, 2); for (const iid of ink) { s.cards[iid].zone = 'inkwell'; s.cards[iid].faceDown = true; s.players[1].inkwell.push(iid); }
+    ok(applyAction(s, 1, { type: 'quest', iid: ids.play1[0] }));
+    assert.equal(s.pending?.seat, 1, 'their player is asked');
+    ok(applyAction(s, 1, { type: 'choose', confirm: true })); drain(s);
+    assert.equal(s.players[0].lore, 0, 'paid');
+    ok(applyAction(s, 1, { type: 'quest', iid: ids.play1[1] }));
+    ok(applyAction(s, 1, { type: 'choose', skip: true })); drain(s);
+    assert.equal(s.players[0].lore, 1, 'not paid');
+  }
+  { // Do You Want to Build A Snowman?: "Chosen opponent chooses YES! or NO!: • YES! You gain 3 lore. • NO! They choose a character of theirs and put that card on the bottom of their deck."
+    const x = plain(() => true);
+    const { s, ids } = setup({ hand0: [byName('Do You Want to Build A Snowman?')], play1: [x] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.equal(s.pending?.seat, 1);
+    ok(applyAction(s, 1, { type: 'choose', option: 1 })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].zone, 'deck', 'they bottomed their own character');
+    assert.equal(s.players[0].lore, 0);
+  }
+  { // Daisy Duck - Donald's Date: "each opponent reveals the top card of their deck. If it's a character card, they may put it into their hand. Otherwise, they put it on the bottom of their deck."
+    const daisy = byName("Daisy Duck - Donald's Date");
+    const it = all.find((d) => d.type === 'item');
+    const { s, ids } = setup({ play0: [daisy], hand1: [it] });
+    const p1 = s.players[1]; const top = ids.hand1[0];
+    p1.hand.splice(p1.hand.indexOf(top), 1); p1.deck.unshift(top); s.cards[top].zone = 'deck';
+    unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+    assert.equal(p1.deck.at(-1), top, 'not a character → bottom');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1
