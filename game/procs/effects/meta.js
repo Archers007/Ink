@@ -72,7 +72,8 @@ export class Delayed extends Effect {
   static fn = 'delayed';
   static rules = [];                                  // built by the compiler (it needs to compile the inner trigger)
   static run(rt, s, job, st) {
-    (s.delayed ||= []).push({ seat: job.seat, src: job.src, label: job.label, proc: st.proc, turn: s.turn, keep: [...(job.ctx.it || [])] });
+    // once: "the next time …" fires one time · who: whose action it waits for ('keep' = the card acted on, 'src' = this card)
+    (s.delayed ||= []).push({ seat: job.seat, src: job.src, label: job.label, proc: st.proc, turn: s.turn, keep: [...(job.ctx.it || [])], ...(st.once ? { once: true } : {}), ...(st.who ? { who: st.who } : {}) });
     rt.log(s, `↳ ${job.label}: for the rest of this turn, ${rt.E.prettyText(st.text || '')}`, { seat: job.seat, kind: 'effect' });
     return true;
   }

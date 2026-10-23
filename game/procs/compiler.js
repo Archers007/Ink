@@ -358,6 +358,16 @@ export class Compiler {
         const proc = Triggered.parse(`At the end of your turn, ${m[1]}`, this, {});
         if (proc) { steps.push({ fn: 'delayed', text: s, proc: { ...proc, ...this.check(proc) } }); continue; }
       }
+      // "The next time they challenge another character this turn, gain 1 lore." — once, about the card just acted on
+      if ((m = s.match(/^the next time (?:they|he|she|that character) (challenge|quest)s? (.*?)\s*this turn, (.+)$/i))) {
+        const proc = Triggered.parse(`Whenever this character ${m[1]}s${m[2] ? ` ${m[2]}` : ''}, ${m[3]}`, this, {});
+        if (proc) { steps.push({ fn: 'delayed', text: s, once: true, who: 'keep', proc: { ...proc, ...this.check(proc) } }); continue; }
+      }
+      // "ready this character after the challenge" — when the challenge's damage is done
+      if ((m = s.match(/^(.+?) after the challenge$/i))) {
+        const proc = { kind: 'triggered', on: [{ ev: 'challengeEnd' }], do: this.effects(m[1], ctx) };
+        steps.push({ fn: 'delayed', text: s, once: true, who: 'src', proc: { ...proc, ...this.check(proc) } }); continue;
+      }
       if ((m = s.match(/^(?:for the rest of this turn, |this turn, )(whenever .+)$/i)) || (m = s.match(/^(whenever [^,]+?) this turn(, .+)$/i))) {
         const t = m[2] ? `${m[1]}${m[2]}` : m[1];
         const proc = Triggered.parse(t, this, {});

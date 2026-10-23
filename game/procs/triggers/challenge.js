@@ -32,6 +32,8 @@ export const events = {
     fireOn(c, 'challenges', (o) => !o.filter || rt.matches(s, o.filter, def, c.owner, c.iid), [info.other]);
     for (const x of rt.inPlay(s, c.owner)) fireOn(x, 'challengesAny', (o) => rt.matches(s, o.filter, c, x.owner, x.iid), [c.iid]);
   },
+  // the moment the challenge's damage is done ("ready this character after the challenge")
+  challengeEnd(rt, s, info, fireOn) { const c = s.cards[info.iid]; if (c) fireOn(c, 'challengeEnd', null, [info.other]); },
   challenged(rt, s, info, fireOn) {
     const c = s.cards[info.iid];
     fireOn(c, 'challenged', null, [info.other]);
@@ -41,4 +43,9 @@ export const events = {
 export class ChallengedHere extends Trigger {
   static ev = 'challengedHere';
   static say() { return 'a character here is challenged'; }
+}
+// only heard by a delayed "after the challenge" step (CR 4.6.7: the challenge ends once its damage is dealt)
+export class ChallengeEnd extends Trigger {
+  static ev = 'challengeEnd';
+  static say() { return 'the challenge ends'; }
 }

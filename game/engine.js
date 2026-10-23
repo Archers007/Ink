@@ -802,6 +802,7 @@ function challengeDamageStep(s, a, t, ev) {
     s.challengeCtx = null; s.challenge = null;
     for (const x of [A, T]) if (x.mods?.length) x.mods = x.mods.filter((m) => m.until !== 'challenge');   // "during that challenge"
   }
+  R.fire(s, 'challengeEnd', { iid: a, other: t });                    // "… after the challenge"
 }
 
 H.move = (s, seat, a, ev) => {

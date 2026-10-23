@@ -153,9 +153,11 @@ export class Runtime {
       const heard = new Set();
       EVENTS[ev](this, s, info, (c, name, pass, it) => {
         for (const d of live) {
-          if (!c || c.owner !== d.seat || heard.has(d)) continue;
+          if (!c || c.owner !== d.seat || heard.has(d) || d.used) continue;
+          if (d.who === 'keep' ? !d.keep.includes(c.iid) : d.who === 'src' ? c.iid !== d.src : false) continue;   // "the next time they challenge"
           if (!d.proc.on.some((o) => o.ev === name && (!pass || pass(o)))) continue;
           heard.add(d);
+          if (d.once) d.used = true;
           this.queue(s, d.seat, d.src, d.label, d.proc.do, { it: it?.length ? it : d.keep || [] }, { cond: d.proc.cond || null });
         }
       });
