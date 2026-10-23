@@ -508,10 +508,10 @@ function positionQuick(iid) {
   const a = board.cardAnchor(iid);
   if (!a) { el.hidden = true; return; }
   const pills = [...el.children];
-  const gap = 7;
+  const gap = 10;
   const widths = pills.map((b) => b.offsetWidth);
   const total = widths.reduce((s, w) => s + w, 0) + gap * (pills.length - 1);
-  const rBase = (a.center.y - a.top.y) + 34;                      // just outside the card's top edge
+  const rBase = (a.center.y - a.top.y) + 24;                      // just outside the card's top edge
   let r = Math.max(rBase, total / (Math.PI * 0.7));
   r = Math.min(r, Math.max(60, a.center.y - 28));                 // the top pill stays on screen
   let ang = -total / (2 * r);
