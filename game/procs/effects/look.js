@@ -236,7 +236,7 @@ export class Look extends Effect {
   }
   static verb(rt, s, job, st) { return `look at the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')} of ${st.of ? "a player's" : 'your'} deck`; }
   static say(st) {
-    if (st.slots) return `${st.reveal ? 'reveal' : 'look at'} the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')}; ${st.slots.map((x) => `${x.may ? 'may ' : ''}${x.n === 'any' ? 'any number of' : x.n === 'each' ? 'each' : x.upTo ? `up to ${x.n}` : x.n} ${Object.keys(x.filter || {}).length ? Query.describe(x.filter) : 'card'} → ${x.to}`).join('; ')}${st.rest ? `; rest → ${st.rest}` : ''}`;
+    if (st.slots) return `${st.reveal ? 'reveal' : 'look at'} the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')}; ${st.slots.map((x) => `${x.may ? 'may ' : ''}${x.reveal ? 'reveal ' : ''}${x.n === 'any' ? 'any number of' : x.n === 'each' ? 'each' : x.upTo ? `up to ${x.n}` : x.n} ${Object.keys(x.filter || {}).length ? Query.describe(x.filter) : 'card'} → ${x.to}`).join('; ')}${st.rest ? `; rest → ${st.rest}` : ''}`;
     return `look at the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')}${st.of === 'chosen' ? " of chosen player's deck" : st.of === 'opp' ? " of each opponent's deck" : ''}${st.pick ? `; ${st.pick.may ? 'may ' : ''}${st.pick.reveal ? 'reveal' : 'take'} ${st.pick.n} ${Query.describe(st.pick.filter)} into hand` : ''}${st.rest ? `; rest to ${st.rest}` : ''}${st.scry === 'discard' ? '; keep on top or discard' : st.scry ? '; put on top or bottom' : ''}`;
   }
 }

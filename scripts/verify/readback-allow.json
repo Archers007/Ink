@@ -1,0 +1,28 @@
+{
+  "why": "Fields the read-back may leave unsaid. Each is either a compile-time marker the runtime never reads, or a value the surrounding words already fix — the perturbation the check makes isn't a proc the compiler could produce. Anything new fails scripts/verify/readback.mjs.",
+  "patterns": {
+    "do[].sel.yours": "compile-time marker for \"one of your X\" (compiler.js equalTo); owner:'you' carries the meaning",
+    "do[].do[].sel.yours": "same",
+    "do[].also[].yours": "same",
+    "do[].sel.ref": "steps whose wording only ever takes \"that card\" (put it into your hand, play it); ref:false isn't a proc they can have",
+    "do[].do[].sel.ref": "same, inside each player's part",
+    "do[].sel.nth": "\"the other one\" — always -1 when present",
+    "do[].mods[].n": "with nOf the sign is the verb (loses / gets +), which the read-back shows; the size is the stat",
+    "do[].filter.zone": "a filter with any:[…] per-zone branches — the branches name the zones",
+    "effect.n": "selfCost n:99 is \"for free\", which the read-back says",
+    "do[].n": "n:99 = \"any number\" / \"all\", shown as such",
+    "do[].sel.chosen.types[]": "\"cards from under chosen character, item, or location\" — the source types read as \"the chosen card\"",
+    "effect.kws[].n": "n:-99 with lose:true = \"loses X\"",
+    "do[].kws[].n": "same",
+    "effect.of": "deck rule copies: the card itself",
+    "effect.copies": "deck rule: shown as \"any number\"",
+    "do[].n.n": "1 per counted card (\"a number of cards equal to …\")",
+    "do[].n.per.count.under": "Bambi/Pete: \"equal to the number of cards under him\" — the count is shown",
+    "do[].dur": "Remember Me: grantPlayFrom lasts the turn by its own wording",
+    "do[].linked": "a step that follows a pay-to step is linked and ifDid at once; the if-you-did is shown",
+    "cond.n.lte": "\"only 1\" — shown as exactly",
+    "cond.lore.gte": "\"has 0 lore\" — shown as the range",
+    "do[].do[].discard.n": "\"discards a non-character card of their choice\" — always 1",
+    "effect.per.count.did.n.gte": "\"for each … banished this turn\" counts them all; the threshold is unused"
+  }
+}

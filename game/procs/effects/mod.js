@@ -120,9 +120,23 @@ export class Mod extends Effect {
     return what + (st.dur === 'next' ? ` until the start of ${rt.E.nameOf(s, job.seat)}'s next turn` : st.dur === 'theirNext' ? ' during their next turn' : st.dur ? ' this turn' : '');
   }
   static verb(rt, s, job, st) { return Mod.text(rt, s, job, st); }
+  // every field shows (scripts/verify/readback.mjs): a reviewer reading this can see each part of what the card does
   static say(st) {
-    const what = [...(st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STAT_WORD[m.stat]} equal to ${m.nOf.last ? 'that number' : `${m.nOf.of === 'self' ? "this card's" : 'its'} ${STAT_WORD[m.nOf.stat]}`}` : `${m.n > 0 ? '+' : ''}${m.n} ${STAT_WORD[m.stat]}`)), ...(st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"` : k.by ? `can't be challenged by ${k.by.q ? Query.describe(k.by.q) : k.by.class ? `${k.by.class} characters` : `characters with ${k.by.strGte}+ {strength}`}` : k.of ? `can challenge ready ${Query.describe(k.of)}` : k.lose ? `loses ${kwLabel(k.kw)}` : kwLabel(k.kw, k.n))), ...(st.cls ? [`the ${st.cls} classification`] : [])].join(', ');
-    return `${Selector.say(st.sel)} ${(st.kws || []).every((k) => RESTRICTIONS[k.kw] || k.lose) && !st.mods ? '' : st.mods ? 'gets ' : 'gains '}${what}${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''} ${st.dur ? Duration.say(st.dur) : '(while in play)'}`;
+    const STATW = { ...STAT_WORD, sing: 'cost to sing songs' };
+    const of = (nOf) => (nOf.last ? 'that number' : `${nOf.of === 'self' ? "this card's" : nOf.of === 'ref' ? "the chosen card's" : 'its own'} ${STAT_WORD[nOf.stat]}`);
+    const mods = (st.mods || []).map((m) => (m.nOf ? `${m.n > 0 ? '+' : '-'}${STATW[m.stat]} equal to ${of(m.nOf)}` : `${m.n > 0 ? '+' : ''}${m.n} ${STATW[m.stat]}`));
+    const kws = (st.kws || []).map((k) => (k.kw === 'grant' ? `"${k.proc.text}"`
+      : k.by ? `can't be challenged by ${k.by.q ? Query.describe(k.by.q) : k.by.class ? `${k.by.class} characters` : `characters with ${k.by.strGte}+ {strength}`}`
+        : k.of ? `can challenge ready ${Query.describe(k.of)}` : k.lose ? `loses ${kwLabel(k.kw)}` : kwLabel(k.kw, k.n)));
+    const extra = [
+      ...(st.cls ? [`the ${st.cls} classification`] : []),
+      ...(st.loseAbility ? [`loses the ${st.loseAbility.join(', ')} ability`] : []),
+      ...(st.floor ? [`${STAT_WORD[st.floor]} can't go below printed`] : []),
+      ...(st.blocks ? [`can't gain ${st.blocks.map((k) => kwLabel(k)).join(', ')}`] : []),
+      ...(st.enters?.exerted ? ['enters play exerted'] : []),
+    ];
+    const verb = st.mods ? 'gets ' : (st.kws || []).every((k) => RESTRICTIONS[k.kw] || k.lose) ? '' : 'gains ';
+    return `${Selector.say(st.sel)} ${verb}${[...mods, ...kws, ...extra].join(', ')}${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''} ${st.dur ? Duration.say(st.dur) : '(while in play)'}`;
   }
   static check(st, missing, SUPPORT) {
     for (const k of st.kws || []) {
@@ -131,3 +145,4 @@ export class Mod extends Effect {
     }
   }
 }
+

@@ -87,7 +87,8 @@ export class Amount {
   static say(n) {
     if (typeof n === 'number') return n;
     if (n?.stat) return `${n.of === 'self' ? "this card's" : n.of === 'loc' ? "that location's" : "that card's"} ${n.stat === 'cost' ? 'cost' : n.stat === 'damage' ? 'damage' : STAT_WORD[n.stat]}${n.max != null ? ` (max ${n.max})` : ''}`;
-    if (n?.per) return `${n.n} for each ${Amount.sayPer(n.per)}`;
+    if (n?.per) return `${n.n} for each ${Amount.sayPer(n.per)}${n.per.byCtl ? ' (counted for you)' : ''}`;
+    if (n?.handOver != null) return `down to ${n.handOver} in hand`;
     if (n?.healed) return 'the damage removed';
     if (n?.itCount) return `that many${n.plus ? ` plus ${n.plus}` : ''}`;
     if (n?.last) return 'that much';
@@ -96,7 +97,8 @@ export class Amount {
   static sayPer(per) {
     const c = per.count;
     if (c.thisWay) return 'one done this way';
-    if (c.under) return 'card under this';
+    if (c.under) return `card ${c.was ? 'that was ' : ''}under ${c.pron ? 'the card the trigger is about' : 'this'}`;
+    if (c.didnt) return 'player who didn\'t';
     if (c.damageOnSelf) return 'damage on this';
     if (c.damageOnRef) return 'damage on that card';
     if (c.damageOn) return `1 damage on ${Query.describe(c.damageOn)}`;

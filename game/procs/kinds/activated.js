@@ -38,7 +38,7 @@ export class Activated extends Kind {
   static check(p, missing, S) { for (const k of Object.keys(p.cost)) if (!S.cost.has(k)) missing.add(`cost ${k}`); }
   static explain(p, X) {
     const cost = Object.entries(p.cost).map(([k, v]) => COSTS[k][3](v)).join(' + ');
-    return [X.tag('activated'), `${p.from === 'hand' ? 'FROM HAND ' : ''}COST ${cost || 'see steps'}${sayDuring(p)}`, ...p.do.map((st, i) => `${i + 1}. ${X.step(st)}`)];
+    return [X.tag('activated'), `${p.from === 'hand' ? 'FROM HAND ' : ''}COST ${cost || 'see steps'}${p.once ? ' — once per turn' : ''}${sayDuring(p)}`, ...(p.cond ? [`IF ${X.cond(p.cond)}`] : []), ...p.do.map((st, i) => `${i + 1}. ${X.step(st)}`)];
   }
 
   // runtime: pay the costs and queue the effect. false → not runnable (manual)

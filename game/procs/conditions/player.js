@@ -16,7 +16,7 @@ export class Inkwell extends Condition {
     if (C.inkwell.readyLte != null) return p.inkwell.filter((iid) => !s.cards[iid].exerted).length <= C.inkwell.readyLte;
     return p.inkwell.length >= C.inkwell.gte;
   }
-  static say(C) { return C.inkwell.readyLte != null ? 'all your ink is exerted' : `you have ${C.inkwell.gte}+ cards in your inkwell`; }
+  static say(C) { return C.inkwell.readyLte != null ? (C.inkwell.readyLte === 0 ? 'all your ink is exerted' : `you have ${C.inkwell.readyLte} or fewer ready ink`) : `you have ${C.inkwell.gte}+ cards in your inkwell`; }
 }
 // "an opponent has more cards in their hand than you" · "you have more cards in your inkwell than each opposing player"
 export class Compare extends Condition {

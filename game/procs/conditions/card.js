@@ -113,7 +113,10 @@ export class RefIs extends Condition {
     const id = it[0];
     return !!id && rt.matches(s, C.refIs, s.cards[id], env.ctl, env.src, { anyZone: true });
   }
-  static say(C) { return `that card is a ${Query.describe(C.refIs)}`; }
+  static say(C) {
+    const whose = C.trig ? 'the card the trigger is about' : C.of ? `the ${C.of} card` : 'that card';
+    return C.n ? `${C.n.gte > 1 ? `${C.n.gte}+` : 'any'} of the cards acted on ${C.of ? `(${C.of}) ` : ''}is a ${Query.describe(C.refIs)}` : `${whose} is a ${Query.describe(C.refIs)}`;
+  }
 }
 // "The challenging player may choose and discard a card. If they don't, you gain 2 lore." — another player declined
 // (or couldn't do) the "may" they were offered (effects/meta.js EachPlayer keeps the tally)

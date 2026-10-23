@@ -20,7 +20,7 @@ export class PlayCard extends Trigger {
     [/^whenever you play an? (second|third|fourth) (.+?)(?: in a turn| this turn)?$/i, (m, P) => [{ ev: 'playCard', filter: P.filter(m[2]), nth: { second: 2, third: 3, fourth: 4 }[m[1].toLowerCase()] }]],
     [/^whenever you play (a|an|another) (.+)$/i, (m, P) => [{ ev: 'playCard', filter: other(P.filter(m[2]), m[1].toLowerCase() === 'another') }]],
   ];
-  static say(o) { if (o.paidMax != null) return `you pay ${o.paidMax} {ink} or less to play a card`; return `you play ${o.nth ? `your ${['', '', '2nd', '3rd', '4th'][o.nth]} ` : ''}${Query.describe(o.filter)}${o.nth ? ' this turn' : ''}`; }
+  static say(o) { if (o.paidMax != null) return `you pay ${o.paidMax} {ink} or less to play ${o.filter ? Query.describe(o.filter) : 'a card'}`; return `you play ${o.nth ? `your ${['', '', '2nd', '3rd', '4th'][o.nth]} ` : ''}${Query.describe(o.filter)}${o.nth ? ' this turn' : ''}`; }
 }
 // "whenever one or more of your characters sings a song" — once per song; "those characters" = the singers
 export class SongSung extends Trigger {

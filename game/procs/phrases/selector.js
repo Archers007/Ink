@@ -1,5 +1,5 @@
 // Who an effect touches:  { self } · { ref } (it/them — the last thing acted on) · { chosen: Query, upTo? } · { all: Query }
-import { miss, N, NUM } from './text.js';
+import { miss, N, NUM, STAT_WORD } from './text.js';
 import { filter } from './filter.js';
 import { Query } from '../query.js';
 
@@ -83,10 +83,14 @@ export class Selector {
     if (s.self) return 'this card';
     if (s.role) return `the ${s.role} character`;
     if (s.singers) return 'the characters who sang it';
-    if (s.ref && s.pron) return 'him/her';
+    // which card "that card" is: the one the step before acted on, unless the selector says which step (of) or which one (nth)
+    if (s.ref && s.pron) return 'him/her (this card until a step picks one)';
+    if (s.ref && s.of) return `the card${s.of === 'healedIds' ? 's damage was removed from' : ` the ${s.of} step acted on`}`;
+    if (s.ref && s.nth != null) return 'the other card picked';
     if (s.ref) return 'that card';
+    if (s.all && s.random) return `${s.random} at random of each ${Query.describe(s.all)}`;
     if (s.all) return `each ${Query.describe(s.all)}`;
-    if (s.chosen) return `${s.upTo ? `up to ${s.upTo} ` : ''}chosen ${Query.describe(s.chosen)}`;
+    if (s.chosen) return `${s.upTo ? `${s.exactly ? 'exactly' : 'up to'} ${s.upTo} ` : ''}chosen ${Query.describe(s.chosen)}${s.total ? ` with total ${STAT_WORD[s.total.stat]} ${s.total.lte} or less` : ''}`;
     return '?';
   }
 }
