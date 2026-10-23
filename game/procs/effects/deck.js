@@ -5,16 +5,17 @@ import { Query } from '../query.js';
 
 export class InkTop extends Effect {
   static fn = 'inkTop';
-  static rules = [[/^put the top card of your deck into your inkwell facedown( and exerted)?$/i, (m) => ({ fn: 'inkTop', exerted: !!m[1] })]];
+  static rules = [[/^put the top (card|\d+ cards) of your deck into your inkwell facedown( and exerted)?$/i, (m) => ({ fn: 'inkTop', exerted: !!m[2], ...(m[1] === 'card' ? {} : { n: parseInt(m[1], 10) }) })]];
   static run(rt, s, job, st, ev) {
     const p = rt.E.P(s, job.seat);
     if (!p.deck.length) return false;
-    rt.E.moveTo(s, p.deck[0], 'inkwell', ev, { exerted: !!st.exerted });
-    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} put the top card of their deck into their inkwell.`, { seat: job.seat, kind: 'effect' });
+    const n = Math.min(st.n || 1, p.deck.length);
+    for (let k = 0; k < n; k++) rt.E.moveTo(s, p.deck[0], 'inkwell', ev, { exerted: !!st.exerted });
+    rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} put the top ${plural(n, 'card')} of their deck into their inkwell.`, { seat: job.seat, kind: 'effect' });
     return true;
   }
-  static verb() { return 'put the top card of your deck into your inkwell'; }
-  static say(st) { return `put the top card of your deck into your inkwell${st.exerted ? ' exerted' : ''}`; }
+  static verb(rt, s, job, st) { return `put the top ${plural(st.n || 1, 'card')} of your deck into your inkwell`; }
+  static say(st) { return `put the top ${plural(st.n || 1, 'card')} of your deck into your inkwell${st.exerted ? ' exerted' : ''}`; }
 }
 export class Mill extends Effect {
   static fn = 'mill';

@@ -73,7 +73,7 @@ export class Runtime {
 
   addMods(s, job, st, iid, ev, mult = 1) {
     const c = s.cards[iid];
-    const u = st.dur ? { until: DURATIONS[st.dur].until, by: st.dur === 'theirNext' ? c.owner : job.seat, setTurn: s.turn } : { until: 'static' };
+    const u = st.dur ? { until: DURATIONS[st.dur].until, by: st.dur === 'theirNext' ? c.owner : job.seat, setTurn: s.turn, ...(st.dur === 'src' ? { srcIid: job.src } : {}) } : { until: 'static' };
     for (const m of st.mods || []) {
       // nOf: the size comes from a stat, read once as the effect resolves ("equal to this character's {lore}")
       const of = m.nOf && s.cards[m.nOf.of === 'target' ? iid : job.src];
@@ -130,7 +130,7 @@ export class Runtime {
           if (!c || c.owner !== d.seat || heard.has(d)) continue;
           if (!d.proc.on.some((o) => o.ev === name && (!pass || pass(o)))) continue;
           heard.add(d);
-          this.queue(s, d.seat, d.src, d.label, d.proc.do, { it: it || [] }, { cond: d.proc.cond || null });
+          this.queue(s, d.seat, d.src, d.label, d.proc.do, { it: it?.length ? it : d.keep || [] }, { cond: d.proc.cond || null });
         }
       });
     }

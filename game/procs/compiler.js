@@ -44,7 +44,8 @@ export class Compiler {
       forEach: (x) => Amount.forEach(x, at),
       miss: (why) => miss(why, at),
       ability: (tok) => this.ability({ text: unquote(tok) }, 'character'),
-      D: (o) => (dur ? { ...o, dur } : o.dur || ctx.static ? o : miss('needs a duration (this turn / until …)', at)),
+      // a change with no duration: on a card just acted on it lasts while that card is in play ("They gain Rush.")
+      D: (o) => (dur ? { ...o, dur } : o.dur || ctx.static ? o : o.sel?.ref && !o.sel.pron ? { ...o, dur: 'perm' } : miss('needs a duration (this turn / until …)', at)),
     };
   }
   filter(x, at) { return filter(x, at); }
@@ -190,7 +191,9 @@ export class Compiler {
   instead(steps, condText, altText, ctx, at) {
     const cond = parseCondition(condText, at);
     let alt;
-    for (const t of [altText, `${altText} to that character`, `${altText} from that character`]) {
+    const target0 = steps[steps.length - 1];
+    const durWords = target0?.dur ? ` ${Duration.say(target0.dur)}` : '';     // "they get +3 {strength} instead" — same duration
+    for (const t of [altText, `${altText} to that character`, `${altText} from that character`, ...(durWords ? [`${altText}${durWords}`] : [])]) {
       try { alt = this.clause(t, ctx); break; } catch (e) { if (!(e instanceof Miss)) throw e; }
     }
     if (!alt) miss(`instead: "${altText}"`, at);
@@ -238,12 +241,19 @@ export class Compiler {
   effects(text, ctx = {}) {
     const steps = [];
     const at = text;
-    const chooseAt = text.search(/choose one: • /i);
+    // "Choose one: • …" · "you may choose one: • …" (neither is fine) · "choose one of the following. If X, choose both instead: • …"
+    const CHOOSE = /(?:you may )?choose one(?: of the following)?(?:\. if (.+?), choose both instead)?: • /i;
+    const chooseAt = text.search(CHOOSE);
     if (chooseAt >= 0) {
+      const head = text.slice(chooseAt).match(CHOOSE);
       const before = text.slice(0, chooseAt).trim();
-      const opts = text.slice(chooseAt).replace(/^choose one: • /i, '').split(/ • /);
+      const opts = text.slice(chooseAt + head[0].length).split(/ • /);
       if (before) steps.push(...this.effects(before, ctx));
-      steps.push({ fn: 'chooseOne', labels: opts.map((o) => o.trim().replace(/\.$/, '')), options: opts.map((o) => this.effects(o.trim(), ctx)) });
+      const may = /^you may/i.test(head[0]);
+      steps.push({
+        fn: 'chooseOne', labels: [...opts.map((o) => o.trim().replace(/\.$/, '')), ...(may ? ['Neither'] : [])], options: [...opts.map((o) => this.effects(o.trim(), ctx)), ...(may ? [[]] : [])],
+        ...(head[1] ? { bothIf: parseCondition(head[1], at) } : {}),
+      });
       return steps;
     }
     for (const sent of sentences(text)) {
@@ -257,6 +267,11 @@ export class Compiler {
       let m;
       if ((m = s.match(/^then,? (.+)$/i))) s = m[1];
       // delayed trigger: "Whenever one of your characters quests this turn, …" · "For the rest of this turn, whenever …"
+      // "At the end of the turn, banish them." — once, at the end of this turn, about what the ability acted on
+      if ((m = s.match(/^at the end of (?:your|the|this) turn, (.+)$/i)) && steps.length) {
+        const proc = Triggered.parse(`At the end of your turn, ${m[1]}`, this, {});
+        if (proc) { steps.push({ fn: 'delayed', text: s, proc: { ...proc, ...this.check(proc) } }); continue; }
+      }
       if ((m = s.match(/^(?:for the rest of this turn, |this turn, )(whenever .+)$/i)) || (m = s.match(/^(whenever [^,]+?) this turn(, .+)$/i))) {
         const t = m[2] ? `${m[1]}${m[2]}` : m[1];
         const proc = Triggered.parse(t, this, {});

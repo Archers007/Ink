@@ -30,15 +30,18 @@ export class Draw extends Effect {
 // "draw cards until you have the same number" (as the opponent with the most cards in hand)
 export class DrawUntil extends Effect {
   static fn = 'drawUntil';
-  static rules = [[/^draw cards until you have the same number(?: of cards in your hand as (?:that|chosen) opponent)?$/i, () => ({ fn: 'drawUntil' })]];
+  static rules = [
+    [/^draw cards until you have the same number(?: of cards in your hand as (?:that|chosen) opponent)?$/i, () => ({ fn: 'drawUntil' })],
+    [/^draw (?:cards )?until you have (\d+) cards? in your hand$/i, (m) => ({ fn: 'drawUntil', to: +m[1] })],   // "draw until you have 3 cards in your hand"
+  ];
   static run(rt, s, job, st, ev) {
     const { E } = rt;
-    const most = Math.max(0, ...E.opponentsOf(s, job.seat).map((o) => E.P(s, o).hand.length));
+    const most = st.to ?? Math.max(0, ...E.opponentsOf(s, job.seat).map((o) => E.P(s, o).hand.length));
     const n = most - E.P(s, job.seat).hand.length;
     if (n <= 0) return false;
     E.drawCards(s, job.seat, n, ev);
     rt.log(s, `↳ ${E.nameOf(s, job.seat)} drew ${plural(n, 'card')} to match.`, { kind: 'effect' });
     return true;
   }
-  static say() { return "draw until your hand matches the opponent's"; }
+  static say(st) { return st.to != null ? `draw until you have ${st.to} cards in your hand` : "draw until your hand matches the opponent's"; }
 }

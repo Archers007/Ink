@@ -13,6 +13,12 @@ export class ChooseOne extends Effect {
     return true;
   }
   static run(rt, s, job, st) {
+    // "If you have another Toy character in play, choose both instead"
+    if (st.bothIf && rt.test(s, st.bothIf, job.seat, job.src, job)) {
+      job.steps.splice(job.i + 1, 0, ...st.options.flatMap((o) => clone(o)));
+      rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} gets both.`, { seat: job.seat, kind: 'effect' });
+      return true;
+    }
     if (job.answer?.key !== 'chooseOne') {
       const ok = st.options.map((o) => ChooseOne.feasible(rt, s, job, o));
       if (ok.filter(Boolean).length === 1) job.answer = { key: 'chooseOne', option: ok.indexOf(true) };
