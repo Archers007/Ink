@@ -172,14 +172,18 @@ i.hx { display: inline-block; width: 11px; height: 12px; vertical-align: -1px; c
 .mgrid { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .mgrid button { font-size: 12px; padding: 4px 8px; }
 
-/* the quick-options strip above a tapped hand card */
-#hud #quick { z-index: 3; transform: translate(-50%, -100%); display: flex; gap: 4px; flex-wrap: nowrap; max-width: 92vw; overflow-x: auto; scrollbar-width: none;
-  padding: 4px; background: var(--panel2); border: 1px solid var(--gold); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .55); }
-#quick::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: var(--panel2); border-right: 1px solid var(--gold); border-bottom: 1px solid var(--gold); transform: translateX(-50%) rotate(45deg); }
-#quick .q { padding: 4px 9px; font-size: 12.5px; border-radius: 8px; white-space: nowrap; }
-#quick .q.off { opacity: .5; }
-#quick .q.info { padding: 4px 8px; font-weight: 700; }
-body.mobile #quick .q { min-height: 30px; font-size: 13px; padding: 3px 8px; }
+/* the options fanned around a tapped hand card: free-floating pills on an arc (main.js positionQuick) */
+#hud #quick { inset: 0; z-index: 3; pointer-events: none; }
+#quick .q { position: absolute; pointer-events: auto; transform: translate(-50%, -50%) rotate(var(--a, 0rad)); padding: 5px 13px; border-radius: 999px;
+  background: rgba(14, 17, 40, .84); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45); font-size: 12.5px; white-space: nowrap; animation: fan .18s ease-out backwards; }
+#quick .q.hot { background: linear-gradient(180deg, #e2c470, #b38b2e); color: #1b1404; border-color: #f2dc9b; font-weight: 700; }
+#quick .q.hot.off { background: linear-gradient(180deg, #8a7a4a, #5d4a22); color: #2a2208; }
+#quick .q.off { opacity: .55; }
+#quick .q.info { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; font-weight: 700; }
+@keyframes fan { from { opacity: 0; transform: translate(-50%, -30%) rotate(var(--a, 0rad)) scale(.85); } }
+body.mobile #quick .q { font-size: 13px; padding: 6px 14px; min-height: 32px; }
+body.mobile #quick .q.info { width: 34px; height: 34px; }
 
 #preview { left: 262px; bottom: 14px; width: 250px; pointer-events: none; filter: drop-shadow(0 16px 30px rgba(0,0,0,.7)); }
 #preview img { width: 100%; border-radius: 12px; display: block; }

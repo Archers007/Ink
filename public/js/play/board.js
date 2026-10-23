@@ -759,12 +759,12 @@ export class Board {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // the top edge of a card (where it's heading), in screen pixels — the quick-options strip hangs above it
-  cardTop(iid) {
+  // a card's centre and top edge (where it's heading), in screen pixels — the quick options fan out around it
+  cardAnchor(iid) {
     const t = this.cards.get(iid)?.target;
     if (!t) return null;
     const half = (H / 2) * (t.scale || 1);
-    return this.toScreen({ x: t.x, y: (t.y || 0) + half * Math.sin(t.tilt || 0), z: t.z - half * Math.cos(t.tilt || 0) });
+    return { center: this.toScreen({ x: t.x, y: t.y || 0, z: t.z }), top: this.toScreen({ x: t.x, y: (t.y || 0) + half * Math.sin(t.tilt || 0), z: t.z - half * Math.cos(t.tilt || 0) }) };
   }
   // project a world point to screen pixels (for DOM overlays)
   toScreen(v) {

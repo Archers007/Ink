@@ -486,7 +486,7 @@ function grantKeyword(c, def) {
 }
 
 // ---------- DOM: inspector ----------
-// the thin strip above a tapped hand card: what you can play it as, and ⓘ for the breakdown
+// the options fanned around a tapped hand card: what you can play it as, and ⓘ for the breakdown
 const shortLabel = (l) => l.replace(/\s+·\s+/g, ' · ').replace(/\s{2,}/g, ' ')
   .replace(/^Put into inkwell/, 'Ink').replace(/^Play exerted \(Bodyguard\)/, 'Play exerted').replace(/^Sing with…\s*\(free\)/, 'Sing…')
   .replace(/^Shift onto…/, 'Shift…').replace(/^(\w[\w ]*Shift) onto…/, '$1…').replace(/^Play for free \(alternate cost\)…/, 'Play free…');
@@ -500,14 +500,31 @@ function renderQuick(f) {
   el.hidden = false;
   positionQuick(f.c.iid);
 }
+// pills along an arc over the card: the radius grows with their total width so they never overlap, the fan never
+// wraps past the card's sides, and each pill leans with the curve
 function positionQuick(iid) {
   const el = $('#quick');
   if (el.hidden) return;
-  const p = board.cardTop(iid);
-  if (!p) { el.hidden = true; return; }
-  const half = el.offsetWidth / 2;
-  el.style.left = `${Math.max(8 + half, Math.min(innerWidth - 8 - half, p.x))}px`;
-  el.style.top = `${Math.max(el.offsetHeight + 8, p.y - 10)}px`;
+  const a = board.cardAnchor(iid);
+  if (!a) { el.hidden = true; return; }
+  const pills = [...el.children];
+  const gap = 7;
+  const widths = pills.map((b) => b.offsetWidth);
+  const total = widths.reduce((s, w) => s + w, 0) + gap * (pills.length - 1);
+  const rBase = (a.center.y - a.top.y) + 34;                      // just outside the card's top edge
+  let r = Math.max(rBase, total / (Math.PI * 0.7));
+  r = Math.min(r, Math.max(60, a.center.y - 28));                 // the top pill stays on screen
+  let ang = -total / (2 * r);
+  pills.forEach((b, i) => {
+    const w = widths[i];
+    const mid = ang + (w / 2) / r;
+    const x = a.center.x + r * Math.sin(mid);
+    const y = a.center.y - r * Math.cos(mid);
+    b.style.left = `${Math.max(8 + w / 2, Math.min(innerWidth - 8 - w / 2, x))}px`;
+    b.style.top = `${Math.max(22, y)}px`;
+    b.style.setProperty('--a', `${(mid * 0.45).toFixed(3)}rad`);
+    ang += (w + gap) / r;
+  });
 }
 function renderInspector() {
   const el = $('#inspector');
