@@ -204,7 +204,7 @@ test('activated item ability: pays ⟳, targets, can\'t reuse, "this turn" expir
 });
 
 // resolve every prompt: take the first option / first card / yes
-const drain = (s) => { for (let k = 0; k < 20 && s.pending; k++) { const p = s.pending; ok(applyAction(s, p.seat, { type: 'choose', ...(p.choices ? { option: 0 } : p.confirm ? {} : p.valid.length ? { target: p.valid[0] } : { skip: true }) })); } };
+const drain = (s) => { for (let k = 0; k < 20 && s.pending; k++) { const p = s.pending; ok(applyAction(s, p.seat, { type: 'choose', ...(p.choices ? { option: 0 } : p.confirm ? { confirm: true } : p.valid.length ? { target: p.valid[0] } : { skip: true }) })); } };
 test('Sing Together: every singer "sings" (CR 8.12.3); "with Sing Together" only matches those songs; triggers after the song', () => {
   const town = byName('4*Town - Hottest Band of the Year');
   const buddy = vanilla((d) => d.cost >= 4);
@@ -593,7 +593,7 @@ test('player subjects · moving several to one location · free moves', () => {
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
     for (let k = 0; k < 6 && s.pending; k++) {
       const pd = s.pending;
-      ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : { target: pd.valid.includes(ids.play0[0]) ? ids.play0[0] : pd.valid[0] }) }));
+      ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? { confirm: true } : { target: pd.valid.includes(ids.play0[0]) ? ids.play0[0] : pd.valid[0] }) }));
     }
     assert.equal(s.cards[ids.hand0[0]].atLocation, ids.play0[1]);
     assert.equal(s.cards[ids.play0[0]].atLocation, ids.play0[1]);
@@ -647,7 +647,7 @@ test('deck distributions: inkwell / top / bottom · reveal each · any number ·
     ok(applyAction(s, 0, { type: 'endTurn' }));
     for (let k = 0; k < 6 && s.pending; k++) {
       const pd = s.pending;
-      ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? (pd.op === 'scry' ? { skip: true } : {}) : { target: pd.valid.includes(a) ? a : pd.valid[0] }) }));
+      ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? (pd.op === 'scry' ? { skip: true } : { confirm: true }) : { target: pd.valid.includes(a) ? a : pd.valid[0] }) }));
     }
     assert.equal(s.players[0].inkwell.length, ink + 1);
     assert.equal(s.cards[b].zone, 'inkwell', 'the other card went to the inkwell');
@@ -750,7 +750,7 @@ test('comparisons · same name · once-per-turn free ability', () => {
     s.cards[ids.play0[2]].atLocation = ids.play0[0];
     const idx = house.procs.findIndex((p) => p.kind === 'activated');
     ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }));
-    for (let k = 0; k < 4 && s.pending; k++) ok(applyAction(s, 0, { type: 'choose', ...(s.pending.confirm ? {} : { target: s.pending.valid.includes(ids.play0[2]) ? ids.play0[2] : ids.play0[1] }) }));
+    for (let k = 0; k < 4 && s.pending; k++) ok(applyAction(s, 0, { type: 'choose', ...(s.pending.confirm ? { confirm: true } : { target: s.pending.valid.includes(ids.play0[2]) ? ids.play0[2] : ids.play0[1] }) }));
     assert.equal(s.cards[ids.play0[2]].atLocation, ids.play0[1]);
     assert.equal(s.players[0].lore, 1);
     assert.equal(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }).ok, false, 'once per turn');
@@ -825,7 +825,7 @@ test('free self-play static · songs know who sang them', () => {
     const singer = plain((d) => d.cost >= song.cost);
     const { s, ids } = setup({ hand0: [song, loc], play0: [singer] }); unready(s, ids.play0);
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'sing', singers: [ids.play0[0]] }));
-    for (let k = 0; k < 6 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : { target: pd.valid.includes(ids.hand0[1]) ? ids.hand0[1] : pd.valid[0] }) })); }
+    for (let k = 0; k < 6 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? { confirm: true } : { target: pd.valid.includes(ids.hand0[1]) ? ids.hand0[1] : pd.valid[0] }) })); }
     assert.equal(s.cards[ids.hand0[1]].zone, 'play');
     assert.equal(s.cards[ids.play0[0]].atLocation, ids.hand0[1], 'the singer moved there');
   }
@@ -1388,6 +1388,39 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'choose', option: s.pending.choices.findIndex((c) => /P1/.test(c)) })); drain(s);
     assert.equal(s.players[1].hand.length, opp + 3);
   }
+  { // Beast - Tragic Hero: "At the start of your turn, if this character has no damage, draw a card. Otherwise, he gets +4 {strength}"
+    const beast = byName('Beast - Tragic Hero');
+    for (const dmg of [0, 1]) {
+      const { s, ids } = setup({ play0: [beast] });
+      s.cards[ids.play0[0]].damage = dmg;
+      ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); drain(s);
+      const str = viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[0]).eff.str;
+      assert.equal(str, beast.str + (dmg ? 4 : 0), dmg ? 'damaged → +4' : 'undamaged → draws instead');
+    }
+  }
+  { // Clawhauser - Safety Officer: "You can't play this character unless you played another character this turn." — free plays too
+    const jit = byName('Just in Time'), claw = byName('Clawhauser - Safety Officer');
+    const { s, ids } = setup({ hand0: [jit, claw], ink0: jit.cost });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.ok(!s.pending || !s.pending.valid?.includes(ids.hand0[1]), 'not offered');
+    drain(s);
+    assert.equal(s.cards[ids.hand0[1]].zone, 'hand');
+  }
+  { // a change that resolves after its target left play doesn't stick to the card in the discard
+    const foi = byName('Field of Ice'), pal = vanilla((d) => d.cost <= 2);
+    const { s, ids } = setup({ play0: [foi], hand0: [pal] });
+    E.moveTo(s, ids.hand0[0], 'discard', []);
+    const rt = createRuntime(E);
+    rt.addMods(s, { seat: 0, src: ids.play0[0], label: 'Field of Ice', ctx: { it: [] }, tmp: {} }, foi.procs[0].do[0], ids.hand0[0], null);
+    assert.deepEqual(s.cards[ids.hand0[0]].mods, []);
+  }
+  { // a yes/no prompt needs a yes or a no — a stray target isn't a yes
+    const mike = byName('Mike Wazowski - Well-Rounded Entertainer');
+    const { s, ids } = setup({ hand0: [mike], ink0: 3 });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.ok(s.pending?.confirm);
+    assert.equal(applyAction(s, 0, { type: 'choose', target: 'junk' }).ok, false);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
@@ -1435,7 +1468,7 @@ test('deck order (CR 7.2.3): N / any number / all cards to the top or bottom of 
     const p = s.players[0]; const pi = ids.hand0[1];
     p.hand.splice(p.hand.indexOf(pi), 1); p.deck.unshift(pi); s.cards[pi].zone = 'deck';
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
-    for (let k = 0; k < 8 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : pd.valid?.includes(pi) ? { target: pi } : { skip: true }) })); }
+    for (let k = 0; k < 8 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? { confirm: true } : pd.valid?.includes(pi) ? { target: pi } : { skip: true }) })); }
     assert.equal(s.cards[pi].zone, 'hand');
   }
 });
@@ -1482,7 +1515,7 @@ test('play from another zone (CR 4.3): paid plays, triggers in the discard, play
     const { s, ids } = setup({ play0: [max, song] });
     toDiscard(s, ids.play0[1]); unready(s, [ids.play0[0]]);
     ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
-    for (let k = 0; k < 6 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : pd.valid?.includes(ids.play0[1]) ? { target: ids.play0[1] } : { skip: true }) })); }
+    for (let k = 0; k < 6 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? { confirm: true } : pd.valid?.includes(ids.play0[1]) ? { target: ids.play0[1] } : { skip: true }) })); }
     assert.equal(s.players[0].deck.at(-1), ids.play0[1], 'on the bottom, not in the discard');
   }
 });
@@ -1600,7 +1633,7 @@ test('new triggers (CR 6.2): any character played, opponent discards, an action 
     const { s, ids } = setup({ play0: [byName('Prince John - Greediest of All')], hand0: [byName('You Have Forgotten Me')] });
     const hand = s.players[0].hand.length;
     ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
-    for (let k = 0; k < 8 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, pd.seat, { type: 'choose', ...(pd.confirm ? {} : { target: pd.valid[0] }) })); }
+    for (let k = 0; k < 8 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, pd.seat, { type: 'choose', ...(pd.confirm ? { confirm: true } : { target: pd.valid[0] }) })); }
     assert.equal(s.players[0].hand.length, hand - 1 + 2, 'drew one per discarded card');
   }
   { // Merida - Formidable Archer: "Whenever one of your actions deals damage to an opposing character, deal 2 damage to that character."
@@ -1750,7 +1783,7 @@ test('move all damage (1.9.2), at random, the first time each turn, who was chal
     const { s, ids } = setup({ play0: [vine, fb, fb], play1: [foe], ink0: 10 });
     unready(s, ids.play0);
     ok(applyAction(s, 0, { type: 'move', iid: ids.play0[1], location: ids.play0[0] }));
-    for (let k = 0; k < 4 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : { target: ids.play1[0] }) })); }
+    for (let k = 0; k < 4 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? { confirm: true } : { target: ids.play1[0] }) })); }
     ok(applyAction(s, 0, { type: 'move', iid: ids.play0[2], location: ids.play0[0] }));
     drain(s);
     assert.equal(s.cards[ids.play1[0]].damage, 1, 'only the first time');

@@ -39,7 +39,8 @@ export class PlayFree extends Effect {
     }],
   ];
   static run(rt, s, job, st, ev) {
-    let valid = rt.candidates(s, st.filter, job.seat, job.src, job.ctx.it);   // "with the same cost or less" reads the card before
+    let valid = rt.candidates(s, st.filter, job.seat, job.src, job.ctx.it)   // "with the same cost or less" reads the card before
+      .filter((iid) => !rt.playBlocked(s, job.seat, s.cards[iid]));           // not one its own "can't play unless" forbids
     if (st.fromUnder) valid = valid.filter((iid) => (s.cards[job.src]?.lastUnder || []).includes(iid));
     if (st.each && valid.length) {                                     // all of them, in the order the player likes
       job.ctx.it = valid;

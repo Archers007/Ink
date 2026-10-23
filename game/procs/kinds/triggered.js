@@ -1,6 +1,7 @@
 // "<trigger>, [if <cond>,] effect"   { kind:'triggered', on:[{ev,…}], once?, during?, cond?, do:[step] }
 import { Kind, sayDuring } from './Kind.js';
 import { secondPerson } from '../compiler.js';
+import { sentences } from '../phrases/text.js';
 import { parseTrigger, sayTrigger, TRIGGER } from '../triggers/index.js';
 
 export class Triggered extends Kind {
@@ -26,7 +27,8 @@ export class Triggered extends Kind {
       return { kind: 'triggered', on, ...mods, do: [{ fn: 'eachPlayer', who: 'active', do: c.effects(secondPerson(body), { refIsSelf: true }) }] };
     }
     const m = body.match(/^if (.+?), (.+)$/i);
-    if (m && !/^if you do/i.test(body)) { cond = c.condition(m[1], t); body = m[2]; }
+    // "…, if X, draw a card. Otherwise, …" — the if belongs to the step, so Otherwise can follow it
+    if (m && !/^if you do/i.test(body) && !/^otherwise,/i.test(sentences(body)[1] || '')) { cond = c.condition(m[1], t); body = m[2]; }
     return { kind: 'triggered', on, ...mods, ...(cond ? { cond } : {}), do: c.effects(body, { refIsSelf: true }) };
   }
   static check(p, missing, S) { for (const o of p.on) if (!S.trigger.has(o.ev)) missing.add(`trigger ${o.ev}`); }
