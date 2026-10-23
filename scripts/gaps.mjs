@@ -5,21 +5,20 @@
 //   node scripts/gaps.mjs              ranked families + examples
 //   node scripts/gaps.mjs <family>     every card + miss in one family
 //   node scripts/gaps.mjs --other      the misses no family claims (to grow the list below)
-//   (every form runs scripts/build-cards.mjs first — scans flagged / stuck cards, rebuilds rulings + procs;
-//    --no-scan reuses cache/rulings.db + proc.db, --all rescans every card)
+//   (every form runs scripts/build-cards.mjs first — imports cards.db, compiles procs; --no-build reuses
+//    cache/cards.db + proc.db)
 
 import { DatabaseSync } from 'node:sqlite';
 import { spawnSync } from 'node:child_process';
 
-if (!process.argv.includes('--no-scan')) {
-  console.error('gaps: building cards (scan what needs it → rulings → procs)…');
-  const r = spawnSync('node', ['scripts/build-cards.mjs', ...(process.argv.includes('--all') ? ['--all'] : [])],
-    { cwd: new URL('..', import.meta.url), stdio: ['ignore', 'ignore', 'inherit'] });
-  if (r.status !== 0) { console.error('gaps: scripts/build-cards.mjs failed — fix it or pass --no-scan'); process.exit(1); }
+if (!process.argv.includes('--no-build')) {
+  console.error('gaps: building cards (import → procs)…');
+  const r = spawnSync('node', ['scripts/build-cards.mjs'], { cwd: new URL('..', import.meta.url), stdio: ['ignore', 'ignore', 'inherit'] });
+  if (r.status !== 0) { console.error('gaps: scripts/build-cards.mjs failed — fix it or pass --no-build'); process.exit(1); }
 }
 
-// card → { procs: [{ kind, exec, why, text }] } from cache/rulings.db + cache/proc.db
-const db = new DatabaseSync(new URL('../cache/rulings.db', import.meta.url).pathname, { readOnly: true });
+// card → { procs: [{ kind, exec, why, text }] } from cache/cards.db + cache/proc.db
+const db = new DatabaseSync(new URL('../cache/cards.db', import.meta.url).pathname, { readOnly: true });
 db.exec(`ATTACH DATABASE '${new URL('../cache/proc.db', import.meta.url).pathname}' AS p`);
 const P = {};
 for (const r of db.prepare('SELECT r.card_key, r.text, p.kind, p.exec, p.why FROM rulings r JOIN p.procs p USING (proc_id) ORDER BY r.card_key, r.idx').all()) {

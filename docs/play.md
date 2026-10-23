@@ -6,7 +6,7 @@ Online Disney Lorcana for two players at `/play`. Host a room, send the invite l
 
 | Piece | File | Notes |
 |---|---|---|
-| Card index | `game/cards.js` | Reads the cached dreamborn `cards.db` with `node:sqlite`, normalises keywords/abilities, parses decklists, validates Constructed rules, generates 4 demo decks |
+| Card index | `game/cards.js` | Reads the imported `cache/cards.db` (Ravensburger's data on dreamborn's printings) with `node:sqlite`, normalises keywords/abilities, parses decklists, validates Constructed rules, generates 4 demo decks |
 | Rules engine | `game/engine.js` | Pure, server-authoritative state machine. `applyAction()` is atomic (an illegal action rolls back fully). `viewFor(seat)` hides hands/decks/inkwells |
 | Shared rules | `public/js/play/rules.js` | Legality helpers imported by **both** server and client, so they can't drift |
 | Lobby | `game/lobby.js` | WebSocket rooms at `/ws/play`: create/join/spectate, deck select, ready/start, chat, reconnect tokens, rate limiting, idle cleanup |
@@ -39,6 +39,6 @@ pnpm test:lobby           # needs the server running: ws://localhost:3000/ws/pla
 
 ## Assets
 
-- Card data + images: dreamborn.ink (`cards.db`, `cdn.dreamborn.ink/images/en/cards/<id>`, CORS-enabled). Downscaled to 512px wide in the browser.
+- Card data: Ravensburger's cards.disneylorcana.com merged onto dreamborn.ink's printings (`tools/import-cards.mjs`); images: dreamborn.ink (`cdn.dreamborn.ink/images/en/cards/<id>`, CORS-enabled). Downscaled to 512px wide in the browser.
 - Card back, table felt, counters, lore dial: drawn procedurally in canvas. This is original art, not the official card back.
 - Still missing: sound effects, a proper lore-tracker/ink icon set, card-back art, avatars, and an animated "challenge" effect.

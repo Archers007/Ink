@@ -16,7 +16,7 @@ Pipeline per card (all deterministic, no AI):
   8. diff against the cards.db text; when the DB is missing an icon the card has, patch it in
 
 Usage:
-  uv run tools/card-scan/scan.py                 # whole pool → cache/scan/results.jsonl + summary.json (→ build-rulings)
+  uv run tools/card-scan/scan.py                 # whole pool → cache/scan/results.jsonl + summary.json (a check — the build doesn't read it)
   uv run tools/card-scan/scan.py --name Webby    # just matching cards, print results
   uv run tools/card-scan/scan.py --name Webby --debug   # also writes annotated crops to cache/scan/debug/
 """
@@ -771,8 +771,7 @@ def scan_card(card, debug=False):
 
 def rules_text(r):
     """What the scan says the compiler should get: {source, abilities, verified} or None (the scan can't tell).
-      match → DB text · icon-fix → DB text + scanned icons · db-suspect → scanned text (unverified).
-    tools/build-rulings.mjs settles the rest with lorcanajson as the third source."""
+      match → DB text · icon-fix → DB text + scanned icons · db-suspect → scanned text (unverified)."""
     ok = r["status"] in ("match", "icon-fix")
     if ok:
         return {"source": "db" if r["status"] == "match" else "db+icons",
@@ -826,8 +825,7 @@ def main():
         counts[r["status"]] = counts.get(r["status"], 0) + 1
     fixes = {r["id"]: r["patched"] for r in results if r.get("patched")}
     (OUT_DIR / "icon-fixes.json").write_text(json.dumps(fixes, indent=2, ensure_ascii=False))
-    # each row's "rules" = clean text for the ability compiler (flavour already cut, see rules_text());
-    # tools/build-rulings.mjs combines it with cards.db into cache/rulings.db
+    # each row's "rules" = what the image says the compiler should get (flavour already cut, see rules_text())
     rules = {r["full"]: r["rules"] for r in results if r.get("rules")}
     summary = {"cards": len(results), "printingsCovered": sum(len(r.get("ids", [])) for r in results),
                "altArtSkipped": sum(c.get("skippedAltArt", 0) for c in cards),

@@ -2,8 +2,9 @@
 //
 // Responsibilities:
 //   1. Static-serve the frontend (public/).
-//   2. Cache dreamborn.ink's public cards.db / prices.db (SQLite) and serve them
-//      to the browser, which queries them in-place via sql.js.
+//   2. Cache dreamborn.ink's public cards.db (as cache/dreamborn.db) / prices.db (SQLite), merge Ravensburger's
+//      card data onto it (tools/import-cards.mjs → cache/cards.db) and serve them to the browser, which queries
+//      them in-place via sql.js.
 //   3. Proxy dreamborn's auth flow (Firebase identitytoolkit -> dreamborn session
 //      cookie -> user collection) so the browser doesn't fight CORS / cookies.
 //   4. Keep a small persistent SQLite DB (data/ink.db) that survives restarts and
@@ -12,6 +13,8 @@
 import express from 'express';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
@@ -35,7 +38,7 @@ const DREAMBORN_USER  = 'https://dreamborn.ink/api/user';
 const DREAMBORN_OWNED = (uid) => `https://dreamborn.ink/api/users/${encodeURIComponent(uid)}/owned-cards`;
 const DREAMBORN_DECKS = 'https://dreamborn.ink/api/v2/decks';
 const DREAMBORN_DECK_PAGE = (id) => `https://dreamborn.ink/decks/${encodeURIComponent(id)}`;
-const CARDS_DB_URL    = 'https://dreamborn.ink/cache/en/cards.db';
+const DREAMBORN_DB_URL = 'https://dreamborn.ink/cache/en/cards.db';
 const PRICES_DB_URL   = (currency = 'USD') => `https://dreamborn.ink/cache/prices/${currency}/prices.db`;
 
 const COMMON_HEADERS = {
@@ -125,10 +128,35 @@ async function ensureCached(filename, url, maxAgeMs = 60 * 60 * 1000) {
   return target;
 }
 
+// cache/cards.db = dreamborn's printings + Ravensburger's card data (tools/import-cards.mjs), procs compiled into
+// cache/proc.db. Rebuilt when dreamborn's file is newer, and daily so the official page is re-read.
+const OFFICIAL_MAX_AGE = 24 * 60 * 60 * 1000;
+let building = null;
+async function ensureCards() {
+  const dreamborn = await ensureCached('dreamborn.db', DREAMBORN_DB_URL);
+  const target = path.join(CACHE_DIR, 'cards.db');
+  const mtime = (f) => fs.stat(f).then((x) => x.mtimeMs).catch(() => 0);
+  const built = await mtime(target);
+  const stale = Date.now() - (await mtime(path.join(CACHE_DIR, 'official.html'))) > OFFICIAL_MAX_AGE;
+  if (built && built >= (await mtime(dreamborn)) && !stale) return target;
+  building ||= (async () => {
+    const run = promisify(execFile);
+    console.log(`[cards] importing${stale ? ' (re-reading the official page)' : ''}…`);
+    await run(process.execPath, ['tools/import-cards.mjs', ...(stale ? ['--refresh'] : [])], { cwd: __dirname });
+    await run(process.execPath, ['tools/compile-procs.mjs'], { cwd: __dirname });
+    console.log('[cards] cache/cards.db + proc.db rebuilt');
+  })().finally(() => { building = null; });
+  try { await building; } catch (e) {
+    if (!built) throw e;                                  // nothing to fall back on
+    console.error('[cards] import failed, keeping the last cards.db:', e.message);
+  }
+  return target;
+}
+
 // Warm both DBs on boot so the first user gets a fast page.
 (async () => {
   try {
-    await ensureCached('cards.db', CARDS_DB_URL);
+    await ensureCards();
     await ensureCached('prices-USD.db', PRICES_DB_URL('USD'));
   } catch (e) {
     console.error('[cache] warmup failed:', e.message);
@@ -137,14 +165,13 @@ async function ensureCached(filename, url, maxAgeMs = 60 * 60 * 1000) {
 })();
 
 // ---------- Play mode: card index for the rules engine ----------
-// Built from the same cached cards.db; rebuilt whenever the cache refreshes.
+// Built from the same imported cards.db; rebuilt whenever it or proc.db is rebuilt.
 let cardIndex = null;
 async function refreshCardIndex() {
   try {
-    const file = await ensureCached('cards.db', CARDS_DB_URL);
+    const file = await ensureCards();
     const built = (f) => fs.stat(path.join(CACHE_DIR, f)).then((x) => x.mtimeMs).catch(() => 0);
-    const procsMtime = (await built('rulings.db')) + (await built('proc.db'));
-    const mtime = (await fs.stat(file)).mtimeMs + procsMtime;    // rebuild on a new DB or rebuilt rulings / procs
+    const mtime = (await built('cards.db')) + (await built('proc.db'));    // rebuild on a new import or rebuilt procs
     if (cardIndex && cardIndex.mtime === mtime) return;
     const idx = await loadCardIndex(file);
     idx.mtime = mtime;
@@ -188,7 +215,7 @@ function newSessionId() {
 // ----- DB downloads (browser fetches these and queries via sql.js) -----
 app.get('/api/cards.db', async (req, res) => {
   try {
-    const p = await ensureCached('cards.db', CARDS_DB_URL);
+    const p = await ensureCards();
     res.set('Cache-Control', 'public, max-age=3600');
     res.sendFile(p);
   } catch (e) {

@@ -1,13 +1,13 @@
 // Server-side card index for Play mode.
 //
-// Reads dreamborn's cards.db (the same SQLite file the deck builder downloads)
-// with Node's built-in node:sqlite, and normalises each row into a compact
-// "card def" the rules engine and the 3D client both understand.
+// Reads cache/cards.db (tools/import-cards.mjs: Ravensburger's card data merged onto dreamborn's printings —
+// the same SQLite file the deck builder downloads) with Node's built-in node:sqlite, and normalises each row
+// into a compact "card def" the rules engine and the 3D client both understand.
 //
 // A def looks like:
 //   { id, name, title, full, cost, type, inkable, inks, str, wp, lore, move,
 //     kw: { evasive:true, challenger:2, shift:5, ... },   // the card's OWN keywords
-//     classes: ['storyborn','hero'], abilities: [{ name, text }],
+//     classes: ['storyborn','hero'], abilities: [{ name, text }], flavor,
 //     rarity, set, num, franchise, img }
 
 import { existsSync } from 'node:fs';
@@ -146,6 +146,7 @@ export function rowToDef(r) {
     set: r.setId,
     num: r.number,
     franchise: r.franchise || '',
+    flavor: r.flavor || '',
     img: CARD_IMG(r.id),
   };
 }
@@ -159,18 +160,17 @@ export function isFullyAutomated(def) {
 const RUNS_ITSELF = new Set(['triggered', 'activated', 'static', 'action']);
 export const hasAutomatedText = (def) => (def.procs || []).some((p) => p.exec && RUNS_ITSELF.has(p.kind));
 
-// cache/rulings.db + cache/proc.db (built by tools/build-rulings.mjs → tools/compile-procs.mjs from the verified
-// scan text) — or compile the DB text now
+// cards.db `rulings` + cache/proc.db (built by tools/import-cards.mjs → tools/compile-procs.mjs) — or compile
+// the DB text now
 export function loadProcs(dbFile, DatabaseSync) {
-  const dir = path.dirname(dbFile);
-  const rulingsFile = path.join(dir, 'rulings.db'), procFile = path.join(dir, 'proc.db');
-  if (!existsSync(rulingsFile) || !existsSync(procFile)) return null;
+  const procFile = path.join(path.dirname(dbFile), 'proc.db');
+  if (!existsSync(procFile)) return null;
   let db;
   try {
-    db = new DatabaseSync(rulingsFile, { readOnly: true });
+    db = new DatabaseSync(dbFile, { readOnly: true });
     db.exec(`ATTACH DATABASE '${procFile.replace(/'/g, "''")}' AS p`);
     const cards = {};
-    for (const c of db.prepare('SELECT card_key, source FROM cards').all()) cards[c.card_key] = { source: c.source, abilities: [], procs: [] };
+    for (const c of db.prepare('SELECT card_key, source FROM rules').all()) cards[c.card_key] = { source: c.source, abilities: [], procs: [] };
     for (const r of db.prepare('SELECT r.card_key, r.name, r.text, p.json FROM rulings r LEFT JOIN p.procs p USING (proc_id) ORDER BY r.card_key, r.idx').all()) {
       const e = cards[r.card_key];
       e.abilities.push({ name: r.name || '', text: r.text });
@@ -216,8 +216,9 @@ export async function loadCardIndex(dbFile) {
   const db = new DatabaseSync(dbFile, { readOnly: true });
   let rows;
   try {
+    const flavor = db.prepare('PRAGMA table_info(cards)').all().some((c) => c.name === 'flavor') ? ',flavor' : '';   // imported cards.db
     rows = db.prepare(`SELECT id,name,title,cost,type,number,colorMask,keywords,lore,strength,willpower,movement,
-                              ink,characteristics,abilities,rarity,setId,franchise,formats FROM cards`).all();
+                              ink,characteristics,abilities,rarity,setId,franchise,formats${flavor} FROM cards`).all();
   } finally {
     db.close();
   }
