@@ -181,9 +181,10 @@ export class Runtime {
       // "If it's X, you may … Otherwise, …" — otherwise follows the condition when the step before had one, so declining
       // the may leaves the card where it is (it was still X)
       const otherwiseSkip = st.otherwise && (job.ctx.condMet != null ? job.ctx.condMet : job.ctx.did);
-      if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || otherwiseSkip) { job.ctx.did = false; if (otherwiseSkip) job.ctx.declined = true; skip(); continue; }   // "…, then …" after a skipped Otherwise is skipped too
+      // a step its gate skips cuts off its sentence: "…, then X" after it doesn't happen either (scripts/verify/gates.mjs)
+      if ((st.linked && job.ctx.declined) || (st.ifDid && !job.ctx.did) || otherwiseSkip) { job.ctx.did = false; job.ctx.declined = true; skip(); continue; }
       job.ctx.condMet = st.cond ? this.test(s, st.cond, job.seat, job.src, job) : null;
-      if (st.cond && !job.ctx.condMet) { job.ctx.did = false; job.ctx.declined = false; skip(); continue; }
+      if (st.cond && !job.ctx.condMet) { job.ctx.did = false; job.ctx.declined = true; skip(); continue; }
       // "for each X, <targeted step>" — the step once per X, counted as it starts
       if (st.repeat) {
         const { repeat, ...one } = st;

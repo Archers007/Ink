@@ -13,7 +13,7 @@
     "test:procs": "node scripts/test-procs.mjs",
     "test:chaos": "node scripts/sim-games.mjs 200 1 --chaos",
     "test": "node scripts/test-procs.mjs && node scripts/test-effects.mjs && pnpm -s verify && node scripts/sim-games.mjs 60 && node scripts/sim-games.mjs 100 1 --chaos",
-    "verify": "node scripts/verify/schema.mjs && node scripts/verify/probe.mjs && node scripts/verify/readback.mjs && node scripts/verify/explore.mjs && node scripts/verify/scenarios.mjs",
+    "verify": "node scripts/verify/schema.mjs && node scripts/verify/gates.mjs && node scripts/verify/probe.mjs && node scripts/verify/readback.mjs && node scripts/verify/explore.mjs && node scripts/verify/scenarios.mjs",
     "scan:cards": "uv run tools/card-scan/scan.py --jobs 12",
     "build:cards": "node scripts/build-cards.mjs",
     "build:import": "node tools/import-cards.mjs",
