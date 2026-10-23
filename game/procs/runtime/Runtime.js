@@ -87,7 +87,7 @@ export class Runtime {
         if (!c.mods.some((m) => m.stat === 'grant' && m.proc === k.proc && m.until === u.until)) c.mods.push({ stat: 'grant', proc: k.proc, ...u, src: job.label });
         continue;
       }
-      c.mods.push({ stat: 'kw', kw: k.kw, delta: k.n ?? 1, ...(k.by ? { by: k.by } : {}), ...(k.of ? { of: k.of } : {}), ...u, src: job.label });
+      c.mods.push({ stat: 'kw', kw: k.kw, delta: (k.n ?? 1) * (k.lose ? 1 : mult), ...(k.by ? { by: k.by } : {}), ...(k.of ? { of: k.of } : {}), ...u, src: job.label });
       if (ev) ev.push({ k: 'mod', iid, stat: 'kw', delta: 1 });
     }
   }
@@ -111,7 +111,7 @@ export class Runtime {
   fire(s, ev, info = {}) {
     const fireOn = (c, name, pass, it) => {
       if (!c) return;
-      Triggered.fire(this, s, c, name, pass, it);
+      Triggered.fire(this, s, c, name, pass, it, info);
       if (name === ev && REMIND[ev] && (c.iid === info.iid || ev === 'turnStart' || ev === 'turnEnd')) {
         for (const proc of this.procsOf(s, c)) if (proc.kind === 'unparsed' && REMIND[ev].test(proc.text)) this.log(s, `↳ ${this.labelOf(s, c, proc)}: ${this.E.prettyText(proc.text)}`, { kind: 'effect' });
       }

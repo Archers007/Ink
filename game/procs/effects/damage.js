@@ -7,6 +7,7 @@ export class Damage extends Effect {
   static harmful = true;
   static rules = [
     [/^deal (\d+) damage to (.+)$/i, (m, P) => ({ fn: 'damage', n: +m[1], sel: P.sel(m[2]) })],
+    [/^deal (?:that much|the same amount of) damage to (.+)$/i, (m, P) => ({ fn: 'damage', n: { last: true }, sel: P.sel(m[1]) })],
     [/^deal damage equal to (?:their|his|her|its|this character's) \{strength\} to (.+)$/i, (m, P) => ({ fn: 'damage', n: { stat: 'str', of: P.ctx.refIsSelf ? 'self' : 'ref' }, sel: P.sel(m[1]) })],
     [/^deal damage to (.+?) equal to (?:their|his|her|its|this character's) \{strength\}$/i, (m, P) => ({ fn: 'damage', n: { stat: 'str', of: P.ctx.refIsSelf ? 'self' : 'ref' }, sel: P.sel(m[1]) })],
     [/^deal (\d+) damage to (.+?) for each (.+)$/i, (m, P) => ({ fn: 'damage', n: { n: +m[1], per: P.forEach(m[3]) }, sel: P.sel(m[2]) })],
@@ -17,6 +18,7 @@ export class Damage extends Effect {
     if (!ids) return null;
     const n0 = Amount.value(rt, s, job, st.n);
     job.ctx.it = ids;
+    job.ctx.n = n0;                                                    // "deal that much damage to …" next
     return rt.each(ids, (iid) => {
       const c = s.cards[iid]; const d = rt.E.D(s, c);
       const safe = !st.put && (rt.E.hasKw(c, d, 'noDamage') || rt.E.hasKw(c, d, 'noEffectDamage'));

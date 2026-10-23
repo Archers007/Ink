@@ -60,9 +60,15 @@ export class PutInHand extends Effect {
 // "play it / that character / the revealed card for free [and it enters play exerted]"
 export class PlayIt extends Effect {
   static fn = 'playIt';
-  static rules = [[/^play (it|that character|that item|that song|that action|that card|the revealed card|them) for free(?: and (?:it|they|he|she) enters? play exerted)?$/i, (m) => ({ fn: 'playIt', ...(/exerted$/i.test(m[0]) ? { exerted: true } : {}) })]];
+  static rules = [
+    [/^play (it|that character|that item|that song|that action|that card|the revealed card|them) for free(?: and (?:it|they|he|she) enters? play exerted)?$/i, (m) => ({ fn: 'playIt', ...(/exerted$/i.test(m[0]) ? { exerted: true } : {}) })],
+    // "play this character for free" · "play him for free" · "play it from your discard for free" · "play that song again from your discard for free"
+    [/^play (this character|this card|this item|this location) (?:from your discard )?for free(?: and (?:it|he|she) enters? play exerted)?$/i, (m) => ({ fn: 'playIt', self: true, ...(/exerted$/i.test(m[0]) ? { exerted: true } : {}) })],
+    [/^play (him|her) (?:from your discard )?for free$/i, () => ({ fn: 'playIt' })],                        // the card just acted on ("If that character is named Tod, you may play him for free")
+    [/^play (it|that character|that card|that song|that item) (?:again )?from your discard for free$/i, () => ({ fn: 'playIt' })],
+  ];
   static run(rt, s, job, st, ev) {
-    const ids = (job.ctx.it || []).filter((iid) => s.cards[iid] && s.cards[iid].zone !== 'play' && s.cards[iid].owner === job.seat);
+    const ids = (st.self ? [job.src] : job.ctx.it || []).filter((iid) => s.cards[iid] && s.cards[iid].zone !== 'play' && s.cards[iid].owner === job.seat);
     return rt.each(ids.slice(0, 1), (iid) => { rt.E.playFree(s, job.seat, iid, ev); if (st.exerted && s.cards[iid].zone === 'play') s.cards[iid].exerted = true; });
   }
   static verb() { return 'play it for free'; }
@@ -104,4 +110,32 @@ export class PeekHand extends Effect {
     return true;
   }
   static say() { return "look at chosen opponent's hand"; }
+}
+// "reveal your hand" · "reveal your hand and discard a non-character card of your choice" · "… and discard each
+// non-character card revealed this way" — as the player an eachPlayer runs ("chosen opponent reveals their hand")
+export class RevealHand extends Effect {
+  static fn = 'revealHand';
+  static rules = [
+    [/^reveal your hand$/i, () => ({ fn: 'revealHand' })],
+    [/^reveal your hand and discard (?:a|an) (.+?) of your choice$/i, (m, P) => ({ fn: 'revealHand', discard: { filter: P.filter(m[1]), n: 1 } })],
+    [/^reveal your hand and discard each (.+?) revealed this way$/i, (m, P) => ({ fn: 'revealHand', discard: { filter: P.filter(m[1]), each: true } })],
+  ];
+  static run(rt, s, job, st, ev) {
+    const { E } = rt;
+    const hand = E.P(s, job.seat).hand;
+    if (!job.tmp.shown) {
+      job.tmp.shown = true;
+      for (const iid of hand) ev.push({ k: 'reveal', seat: job.seat, iid, cardId: s.cards[iid].cardId });
+      rt.log(s, `↳ ${E.nameOf(s, job.seat)} revealed their hand: ${hand.map((iid) => E.cardLabel(E.D(s, s.cards[iid]))).join(', ') || 'empty'}.`, { kind: 'effect' });
+    }
+    if (!st.discard) return true;
+    const valid = hand.filter((iid) => rt.matches(s, { ...st.discard.filter, zone: 'hand' }, s.cards[iid], job.seat, job.src));
+    if (!valid.length) return false;
+    const picked = st.discard.each ? valid : rt.pickFrom(s, job, st, 'rh', valid, { n: 1, optional: false, prompt: `discard ${Query.describe(st.discard.filter)}.` });
+    if (!picked) return null;
+    for (const iid of picked) { E.moveTo(s, iid, 'discard', ev); rt.fire(s, 'discarded', { iid, seat: job.seat }); }
+    rt.log(s, `↳ ${E.nameOf(s, job.seat)} discarded ${picked.map((iid) => E.cardLabel(E.D(s, s.cards[iid]))).join(', ')}.`, { kind: 'effect' });
+    return true;
+  }
+  static say(st) { return `reveal your hand${st.discard ? ` and discard ${st.discard.each ? 'each' : 'a'} ${Query.describe(st.discard.filter)}` : ''}`; }
 }

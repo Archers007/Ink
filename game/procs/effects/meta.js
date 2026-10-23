@@ -4,7 +4,7 @@
 //                once per player, as that player (their choices, their "you"), before the rest of this ability
 import { Effect } from './Effect.js';
 import { Selector } from '../phrases/selector.js';
-import { PLAYER_SAY } from '../phrases/player.js';
+import { PLAYER_SAY, playerPasses } from '../phrases/player.js';
 
 export class Choose extends Effect {
   static fn = 'choose';
@@ -31,6 +31,7 @@ export class EachPlayer extends Effect {
   static rules = [];                                  // built by the compiler (it needs to compile the inner clause)
   static run(rt, s, job, st) {
     let seats = rt.who(s, job, st.who);
+    if (st.whoIf) seats = seats.filter((x) => playerPasses(rt, s, x, job.seat, st.whoIf));   // "each opponent with more lore than you"
     // "chosen player / chosen opponent": the controller picks one (no choice to make with only one candidate)
     if (st.who === 'chosenPlayer' || st.who === 'chosenOpp') {
       if (job.answer?.key === 'player') { seats = [seats[job.answer.option]].filter((x) => x != null); job.answer = null; }
@@ -45,7 +46,7 @@ export class EachPlayer extends Effect {
     s.fx.splice(0, 0, ...jobs);                       // ahead of this job → they resolve before its next step
     return true;
   }
-  static say(st, sayStep) { return `${PLAYER_SAY[st.who] || st.who}: ${st.do.map(sayStep).join(', then ')}`; }
+  static say(st, sayStep) { return `${PLAYER_SAY[st.who] || st.who}${st.whoIf ? ` (${Object.keys(st.whoIf).join(', ')})` : ''}: ${st.do.map(sayStep).join(', then ')}`; }
 }
 
 // "Whenever one of your characters quests this turn, gain 1 lore." — a trigger that lives on the player until
