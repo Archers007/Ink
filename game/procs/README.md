@@ -5,8 +5,8 @@ The engine runs the proc whenever the ability fires. Nothing is interpreted mid-
 The same text always compiles to the same proc.
 
 ```
-tools/card-scan  →  cache/scan/results.jsonl  scan verdict per card (DB + card image + lorcanajson + corrections)
-build-rulings    →  cache/rulings.db         cards · printings · rulings (one row per ability: db_text, scan_text, text, proc_id)
+tools/card-scan  →  cache/scan/results.jsonl  scan verdict per card (DB text vs card image)
+build-rulings    →  cache/rulings.db         vote DB / scan / lorcanajson → cards · printings · rulings (db_text, scan_text, lj_text, text, proc_id)
 compile-procs    →  cache/proc.db            procs (proc_id = hash of the proc JSON, kind, exec, why, fns, json); fills rulings.proc_id
 game/cards.js    →  def.procs                linked to every printing at load (falls back to compiling DB text)
 procs/runtime.js →  engine                  fire(event) → queue → pump → s.pending prompts
