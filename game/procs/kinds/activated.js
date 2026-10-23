@@ -38,7 +38,7 @@ export class Activated extends Kind {
   static check(p, missing, S) { for (const k of Object.keys(p.cost)) if (!S.cost.has(k)) missing.add(`cost ${k}`); }
   static explain(p, X) {
     const cost = Object.entries(p.cost).map(([k, v]) => COSTS[k][3](v)).join(' + ');
-    return [X.tag('activated'), `COST ${cost}${sayDuring(p)}`, ...p.do.map((st, i) => `${i + 1}. ${X.step(st)}`)];
+    return [X.tag('activated'), `${p.from === 'hand' ? 'FROM HAND ' : ''}COST ${cost || 'see steps'}${sayDuring(p)}`, ...p.do.map((st, i) => `${i + 1}. ${X.step(st)}`)];
   }
 
   // runtime: pay the costs and queue the effect. false → not runnable (manual)
@@ -47,6 +47,7 @@ export class Activated extends Kind {
     const d = E.D(s, c);
     const proc = rt.procsOf(s, c)[index];
     if (!proc || proc.kind !== 'activated' || !proc.exec) return false;
+    if ((proc.from === 'hand') !== (c.zone === 'hand')) throw E.RE(proc.from === 'hand' ? 'Use this from your hand.' : 'Only cards in play can use this ability.');
     const cost = proc.cost;
     if (proc.once) { c.once ||= {}; if (c.once[index] === s.turn) throw E.RE('This ability can only be used once per turn.'); }
     if (proc.during === 'yours' && s.active !== seat) throw E.RE('Only during your turn.');

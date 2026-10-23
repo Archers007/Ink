@@ -332,6 +332,11 @@ function actionsFor(found) {
         }), !any.size ? 'No ready, dry characters.' : null);
       }
     }
+    // "you may banish chosen item of yours to play this character for free" — the alternate cost
+    (def.procs || []).forEach((p, i) => {
+      if (p.kind !== 'activated' || p.from !== 'hand' || !p.exec) return;
+      P('Play for free (alternate cost)…', () => act({ type: 'useAbility', iid: c.iid, index: i }), p.during === 'yours' && !turn ? 'Only during your turn.' : null, { title: prettyText(def.abilities[i]?.text || '') });
+    });
     const inked = me().inkedThisTurn >= me().inkLimit;
     const inkable = def.inkable || me().rules?.handInkable;              // "All cards in your hand count as having {inkable}"
     P('Put into inkwell  ⬡', () => act({ type: 'ink', iid: c.iid }), !inkable ? 'No inkwell symbol — this card can\'t be inked.' : inked ? 'You already inked this turn.' : null);

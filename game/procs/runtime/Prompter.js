@@ -62,6 +62,8 @@ export class Prompter {
     // "Opponents must choose this character for actions and abilities if able"
     const must = valid.filter((iid) => s.cards[iid].owner !== job.seat && rt.E.hasKw(s.cards[iid], rt.E.D(s, s.cards[iid]), 'mustChoose'));
     if (must.length) valid = must;
+    // a cost of "exert 4 items of yours" can't be paid with fewer (CR 1.5.3: a cost must be paid in full)
+    if (st.cost && sel.exactly && !T.acc.length && valid.length < max) valid = [];
     if (!valid.length) {
       if (!T.acc.length) rt.log(s, `↳ ${job.label}: no valid ${Query.describe(sel.chosen)} — skipped.`, { kind: 'effect' });
       return this.vanish(s, job, T);

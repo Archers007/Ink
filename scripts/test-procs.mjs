@@ -1184,6 +1184,20 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(pl) })); drain(s);
     assert.equal(s.players[0].deck[0], ids.hand0[0]);
   }
+  { // Scrooge McDuck - Resourceful Miser: "You may exert 4 items of yours to play this character for free." (CR 1.5.5 alternate cost)
+    const sc = byName('Scrooge McDuck - Resourceful Miser'), item = all.find((d) => d.type === 'item' && !d.abilities.some((a) => /^When you play/.test(a.text)));
+    const idx = sc.procs.findIndex((p) => p.from === 'hand');
+    for (const n of [3, 4]) {
+      const { s, ids } = setup({ hand0: [sc], play0: Array(n).fill(item), ink0: 0 });
+      ok(applyAction(s, 0, { type: 'useAbility', iid: ids.hand0[0], index: idx }));
+      for (let k = 0; k < 6 && s.pending; k++) ok(applyAction(s, 0, { type: 'choose', target: s.pending.valid[0] }));
+      drain(s);
+      assert.equal(s.cards[ids.hand0[0]].zone, n === 4 ? 'play' : 'hand', `${n} items`);
+      assert.equal(ids.play0.filter((id) => s.cards[id].exerted).length, n === 4 ? 4 : 0);
+    }
+    const { s, ids } = setup({ play0: [sc] });
+    assert.equal(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }).ok, false, 'not from play');
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);

@@ -32,6 +32,8 @@ export class Selector {
     if ((m = p.match(/^any number of (?:your |chosen )?(other )?(.+)$/i))) { const F = filter(/^any number of your/i.test(p) ? `your ${m[2]}` : m[2], at); if (m[1]) F.other = true; return { chosen: F, upTo: 99 }; }
     // "a card from your hand", "an item card from your discard", "a card from chosen player's discard"
     if ((m = p.match(/^(?:a|an) (character|item) here$/i))) return { chosen: filter(`${m[1]} here`, at) };   // "ready a character here"
+    // "exert 4 items of yours" — exactly that many of your own
+    if ((m = p.match(new RegExp(String.raw`^${NUM} (.+?) of yours$`, 'i'))) && N(m[1]) > 1) return { chosen: { ...filter(m[2], at), owner: 'you' }, upTo: N(m[1]), exactly: true };
     if ((m = p.match(/^(?:a|an|another|one|any) (.+? )?(?:card )?from (your|chosen player's|any|chosen opponent's|an opponent's) (hand|discard)$/i))) {
       const F = m[1] ? filter(`${m[1].trim()}${/\bcard\b/i.test(m[1]) ? '' : ' card'}`, at) : {};
       F.zone = m[3].toLowerCase();
