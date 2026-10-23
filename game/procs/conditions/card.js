@@ -42,6 +42,7 @@ export class RefIs extends Condition {
     [/^(?:a|an) (.+?) (?:was|is) chosen$/i, (m, a) => ({ refIs: filter(m[1], a) })],
     [/^(?:it is|it's|that card is|that character is|the chosen character is|they're|he's|she's|they are|he is|she is|the moved character is) (?:a|an) (.+?)$/i, (m, a) => ({ refIs: filter(m[1], a) })],
     // "its card type is: • character" (a chooseOne-style list collapsed to one type)
+    [/^(?:it is|it's|that card is) the named card$/i, () => ({ refIs: { with: [{ namedCard: true }] } })],   // CR 5.2.6 — after "Name a card"
     [/^its card type is:? •? ?(character|item|location|action|song)$/i, (m) => ({ refIs: { types: [m[1].toLowerCase()] } })],
     // "you discarded a Pirate character card this way" · "an Illusion character card is discarded this way"
     [new RegExp(String.raw`^you (?:${PAST_THIS_WAY}) (.+?)(?: this way)?$`, 'i'), (m, a) => RefIs.counted(m[1], a)],

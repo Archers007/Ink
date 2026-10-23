@@ -519,7 +519,7 @@ function plate(p, isMe) {
     <div class="counts">
       <span title="Ink ready / total"><i class="hx"></i> <b>${p.inkReady}</b>/${p.inkTotal}${p.inkDrops ? ` <em title="Ink drops — each pays 1 ink">+${p.inkDrops}💧</em>` : ''}${isMe && active ? (p.inkedThisTurn >= p.inkLimit ? ' <em class="ok">✓ inked</em>' : ' <em>ink 1 card</em>') : ''}</span>
       <span title="Cards in hand">✋ <b>${p.handCount}</b></span>
-      <span title="Cards left in deck" class="${p.deckCount <= 5 ? 'warn' : ''}">🂠 <b>${p.deckCount}</b></span>
+      <span title="Cards left in deck" class="${p.deckCount <= 5 ? 'warn' : ''}">🂠 <b>${p.deckCount}</b>${p.deckTop ? ` <em title="Top card of the deck is face up">↑ ${esc(D(p.deckTop.cardId)?.full || D(p.deckTop.cardId)?.name || '?')}</em>` : ''}</span>
       <span title="Discard pile" class="click" data-discard="${p.seat}">🗑 <b>${p.discard.length}</b></span>
     </div>
     <div class="inkbar">${inks}</div>`;
@@ -576,6 +576,12 @@ function renderBanner() {
     return;
   }
   const pd = v?.pending;
+  if (pd?.type === 'choose' && pd.seat === you() && pd.choices && pd.choices.length > 8) {   // "Name a card": a long list
+    el.innerHTML = `<span>${esc(pd.prompt)}</span><select id="pOpt">${pd.choices.map((c, i) => `<option value="${i}">${esc(c)}</option>`).join('')}</select><button id="pOk">OK</button>`;
+    el.hidden = false;
+    $('#pOk').onclick = () => act({ type: 'choose', option: +$('#pOpt').value });
+    return;
+  }
   if (pd?.type === 'choose' && pd.seat === you() && pd.choices) {
     el.innerHTML = `<span>${esc(pd.prompt)}</span>${pd.choices.map((c, i) => `<button data-opt="${i}">${esc(prettyText(c))}</button>`).join('')}`;
     el.hidden = false;

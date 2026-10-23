@@ -2,6 +2,19 @@
 // A deck is a Map<cardId, qty>. Storage = localStorage 'ink.deck.<name>'.
 
 import { DB, findByNameTitle, INK_ORDER } from './db.js';
+import { DECK, parseDeckRule } from '/rulebook/deck.js';
+
+// CR 1.10.1.1: 4 copies of a full name — unless the card says otherwise (1.10.1.3, game/rulebook/deck.js)
+function abilityTexts(card) {
+  let a = card.abilities;
+  try { a = typeof a === 'string' ? JSON.parse(a) : a; } catch { /* plain text */ }
+  const list = Array.isArray(a) ? a.map((x) => (typeof x === 'string' ? x : x?.text || x?.effect || '')) : [String(a || '')];
+  return list.flatMap((t) => String(t).split(/\n|(?<=\.)\s+/));
+}
+export function maxCopies(card) {
+  for (const t of abilityTexts(card)) { const r = parseDeckRule(t); if (r?.copies != null) return r.copies; }
+  return DECK.maxCopies.base;
+}
 
 export const Deck = {
   name: 'Untitled Deck',
@@ -14,7 +27,7 @@ export function clear() {
 export function setQty(cardId, qty) {
   qty = Math.max(0, Math.floor(qty));
   if (qty <= 0) Deck.cards.delete(cardId);
-  else Deck.cards.set(cardId, Math.min(qty, 4));
+  else Deck.cards.set(cardId, Math.min(qty, maxCopies(DB.allCards.find((c) => c.id === cardId) || {})));
 }
 export function bump(cardId, delta) {
   const q = Deck.cards.get(cardId) || 0;
@@ -72,7 +85,8 @@ export function legality() {
   if (s.inks.length > 2) errs.push(`max 2 inks (got ${s.inks.length})`);
   if (s.inkable < 30) errs.push(`need ≥30 inkable (got ${s.inkable})`);
   for (const { card, qty } of entries()) {
-    if (qty > 4) errs.push(`>4 copies of ${card.name} - ${card.title || ''}`);
+    const max = maxCopies(card);
+    if (qty > max) errs.push(`>${max} copies of ${card.name} - ${card.title || ''}`);
   }
   return errs;
 }

@@ -1,7 +1,7 @@
 // Classifier registry. Add a classifier: one file with a Classifier subclass, then list it here.
 import { Keyword } from './keyword.js';
 import { Classification } from './classification.js';
-import { Named } from './named.js';
+import { Named, NamedCard } from './named.js';
 import { Cost } from './cost.js';
 import { Strength, Willpower, LoreValue } from './stats.js';
 import { Damaged, Undamaged, DamageCount } from './damage.js';
@@ -15,7 +15,7 @@ import { Compare, SameName } from './compare.js';
 export { KEYWORDS, RESTRICTIONS, KEYWORD_ALT, keywordId, kwLabel } from './keyword.js';
 
 export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, DamageCount, Damaged, Undamaged,
-  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn];
+  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn, NamedCard];
 export { Compare };
 const BY_ID = new Map(CLASSIFIERS.map((C) => [C.id, C]));
 

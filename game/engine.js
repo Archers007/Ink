@@ -1087,6 +1087,7 @@ export function viewFor(s, seat) {
       name: p.name,
       lore: p.lore,
       deckCount: p.deck.length,
+      deckTop: p.deck.length && R.rule(s, 'topFaceUp', p.seat) ? { iid: p.deck[0], cardId: s.cards[p.deck[0]].cardId } : null,   // "plays with the top card of their deck face up"
       handCount: p.hand.length,
       hand: i === seat ? p.hand.map((iid) => ({ iid, cardId: s.cards[iid].cardId })) : null,
       inkTotal: p.inkwell.length,
@@ -1127,6 +1128,7 @@ export function defsInView(s, view) {
     for (const c of p.hand || []) ids.add(c.cardId);
     for (const c of p.discard) ids.add(c.cardId);
     for (const c of p.peek || []) ids.add(c.cardId);
+    if (p.deckTop) ids.add(p.deckTop.cardId);
     for (const c of p.play) { ids.add(c.cardId); for (const u of c.under) if (u.cardId) ids.add(u.cardId); }
   }
   return ids;
