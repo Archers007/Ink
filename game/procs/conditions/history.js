@@ -15,7 +15,7 @@ export class History extends Condition {
     [/^none of your characters challenged this turn$/i, () => H('challenges', { mine: true, n: { lte: 0 } })],
     [/^(?:one of )?your characters? challenged this turn$/i, () => H('challenges', { mine: true })],
     [/^an? (opposing )?character was banished( in a challenge)? this turn$/i, (m) => H('banished', { ...(m[1] ? { opp: true } : {}), ...(m[2] ? { inChallenge: true } : {}), of: { types: ['character'] } })],
-    [/^one of your characters was (?:damaged|dealt damage) this turn$/i, () => H('damaged', { mine: true })],
+    [/^one of your characters (?:was (?:damaged|dealt damage)|took damage) this turn$/i, () => H('damaged', { mine: true })],
     [/^you (?:removed damage from a character|removed 1 or more damage from one of your characters) this turn$/i, () => H('healed', { mine: true })],
     [/^you(?:'ve)? discarded a card this turn$/i, () => H('toDiscard', { mine: true })],
     [/^you didn't put any cards into your inkwell this turn$/i, () => H('inked', { mine: true, n: { lte: 0 } })],
