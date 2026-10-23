@@ -1029,6 +1029,26 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     assert.equal(s.players[0].inkwell.length, ink + 2);
     assert.equal(s.players[0].inkDrops || 0, 1);
   }
+  { // Kakamora - Pirate Chief: "If you discarded a Pirate character card, deal 3 damage instead" checks the discard, not the target
+    const k = byName('Kakamora - Pirate Chief');
+    const pir = all.find((d) => d.type === 'character' && (d.classes || []).includes('pirate'));
+    const foe = vanilla((d) => d.wp >= 5 && !(d.classes || []).includes('pirate'));
+    const { s, ids } = setup({ play0: [k], hand0: [pir], play1: [foe] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', confirm: true }));                     // may draw
+    ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[0] }));              // discard the Pirate
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].damage, 3);
+  }
+  { // Time to Go!: "If that character had a card under them, draw 3 cards instead" — checked after the banish
+    const ttg = byName('Time to Go!'), pal = vanilla(() => true);
+    const { s, ids } = setup({ hand0: [ttg], play0: [pal], ink0: ttg.cost });
+    s.cards[ids.play0[0]].under = [s.players[0].deck.pop()];
+    const hand = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); drain(s);
+    assert.equal(s.players[0].hand.length, hand - 1 + 3);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);

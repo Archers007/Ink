@@ -50,7 +50,7 @@ export class Discard extends Effect {
       rt.E.moveTo(s, c.iid, 'discard', ev); T.any = true;
       (T.got ||= []).push(c.iid);
       rt.fire(s, 'discarded', { iid: c.iid, seat: c.owner, n: 1 });
-      job.ctx.it = T.got;                                            // "the discarded character" / "… discarded this way"
+      job.ctx.it = job.ctx.discarded = T.got;                                            // "the discarded character" / "… discarded this way"
       rt.log(s, `↳ ${rt.E.nameOf(s, c.owner)} discarded ${rt.E.cardLabel(rt.E.D(s, c))}.`, { seat: c.owner, kind: 'effect' });
       T.queue.shift();
     }

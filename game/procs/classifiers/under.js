@@ -3,7 +3,8 @@ import { Classifier } from './Classifier.js';
 
 export class Under extends Classifier {
   static id = 'under';
-  static test(x, card) { return (card.under || []).length > 0; }
+  // a card that left play is checked as it last was in play ("if he had a card under him" after a banish)
+  static test(x, card) { return ((card.zone === 'play' ? card.under : card.under?.length ? card.under : card.lastUnder) || []).length > 0; }
   static say() { return 'with a card under them'; }
   static is() { return 'has a card under it'; }
   static parseWith(s) {
