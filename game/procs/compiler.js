@@ -19,6 +19,7 @@ import { parseCondition, conditionOf } from './conditions/index.js';
 import { EFFECTS, EFFECT, Look } from './effects/index.js';
 import { KINDS, KeywordLine, KEYWORD_START, Action, Activated, Triggered, Static } from './kinds/index.js';
 import { SUPPORT } from './support.js';
+import { PLAYER_RX, playerOf } from './phrases/player.js';
 
 export { Miss };
 const SONG_REMINDER = /^\(?(?:a|an) character with cost \d+ or more can \{exert\} to sing this song for free\.?\)?$/i;
@@ -76,11 +77,13 @@ export class Compiler {
       const st = f(mm, P);
       if (st) return may ? { ...st, may: true } : st;
     }
-    // "each player draws 2 cards and gains 2 lore" → the clause in the 2nd person, run once per player as them
+    // "each player draws 2 cards and gains 2 lore" · "chosen opponent reveals their hand" · "the challenging player
+    // chooses and discards a card" · "have each opponent choose and discard a card" → the clause in the 2nd
+    // person, run as that player (phrases/player.js)
     let ep;
-    if ((ep = s.match(/^(each player|each opponent|each opposing player)(?: (may))? (.+)$/i))) {
-      const steps = this.effects(`${ep[2] ? 'you may ' : ''}${secondPerson(ep[3])}`, ctx);
-      return { fn: 'eachPlayer', who: /^each player$/i.test(ep[1]) ? 'each' : 'opp', do: steps, ...(may ? { may: true } : {}) };
+    if ((ep = s.match(PLAYER_RX))) {
+      const steps = this.effects(`${ep[2] ? 'you may ' : ''}${/^have /i.test(s) ? ep[3] : secondPerson(ep[3])}`, ctx);
+      return { fn: 'eachPlayer', who: playerOf(ep[1]), do: steps, ...(may ? { may: true } : {}) };
     }
     // "<effect> unless <condition>"
     if ((ep = s.match(/^(.+?) unless (.+)$/i))) {

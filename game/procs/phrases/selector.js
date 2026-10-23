@@ -11,6 +11,7 @@ export class Selector {
     if (/^(?:challenging character|challenger|character who challenged)$/i.test(p)) return { role: 'challenger' };
     if (/^(?:challenged character|character who was challenged|character (?:he|she|they) challenged)$/i.test(p)) return { role: 'challenged' };
     if (/^(he|she|him|her)$/i.test(p)) return { ref: true, pron: true };
+    if (/^other (?:character|card|one)$/i.test(p)) return { ref: true, nth: -1 };    // "the other character" — the last one acted on
     if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|discarded character|those characters|each of them|both of them)$/i.test(p)) return { ref: true };
     let m;
     if ((m = p.match(new RegExp(String.raw`^up to ${NUM} (?:other )?chosen (.+)$`, 'i')))) {
@@ -38,7 +39,7 @@ export class Selector {
     if ((m = p.match(/^(?:each|all|every) (?:of )?(your |opposing )?(other )?(.+)$/i))) return { all: filter((m[1] || '') + (m[2] || '') + m[3], at) };
     if ((m = p.match(/^(your|opposing) (.+)$/i))) return { all: filter(p, at) };
     if ((m = p.match(/^(characters|items|locations) (here|in play)$/i))) return { all: filter(p, at) };
-    if ((m = p.match(/^(other )?((?:[A-Z][\w'.-]* )*(?:characters|items|locations))(?: (.+))?$/))) {
+    if ((m = p.match(/^(other )?((?:[\w'.-]+ )*?(?:characters|items|locations))(?: (.+))?$/))) {   // "Villain characters" — filter() decides
       try { const F = filter(p.replace(/^other /i, ''), at); if (m[1]) F.other = true; return { all: F }; } catch { /* fall through */ }
     }
     miss(`selector: "${p}"`, at);

@@ -29,6 +29,7 @@ export class Prompter {
       // he/she/him/her before anything was picked: this card (always on self-subject triggers; otherwise when the event gave no card)
       if (sel.pron && !job.ctx.picked && (job.ctx.selfSubj || !(job.ctx.it || []).some((id) => s.cards[id]))) return s.cards[job.src] ? [job.src] : [];
       const it = (job.ctx.it || []).filter((id) => s.cards[id]);
+      if (sel.nth != null) return it.length > 1 ? [it.at(sel.nth)] : [];
       return it.length || job.i > 0 ? it : s.cards[job.src] ? [job.src] : [];
     }
     if (sel.all) return rt.candidates(s, sel.all, job.seat, job.src).filter(o.keep || (() => true));

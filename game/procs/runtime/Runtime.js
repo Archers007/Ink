@@ -61,6 +61,9 @@ export class Runtime {
   each(ids, f) { ids.forEach(f); return ids.length > 0; }
   who(s, job, w) {
     if (w === 'refOwner') return [s.cards[(job.ctx.it || [])[0]]?.owner].filter((x) => x != null);
+    if (w === 'challenger') { const cx = job.ctx.cx || s.challenge; return [s.cards[cx?.a]?.owner].filter((x) => x != null); }
+    if (w === 'chosenPlayer') return s.players.filter((p) => !p.out).map((p) => p.seat);
+    if (w === 'chosenOpp') return this.E.opponentsOf(s, job.seat);
     return w === 'each' ? s.players.filter((p) => !p.out).map((p) => p.seat) : w === 'opp' ? this.E.opponentsOf(s, job.seat) : [job.seat];
   }
   duringOk(s, proc, owner) { return !proc.during || (proc.during === 'yours' ? s.active === owner : s.active !== owner); }
@@ -204,6 +207,7 @@ export class Runtime {
   // ------------------------------------------------------------ per-kind hooks
   statics(s) { Static.apply(this, s); }
   playBlocked(s, seat, c) { return Static.playBlocked(this, s, seat, c); }
+  moveDelta(s, seat, c, loc) { return Static.moveDelta(this, s, seat, c, loc); }
   costDelta(s, seat, c, consume = false) { return Static.costDelta(this, s, seat, c, consume); }
   onEnter(s, c) { Static.onEnter(this, s, c); }
   activate(s, seat, c, index, ev) { return Activated.activate(this, s, seat, c, index, ev); }

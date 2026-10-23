@@ -567,6 +567,39 @@ test('generic act trigger · history · exists · challenge roles', () => {
     assert.equal(s.cards[ids.play0[0]].zone, 'discard', 'the challenger is banished too');
   }
 });
+test('player subjects · moving several to one location · free moves', () => {
+  const vanillaChar = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // "Whenever this character is challenged, the challenging player chooses and discards a card."
+    const flynn = byName('Flynn Rider - Charming Rogue');
+    const att = vanillaChar((d) => d.wp > flynn.str && d.str >= 1);
+    const { s, ids } = setup({ play0: [att], play1: [flynn], hand0: [FILLER, FILLER] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true;
+    const h = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    assert.equal(s.players[0].hand.length, h - 1, 'the challenger discarded');
+  }
+  { // "move her and one of your other characters to the same location for free. If you do, the other character gets +1 {lore}"
+    const rox = byName('Roxanne - Concert Lover');
+    const buddy = vanillaChar(() => true);
+    const loc = all.find((d) => d.type === 'location' && !d.abilities.length);
+    const { s, ids } = setup({ hand0: [rox], play0: [buddy, loc] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (let k = 0; k < 6 && s.pending; k++) {
+      const pd = s.pending;
+      ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : { target: pd.valid.includes(ids.play0[0]) ? ids.play0[0] : pd.valid[0] }) }));
+    }
+    assert.equal(s.cards[ids.hand0[0]].atLocation, ids.play0[1]);
+    assert.equal(s.cards[ids.play0[0]].atLocation, ids.play0[1]);
+    assert.ok(s.cards[ids.play0[0]].mods.some((m) => m.stat === 'lore' && m.delta === 1), 'the other character got +1 lore');
+  }
+  { // "Your Pirate characters may move here for free."
+    const ship = byName("Jolly Roger - Hook's Ship");
+    const pirate = all.find((d) => d.type === 'character' && (d.classes || []).includes('pirate') && !d.abilities.length);
+    const { s, ids } = setup({ play0: [ship, pirate], ink0: 0 }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'move', iid: ids.play0[1], location: ids.play0[0] }));
+    assert.equal(s.cards[ids.play0[1]].atLocation, ids.play0[0]);
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

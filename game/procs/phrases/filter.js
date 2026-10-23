@@ -49,10 +49,15 @@ function filter1(phrase, at) {
     else break;
     s = s.slice(m[0].length);
   }
-  const cm = s.match(CLASSES);
+  // a sentence's first word gets lower-cased ("villain characters gain …"); any other word left before the type is a
+  // classification too ("Villain characters", "King and Queen characters")
+  const cm = s.match(CLASSES) || s.match(new RegExp(String.raw`^(?!${TYPE}\b)([a-z][\w'.-]*(?:(?:,? or |,? and )[A-Z][\w'.-]*)*) (?=${TYPE}\b)`));
   if (cm) { W.push({ class: cm[1].split(/,? or |,? and |, /).map((x) => x.trim().toLowerCase()) }); s = s.slice(cm[0].length); }
+  // "chosen Villain of yours" — a classification with no type is a character
+  const lone = !cm && s.match(/^([A-Z][\w'.-]*)(?=(?: of yours| of theirs)?$)/);
+  if (lone) { W.push({ class: [lone[1].toLowerCase()] }); s = `character${s.slice(lone[0].length)}`; }
   const tm = s.match(TYPES);
-  if (!tm) miss('filter: no card type', at);
+  if (!tm) miss(`filter: no card type in "${phrase}"`, at);
   const real = [...tm[0].toLowerCase().matchAll(/(character|item|location|action|song|card)/g)].map((x) => x[1]).filter((t) => t !== 'card');
   if (real.length) F.types = [...new Set(real)];
   s = s.slice(tm[0].length).trim();
