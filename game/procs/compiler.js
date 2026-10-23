@@ -399,6 +399,8 @@ export class Compiler {
     // "Once during your turn, you may move him to another location for free. If you do, gain 1 lore." — something you
     // choose to do on your turn, once: a free activated ability
     if (once && /^you may /i.test(t)) return { kind: 'activated', cost: {}, once: true, during: 'yours', do: this.effects(t) };
+    // "Once during your turn, if this character is at a location, you may move him …" — usable only while …
+    if (once && (m = t.match(/^if (.+?), (you may .+)$/i))) return { kind: 'activated', cost: {}, once: true, during: 'yours', cond: this.condition(m[1], t), do: this.effects(m[2]) };
     return Static.parse(t, this, mods);
   }
 

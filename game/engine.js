@@ -627,7 +627,7 @@ H.play = (s, seat, a, ev) => {
     const onto = ts.map((t) => cardLabel(D(s, t))).join(' and ');
     const cost = opt.spec.cost;
     if (cost.ink != null) {
-      const n = Math.max(0, cost.ink + adjust);
+      const n = Math.max(0, cost.ink + R.costDelta(s, seat, c, true, 'shift', ts.map((t) => t.iid)) + adjust);   // "you pay 1 {ink} less to shift …"
       c.paidDrops = payInk(s, seat, n);
       how = `by ${opt.label} onto ${onto} for ${n} ink`;
       paid = n;
@@ -817,6 +817,7 @@ H.move = (s, seat, a, ev) => {
   const md = R.moveDelta(s, seat, C, L);                            // "may move here for free" · "pay 1 {ink} less to move"
   const cost = md.free ? 0 : Math.max(0, (Ld.move ?? 0) + md.delta + clampInt(a.costAdjust, -20, 20));
   payInk(s, seat, cost);
+  for (const u of md.used || []) s.cards[u].onceMove = s.turn;       // "once during your turn, you may pay 1 {ink} less to move …"
   log(s, `${nameOf(s, seat)} moved ${cardLabel(Cd)} to ${cardLabel(Ld)} for ${cost} ink.`, { seat });
   moveChar(s, C.iid, L.iid, ev);
 };
