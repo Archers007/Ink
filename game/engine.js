@@ -549,9 +549,10 @@ function playFree(s, seat, iid, ev, opt = {}) {
   const c = s.cards[iid];
   const d = D(s, c);
   let how = 'for free';
+  // "You can't play this character unless …" holds however it's played — free plays too (CR 1.5.5.3: only the cost changes)
+  const banned = R.playBlocked(s, seat, c);
+  if (banned) { log(s, `↳ ${banned}`, { seat, kind: 'effect' }); return false; }
   if (opt.pay) {
-    const banned = R.playBlocked(s, seat, c);
-    if (banned) { log(s, `↳ ${banned}`, { seat, kind: 'effect' }); return false; }
     const cost = Math.max(0, d.cost + R.costDelta(s, seat, c, false));
     if (readyInk(s, seat) < cost) { log(s, `↳ ${nameOf(s, seat)} can't pay ${cost} ink to play ${cardLabel(d)}.`, { seat, kind: 'effect' }); return false; }
     R.costDelta(s, seat, c, true);

@@ -55,7 +55,7 @@ export class EachPlayer extends Effect {
         return rt.ask(s, job, { op: 'eachPlayer', choices: seats.map((x) => rt.E.nameOf(s, x)), prompt: `choose a player.` });
       }
     }
-    // turn order from the active player (CR 1.6.2)
+    // turn order from the active player (CR 6.7.6)
     const order = [...seats].sort((a, b) => ((a - s.active + s.players.length) % s.players.length) - ((b - s.active + s.players.length) % s.players.length));
     // tally: who declined a "may" ("For each opponent who doesn't, …" · "If they don't, …")
     const tally = (job.ctx.tally = { didnt: [] });

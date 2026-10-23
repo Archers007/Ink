@@ -91,6 +91,7 @@ export class Runtime {
 
   addMods(s, job, st, iid, ev, mult = 1) {
     const c = s.cards[iid];
+    if (!c || c.zone !== 'play') return;                               // it left play before this resolved — nothing to change
     const u = st.dur ? { until: DURATIONS[st.dur].until, by: st.dur === 'theirNext' ? c.owner : job.seat, setTurn: s.turn, ...(st.dur === 'src' ? { srcIid: job.src } : {}) } : { until: 'static' };
     for (const m of st.mods || []) {
       // nOf: the size comes from a stat, read once as the effect resolves ("equal to this character's {lore}")
@@ -235,6 +236,7 @@ export class Runtime {
       if (!(k >= 0 && k < pend.choices.length)) throw RE('Pick one of the options.');
       job.answer = { key: job.waitKey, option: k };
     } else if (pend.confirm) {
+      if (!a.skip && a.confirm !== true) throw RE('Answer yes or no.');   // a stray target is not a yes
       job.answer = { key: job.waitKey, skip: !!a.skip };
     } else if (a.skip) {
       if (!pend.optional) throw RE("This isn't optional — pick one of the highlighted cards.");
