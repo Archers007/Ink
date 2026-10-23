@@ -42,8 +42,8 @@ export class PlayFree extends Effect {
     const picked = rt.pickFrom(s, job, st, 'playFree', valid, { n: 1, optional: !!st.may, prompt: `play ${Query.describe(st.filter)} for free.` });
     if (!picked) return null;
     job.ctx.it = picked;
-    return rt.each(picked, (iid) => { rt.E.playFree(s, job.seat, iid, ev); if (st.exerted && s.cards[iid].zone === 'play') s.cards[iid].exerted = true; });
+    return rt.each(picked, (iid) => rt.E.playFree(s, job.seat, iid, ev, { exerted: !!st.exerted, after: st.after }));
   }
   static verb(rt, s, job, st) { return `play ${Query.describe(st.filter)} for free`; }
-  static say(st) { return `play ${Query.describe(st.filter)} for free`; }
+  static say(st) { return `play ${Query.describe(st.filter)} for free${st.after === 'deckBottom' ? ', then put it on the bottom of your deck' : ''}`; }
 }

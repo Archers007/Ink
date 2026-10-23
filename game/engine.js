@@ -307,6 +307,7 @@ const STEPS = {
     p.extraInk = 0;
     p.playedThisTurn = [];
     p.costMods = [];
+    p.playFrom = []; p.nameBans = [];                               // "this turn, you may play characters from …"
     p.turnsTaken = (p.turnsTaken || 0) + 1;
     s.turnLog = [];
     ev.push({ k: 'turn', seat, turn: s.turn });
@@ -522,23 +523,38 @@ H.choose = (s, seat, a, ev) => {
   R.answer(s, seat, a);
 };
 
-// Put a card from hand into play (or cast it) without paying — "play X for free".
-function playFree(s, seat, iid, ev) {
+// Play a card from wherever it is (hand, discard, a revealed card, under a card) outside the turn action — "play X
+// for free" or, with pay, paying its cost (CR 4.3: "You pay all costs"). after: 'deckBottom' — an action that goes
+// on the bottom of the deck instead of into the discard. → whether it was played
+function playFree(s, seat, iid, ev, opt = {}) {
   const c = s.cards[iid];
   const d = D(s, c);
+  let how = 'for free';
+  if (opt.pay) {
+    const banned = R.playBlocked(s, seat, c);
+    if (banned) { log(s, `↳ ${banned}`, { seat, kind: 'effect' }); return false; }
+    const cost = Math.max(0, d.cost + R.costDelta(s, seat, c, false));
+    if (readyInk(s, seat) < cost) { log(s, `↳ ${nameOf(s, seat)} can't pay ${cost} ink to play ${cardLabel(d)}.`, { seat, kind: 'effect' }); return false; }
+    R.costDelta(s, seat, c, true);
+    c.paidDrops = payInk(s, seat, cost);
+    how = `for ${cost} ink`;
+  }
   P(s, seat).playedThisTurn.push(iid);
+  const mv = c.zone === 'under' ? { fromUnder: true } : {};
   if (d.type === 'action' || d.type === 'song') {
-    moveTo(s, iid, 'discard', ev);
+    moveTo(s, iid, opt.after === 'deckBottom' ? 'deckBottom' : 'discard', ev, mv);   // "then put it on the bottom of your deck instead of into your discard"
     ev.push({ k: 'reveal', seat, iid, cardId: d.id });
-    log(s, `${nameOf(s, seat)} played ${cardLabel(d)} for free.`, { seat, kind: 'play' });
+    log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${opt.after === 'deckBottom' ? ', then put it on the bottom of their deck' : ''}.`, { seat, kind: 'play' });
     if (!R.castAction(s, seat, c)) manualActionText(s, d);
     R.fire(s, 'play', { iid });
-    return;
+    return true;
   }
-  moveTo(s, iid, 'play', ev);
+  moveTo(s, iid, 'play', ev, mv);
   R.onEnter(s, c);
-  log(s, `${nameOf(s, seat)} played ${cardLabel(d)} for free.`, { seat, kind: 'play' });
+  if (opt.exerted) c.exerted = true;
+  log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
   R.fire(s, 'play', { iid });
+  return true;
 }
 function manualActionText(s, d) {
   for (const ab of d.abilities) {
@@ -549,7 +565,11 @@ function manualActionText(s, d) {
 
 H.play = (s, seat, a, ev) => {
   needMain(s, seat);
-  const c = ownCard(s, seat, a.iid, 'hand');
+  // from the hand — or from the discard / under a card when an ability allows it (CR 4.3)
+  const c0 = s.cards[a.iid];
+  const perm = c0 && c0.zone !== 'hand' ? R.playFromPerm(s, seat, c0) : null;
+  const from = perm ? c0.zone : 'hand';
+  const c = ownCard(s, seat, a.iid, from);
   const d = D(s, c);
   const p = P(s, seat);
   const mode = a.mode || 'ink';
@@ -634,7 +654,7 @@ H.play = (s, seat, a, ev) => {
   }
 
   if (d.type === 'action' || d.type === 'song') {
-    moveTo(s, c.iid, 'discard', ev);
+    moveTo(s, c.iid, 'discard', ev, from === 'under' ? { fromUnder: true } : {});
     ev.push({ k: 'reveal', seat, iid: c.iid, cardId: d.id });
     log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
     p.playedThisTurn.push(c.iid);
@@ -646,6 +666,7 @@ H.play = (s, seat, a, ev) => {
   }
 
   detach(s, c);
+  c.parent = null;
   c.zone = 'play';
   c.enteredTurn = s.turn;
   c.mods = [];
@@ -674,8 +695,10 @@ H.play = (s, seat, a, ev) => {
     c.drying = d.type === 'character';
     p.play.push(c.iid);
   }
-  ev.push({ k: 'move', iid: c.iid, cardId: c.cardId, from: { seat, zone: 'hand' }, to: { seat, zone: 'play' } });
+  ev.push({ k: 'move', iid: c.iid, cardId: c.cardId, from: { seat, zone: from }, to: { seat, zone: 'play' } });
   if (!shiftTarget) R.onEnter(s, c);                                // "enters play exerted / with damage"
+  if (perm?.exerted) c.exerted = true;                              // "If you do, they enter play exerted"
+  if (perm?.sameNameBan) (p.nameBans ||= []).push({ name: d.name, turn: s.turn });
   p.playedThisTurn.push(c.iid);
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${c.exerted ? ' (entered exerted)' : ''}.`, { seat, kind: 'play' });
   R.fire(s, 'play', { iid: c.iid, paid });
@@ -1126,6 +1149,9 @@ export function viewFor(s, seat) {
       inkedThisTurn: p.inkedThisTurn,
       inkLimit: INKS_PER_TURN + p.extraInk,
       rules: { winLore: R.rule(s, 'winLore', p.seat), handInkable: R.rule(s, 'handInkable', p.seat), inkFromDiscard: R.rule(s, 'inkFromDiscard', p.seat) },
+      // cards outside the hand an ability lets this player play right now ("you may play characters from your discard")
+      playableFrom: i === seat && s.status === 'playing' && s.active === seat
+        ? [...p.discard, ...p.play.flatMap((id) => s.cards[id].under)].filter((iid) => R.playFromPerm(s, seat, s.cards[iid])) : [],
       mulliganDone: p.mulligan.done,
       mulliganCount: p.mulligan.done ? p.mulligan.count : null,
       discard: p.discard.map((iid) => ({ iid, cardId: s.cards[iid].cardId })),

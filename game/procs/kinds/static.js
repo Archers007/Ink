@@ -12,8 +12,9 @@ import { Query } from '../query.js';
 import { PlayBan } from '../effects/playBan.js';
 import { parseRule } from '../../rulebook/rules.js';
 import { parseDeckRule } from '../../rulebook/deck.js';
+import { PLAY_FROM, PLAY_FROM_TAIL, playFromOf } from '../effects/playFrom.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck', 'replace']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck', 'replace', 'playFrom']);
 
 export class Static extends Kind {
   static kind = 'static';
@@ -31,6 +32,8 @@ export class Static extends Kind {
     }
     const wrap = (effect) => ({ kind: 'static', ...mods, ...(cond ? { cond } : {}), effect });
     // a game rule the card changes (game/rulebook/rules.js) — "Opponents need 25 lore to win the game"
+    // "you may play characters from your discard. If you do, they enter play exerted." (CR 4.3)
+    { const [a, b] = t.split(/\. (?=if you do)/i); const pm = a.match(PLAY_FROM); if (pm && (!b || PLAY_FROM_TAIL.test(b))) return wrap({ fn: 'playFrom', ...playFromOf(pm), ...(b ? { exerted: true } : {}) }); }
     const deck = parseDeckRule(t);                                  // deck construction (CR 1.10.1.3)
     if (deck) return wrap(deck);
     const rule = parseRule(t);

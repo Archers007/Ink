@@ -18,6 +18,14 @@ import { EVENTS } from '../triggers/index.js';
 import { Act } from '../triggers/act.js';
 import { ruleValue } from '../../rulebook/rules.js';
 import { replaceEvent } from '../../rulebook/replace.js';
+
+// a card's procs, with any second ability folded into one (an action's "when you discard this card, …")
+const OWN = new WeakMap();
+const ownProcs = (d) => {
+  const ps = d.procs || [];
+  if (!ps.some((p) => p.alsoProc)) return ps;
+  return OWN.get(d) || OWN.set(d, ps.flatMap((p) => (p.alsoProc ? [p, { ...p.alsoProc, name: p.name, text: p.text, exec: p.exec }] : [p]))).get(d);
+};
 import { testCondition } from '../conditions/index.js';
 import { Triggered, Static, Activated, Action } from '../kinds/index.js';
 import { DURATIONS } from '../phrases/duration.js';
@@ -50,7 +58,7 @@ export class Runtime {
   effect(fn) { const E = EFFECT[fn]; if (!E) throw new Error(`no effect "${fn}"`); return E; }
   statOf(s, c, stat) { const d = this.E.D(s, c); return stat === 'str' ? this.E.effStr(c, d) : stat === 'wp' ? this.E.effWp(c, d) : stat === 'lore' ? this.E.effLore(c, d) : 0; }
   procsOf(s, c, which = 'all') {
-    const own = this.E.D(s, c).procs || [];
+    const own = ownProcs(this.E.D(s, c));
     const g = c.zone === 'play' ? c.mods.filter((m) => m.stat === 'grant') : c.leftGrants || [];
     if (!g.length) return which === 'granted-static' ? [] : own;
     if (which === 'own+temp') return [...own, ...g.filter((m) => m.until !== 'static').map((m) => m.proc)];
@@ -212,7 +220,24 @@ export class Runtime {
 
   // ------------------------------------------------------------ per-kind hooks
   statics(s) { Static.apply(this, s); }
-  playBlocked(s, seat, c) { return Static.playBlocked(this, s, seat, c); }
+  playBlocked(s, seat, c) {
+    // "you can't play characters with the same name as characters you played this way this turn"
+    const name = this.E.D(s, c).name;
+    if ((this.E.P(s, seat).nameBans || []).some((b) => b.turn === s.turn && b.name === name)) return `You can't play another ${name} this turn.`;
+    return Static.playBlocked(this, s, seat, c);
+  }
+  // may `seat` play card `c` from where it is (discard / under a card)? → { exerted?, sameNameBan? } | null  (CR 4.3)
+  playFromPerm(s, seat, c) {
+    if (c.owner !== seat || (c.zone !== 'discard' && c.zone !== 'under')) return null;
+    const fits = (g, src) => g.zone === c.zone && (g.zone !== 'under' || c.parent === src) && this.matches(s, { ...g.filter, zone: c.zone }, c, seat, src, { anyZone: true });
+    for (const iid of this.E.P(s, seat).play) {
+      const src = s.cards[iid];
+      for (const proc of this.procsOf(s, src)) {
+        if (proc.kind === 'static' && proc.effect?.fn === 'playFrom' && this.staticActive(s, proc, seat, iid) && fits(proc.effect, iid)) return proc.effect;
+      }
+    }
+    return (this.E.P(s, seat).playFrom || []).find((g) => g.turn === s.turn && fits(g, g.src)) || null;
+  }
   moveDelta(s, seat, c, loc) { return Static.moveDelta(this, s, seat, c, loc); }
   staticActive(s, proc, owner, src) { return Static.active(this, s, proc, owner, src); }
   // a game rule's value for a player (game/rulebook/rules.js) — the base, or what the board's statics set

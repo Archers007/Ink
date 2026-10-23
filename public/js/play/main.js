@@ -722,9 +722,11 @@ function openDiscard(seat, refresh = false) {
       <button class="sm" data-to="deckTop" data-i="${c.iid}">→ deck top</button>
       <button class="sm" data-to="deckBottom" data-i="${c.iid}">→ bottom</button>
       ${mine ? `<button class="sm" data-to="inkwell" data-i="${c.iid}">→ inkwell</button>` : ''}
-      ${mine && p.rules?.inkFromDiscard && D(c.cardId)?.inkable ? `<button class="sm" data-ink="${c.iid}" title="Ink it (your ink for the turn)">⬡ ink</button>` : ''}</div>` : ''}</div>`).join('')}</div>` : '<p class="muted">Empty.</p>'}
+      ${mine && p.rules?.inkFromDiscard && D(c.cardId)?.inkable ? `<button class="sm" data-ink="${c.iid}" title="Ink it (your ink for the turn)">⬡ ink</button>` : ''}
+      ${mine && p.playableFrom?.includes(c.iid) ? `<button class="sm hot" data-playfrom="${c.iid}" title="An ability lets you play it from your discard (you pay its cost)">▶ play</button>` : ''}</div>` : ''}</div>`).join('')}</div>` : '<p class="muted">Empty.</p>'}
     <div class="modal-actions"><button data-close>Close</button></div>`, (el) => {
     el.querySelectorAll('[data-ink]').forEach((b) => b.onclick = () => act({ type: 'ink', iid: b.dataset.ink }));   // "You can ink cards from your discard"
+    el.querySelectorAll('[data-playfrom]').forEach((b) => b.onclick = () => act({ type: 'play', iid: b.dataset.playfrom, mode: 'ink' }));   // "you may play characters from your discard"
     el.querySelectorAll('[data-to]').forEach((b) => b.onclick = () => act({ type: 'moveCard', iid: b.dataset.i, to: b.dataset.to, exerted: b.dataset.to === 'inkwell' }));
   }, 'discard');
 }
