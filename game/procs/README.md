@@ -71,7 +71,7 @@ Example: Hades - Lord of the Underworld. *"When you play this character, return 
   - `choices` means choose-one.
   - Only the choosing seat sees `valid`/`cards`.
 - **Challenges:** "whenever this character challenges / is challenged" resolves **before** challenge damage (CR 4.6.5–4.6.6). Damage is a queued `_challengeDamage` step.
-- **End of turn:** "at the end of your turn" resolves before the turn passes (a queued `_endTurn` step).
+- **Turn flow:** game/rulebook/turn.js lists the phases and steps (CR 3) in order; a step marked `bag` lets the triggers it added resolve before the next step (a queued `_turnStep` job), so "at the start of your turn" resolves before the Draw step and "at the end of your turn" before the turn passes.
 - **Statics:** re-applied in every game-state check (`R.statics`) as `until:'static'` mods, so conditions turn on and off live. Restrictions (`cantQuest`, `cantChallenge`, `cantReady`, `cantBeChallenged`, `cantSing`, `challengeReady`) are keyword-style mods checked in `public/js/play/rules.js`.
 - **Costs:** `R.costDelta` combines a card's own "you pay N less", board statics, and one-shot "next card costs less" effects.
 

@@ -30,6 +30,7 @@ import {
 } from '../public/js/play/rules.js';
 import { Query } from './procs/query.js';
 import { createRuntime } from './procs/index.js';
+import { TURN, runPhase } from './rulebook/turn.js';
 
 export class RuleError extends Error {}
 const RE = (msg) => new RuleError(msg);
@@ -263,57 +264,82 @@ function gameStateCheck(s, ev) {
   }
 }
 
-function startTurn(s, seat, ev) {
-  s.turn += 1;
-  s.active = seat;
-  const p = P(s, seat);
-  p.inkedThisTurn = 0;
-  p.extraInk = 0;
-  p.playedThisTurn = [];
-  p.costMods = [];
-  p.turnsTaken = (p.turnsTaken || 0) + 1;
-  s.turnLog = [];
-  ev.push({ k: 'turn', seat, turn: s.turn });
-  log(s, `── Turn ${s.turn}: ${nameOf(s, seat)} ──`, { kind: 'turn', seat });
-  // Ready step (3.2.1)
-  const readied = [];
-  for (const iid of p.play) {
-    const c = s.cards[iid];
-    if (hasKw(c, D(s, c), 'cantReady') || hasKw(c, D(s, c), 'skipReady')) continue;
-    if (c.exerted) readied.push(iid);
-    c.exerted = false;
-  }
-  for (const iid of readied) R.fire(s, 'ready', { iid });
-  for (const iid of p.inkwell) s.cards[iid].exerted = false;
-  for (const pl of s.players) for (const iid of pl.play) {           // "until the start of your next turn"
-    const c = s.cards[iid];
-    if (c.mods.length) c.mods = c.mods.filter((m) => !(m.until === 'sot' && m.by === seat));
-  }
-  // Set step (3.2.2): drying ends, locations give lore
-  let locLore = 0;
-  for (const iid of p.play) {
-    const c = s.cards[iid];
-    const d = D(s, c);
-    if (d.type === 'character') c.drying = false;
-    if (d.type === 'location') locLore += Math.max(0, effLore(c, d));
-  }
-  if (locLore) {
-    gainLore(s, seat, locLore, ev);
-    log(s, `${nameOf(s, seat)} gained ${locLore} lore from locations (${p.lore}/${LORE_TO_WIN}).`, { seat });
-  }
-  R.fire(s, 'turnStart', { seat });
-  gameStateCheck(s, ev);
-  if (s.status !== 'playing') return;
-  // Draw step (3.2.3) — the starting player skips it on the first turn of the game.
-  if (!R.rule(s, 'drawStep', seat)) {
-    log(s, `${nameOf(s, seat)} skips their Draw step.`, { seat });
-  } else if (!(s.turn === 1 && seat === s.starting)) {
+// The turn's steps (CR 3). game/rulebook/turn.js holds their order, CR sections, skip rules and where the bag
+// resolves; these do the work.
+const STEPS = {
+  begin(s, seat, ev) {                                              // 1.3.4.1
+    s.turn += 1;
+    s.active = seat;
+    const p = P(s, seat);
+    p.inkedThisTurn = 0;
+    p.extraInk = 0;
+    p.playedThisTurn = [];
+    p.costMods = [];
+    p.turnsTaken = (p.turnsTaken || 0) + 1;
+    s.turnLog = [];
+    ev.push({ k: 'turn', seat, turn: s.turn });
+    log(s, `── Turn ${s.turn}: ${nameOf(s, seat)} ──`, { kind: 'turn', seat });
+  },
+  ready(s, seat) {                                                  // 3.2.1
+    const p = P(s, seat);
+    const readied = [];
+    for (const iid of p.play) {
+      const c = s.cards[iid];
+      if (hasKw(c, D(s, c), 'cantReady') || hasKw(c, D(s, c), 'skipReady')) continue;
+      if (c.exerted) readied.push(iid);
+      c.exerted = false;
+    }
+    for (const iid of readied) R.fire(s, 'ready', { iid });
+    for (const iid of p.inkwell) s.cards[iid].exerted = false;
+    for (const pl of s.players) for (const iid of pl.play) {         // 3.2.1.3 "until the start of your next turn"
+      const c = s.cards[iid];
+      if (c.mods.length) c.mods = c.mods.filter((m) => !(m.until === 'sot' && m.by === seat));
+    }
+  },
+  set(s, seat, ev) {                                                // 3.2.2: drying ends, locations give lore
+    const p = P(s, seat);
+    let locLore = 0;
+    for (const iid of p.play) {
+      const c = s.cards[iid];
+      const d = D(s, c);
+      if (d.type === 'character') c.drying = false;
+      if (d.type === 'location') locLore += Math.max(0, effLore(c, d));
+    }
+    if (locLore) {
+      gainLore(s, seat, locLore, ev);
+      log(s, `${nameOf(s, seat)} gained ${locLore} lore from locations (${p.lore}/${R.rule(s, 'winLore', seat)}).`, { seat });
+    }
+  },
+  startTriggers(s, seat) { R.fire(s, 'turnStart', { seat }); },     // 3.2.1.4 — resolve in the Set step (3.2.2.3)
+  check(s, seat, ev) { gameStateCheck(s, ev); },
+  draw(s, seat, ev) {                                               // 3.2.3.1
     const { names } = drawCards(s, seat, 1, ev);
     if (names.length) log(s, `${nameOf(s, seat)} drew a card.`, { seat, priv: { seat, text: `You drew ${names[0]}.` } });
-  } else {
-    log(s, `${nameOf(s, seat)} goes first and skips their first draw.`, { seat });
-  }
+  },
+  endTriggers(s, seat) { R.fire(s, 'turnEnd', { seat }); },         // 3.4.1.1
+  cleanup(s, seat, ev) {                                            // 3.4.1.2: "this turn" effects end
+    for (const iid of [...P(s, seat).play]) if (s.cards[iid].tempShift != null) { s.cards[iid].tempShift = null; returnTopOnly(s, iid, ev); }
+    R.endOfTurnCleanup(s, seat);
+  },
+  deckOut(s, seat, ev) {                                            // 1.8.1.2
+    if (P(s, seat).deck.length) return;
+    win(s, opponentsOf(s, seat)[0], `${nameOf(s, seat)} ended their turn with no cards in their deck`, ev);
+  },
+  pass(s, seat, ev) { turnPhase(s, nextSeat(s, seat), ev, 'start'); },  // 3.4.2
+  skipped(s, seat, ev, st, why) {
+    log(s, why === 'first' ? `${nameOf(s, seat)} goes first and skips their first draw.` : `${nameOf(s, seat)} skips their ${st.say} step.`, { seat });
+  },
+};
+function turnPhase(s, seat, ev, phase, at = 0) {
+  return runPhase(s, seat, ev, phase, at, {
+    STEPS,
+    rule: (s, id, seat) => R.rule(s, id, seat),
+    pending: (s) => (s.fx || []).length,
+    queueRest: (s, seat, phase, at) => R.queue(s, seat, null, TURN[phase].say, [{ fn: '_turnStep', seat, phase, at }]),
+    stopped: (s) => s.status !== 'playing',
+  });
 }
+const startTurn = (s, seat, ev) => turnPhase(s, seat, ev, 'start');
 
 // ---------- game creation ----------
 
@@ -634,7 +660,7 @@ H.quest = (s, seat, a, ev) => {
   const gain = Math.max(0, effLore(c, d));
   gainLore(s, seat, gain, ev);
   ev.push({ k: 'quest', iid: c.iid, lore: gain });
-  log(s, `${nameOf(s, seat)} quested with ${cardLabel(d)} for ${gain} lore (${P(s, seat).lore}/${LORE_TO_WIN}).`, { seat, kind: 'quest' });
+  log(s, `${nameOf(s, seat)} quested with ${cardLabel(d)} for ${gain} lore (${P(s, seat).lore}/${R.rule(s, 'winLore', seat)}).`, { seat, kind: 'quest' });
   R.fire(s, 'quest', { iid: c.iid });
   if (hasKw(c, d, 'support')) {
     const others = P(s, seat).play.some((id) => id !== c.iid && D(s, s.cards[id]).type === 'character');
@@ -771,11 +797,7 @@ H.endTurn = (s, seat, a, ev) => {
     if (q.length) throw RE(`${q.map((id) => cardLabel(D(s, s.cards[id]))).join(', ')} must quest if able. (Force end turn to override.)`);
   }
   log(s, `${nameOf(s, seat)} ended their turn.`, { seat });
-  // "at the end of your turn" abilities resolve before the turn actually ends
-  const before = (s.fx || []).length;
-  R.fire(s, 'turnEnd', { seat });
-  if ((s.fx || []).length > before) { R.queue(s, seat, null, 'End of turn', [{ fn: '_endTurn', seat }]); return; }
-  finishEndTurn(s, seat, ev);
+  turnPhase(s, seat, ev, 'end');                                   // 3.4
 };
 // Temporary Shift (8.10.8.5): remove all damage and return only the top card — the one under it stays in play
 function returnTopOnly(s, iid, ev) {
@@ -792,21 +814,6 @@ function returnTopOnly(s, iid, ev) {
   }
   log(s, `↳ Temporary Shift: ${cardLabel(D(s, c))} returned to ${nameOf(s, c.owner)}'s hand.`, { kind: 'effect' });
   moveTo(s, iid, 'hand', ev);
-}
-
-function finishEndTurn(s, seat, ev) {
-  for (const iid of [...P(s, seat).play]) if (s.cards[iid].tempShift != null) { s.cards[iid].tempShift = null; returnTopOnly(s, iid, ev); }
-  // End-of-turn phase (3.4): "this turn" effects end.
-  R.endOfTurnCleanup(s, seat);
-  const p = P(s, seat);
-  if (p.deck.length === 0) {                                   // 1.8.1.2
-    const others = opponentsOf(s, seat);
-    win(s, others[0], `${nameOf(s, seat)} ended their turn with no cards in their deck`, ev);
-    return;
-  }
-  gameStateCheck(s, ev);
-  if (s.status !== 'playing') return;
-  startTurn(s, nextSeat(s, seat), ev);
 }
 
 H.concede = (s, seat, a, ev) => {
@@ -842,7 +849,7 @@ H.lore = (s, seat, a, ev) => {
   gainLore(s, target, delta, ev);
   const now = P(s, target).lore;
   if (now === before) return;
-  log(s, `${nameOf(s, seat)} ${now > before ? 'added' : 'removed'} ${Math.abs(now - before)} lore ${target === seat ? '' : `${now > before ? 'to' : 'from'} ${nameOf(s, target)} `}(${nameOf(s, target)}: ${now}/${LORE_TO_WIN}).`, { seat, kind: 'manual' });
+  log(s, `${nameOf(s, seat)} ${now > before ? 'added' : 'removed'} ${Math.abs(now - before)} lore ${target === seat ? '' : `${now > before ? 'to' : 'from'} ${nameOf(s, target)} `}(${nameOf(s, target)}: ${now}/${R.rule(s, 'winLore', target)}).`, { seat, kind: 'manual' });
 };
 
 H.exert = (s, seat, a, ev) => {
@@ -1009,7 +1016,7 @@ H.clearMods = (s, seat, a, ev) => {
 const ENGINE = {
   D, P, nameOf, log, cardLabel, prettyText, KEYWORD_LABEL, LORE_TO_WIN, RE,
   effStr, effWp, effLore, kwVal, hasKw, rand, shuffleArr, readyInk, payInk, opponentsOf,
-  moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, finishEndTurn, putUnder, moveChar, exertCard,
+  moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, turnPhase, putUnder, moveChar, exertCard,
 };
 const R = createRuntime(ENGINE);
 // restrictions that name a query ("can't be challenged by characters with cost 3 or less") — see rules.js
