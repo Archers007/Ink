@@ -53,52 +53,6 @@ DB_ICON_ALIASES = {
     "{toughness}": "{willpower}", "{inkk}": "{ink}", "{C}": "{inkable}", "{inkwell}": "{inkable}",
 }
 
-# ---------------------------------------------------------------- corrections
-
-CORRECTIONS = Path(__file__).resolve().parent / "corrections.json"
-# why "errata"  official text change 	text "abilities" replaces the print; scan may match either
-#     "db-fix"  the DB text is wrong   	"abilities" or "replace" pairs; the scan has to agree
-#     "ocr"     DB is right, OCR isn't 	no text, just a reviewed stamp
-CORRECTION_KINDS = {"errata", "db-fix", "ocr"}
-
-
-def load_corrections() -> dict:
-    if not CORRECTIONS.exists():
-        return {}
-    data = {k: v for k, v in json.loads(CORRECTIONS.read_text()).items() if not k.startswith("_")}
-    for full, c in data.items():
-        if c.get("why") not in CORRECTION_KINDS:
-            raise SystemExit(f"corrections.json: {full!r} has why={c.get('why')!r}, expected one of {sorted(CORRECTION_KINDS)}")
-    return data
-
-
-def apply_correction(versions, corr):
-    """→ (versions to compare the scan against, the text the compiler should use or None, unused replace pairs)."""
-    if "abilities" in corr:
-        fixed = [corr["abilities"]]
-        unused = []
-    elif corr.get("replace"):
-        fixed, hit = [], set()
-        for v in versions:
-            nv = []
-            for ab in v:
-                ab = dict(ab)
-                for i, (old, new) in enumerate(corr["replace"]):
-                    for f in ("name", "description"):
-                        if ab.get(f) and old in ab[f]:
-                            ab[f] = ab[f].replace(old, new)
-                            hit.add(i)
-                nv.append(ab)
-            if nv not in fixed:
-                fixed.append(nv)
-        unused = [p for i, p in enumerate(corr["replace"]) if i not in hit]
-    else:
-        return versions, None, []
-    if corr["why"] == "errata":                  # the card in hand still prints the old text
-        return fixed + [v for v in versions if v not in fixed], fixed[0], unused
-    return fixed, fixed[0], unused
-
-
 # ---------------------------------------------------------------- card selection
 
 
@@ -115,7 +69,6 @@ def load_cards(name_filter: str | None):
         "select id, name, title, type, rarity, setId, abilities, keywords from cards where language='en' or language is null"
     ).fetchall()
     groups: dict[str, list] = {}
-    corrections = load_corrections()
     for r in rows:
         abil = json.loads(r["abilities"] or "[]")
         if not abil:
@@ -138,13 +91,8 @@ def load_cards(name_filter: str | None):
         kws: dict = {}
         for p in printings:
             kws.update(json.loads(p[0]["keywords"] or "{}"))
-        corr = None
-        if full in corrections:
-            c = corrections[full]
-            versions, official, unused = apply_correction(versions, c)
-            corr = {"why": c["why"], "official": official, "ocrNoise": bool(c.get("ocrNoise")), "unused": unused}
         cards.append({"id": r["id"], "full": full, "type": r["type"], "rarity": r["rarity"], "abilities": abil,
-                      "versions": versions, "keywords": kws, "correction": corr,
+                      "versions": versions, "keywords": kws,
                       "ids": [p[0]["id"] for p in printings],
                       "alts": [p[0]["id"] for p in std[1:]],
                       "skippedAltArt": sum(p[0]["rarity"] in FULL_ART for p in printings) if std is not printings else 0,
@@ -808,7 +756,7 @@ def scan_card(card, debug=False):
            "fixes": cmp["fixes"], "problems": cmp["problems"][:12], "flavourCut": flavour or []}
     if status == "icon-fix":
         out["patched"] = patch_db_text(db_ab, cmp["fixes"], kws)
-    out["rules"] = rules_text(out, card.get("correction"), best["version"] == 0)
+    out["rules"] = rules_text(out)
     if debug:
         dbg = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         for ic in icons:
@@ -821,20 +769,14 @@ def scan_card(card, debug=False):
     return out
 
 
-def rules_text(r, corr, best_is_official):
-    """What the ability compiler gets for this card: {source, abilities, verified} or None (needs a human).
-      match → DB text · icon-fix → DB text + scanned icons · db-suspect → scanned text (needs a ✅)
-      corrections.json wins: errata → official text · db-fix → fixed text · ocr → DB text, reviewed.
-    verified = the card image agrees (for errata: with the printed text, or the official one on a reprint)."""
+def rules_text(r):
+    """What the scan says the compiler should get: {source, abilities, verified} or None (the scan can't tell).
+      match → DB text · icon-fix → DB text + scanned icons · db-suspect → scanned text (unverified).
+    tools/build-rulings.mjs settles the rest with lorcanajson as the third source."""
     ok = r["status"] in ("match", "icon-fix")
-    scanned_abil = r.get("patched") if r["status"] == "icon-fix" else r["db"]
-    if corr:
-        if corr["why"] == "ocr":
-            return {"source": "reviewed", "abilities": scanned_abil if ok else r["db"], "verified": ok}
-        abil = scanned_abil if ok and best_is_official else corr["official"]
-        return {"source": "errata" if corr["why"] == "errata" else "corrected", "abilities": abil, "verified": ok}
     if ok:
-        return {"source": "db" if r["status"] == "match" else "db+icons", "abilities": scanned_abil, "verified": True}
+        return {"source": "db" if r["status"] == "match" else "db+icons",
+                "abilities": r.get("patched") if r["status"] == "icon-fix" else r["db"], "verified": True}
     if r["status"] == "db-suspect":
         return {"source": "scan", "abilities": [{"name": p["name"], "description": p["text"]} for p in r["scanned"]],
                 "verified": False, "review": r["dbIssue"]}
@@ -887,22 +829,11 @@ def main():
     # each row's "rules" = clean text for the ability compiler (flavour already cut, see rules_text());
     # tools/build-rulings.mjs combines it with cards.db into cache/rulings.db
     rules = {r["full"]: r["rules"] for r in results if r.get("rules")}
-    by_card = {c["full"]: c for c in cards}
-    corr_cards = [c for c in cards if c.get("correction")]
-    # a db-fix the card image doesn't back up is a typo in corrections.json until proven otherwise
-    unverified = sorted(r["full"] for r in results if r.get("rules") and r["rules"]["source"] == "corrected"
-                        and not r["rules"]["verified"] and not by_card[r["full"]]["correction"]["ocrNoise"])
     summary = {"cards": len(results), "printingsCovered": sum(len(r.get("ids", [])) for r in results),
                "altArtSkipped": sum(c.get("skippedAltArt", 0) for c in cards),
                "status": counts, "iconFixes": len(fixes), "rulesReady": len(rules),
-               "rulesSources": {s: sum(v["source"] == s for v in rules.values())
-                                for s in ("db", "db+icons", "errata", "corrected", "reviewed", "scan")},
-               "digitConflicts": sum(bool(r.get("digitConflict")) for r in results),
-               "corrections": {"applied": len(corr_cards),
-                               "unknownCards": sorted(set(load_corrections()) - set(by_card)),
-                               "unusedReplace": {c["full"]: c["correction"]["unused"]
-                                                 for c in corr_cards if c["correction"]["unused"]},
-                               "dbFixNotVerifiedByScan": unverified}}
+               "rulesSources": {s: sum(v["source"] == s for v in rules.values()) for s in ("db", "db+icons", "scan")},
+               "digitConflicts": sum(bool(r.get("digitConflict")) for r in results)}
     (OUT_DIR / "summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))
 

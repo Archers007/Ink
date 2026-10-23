@@ -1,5 +1,5 @@
 // L0 — one canonical spelling for ability text, whatever source it came from
-// (dreamborn DB rows of different eras, scanned text, lorcanajson corrections).
+// (dreamborn DB rows of different eras, scanned text, lorcanajson).
 //
 //   icons      {I} {S} {E} {L} {W} → {ink} {strength} {exert} {lore} {willpower}
 //   tags       <Bodyguard> → Bodyguard
@@ -10,7 +10,7 @@
 
 const ICON = {
   i: 'ink', ink: 'ink', inkk: 'ink', s: 'strength', strength: 'strength', e: 'exert', exert: 'exert',
-  l: 'lore', lore: 'lore', w: 'willpower', willpower: 'willpower', toughness: 'willpower',
+  l: 'lore', lore: 'lore', w: 'willpower', willpower: 'willpower', toughness: 'willpower', c: 'inkable',
   inkwell: 'inkable', inkable: 'inkable',
 };
 export const ICONS = new Set(Object.values(ICON));

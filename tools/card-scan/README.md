@@ -58,23 +58,20 @@ Each pattern lives in `PATTERNS` with real card text it must flag and must pass.
 
 Only `match` / `icon-fix` cards should feed the ability compiler automatically.
 
-## Corrections
+## Settling the text: a three-source vote
 
-`corrections.json` settles the cards the scan can't (close / mismatch / db-suspect). Keyed by card full name:
+There's no hand-kept corrections file. `tools/build-rulings.mjs` settles every card by a vote between the DB, the
+card image (this scan) and lorcanajson (`cache/lorcanajson.json`, community-transcribed from the printed cards with
+official errata applied; `scripts/build-cards.mjs` downloads it):
 
-| why | meaning | the ruling gets |
+| sources | the ruling gets | `source` |
 |---|---|---|
-| `errata` | official text change (set release notes in `docs/rules/`) | the official `abilities` |
-| `db-fix` | the DB text is wrong (typo, old wording, missing icon/ability) | the fixed `abilities` (or `replace` pairs) |
-| `ocr` | the DB is right, the scan misread it | the DB text, stamped reviewed |
+| the scan found icons the DB dropped | DB words + scanned icons | `db+icons` |
+| DB and lorcanajson agree | the DB text | `db` |
+| card image and DB agree, lorcanajson doesn't | the DB text — unless the set release notes in `docs/rules/` print lorcanajson's wording | `db` · `errata` |
+| the DB disagrees with both | lorcanajson's text | `lorcanajson` |
 
-`ocrNoise: true` = the scan only disagrees by a misread digit/letter, checked by hand.
-
-Draft new entries with lorcanajson as the tie-breaker (hand edits are kept):
-
-    curl -sLo /tmp/allCards.json https://lorcanajson.org/files/current/en/allCards.json
-    python3 tools/card-scan/make_corrections.py /tmp/allCards.json
-
-`summary.json → corrections` lists unknown card names, unused `replace` pairs and db-fixes the scan doesn't back up.
-Each row's `rules` (clean text for the ability compiler, flavour cut) carries `source` (db · db+icons · errata · corrected · reviewed · scan)
-and `verified`. `node tools/build-rulings.mjs` combines it with `cards.db` into `cache/rulings.db`, one `rulings` row per ability.
+Keyword lines are left out of the comparison (the DB keeps keywords in a column of their own) and added from
+lorcanajson when the DB text doesn't print them. Each row's `rules` (`source` db · db+icons · scan, and
+`verified`) is the scan's side of the vote; `rulings.db` keeps all three texts per ability (`db_text`,
+`scan_text`, `lj_text`).

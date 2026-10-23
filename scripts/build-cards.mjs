@@ -5,8 +5,9 @@
 //   node scripts/build-cards.mjs --all       rescan every card first (the old full run, ~2.5 min on 12 jobs)
 //   node scripts/build-cards.mjs --no-scan   build once from the scan results already in cache/scan/results.jsonl
 //
-// round 1  DB check: needs-ocr.mjs flags cards whose DB text dropped an icon; those and every card in
-//          corrections.json (the scan is what applies it) get OCR'd, then build-rulings + compile-procs.
+// round 1  DB check: needs-ocr.mjs flags cards whose DB text dropped an icon, and lorcanajson flags cards
+//          whose DB text says something else; those get OCR'd, then build-rulings + compile-procs settles
+//          each card by a vote between the three sources.
 // round 2+ stuck: a card with a manual ruling that was never OCR'd may just have bad DB text — OCR those,
 //          build again. Stops when a round has nothing new to OCR. Results accumulate in results.jsonl, so
 //          a card is OCR'd once until --all.
@@ -17,6 +18,8 @@ import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flagCards } from '../tools/card-scan/needs-ocr.mjs';
+import { LORCANAJSON_URL, loadLorcanaJson, ljAbilities, rulesKey } from '../tools/card-scan/lorcanajson.mjs';
+import { splitDbAbilities } from '../game/procs/normalize.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const C = (f) => path.join(ROOT, 'cache', f);
@@ -38,6 +41,28 @@ const scan = (names, why) => {
 const build = () => { run('node', ['tools/build-rulings.mjs'], true); run('node', ['tools/compile-procs.mjs'], true); };
 
 if (!existsSync(C('cards.db'))) { console.error('cache/cards.db missing — start the server once to download it'); process.exit(1); }
+if (!existsSync(C('lorcanajson.json'))) {
+  console.error(`build-cards: downloading ${LORCANAJSON_URL}…`);
+  const res = await fetch(LORCANAJSON_URL).catch((e) => ({ ok: false, statusText: e.message }));
+  if (res.ok) writeFileSync(C('lorcanajson.json'), Buffer.from(await res.arrayBuffer()));
+  else console.error(`build-cards: lorcanajson download failed (${res.statusText}) — voting with cards.db + scan only`);
+}
+
+// cards whose DB text (no printing of it) agrees with lorcanajson
+function disagreesWithLj() {
+  const LJ = loadLorcanaJson(C('lorcanajson.json'));
+  if (!LJ) return [];
+  const db = new DatabaseSync(C('cards.db'), { readOnly: true });
+  const keys = new Map();
+  for (const r of db.prepare("SELECT name, title, abilities FROM cards WHERE language = 'en'").all()) {
+    const full = r.title ? `${r.name} - ${r.title}` : r.name;
+    let abs = [];
+    try { abs = (JSON.parse(r.abilities || '[]') || []).flatMap((a) => splitDbAbilities(a.name || '', a.description ?? a.text ?? '')); } catch {}
+    (keys.get(full) || keys.set(full, new Set()).get(full)).add(rulesKey(abs));
+  }
+  db.close();
+  return [...keys].filter(([k, ks]) => LJ.has(k) && !ks.has(rulesKey(ljAbilities(LJ.get(k))))).map(([k]) => k);
+}
 
 const STUCK = `SELECT DISTINCT c.card_key FROM rulings r JOIN cards c USING (card_key) JOIN p.procs USING (proc_id)
   WHERE procs.exec = 0 AND c.scan_status IS NULL AND c.source != 'keywords' ORDER BY c.card_key`;   // keyword-only cards have no text to read
@@ -68,9 +93,8 @@ if (all) {
 } else {
   const done = scanned();
   const flagged = [...await flagCards(C('cards.db'))].filter(([, c]) => c.flags.length).map(([k]) => k);
-  // corrections.json is applied by the scan, so a corrected card has to go through it
-  const corrected = Object.keys(JSON.parse(readFileSync(path.join(ROOT, 'tools/card-scan/corrections.json'), 'utf8'))).filter((k) => k !== '_doc');
-  let st = round(`DB check: ${flagged.length} flagged + ${corrected.length} corrected`, [...new Set([...flagged, ...corrected])].filter((k) => !done.has(k)).sort());
+  const differs = disagreesWithLj();
+  let st = round(`DB check: ${flagged.length} flagged + ${differs.length} differ from lorcanajson`, [...new Set([...flagged, ...differs])].filter((k) => !done.has(k)).sort());
   // a card the scan can't read (not in its pool) stays stuck — try each card once, so the rounds always end
   const tried = new Set();
   for (let next = st.stuck; next.length && rounds.length < 5; next = st.stuck.filter((k) => !tried.has(k))) {
