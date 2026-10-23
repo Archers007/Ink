@@ -56,6 +56,7 @@ export class InkDrop extends Effect {
     for (const seat of seats) {
       const p = rt.E.P(s, seat);
       p.inkDrops = (p.inkDrops || 0) + Amount.value(rt, s, job, st.n);
+      rt.fire(s, 'gotInkDrop', { seat });                             // "if you got an ink drop this turn"
       rt.log(s, `↳ ${rt.E.nameOf(s, seat)} got ${st.n} ink drop${st.n === 1 ? '' : 's'} (${p.inkDrops} 💧).`, { seat, kind: 'effect' });
     }
     return true;
