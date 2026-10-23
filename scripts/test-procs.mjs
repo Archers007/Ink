@@ -963,6 +963,71 @@ test('"Each player plays with the top card of their deck face up" shows it to ev
   assert.equal(v.players[1].deckTop?.iid, s.players[1].deck[0]);
   assert.equal(viewFor(setup({}).s, 1).players[0].deckTop, null);
 });
+test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no discard, ink drop → ink', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  const pass = (s) => { ok(applyAction(s, s.active, { type: 'endTurn' })); drain(s); };
+  { // Lilo - Bundled Up: "During each opponent's turn, the first time this character would take damage, she takes no damage instead."
+    const lilo = byName('Lilo - Bundled Up');
+    const a = plain((d) => d.str === 1 && d.wp >= 2);
+    const { s, ids } = setup({ play0: [lilo], play1: [a, a] });
+    pass(s); s.cards[ids.play0[0]].exerted = true;
+    ok(applyAction(s, 1, { type: 'challenge', attacker: ids.play1[0], target: ids.play0[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].damage, 0, 'first time: no damage');
+    ok(applyAction(s, 1, { type: 'challenge', attacker: ids.play1[1], target: ids.play0[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].damage, 1, 'second time: damage');
+  }
+  { // Beast - Selfless Protector: "Whenever one of your other characters would be dealt damage, put that many damage counters on this character instead."
+    const beast = byName('Beast - Selfless Protector');
+    const mine = plain((d) => d.wp >= 2), foe = plain((d) => d.str >= 1 && d.str < 8 && d.wp > mine.str);
+    const { s, ids } = setup({ play0: [beast, mine], play1: [foe] });
+    pass(s); s.cards[ids.play0[1]].exerted = true;
+    ok(applyAction(s, 1, { type: 'challenge', attacker: ids.play1[0], target: ids.play0[1] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].damage, 0);
+    assert.equal(s.cards[ids.play0[0]].damage, foe.str, 'on Beast instead');
+    assert.equal(s.cards[ids.play1[0]].damage, mine.str, 'the challenger still takes damage');
+  }
+  { // Mickey Mouse & Minnie Mouse - Adventuring Duo: "If this character would be banished, put them into your inkwell facedown and exerted instead."
+    const duo = byName('Mickey Mouse & Minnie Mouse - Adventuring Duo');
+    const big = plain((d) => d.str >= duo.wp && d.wp > duo.str);
+    const { s, ids } = setup({ play0: [big], play1: [duo] });
+    s.cards[ids.play1[0]].exerted = true; unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].zone, 'inkwell');
+    assert.equal(s.cards[ids.play1[0]].exerted, true);
+    assert.ok(!s.log.some((l) => /Adventuring Duo was banished/.test(l.text)), 'never banished (6.5.4)');
+  }
+  { // Kronk - Laid Back: "If an effect would cause you to discard one or more cards, you don't discard."
+    const { s, ids } = setup({ hand0: [byName('You Have Forgotten Me')], play1: [byName('Kronk - Laid Back')] });
+    const hand = s.players[1].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[1].hand.length, hand);
+    assert.ok(s.log.some((l) => /doesn't discard/.test(l.text)));
+  }
+  { // Baymax - Amped Up: "If you would get an ink drop, you may put the top card of your deck into your inkwell facedown and exerted instead."
+    const merlin = byName('Merlin - Profoundly Curious');
+    const { s, ids } = setup({ play0: [byName('Baymax - Amped Up')], hand0: [merlin], ink0: merlin.cost });
+    const top = s.players[0].deck[0];
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.equal(s.pending?.op, 'inkDropInstead');
+    ok(applyAction(s, 0, { type: 'choose', confirm: true })); drain(s);
+    assert.equal(s.cards[top].zone, 'inkwell');
+    assert.equal(s.players[0].inkDrops || 0, 0);
+  }
+  { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
+    const rap = byName('Rapunzel - Ready for Adventure');
+    const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
+    const { s, ids } = setup({ play0: [rap, pal], play1: [foe, foe] });
+    unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
+    assert.equal(s.pending?.type, 'support');
+    ok(applyAction(s, 0, { type: 'support', target: ids.play0[1] })); drain(s);
+    pass(s); s.cards[ids.play0[1]].exerted = true;
+    ok(applyAction(s, 1, { type: 'challenge', attacker: ids.play1[0], target: ids.play0[1] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].damage, 0, 'the next time: none');
+    ok(applyAction(s, 1, { type: 'challenge', attacker: ids.play1[1], target: ids.play0[1] })); drain(s);
+    assert.equal(s.cards[ids.play0[1]].damage, foe.str, 'only once');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

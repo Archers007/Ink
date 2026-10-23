@@ -17,6 +17,7 @@ import { Amount } from './phrases/amount.js';
 import { Duration } from './phrases/duration.js';
 import { parseCondition, conditionOf } from './conditions/index.js';
 import { EFFECTS, EFFECT, Look } from './effects/index.js';
+import { parseReplace } from '../rulebook/replace.js';
 import { KINDS, KeywordLine, KEYWORD_START, Action, Activated, Triggered, Static } from './kinds/index.js';
 import { SUPPORT } from './support.js';
 import { PLAYER_RX, playerOf, playerIf } from './phrases/player.js';
@@ -343,6 +344,8 @@ export class Compiler {
       break;
     }
     const mods = { ...(once ? { once } : {}), ...(during ? { during } : {}) };
+    const rep = parseReplace(t);                                    // "if … would …, … instead" (CR 6.5)
+    if (rep) return { kind: 'static', ...mods, effect: rep };
     const proc = Activated.parse(t, this, mods) || Triggered.parse(t, this, mods);
     if (proc) return proc;
     // "Once during your turn, you may move him to another location for free. If you do, gain 1 lore." — something you

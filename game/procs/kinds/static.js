@@ -13,7 +13,7 @@ import { PlayBan } from '../effects/playBan.js';
 import { parseRule } from '../../rulebook/rules.js';
 import { parseDeckRule } from '../../rulebook/deck.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost', 'rule', 'deck', 'replace']);
 
 export class Static extends Kind {
   static kind = 'static';

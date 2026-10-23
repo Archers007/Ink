@@ -16,8 +16,9 @@ export class Discard extends Effect {
   ];
   static run(rt, s, job, st, ev) {
     const P = rt.E.P;
+    const seats = () => (job.tmp.seats ||= rt.who(s, job, st.who).filter((seat) => !rt.discardBlocked(s, seat)));   // CR 6.5
     if (st.all) {
-      for (const seat of rt.who(s, job, st.who)) {
+      for (const seat of seats()) {
         const n = P(s, seat).hand.length;
         for (const iid of [...P(s, seat).hand]) rt.E.moveTo(s, iid, 'discard', ev, { reveal: true });
         rt.log(s, `↳ ${rt.E.nameOf(s, seat)} discarded their hand (${plural(n, 'card')}).`, { seat, kind: 'effect' });
@@ -25,7 +26,7 @@ export class Discard extends Effect {
       return true;
     }
     if (st.random) {
-      for (const seat of rt.who(s, job, st.who)) {
+      for (const seat of seats()) {
         const p = P(s, seat); const gone = [];
         for (let k = 0; k < st.n && p.hand.length; k++) {
           const iid = p.hand[Math.floor(rt.E.rand(s) * p.hand.length)];
@@ -36,7 +37,7 @@ export class Discard extends Effect {
       return true;
     }
     // one pick per card per player; each player chooses their own
-    const T = (job.tmp.discard ||= { queue: rt.who(s, job, st.who).flatMap((seat) => Array(st.n).fill(seat)), any: false });
+    const T = (job.tmp.discard ||= { queue: seats().flatMap((seat) => Array(st.n).fill(seat)), any: false });
     if (job.answer?.key === 'discard') {
       const a = job.answer; job.answer = null;
       const c = s.cards[a.target];

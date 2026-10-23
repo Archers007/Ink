@@ -228,9 +228,41 @@ function win(s, seat, reason, ev) {
   ev.push({ k: 'win', seat, reason });
 }
 
+// Damage being dealt (CR 1.9.1) — after Resist. Replacement effects (6.5) may prevent it or put it elsewhere as
+// counters ("put that many damage counters on this character instead" — counters, not damage: no "is dealt damage").
+// → the damage actually dealt to `iid`
+function dealDamage(s, iid, n, ev, info = {}) {
+  if (!(n > 0)) return 0;
+  const e = R.replace(s, { event: 'damage', iid, n }, (r, e) => {
+    const by = cardLabel(D(s, s.cards[r.src]));
+    if (r.st.do === 'prevent') { log(s, `↳ ${by}: ${cardLabel(D(s, s.cards[e.iid]))} takes no damage instead.`, { kind: 'effect' }); return null; }
+    if (r.st.do === 'redirect') {
+      const b = s.cards[r.src];
+      b.damage += e.n; ev.push({ k: 'damage', iid: b.iid, n: e.n });
+      log(s, `↳ ${by} takes ${e.n} damage counter${e.n === 1 ? '' : 's'} instead of ${cardLabel(D(s, s.cards[e.iid]))}.`, { kind: 'effect' });
+      return null;
+    }
+    return undefined;
+  });
+  if (!e) return 0;
+  const c = s.cards[e.iid];
+  c.damage += e.n;
+  ev.push({ k: 'damage', iid: e.iid, n: e.n });
+  R.fire(s, 'damaged', { iid: e.iid, n: e.n, ...info });
+  return e.n;
+}
+
 function banish(s, iid, ev, why = '') {
   const c = s.cards[iid];
   const d = D(s, c);
+  // "If this character would be banished, put them into your inkwell facedown and exerted instead" (CR 6.5)
+  const rep = R.replace(s, { event: 'banish', iid }, (r) => {
+    if (r.st.do !== 'inkwell') return undefined;
+    log(s, `↳ ${cardLabel(d)} goes into ${nameOf(s, c.owner)}'s inkwell instead of being banished.`, { kind: 'effect' });
+    moveTo(s, iid, 'inkwell', ev, { exerted: true });
+    return null;
+  });
+  if (!rep) return;
   ev.push({ k: 'banish', iid, cardId: c.cardId });
   log(s, `💥 ${nameOf(s, c.owner)}'s ${cardLabel(d)} was banished${why ? ` (${why})` : ''}.`, { kind: 'banish' });
   const cx = s.challengeCtx;
@@ -719,10 +751,8 @@ function challengeDamageStep(s, a, t, ev) {
   const { toDefender, toAttacker } = challengeDamage(A, Ad, T, Td, { attStat: R.rule(s, 'challengeStat', A.owner), defStat: R.rule(s, 'challengeStat', T.owner) });
   ev.push({ k: 'challenge', a: A.iid, t: T.iid, toA: toAttacker, toT: toDefender });
   log(s, `↳ ${cardLabel(Ad)} dealt ${toDefender}, took ${toAttacker}.`, { kind: 'challenge' });
-  if (toDefender) { T.damage += toDefender; ev.push({ k: 'damage', iid: T.iid, n: toDefender }); }
-  if (toAttacker) { A.damage += toAttacker; ev.push({ k: 'damage', iid: A.iid, n: toAttacker }); }
-  if (toDefender) R.fire(s, 'damaged', { iid: T.iid, n: toDefender, inChallenge: true, by: A.iid });
-  if (toAttacker) R.fire(s, 'damaged', { iid: A.iid, n: toAttacker, inChallenge: true, by: T.iid });
+  dealDamage(s, T.iid, toDefender, ev, { inChallenge: true, by: A.iid });   // dealt at the same time (4.6.6.2)
+  dealDamage(s, A.iid, toAttacker, ev, { inChallenge: true, by: T.iid });
   s.challengeCtx = { a, t };
   try { gameStateCheck(s, ev); } finally {
     s.challengeCtx = null; s.challenge = null;
@@ -1016,7 +1046,7 @@ H.clearMods = (s, seat, a, ev) => {
 const ENGINE = {
   D, P, nameOf, log, cardLabel, prettyText, KEYWORD_LABEL, LORE_TO_WIN, RE,
   effStr, effWp, effLore, kwVal, hasKw, rand, shuffleArr, readyInk, payInk, opponentsOf,
-  moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, turnPhase, putUnder, moveChar, exertCard,
+  moveTo, banish, dealDamage, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, turnPhase, putUnder, moveChar, exertCard,
 };
 const R = createRuntime(ENGINE);
 // restrictions that name a query ("can't be challenged by characters with cost 3 or less") — see rules.js
