@@ -1,4 +1,4 @@
-// Loads cards.db + prices.db via sql.js and exposes query helpers.
+// Loads sanitized.db + prices.db via sql.js and exposes query helpers.
 
 const SQL_WASM_URL = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.wasm';
 
@@ -33,9 +33,9 @@ export async function loadDB(onProgress = () => {}) {
   onProgress('init', 'Loading SQLite engine…');
   const SQL = await initSqlJs({ locateFile: () => SQL_WASM_URL });
 
-  onProgress('fetch', 'Downloading cards.db…');
-  const cardsBuf = await fetch('/api/cards.db').then((r) => {
-    if (!r.ok) throw new Error('cards.db HTTP ' + r.status);
+  onProgress('fetch', 'Downloading sanitized.db…');
+  const cardsBuf = await fetch('/api/sanitized.db').then((r) => {
+    if (!r.ok) throw new Error('sanitized.db HTTP ' + r.status);
     return r.arrayBuffer();
   });
   DB.cards = new SQL.Database(new Uint8Array(cardsBuf));

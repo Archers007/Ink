@@ -1,9 +1,9 @@
 # card-scan
 
-Reads each card's rules text **off the card image** and cross-checks it against `cache/cards.db`.
+Reads each card's rules text **off the card image** and cross-checks it against `cache/sanitized.db`.
 Deterministic — OpenCV + tesseract, no AI. Optional: the card build doesn't run it.
 
-`cache/cards.db` takes its text from Ravensburger's own catalog (`tools/import-cards.mjs`), which already has
+`cache/sanitized.db` takes its text from Ravensburger's own catalog (`tools/import-cards.mjs`), which already has
 every icon dreamborn's text used to drop (all 165 cards the scan used to patch). The scan is a spot check: a
 `match` means the printed card says what the build compiles; anything else is worth a look.
 

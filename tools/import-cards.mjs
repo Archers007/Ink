@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Build step: cache/dreamborn.db (dreamborn.ink's printings) + cards.disneylorcana.com (Ravensburger's catalog,
-// tools/card-scan/official.mjs) → cache/cards.db, the imported card data everything else reads.
+// tools/card-scan/official.mjs) → cache/sanitized.db, the imported card data everything else reads.
 //
 //   node tools/import-cards.mjs            import (downloads the official page once, cached in cache/official.html)
 //   node tools/import-cards.mjs --refresh  re-download the official page first
@@ -10,7 +10,7 @@
 // doesn't: its printing ids (decks, collections and prices.db are keyed by them), sets, rarity, variants,
 // illustrator, franchise, formats. A card Ravensburger doesn't list keeps dreamborn's values (source 'dreamborn').
 //
-// cards.db keeps dreamborn's `cards` / `sets` / `metadata` tables in dreamborn's shape (one row per printing),
+// sanitized.db keeps dreamborn's `cards` / `sets` / `metadata` tables in dreamborn's shape (one row per printing),
 // so the deck builder and the engine read it unchanged, plus:
 //   rules     one row per unique card (Name - Title): the merged values, flavour, FAQ, which source won
 //   rulings   one row per ability: the text the compiler gets; proc_id → proc.db (tools/compile-procs.mjs)
@@ -26,7 +26,7 @@ import { canon, unknownIcons, mergeSplitNames, splitDbAbilities } from '../game/
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'cache/dreamborn.db');
-const OUT = path.join(ROOT, 'cache/cards.db');
+const OUT = path.join(ROOT, 'cache/sanitized.db');
 if (!existsSync(SRC)) { console.error('cache/dreamborn.db missing — start the server once to download it'); process.exit(1); }
 
 // Ravensburger down and no cached copy → every card keeps dreamborn's values (source 'dreamborn'), loudly
@@ -120,7 +120,7 @@ function textDiff(was, now) {
   return 'text';
 }
 
-// ---- write cards.db ----
+// ---- write sanitized.db ----
 const TMP = OUT + '.tmp';
 rmSync(TMP, { force: true });
 copyFileSync(SRC, TMP);

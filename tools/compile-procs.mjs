@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Build step: cache/cards.db `rulings` (tools/import-cards.mjs) → cache/proc.db, and every ruling's proc_id filled in.
+// Build step: cache/sanitized.db `rulings` (tools/import-cards.mjs) → cache/proc.db, and every ruling's proc_id filled in.
 //
 //   node tools/compile-procs.mjs            compile + coverage summary
 //   node tools/compile-procs.mjs --misses   + the top reasons abilities didn't compile (what to build next)
 //
 // proc.db `procs` holds one row per distinct proc: proc_id = hash of its JSON, so the same text compiles to the
-// same proc and cards that share an ability share a row. The ability's name/text stay on the ruling in cards.db.
+// same proc and cards that share an ability share a row. The ability's name/text stay on the ruling in sanitized.db.
 // Deterministic: same rulings → same proc ids.
 
 import { existsSync, rmSync } from 'node:fs';
@@ -16,11 +16,11 @@ import { fileURLToPath } from 'node:url';
 import { compileAbility } from '../game/procs/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CARDS = path.join(ROOT, 'cache/cards.db');
+const CARDS = path.join(ROOT, 'cache/sanitized.db');
 const OUT = path.join(ROOT, 'cache/proc.db');
 const showMisses = process.argv.includes('--misses');
 
-if (!existsSync(CARDS)) { console.error('cache/cards.db missing — run `node tools/import-cards.mjs` first.'); process.exit(1); }
+if (!existsSync(CARDS)) { console.error('cache/sanitized.db missing — run `node tools/import-cards.mjs` first.'); process.exit(1); }
 
 rmSync(OUT, { force: true });
 const out = new DatabaseSync(OUT);
