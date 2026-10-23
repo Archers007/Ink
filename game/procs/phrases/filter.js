@@ -6,7 +6,7 @@
 // every phrase in the card pool at once. Owner/zone words stay on the Query itself.
 
 import { Miss, miss } from './text.js';
-import { parseWith, fromAdjective, ADJECTIVES } from '../classifiers/index.js';
+import { parseWith, fromAdjective, ADJECTIVES, Compare } from '../classifiers/index.js';
 
 const TYPE = '(?:character|item|location|action|song|card)s?';
 const TYPES = new RegExp(String.raw`^${TYPE}(?:(?:,|,? or|,? and) ${TYPE})*(?: cards?)?\b`, 'i');
@@ -45,6 +45,7 @@ function filter1(phrase, at) {
       else if (w === 'your') F.owner = 'you';
     } else if ((m = s.match(ADJ))) W.push(fromAdjective(m[1]));
     else if ((m = s.match(/^non-(character|item|location|action|song)\s+/i))) W.push({ notType: [m[1].toLowerCase()] });
+    else if ((m = s.match(/^non-(character|item|location|action|song)$/i))) { W.push({ notType: [m[1].toLowerCase()] }); s = 'card'; break; }   // "a non-character"
     else if ((m = s.match(/^(?:any|all)\s+/i))) { /* "any character" */ }
     else break;
     s = s.slice(m[0].length);
@@ -83,7 +84,7 @@ function filter1(phrase, at) {
       F.zone = m[2].toLowerCase();
       const o = m[1].toLowerCase();
       if (o === 'your') F.owner = 'you'; else if (o !== 'their') F.owner = 'opp';
-    } else if ((m = s.match(/^(?:here|at this location)\b\s*/i))) W.push({ here: true });
+    } else if ((m = s.match(/^(?:from )?(?:here|at this location)\b\s*/i))) W.push({ here: true });
     else if ((m = s.match(/^at a location\b\s*/i))) W.push({ atLocation: true });
     else if ((m = s.match(/^that (?:isn't|is not) (?:a|an) (character|item|location|action|song)\b\s*/i))) W.push({ notType: [m[1].toLowerCase()] });
     else if ((m = s.match(NAMED))) {
@@ -117,3 +118,5 @@ function filter1(phrase, at) {
 export function tryFilter(phrase) {
   try { return filter(phrase); } catch (e) { if (e instanceof Miss) return null; throw e; }
 }
+
+Compare.reg = { ...(Compare.reg || {}), filter: (x) => filter(x) };

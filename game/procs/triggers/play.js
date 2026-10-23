@@ -7,6 +7,7 @@ export class Play extends Trigger {
   static rules = [
     [/^when you play this (?:character|item|location) and whenever (?:he|she|it|they|this character) quests?$/i, () => [{ ev: 'play' }, { ev: 'quest' }]],
     [/^when you play this (?:character|item|location)$/i, () => [{ ev: 'play' }]],
+    [/^when(?:ever)? you shift this character$/i, () => [{ ev: 'play', shifted: true }]],   // played by shifting
     [/^whenever you play this (?:character )?or another (.+)$/i, (m, P) => [{ ev: 'play' }, { ev: 'playCard', filter: other(P.filter(m[1]), true) }]],
   ];
   static say() { return 'you play this card'; }
@@ -15,7 +16,7 @@ export class PlayCard extends Trigger {
   static ev = 'playCard';
   static rules = [
     [/^whenever you play a song$/i, () => [{ ev: 'playCard', filter: { types: ['song'] } }]],
-    [/^whenever you pay (\d+) \{ink\} or less to play a card$/i, (m) => [{ ev: 'playCard', filter: {}, paidMax: +m[1] }]],
+    [/^whenever you pay (\d+) \{ink\} or less to play (?:a card|(?:a|an) (.+))$/i, (m, P) => [{ ev: 'playCard', filter: m[2] ? P.filter(m[2]) : {}, paidMax: +m[1] }]],
     [/^whenever you play an? (second|third|fourth) (.+?)(?: in a turn| this turn)?$/i, (m, P) => [{ ev: 'playCard', filter: P.filter(m[2]), nth: { second: 2, third: 3, fourth: 4 }[m[1].toLowerCase()] }]],
     [/^whenever you play (a|an|another) (.+)$/i, (m, P) => [{ ev: 'playCard', filter: other(P.filter(m[2]), m[1].toLowerCase() === 'another') }]],
   ];
@@ -36,7 +37,7 @@ export class OppPlayCard extends Trigger {
 export const events = {
   play(rt, s, info, fireOn) {
     const c = s.cards[info.iid];
-    if (c.zone === 'play') fireOn(c, 'play');
+    if (c.zone === 'play') fireOn(c, 'play', (o) => !o.shifted || !!c.shifted);
     const nth = (o) => (s.turnLog || []).filter((e) => e.ev === 'play' && e.seat === c.owner && s.cards[e.iid] && rt.matches(s, o.filter, s.cards[e.iid], c.owner, null, { anyZone: true })).length === o.nth;
     for (const x of rt.inPlay(s, c.owner)) fireOn(x, 'playCard', (o) => rt.matches(s, o.filter, c, x.owner, x.iid, { anyZone: true }) && (!o.nth || nth(o)) && (o.paidMax == null || (info.paid != null && info.paid <= o.paidMax)), [c.iid]);
     if (info.singers?.length) for (const x of rt.inPlay(s, c.owner)) fireOn(x, 'songSung', null, info.singers);

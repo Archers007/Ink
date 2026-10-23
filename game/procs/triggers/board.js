@@ -35,7 +35,7 @@ export class SupportedAny extends Trigger {
 export class ShiftedOnto extends Trigger {
   static ev = 'shiftedOnto';
   static rules = [
-    [/^when(?:ever)? you shift a character on(?: top of)? this (?:character|card)$/i, () => [{ ev: 'shiftedOnto' }]],
+    [/^when(?:ever)? you shift a character on(?: top of)? (?:this (?:character|card)|her|him|them|it)$/i, () => [{ ev: 'shiftedOnto' }]],
     [/^when(?:ever)? you play an? (.+?) on (?:top of )?this (?:character|card)$/i, (m, P) => [{ ev: 'shiftedOnto', filter: P.filter(m[1]) }]],
   ];
   static say(o) { return `you shift ${o.filter ? Query.describe(o.filter) : 'a character'} onto this`; }

@@ -5,12 +5,13 @@ import { parseTrigger, sayTrigger, TRIGGER } from '../triggers/index.js';
 export class Triggered extends Kind {
   static kind = 'triggered';
   static parse(t, c, mods) {
-    const ci = t.indexOf(', ');
-    if (ci <= 0) return null;
-    const head = t.slice(0, ci);
-    const on = parseTrigger(head, c.P(t));
+    // the head ends at the first ", " that leaves a trigger we read ("Whenever one of your opponents' characters,
+    // items, or locations is returned to their hand from play, …")
+    let ci = -1, on = null;
+    for (let k = t.indexOf(', '); k > 0 && !on; k = t.indexOf(', ', k + 1)) { on = parseTrigger(t.slice(0, k), c.P(t)); if (on) ci = k; }
     if (!on) {
-      if (/^(when|whenever|at the) /i.test(head)) c.miss(`trigger: "${head}"`, t);
+      const head = t.slice(0, Math.max(0, t.indexOf(', ')));
+      if (head && /^(when|whenever|at the) /i.test(head)) c.miss(`trigger: "${head}"`, t);
       return null;
     }
     let body = t.slice(ci + 2);

@@ -47,6 +47,7 @@ export class Activated extends Kind {
     if (!proc || proc.kind !== 'activated' || !proc.exec) return false;
     const cost = proc.cost;
     if (proc.once) { c.once ||= {}; if (c.once[index] === s.turn) throw E.RE('This ability can only be used once per turn.'); }
+    if (proc.during === 'yours' && s.active !== seat) throw E.RE('Only during your turn.');
     if (cost.exert) {
       if (d.type === 'location') throw E.RE("Locations can't exert.");
       if (c.exerted) throw E.RE('It is exerted — this ability costs ⟳.');

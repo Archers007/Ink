@@ -709,6 +709,46 @@ test('durations: no duration on what was played · at the end of the turn · whi
     assert.ok(!s.cards[ids.play0[0]].mods.some((m) => m.kw === 'evasive'), 'gone once the feather leaves');
   }
 });
+test('comparisons · same name · once-per-turn free ability', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Faline: "While you have a character in play with more {strength} than each opposing character, this character gets +2 {lore}."
+    const faline = byName('Faline - Playful Fawn');
+    const strong = plain((d) => d.str >= 5), weak = plain((d) => d.str <= 1);
+    const lore = (s, iid) => viewFor(s, 0).players[0].play.find((c) => c.iid === iid).eff.lore;
+    const { s, ids } = setup({ play0: [faline, strong], play1: [weak] });
+    ok(applyAction(s, 0, { type: 'ink', iid: s.players[0].hand[0] }));
+    assert.equal(lore(s, ids.play0[0]), faline.lore + 2);
+    const { s: s2, ids: i2 } = setup({ play0: [faline, weak], play1: [strong] });
+    ok(applyAction(s2, 0, { type: 'ink', iid: s2.players[0].hand[0] }));
+    assert.equal(lore(s2, i2.play0[0]), faline.lore);
+  }
+  { // One and Only: "Choose a character. Banish all other characters with the same name as that character."
+    const one = byName('One and Only');
+    const a = plain(() => true);
+    const b = all.find((d) => d.type === 'character' && d.name === a.name && d.full !== a.full) || a;
+    const other = plain((d) => d.name !== a.name);
+    const { s, ids } = setup({ hand0: [one], play0: [a], play1: [b, other] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] }));
+    drain(s);
+    assert.equal(s.cards[ids.play0[0]].zone, 'play', 'the chosen one stays');
+    assert.equal(s.cards[ids.play1[0]].zone, 'discard', 'same name: banished');
+    assert.equal(s.cards[ids.play1[1]].zone, 'play', 'different name: stays');
+  }
+  { // Carl's House: "Once during your turn, you may move chosen character from here to another location for free. If you do, gain 1 lore."
+    const house = byName("Carl's House - Flying High");
+    const loc2 = all.find((d) => d.type === 'location' && !d.abilities.length);
+    const c = plain(() => true);
+    const { s, ids } = setup({ play0: [house, loc2, c] });
+    s.cards[ids.play0[2]].atLocation = ids.play0[0];
+    const idx = house.procs.findIndex((p) => p.kind === 'activated');
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }));
+    for (let k = 0; k < 4 && s.pending; k++) ok(applyAction(s, 0, { type: 'choose', ...(s.pending.confirm ? {} : { target: s.pending.valid.includes(ids.play0[2]) ? ids.play0[2] : ids.play0[1] }) }));
+    assert.equal(s.cards[ids.play0[2]].atLocation, ids.play0[1]);
+    assert.equal(s.players[0].lore, 1);
+    assert.equal(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: idx }).ok, false, 'once per turn');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

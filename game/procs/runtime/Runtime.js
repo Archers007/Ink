@@ -93,13 +93,14 @@ export class Runtime {
   }
 
   // ------------------------------------------------------------ queries & conditions
-  matches(s, F, c, ctl, src, o = {}) { return !!c && Query.matches(F, c, this.E.D(s, c), { E: this.E, s, ctl, src }, o); }
+  matches(s, F, c, ctl, src, o = {}) { return !!c && Query.matches(F, c, this.E.D(s, c), { E: this.E, s, ctl, src, it: o.it }, o); }
   pool(s, F, ctl) {
     const zone = F.zone || 'play';
     const seats = F.owner === 'you' ? [ctl] : F.owner === 'opp' ? this.E.opponentsOf(s, ctl) : s.players.map((p) => p.seat);
     return seats.flatMap((seat) => this.E.P(s, seat)[zone] || []);
   }
-  candidates(s, F, ctl, src) { return this.pool(s, F, ctl).filter((iid) => this.matches(s, F, s.cards[iid], ctl, src)); }
+  // it = what the ability last acted on ("with the same name as that character")
+  candidates(s, F, ctl, src, it) { return this.pool(s, F, ctl).filter((iid) => this.matches(s, F, s.cards[iid], ctl, src, it ? { it } : {})); }
   test(s, C, ctl, src, job) { return testCondition(this, s, C, { ctl, src, job }); }
 
   // ------------------------------------------------------------ the bag

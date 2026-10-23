@@ -32,12 +32,12 @@ export class Prompter {
       if (sel.nth != null) return it.length > 1 ? [it.at(sel.nth)] : [];
       return it.length || job.i > 0 ? it : s.cards[job.src] ? [job.src] : [];
     }
-    if (sel.all) return rt.candidates(s, sel.all, job.seat, job.src).filter(o.keep || (() => true));
+    if (sel.all) return rt.candidates(s, sel.all, job.seat, job.src, job.ctx.it).filter(o.keep || (() => true));
     if (!sel.chosen) return [];
     this.take(job, key, T);
     const max = sel.upTo || 1;
     if (T.done || T.acc.length >= max) return this.vanish(s, job, T);
-    let valid = rt.candidates(s, sel.chosen, job.seat, job.src)
+    let valid = rt.candidates(s, sel.chosen, job.seat, job.src, job.ctx.it)
       .filter((iid) => !T.acc.includes(iid))
       .filter((iid) => s.cards[iid].owner === job.seat || !rt.E.hasKw(s.cards[iid], rt.E.D(s, s.cards[iid]), 'ward'));   // Ward (8.15)
     if (o.keep) valid = valid.filter(o.keep);
