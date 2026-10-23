@@ -1030,6 +1030,42 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     assert.equal(s.cards[ids.play0[1]].damage, foe.str, 'only once');
   }
 });
+test('deck order (CR 7.2.3): N / any number / all cards to the top or bottom of a deck', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Aladdin & Genie - Mischievous Pals: "you may put any number of cards from your hand on the bottom of your deck in any order. If you do, draw that number of cards plus 1."
+    const ag = byName('Aladdin & Genie - Mischievous Pals');
+    const x = plain(() => true);
+    const { s, ids } = setup({ hand0: [ag, x, x], ink0: 10 });
+    const hand = s.players[0].hand.length - 1;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    if (s.pending?.confirm) ok(applyAction(s, 0, { type: 'choose', confirm: true }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[1] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[2] }));
+    while (s.pending) ok(applyAction(s, 0, { type: 'choose', skip: true }));
+    assert.deepEqual(s.players[0].deck.slice(-2).sort(), [ids.hand0[1], ids.hand0[2]].sort(), 'on the bottom');
+    assert.equal(s.players[0].hand.length, hand - 2 + 3, 'drew 2 + 1');
+  }
+  { // Mamá Imelda - No-Nonsense Ancestor: "put 3 cards from your discard on the bottom of your deck in any order or banish her."
+    const mi = byName('Mamá Imelda - No-Nonsense Ancestor');
+    const x = plain(() => true);
+    const { s, ids } = setup({ hand0: [mi], play0: [x, x, x], ink0: 10 });
+    for (const iid of ids.play0) ok(applyAction(s, 0, { type: 'moveCard', iid, to: 'discard' }));
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', option: 0 })); drain(s);
+    assert.ok(ids.play0.every((iid) => s.cards[iid].zone === 'deck'), 'all 3 to the deck');
+    assert.equal(s.cards[ids.hand0[0]].zone, 'play', 'she stays');
+  }
+  { // Jim Hawkins - Honorable Pirate: "look at the top 4 … You may reveal any number of Pirate character cards and put them into your hand. Put the rest on the bottom"
+    const jim = byName('Jim Hawkins - Honorable Pirate');
+    const pirate = all.find((d) => d.type === 'character' && (d.classes || []).includes('pirate') && d.full !== jim.full);
+    const { s, ids } = setup({ hand0: [jim, pirate], ink0: 10 });
+    const p = s.players[0]; const pi = ids.hand0[1];
+    p.hand.splice(p.hand.indexOf(pi), 1); p.deck.unshift(pi); s.cards[pi].zone = 'deck';
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (let k = 0; k < 8 && s.pending; k++) { const pd = s.pending; ok(applyAction(s, 0, { type: 'choose', ...(pd.confirm ? {} : pd.valid?.includes(pi) ? { target: pi } : { skip: true }) })); }
+    assert.equal(s.cards[pi].zone, 'hand');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

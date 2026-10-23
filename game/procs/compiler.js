@@ -62,7 +62,8 @@ export class Compiler {
     if ((m = s.match(/^you may (.+)$/i))) { may = true; s = m[1]; }
     s = lc(s);
     s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
-    s = s.replace(/ damage each (to|from) /i, ' damage $1 ');                // "deal 1 damage each to up to 2 chosen characters"
+    s = s.replace(/ damage each (to|from) /i, ' damage $1 ');
+    s = s.replace(/( on the (?:top|bottom) of (?:your|their|their players'|its owner's|their player's) decks?) in any order$/i, '$1');   // CR 7.2.3: the player picks the order                // "deal 1 damage each to up to 2 chosen characters"
     let dur;
     [s, dur] = Duration.take(s);
     // "for each X, <clause>" → the clause's amount/mod is multiplied
