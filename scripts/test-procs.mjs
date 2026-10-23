@@ -524,6 +524,49 @@ test('Shift by spec: discard cost, ink-drop cost, Duo, Combo, Potato, Temporary 
     { const { s, ids } = setup({ hand0: [candy], play0: [plain] }); assert.equal(play(s, { iid: ids.hand0[0], target: ids.play0[0] }).ok, false); }
   }
 });
+test('generic act trigger · history · exists · challenge roles', () => {
+  const vanillaChar = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // "Whenever one of your Hyena characters challenges a damaged character, gain 2 lore."
+    const shenzi = byName('Shenzi - Head Hyena');
+    const hyena = all.find((d) => d.type === 'character' && (d.classes || []).includes('hyena') && d.full !== shenzi.full && !d.abilities.some((a) => /challeng/i.test(a.text)));
+    const foe = vanillaChar((d) => d.wp >= 6);
+    const { s, ids } = setup({ play0: [shenzi, hyena], play1: [foe] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] })); drain(s);
+    assert.equal(s.players[0].lore, 0, 'not damaged → no lore');
+    const { s: s2, ids: i2 } = setup({ play0: [shenzi, hyena], play1: [foe] }); unready(s2, i2.play0);
+    s2.cards[i2.play1[0]].exerted = true; s2.cards[i2.play1[0]].damage = 1;
+    ok(applyAction(s2, 0, { type: 'challenge', attacker: i2.play0[1], target: i2.play1[0] })); drain(s2);
+    assert.equal(s2.players[0].lore, 2);
+  }
+  { // "When you play this character, if a character of yours quested this turn, draw a card."
+    const ff = byName('Fflewddur Fflam - Luckless Bard');
+    const q = vanillaChar((d) => d.lore >= 1);
+    const { s, ids } = setup({ hand0: [ff], play0: [q] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] }));
+    const h = s.players[0].hand.length;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.players[0].hand.length, h - 1 + 1, 'quested this turn → drew');
+  }
+  { // "While a damaged character is in play, this character gets +2 {strength}."
+    const cs = byName('Card Soldiers - Royal Troops');
+    const v = vanillaChar(() => true);
+    const { s, ids } = setup({ play0: [cs], play1: [v] });
+    const str0 = viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[0]).eff.str;
+    s.cards[ids.play1[0]].damage = 1;
+    ok(applyAction(s, 0, { type: 'ink', iid: s.players[0].hand[0] }));      // any action runs the state check
+    assert.equal(viewFor(s, 0).players[0].play.find((c) => c.iid === ids.play0[0]).eff.str, str0 + 2);
+  }
+  { // "When this character is challenged and banished, banish the challenging character."
+    const cat = byName('Cheshire Cat - Not All There');
+    const big = vanillaChar((d) => d.str >= cat.wp && d.wp > cat.str);
+    const { s, ids } = setup({ play0: [big], play1: [cat] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[0]].zone, 'discard');
+    assert.equal(s.cards[ids.play0[0]].zone, 'discard', 'the challenger is banished too');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

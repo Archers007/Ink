@@ -86,6 +86,8 @@ function log(s, text, opt = {}) {
   if (s.log.length > 400) s.log.splice(0, s.log.length - 400);
 }
 
+// Can this card be played at all right now? (a reason, or null) — the bot asks before trying
+export function playBlocked(s, seat, iid) { return R.playBlocked(s, seat, s.cards[iid]); }
 export function readyInk(s, seat) {
   return P(s, seat).inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0) + (P(s, seat).inkDrops || 0);
 }
@@ -664,14 +666,16 @@ H.challenge = (s, seat, a, ev) => {
   if (why) throw RE(why);
   exertCard(s, A);
   log(s, `⚔️ ${nameOf(s, seat)}'s ${cardLabel(Ad)} challenged ${cardLabel(Td)}.`, { seat, kind: 'challenge' });
-  // "whenever this character challenges / is challenged" resolve first, then challenge damage (CR 4.6.5–4.6.6)
+  // "whenever this character challenges / is challenged" resolve first, then challenge damage (CR 4.6.5–4.6.6).
+  // s.challenge names both sides until the damage resolves ("the challenging player", "while challenging …")
+  s.challenge = { a: A.iid, t: T.iid };
   R.fire(s, 'challenges', { iid: A.iid, other: T.iid });
   R.fire(s, 'challenged', { iid: T.iid, other: A.iid });
   R.queue(s, seat, A.iid, 'Challenge', [{ fn: '_challengeDamage', a: A.iid, t: T.iid }]);
 };
 function challengeDamageStep(s, a, t, ev) {
   const A = s.cards[a]; const T = s.cards[t];
-  if (!A || !T || A.zone !== 'play' || T.zone !== 'play') { log(s, '↳ The challenge ended — a character left play.', { kind: 'effect' }); return; }
+  if (!A || !T || A.zone !== 'play' || T.zone !== 'play') { s.challenge = null; log(s, '↳ The challenge ended — a character left play.', { kind: 'effect' }); return; }
   const Ad = D(s, A); const Td = D(s, T);
   const { toDefender, toAttacker } = challengeDamage(A, Ad, T, Td);
   ev.push({ k: 'challenge', a: A.iid, t: T.iid, toA: toAttacker, toT: toDefender });
@@ -681,7 +685,7 @@ function challengeDamageStep(s, a, t, ev) {
   if (toDefender) R.fire(s, 'damaged', { iid: T.iid, n: toDefender, inChallenge: true, by: A.iid });
   if (toAttacker) R.fire(s, 'damaged', { iid: A.iid, n: toAttacker, inChallenge: true, by: T.iid });
   s.challengeCtx = { a, t };
-  try { gameStateCheck(s, ev); } finally { s.challengeCtx = null; }
+  try { gameStateCheck(s, ev); } finally { s.challengeCtx = null; s.challenge = null; }
 }
 
 H.move = (s, seat, a, ev) => {

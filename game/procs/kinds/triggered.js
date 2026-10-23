@@ -41,7 +41,8 @@ export class Triggered extends Kind {
         c.once[k] = s.turn;
       }
       // self-subject triggers ('whenever this character moves, he gets +3'): he/she = this card until a step picks something
-      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}) }, { cond: proc.cond || null });
+      const cx = s.challengeCtx || s.challenge;                    // "the challenging character / player"
+      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}), ...(cx ? { cx: { a: cx.a, t: cx.t } } : {}) }, { cond: proc.cond || null });
     });
   }
 }

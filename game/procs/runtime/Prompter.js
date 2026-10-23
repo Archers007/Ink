@@ -23,6 +23,7 @@ export class Prompter {
     const T = (job.tmp[key] ||= { acc: [] });
     if (!sel) return [];
     if (sel.self) return s.cards[job.src] ? [job.src] : [];
+    if (sel.role) { const cx = job.ctx.cx || s.challenge; const id = cx?.[sel.role === 'challenger' ? 'a' : 't']; return id != null && s.cards[id]?.zone === 'play' ? [id] : []; }
     if (sel.ref) {
       // "it/them" = the last thing acted on; with nothing before it, the pronoun means this card ("he gets +1 {lore}")
       // he/she/him/her before anything was picked: this card (always on self-subject triggers; otherwise when the event gave no card)
