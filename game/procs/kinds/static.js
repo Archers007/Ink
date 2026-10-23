@@ -46,7 +46,15 @@ export class Static extends Kind {
     if ((m = t.match(/^(.+?) while here$/i))) { here = true; t = m[1]; }
     const parts = sentences(t);
     if (parts.length === 1) {
-      const eff = c.clause(parts[0], { static: true });
+      // "your characters with Bodyguard gain Resist +1 and get +1 {lore}" — halves that change the same cards are one mod
+      let eff;
+      try { eff = c.clause(parts[0], { static: true }); } catch (e) {
+        const halves = (() => { try { return c.compound(parts[0], { static: true }); } catch { return null; } })();
+        if (!halves || halves.length < 2 || !halves.every((h) => h.fn === 'mod' && (h.sel?.ref || JSON.stringify(h.sel) === JSON.stringify(halves[0].sel)))) throw e;
+        eff = { ...halves[0], mods: halves.flatMap((h) => h.mods || []), kws: halves.flatMap((h) => h.kws || []) };
+        for (const k of ['mods', 'kws']) if (!eff[k].length) delete eff[k];
+        delete eff.linked;
+      }
       if (here && eff.sel?.all) (eff.sel.all.with ||= []).push({ here: true });
       else if (here) c.miss('static: "while here" without a group', t);
       // "While one of your Knight characters is at a location, that character gains Resist +2" — the pronoun is the
