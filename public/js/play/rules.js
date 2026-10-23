@@ -37,7 +37,7 @@ export const KEYWORD_LABEL = {
   universalShift: 'Universal Shift', classShift: 'Shift', tempShift: 'Temporary Shift', vanish: 'Vanish', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
   cantQuest: "Can't quest", cantChallenge: "Can't challenge", mustQuest: 'Must quest if able', adventurous: 'Adventurous', cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
-  noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", skipReadyOffLoc: "Skips its next ready unless at a location", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
+  noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage unless being challenged", skipReady: "Skips its next ready", skipReadyOffLoc: "Skips its next ready unless at a location", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
   mustChoose: 'Opponents must choose it if able', cantSing: "Can't sing", challengeReady: 'Can challenge ready characters', challengeReadyOf: 'Can challenge some ready characters', questFresh: 'Can quest the turn it\'s played',
 };
 
@@ -165,7 +165,8 @@ export function challengeDamage(att, attDef, tgt, tgtDef, opts = {}) {
   const safe = (c, d, ...k) => ['noDamage', 'noChallengeDamage', ...k].some((x) => hasKw(c, d, x));   // "takes no damage from challenges"
   const toDefender = safe(tgt, tgtDef) ? 0 : Math.max(0, atk - kwVal(tgt, tgtDef, 'resist'));
   const back = tgtDef.type === 'character' ? Math.max(0, dmg(tgt, tgtDef, opts.defStat)) : 0;  // locations deal no damage
-  const toAttacker = safe(att, attDef, 'noDamageChallenging') ? 0 : Math.max(0, back - kwVal(att, attDef, 'resist'));
+  // "can't be dealt damage unless being challenged" protects a challenger too (Hercules - Mighty Leader ruling)
+  const toAttacker = safe(att, attDef, 'noDamageChallenging', 'noEffectDamage') ? 0 : Math.max(0, back - kwVal(att, attDef, 'resist'));
   return { toDefender, toAttacker };
 }
 

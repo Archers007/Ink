@@ -64,10 +64,12 @@ export const events = {
         && rt.matches(s, o.filter, c, x.owner, x.iid, { anyZone: true }) && (!(o.filter.with || []).some((w) => w.here) || info.at === x.iid), [c.iid]);
     }
     const killer = info.by && s.cards[info.by];
-    if (killer?.zone === 'play') {
+    // the banisher in play — or banished in the same game state check (a trade: both go at once, CR 1.8.4)
+    if (killer?.zone === 'play' || (killer && (s.leaving || []).includes(killer.iid))) {
       fireOn(killer, 'banishOther', null, [c.iid]);
-      if (killer.atLocation && s.cards[killer.atLocation]) fireOn(s.cards[killer.atLocation], 'banishOtherHere', null, [c.iid]);
-      for (const x of rt.inPlay(s, killer.owner)) fireOn(x, 'banishOtherAny', (o) => rt.matches(s, o.filter, killer, x.owner, x.iid), [c.iid]);
+      const at = killer.zone === 'play' ? killer.atLocation : killer.lastKnown?.at;
+      if (at && s.cards[at]?.zone === 'play') fireOn(s.cards[at], 'banishOtherHere', null, [c.iid]);
+      for (const x of rt.inPlay(s, killer.owner)) fireOn(x, 'banishOtherAny', (o) => rt.matches(s, o.filter, killer, x.owner, x.iid, { anyZone: true }), [c.iid]);
     }
   },
 };
