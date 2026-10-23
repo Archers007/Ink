@@ -72,7 +72,7 @@ export class Mod extends Effect {
     })],
     [/^(.+?) can't sing songs without sing together$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantSingSolo' }] })],
     // damage prevention
-    [/^(.+?) takes? no damage from (?:the )?challenges?$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noChallengeDamage' }], ...(/the challenge$/i.test(m[0]) ? { dur: 'turn' } : P.dur ? { dur: P.dur } : {}) })],
+    [/^(.+?) takes? no damage from (?:the )?challenges?$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noChallengeDamage' }], ...(/the challenge$/i.test(m[0]) ? { dur: 'challenge' } : P.dur ? { dur: P.dur } : {}) })],   // "from the challenge" = just this one (CR 4.6.7)
     [/^(.+?) takes? no damage while challenging$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamageChallenging' }] })],
     [/^(.+?) can't be dealt damage unless (?:he's|she's|they're|it's) being challenged$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noEffectDamage' }] })],
     [/^(.+?) can't be dealt damage$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noDamage' }] })],

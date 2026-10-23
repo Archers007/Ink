@@ -1295,6 +1295,30 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     while (s.pending) ok(applyAction(s, 0, s.pending.confirm ? { type: 'choose', confirm: true } : { type: 'choose', target: s.pending.valid[0] }));
     assert.equal(s.cards[u].zone, 'play');
   }
+  { // Prince Phillip - Swordsman of the Realm: "Whenever he challenges a damaged character, ready this character after the challenge."
+    // Raya - Leader of Heart: "she takes no damage from the challenge" — that challenge only (CR 4.6.7)
+    const pp = byName('Prince Phillip - Swordsman of the Realm'), foe = vanilla((d) => d.wp >= 8 && d.str >= 1);
+    const { s, ids } = setup({ play0: [pp], play1: [foe] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true; s.cards[ids.play1[0]].damage = 1;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    assert.equal(s.cards[ids.play0[0]].exerted, false, 'readied after');
+    const raya = byName('Raya - Leader of Heart');
+    { const { s, ids } = setup({ play0: [raya], play1: [foe] }); unready(s, ids.play0);
+      s.cards[ids.play1[0]].exerted = true; s.cards[ids.play1[0]].damage = 1;
+      ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+      assert.equal(s.cards[ids.play0[0]].damage, 0);
+      assert.ok(!s.cards[ids.play0[0]].mods.some((m) => m.kw === 'noChallengeDamage'), 'gone once the challenge ends'); }
+  }
+  { // Next Stop, Olympus: "Ready chosen character. … The next time they challenge another character this turn, gain 1 lore." — once
+    const nso = byName('Next Stop, Olympus'), pal = vanilla((d) => d.str >= 1), foe = vanilla((d) => d.wp >= 8);
+    const { s, ids } = setup({ hand0: [nso], play0: [pal], play1: [foe, foe], ink0: nso.cost }); unready(s, ids.play0);
+    s.cards[ids.play0[0]].exerted = true; for (const f of ids.play1) s.cards[f].exerted = true;
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); drain(s);
+    const lore = s.players[0].lore;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] })); drain(s);
+    assert.equal(s.players[0].lore, lore + 1);
+  }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');
     const pal = plain((d) => d.wp >= 3), foe = plain((d) => d.str >= 1 && d.wp > pal.str);
