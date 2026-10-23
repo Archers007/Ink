@@ -23,6 +23,16 @@ export class Prompter {
     const T = (job.tmp[key] ||= { acc: [] });
     if (!sel) return [];
     if (sel.self) return s.cards[job.src] ? [job.src] : [];
+    if (sel.both) {                                                      // each part in turn; the second sees the first as "it"
+      const out = [];
+      for (let k = 0; k < sel.both.length; k++) {
+        const ids = this.targets(s, job, st, sel.both[k], `${key}${k}`, o);
+        if (!ids) return null;
+        out.push(...ids.filter((x) => !out.includes(x)));
+        if (k === 0) job.ctx.it = [...ids];
+      }
+      return out;
+    }
     if (sel.role) { const cx = job.ctx.cx || s.challenge; const id = cx?.[sel.role === 'challenger' ? 'a' : 't']; return id != null && s.cards[id]?.zone === 'play' ? [id] : []; }
     if (sel.ref) {
       // "it/them" = the last thing acted on; with nothing before it, the pronoun means this card ("he gets +1 {lore}")
@@ -50,7 +60,7 @@ export class Prompter {
     const zone = sel.chosen.zone || 'play';
     return this.ask(s, job, {
       valid, op: st.fn, harmful: E.harmful,
-      optional: !!st.may || !!sel.upTo || T.acc.length > 0,
+      optional: !!st.may || (!!sel.upTo && !sel.exactly) || (T.acc.length > 0 && !sel.exactly),
       prompt: `${o.verb || E.verb(rt, s, job, st)} — choose ${sel.upTo ? `up to ${sel.upTo} ` : ''}${Query.describe(sel.chosen)}${T.acc.length ? ` (${T.acc.length} picked)` : ''}.`,
       cards: zone === 'play' ? undefined : valid.map((iid) => ({ iid, cardId: s.cards[iid].cardId })),
     });

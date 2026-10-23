@@ -24,17 +24,25 @@ export class FromDiscard extends Effect {
 export class PlayFree extends Effect {
   static fn = 'playFree';
   static chooses() { return true; }
-  static rules = [[/^play (?:a|an) (.+?) (?:from your (hand|discard) )?for free$/i, (m, P) => {
-    const F = P.filter(m[1]); F.zone = m[2] || 'hand'; F.owner = 'you';
-    return { fn: 'playFree', filter: F };
-  }]];
+  static rules = [
+    [/^play (?:a|an) (.+?) (?:from your (hand|discard) )?for free$/i, (m, P) => {
+      const F = P.filter(m[1]); F.zone = m[2] || 'hand'; F.owner = 'you';
+      return { fn: 'playFree', filter: F };
+    }],
+    // any zone phrase the filter reads ("a location from your hand or discard with cost 4 or less") · ", exerted"
+    [/^play (?:a|an) (.+?) for free(,? exerted| and (?:it|they) enters? play exerted)?$/i, (m, P) => {
+      const F = { owner: 'you', ...P.filter(m[1]) };
+      if (!F.zone && !F.any?.some((G) => G.zone)) F.zone = 'hand';
+      return { fn: 'playFree', filter: F, ...(m[2] ? { exerted: true } : {}) };
+    }],
+  ];
   static run(rt, s, job, st, ev) {
-    const valid = rt.E.P(s, job.seat)[st.filter.zone || 'hand'].filter((iid) => rt.matches(s, st.filter, s.cards[iid], job.seat, job.src));
+    const valid = rt.candidates(s, st.filter, job.seat, job.src);
     if (!valid.length) { rt.log(s, `↳ ${job.label}: nothing to play for free.`, { kind: 'effect' }); return false; }
     const picked = rt.pickFrom(s, job, st, 'playFree', valid, { n: 1, optional: !!st.may, prompt: `play ${Query.describe(st.filter)} for free.` });
     if (!picked) return null;
     job.ctx.it = picked;
-    return rt.each(picked, (iid) => rt.E.playFree(s, job.seat, iid, ev));
+    return rt.each(picked, (iid) => { rt.E.playFree(s, job.seat, iid, ev); if (st.exerted && s.cards[iid].zone === 'play') s.cards[iid].exerted = true; });
   }
   static verb(rt, s, job, st) { return `play ${Query.describe(st.filter)} for free`; }
   static say(st) { return `play ${Query.describe(st.filter)} for free`; }
