@@ -24,7 +24,8 @@ import { PLAYER_RX, playerOf } from './phrases/player.js';
 export { Miss };
 const SONG_REMINDER = /^\(?(?:a|an) character with cost \d+ or more can \{exert\} to sing this song for free\.?\)?$/i;
 const SING_TOGETHER = /^sing together \d+\s*/i;
-const COST_THEN = /^(you may )?(pay \d+ \{ink\}|exert .+?|banish .+?|discard a card|choose and discard a card|put .+? into your inkwell facedown|return .+? to your hand) to (.+)$/i;
+// "<cost> to <effect>": the left side must read as a cost — one of these verbs — and compile; the right side is the effect
+const COST_VERB = /^(?:you may )?(?:pay|exert|\{exert\}|banish|discard|choose and discard|put|return|reveal|shuffle|deal|remove|move|give|choose)\b/i;
 
 // "draws 2 cards and gains 2 lore" → "draw 2 cards and gain 2 lore"; their → your
 const VERB3 = /\b(draws|loses|gains|puts|discards|chooses|exerts|shuffles|reveals|pays|returns|deals|banishes|readies|plays|removes|moves|looks|gets|takes|mills)\b/gi;
@@ -206,6 +207,26 @@ export class Compiler {
     target.instead = { cond, step };
   }
 
+  // "<cost> to <effect>" — try every " to ": the first split whose left side reads as a cost and whose right side
+  // compiles. "Deal 2 damage to chosen character of yours to draw 2 cards" splits at its second " to ";
+  // "pay 1 {ink} and banish this item to deal 2 damage" pays both halves. → { cost: [steps], effect: [steps] } | null
+  payTo(part, ctx) {
+    const t = part.replace(/[.!]$/, '').trim();
+    if (!COST_VERB.test(t)) return null;
+    const may = /^you may /i.test(t);
+    for (const m of t.matchAll(/ to (?=[a-z{])/gi)) {
+      const left = t.slice(0, m.index).replace(/^you may /i, '').replace(/^\{exert\} /i, 'exert ');
+      const right = t.slice(m.index + 4);
+      if (!left || /\b(?:up|equal|or less|or more)$/i.test(left)) continue;        // "up to 2", "equal to"
+      let cost, effect;
+      try { cost = this.compound(left, ctx); effect = this.effects(right, ctx); } catch (e) { if (e instanceof Miss) continue; throw e; }
+      if (may) cost[0].may = true;
+      cost.slice(1).forEach((x) => { x.ifDid = true; });
+      return { cost, effect };
+    }
+    return null;
+  }
+
   // sentences that modify the step before them
   tail(sentence, last) {
     const t = sentence.replace(/[.!]$/, '').trim();
@@ -249,15 +270,11 @@ export class Compiler {
         st[0].otherwise = true; steps.push(...st); continue;
       }
       s.split(/,? then,? /i).forEach((part, i) => {
-        const pm = part.match(COST_THEN);
-        let costStep = null;
-        if (pm) { try { costStep = this.clause((pm[1] || '') + pm[2], ctx); } catch (e) { if (!(e instanceof Miss)) throw e; } }
-        if (costStep) {
+        const paid = this.payTo(part, ctx);
+        if (paid) {
           // "you may pay 2 {ink} to draw a card" — the cost, then the rest only if it was paid
-          steps.push(costStep);
-          const st = this.effects(pm[3], ctx);
-          st.forEach((x) => { x.ifDid = true; });
-          steps.push(...st);
+          paid.effect.forEach((x) => { x.ifDid = true; });
+          steps.push(...paid.cost, ...paid.effect);
           return;
         }
         if (steps.length && this.tail(part, steps[steps.length - 1])) return;
