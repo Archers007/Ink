@@ -70,6 +70,10 @@ export class Mod extends Effect {
     [/^add (?:his|her|its|this character's) \{(strength|willpower|lore)\} to (.+?)'s? \{(strength|willpower|lore)\}$/i, (m, P) => P.D({
       fn: 'mod', sel: P.sel(m[2]), mods: [{ stat: STAT[m[3]], n: 1, nOf: { stat: STAT[m[1]], of: 'self' } }],
     })],
+    // "Your characters get +3 {strength} while challenging a location this turn"
+    [/^(.+?) gets? \+(\d+) \{strength\} while challenging a location$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'challengerLoc', n: +m[2] }] })],
+    // "This character can't quest or challenge unless you pay 1 {ink}" (each time)
+    [/^(.+?) can't quest or challenge unless you pay (\d+) \{ink\}$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'actCost', n: +m[2] }] })],
     [/^(.+?) can't sing songs without sing together$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'cantSingSolo' }] })],
     // damage prevention
     [/^(.+?) takes? no damage from (?:the )?challenges?$/i, (m, P) => ({ fn: 'mod', sel: P.sel(m[1]), kws: [{ kw: 'noChallengeDamage' }], ...(/the challenge$/i.test(m[0]) ? { dur: 'challenge' } : P.dur ? { dur: P.dur } : {}) })],   // "from the challenge" = just this one (CR 4.6.7)

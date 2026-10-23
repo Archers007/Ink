@@ -26,7 +26,8 @@ export class Static extends Kind {
     if ((m = t.match(/^(?:while|if|as long as) (.+?), (.+)$/i))) { cond = c.condition(m[1], t); t = m[2]; }
     // "While this character is exerted, if you have a character named Pain in play, …" — both
     if (cond && (m = t.match(/^(?:while|if) (.+?), (.+)$/i))) { cond = { all: [cond, c.condition(m[1], t)] }; t = m[2]; }
-    if ((m = t.match(/^(.+?) unless (.+)$/i))) { const u = { not: c.condition(m[2], t) }; cond = cond ? { all: [cond, u] } : u; t = m[1]; }
+    // "unless you pay 1 {ink}" is a cost, not a condition
+    if (!/ unless you pay \d+ \{ink\}$/i.test(t) && (m = t.match(/^(.+?) unless (.+)$/i))) { const u = { not: c.condition(m[2], t) }; cond = cond ? { all: [cond, u] } : u; t = m[1]; }
     if (!cond && (m = t.match(/^(.+?) while (?!here$|challenging)(.+)$/i))) { try { cond = c.condition(m[2], t); t = m[1]; } catch { /* not a condition */ } }
     // "this character may enter play exerted [to X]" = when you play it, you may exert it [to X]
     if ((m = t.match(/^this character may enter play exerted(?: to (.+))?$/i))) {

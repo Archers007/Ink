@@ -13,7 +13,7 @@ export const KEYWORDS = [
 export const RESTRICTIONS = {
   cantQuest: "can't quest", cantChallenge: "can't challenge", mustQuest: 'must quest if able', cantReady: "can't ready", cantMove: "can't move to locations", noDamage: "can't be dealt damage", noChallengeDamage: 'takes no damage from challenges',
   noDamageChallenging: 'takes no damage while challenging', noEffectDamage: "can't be dealt damage unless being challenged", skipReady: "can't ready at the start of the turn", cantBeChallenged: "can't be challenged",
-  cantSing: "can't sing songs", cantSingSolo: "can't sing songs without Sing Together", cantMove: "can't move", challengeReady: 'can challenge ready characters',
+  cantSing: "can't sing songs", cantSingSolo: "can't sing songs without Sing Together", challengerLoc: '+{strength} while challenging a location', actCost: 'pays {ink} to quest or challenge', cantMove: "can't move", challengeReady: 'can challenge ready characters',
   mustChallenge: 'must challenge if able', mustQuest: 'must quest if able',
   mustChoose: 'opponents must choose it for actions and abilities if able',
 };

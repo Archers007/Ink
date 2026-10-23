@@ -363,6 +363,12 @@ export class Compiler {
         const proc = Triggered.parse(`Whenever this character ${m[1]}s${m[2] ? ` ${m[2]}` : ''}, ${m[3]}`, this, {});
         if (proc) { steps.push({ fn: 'delayed', text: s, once: true, who: 'keep', proc: { ...proc, ...this.check(proc) } }); continue; }
       }
+      // "The next character you play this turn enters play exerted and gains Bodyguard until the start of your next turn."
+      if ((m = s.match(/^the next (character|item|action|song|location) you play this turn (enters play exerted)?(?: and )?(.*)$/i))) {
+        const rest = m[3] ? this.effects(`that card ${m[3]}`, ctx) : [];
+        const proc = { kind: 'triggered', on: [{ ev: 'playCard', filter: { types: [m[1].toLowerCase()] } }], do: [...(m[2] ? [{ fn: 'exert', sel: { ref: true } }] : []), ...rest] };
+        steps.push({ fn: 'delayed', text: s, once: true, proc: { ...proc, ...this.check(proc) } }); continue;
+      }
       // "ready this character after the challenge" — when the challenge's damage is done
       if ((m = s.match(/^(.+?) after the challenge$/i))) {
         const proc = { kind: 'triggered', on: [{ ev: 'challengeEnd' }], do: this.effects(m[1], ctx) };
@@ -468,6 +474,11 @@ export class Compiler {
     if ((m = t.match(/^you may (.+) to play this (?:character|item|location) for free\.?$/i))) {
       const cost = this.effects(m[1]).map((x) => ({ ...x, cost: true }));
       return { kind: 'activated', from: 'hand', cost: {}, ...mods, do: [...cost, { fn: 'playIt', self: true, ifDid: true }] };
+    }
+    // "While you have 3 or more characters here, you may banish this location to play a character from your discard for
+    // free." — an ability you use: banishing it is the cost
+    if ((m = t.match(/^(?:while (.+?), )?you may banish this (?:location|item|character) to (.+?)\.?$/i))) {
+      return { kind: 'activated', cost: { banishSelf: true }, ...mods, ...(m[1] ? { cond: this.condition(m[1], t) } : {}), do: this.effects(m[2]) };
     }
     const rep = parseReplace(t);                                    // "if … would …, … instead" (CR 6.5)
     if (rep) return { kind: 'static', ...mods, effect: rep };

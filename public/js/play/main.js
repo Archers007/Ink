@@ -379,6 +379,15 @@ function actionsFor(found) {
     if (mine) {
       def.abilities.forEach((ab, i) => {
         const cost = parseActivatedCost(ab.text);
+        // an ability you use that isn't written "cost — effect" ("Once during your turn, you may move him …" · "you may
+        // banish this location to …")
+        const proc = def.procs?.[i];
+        if (!cost && proc?.kind === 'activated' && proc.exec && proc.from !== 'hand') {
+          const parts = [proc.cost.exert ? '⟳' : '', proc.cost.ink ? `${proc.cost.ink} ⬡` : '', proc.cost.banishSelf ? 'banish this' : ''].filter(Boolean).join(' + ');
+          const reason = proc.cost.ink > readyInk() ? `Needs ${proc.cost.ink} ink.` : null;   // the server checks once-per-turn and conditions
+          P(`Use ${ab.name || 'ability'}${parts ? `  ·  ${parts}` : ''}`, () => act({ type: 'useAbility', iid: c.iid, index: i }), reason, { title: prettyText(ab.text) });
+          return;
+        }
         if (!cost) return;
         const parts = [cost.exert ? '⟳' : '', cost.ink ? `${cost.ink} ⬡` : ''].filter(Boolean).join(' + ');
         let reason = null;

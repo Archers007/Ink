@@ -732,6 +732,7 @@ H.quest = (s, seat, a, ev) => {
   const d = D(s, c);
   const why = questBlocker(c, d);
   if (why) throw RE(why);
+  payInk(s, seat, kwVal(c, d, 'actCost'));                            // "can't quest or challenge unless you pay 1 {ink}"
   exertCard(s, c);
   const gain = Math.max(0, effLore(c, d));
   gainLore(s, seat, gain, ev);
@@ -779,6 +780,7 @@ H.challenge = (s, seat, a, ev) => {
   const Td = D(s, T);
   why = defenderBlocker(A, Ad, T, Td, sideOf(s, T.owner));
   if (why) throw RE(why);
+  payInk(s, seat, kwVal(A, Ad, 'actCost'));
   exertCard(s, A);
   log(s, `⚔️ ${nameOf(s, seat)}'s ${cardLabel(Ad)} challenged ${cardLabel(Td)}.`, { seat, kind: 'challenge' });
   // "whenever this character challenges / is challenged" resolve first, then challenge damage (CR 4.6.5–4.6.6).
