@@ -22,6 +22,20 @@ export class PaidWithDrop extends Condition {
   static test(rt, s, C, env) { return (s.cards[env.src]?.paidDrops || 0) > 0; }
   static say() { return 'an ink drop paid for this card'; }
 }
+// "if a character sang this song" · "if 2 or more characters sang this song" (engine: c.sungBy)
+export class Sang extends Condition {
+  static key = 'sang';
+  static rules = [[/^(?:a character|(\d+) or more characters) sang this song$/i, (m) => ({ sang: { gte: m[1] ? +m[1] : 1 } })]];
+  static test(rt, s, C, env) { return (s.cards[env.src]?.sungBy || 0) >= C.sang.gte; }
+  static say(C) { return `${C.sang.gte > 1 ? `${C.sang.gte}+ characters` : 'a character'} sang this song`; }
+}
+// "if you removed damage this way" — the heal before it removed some
+export class HealedThisWay extends Condition {
+  static key = 'healedWay';
+  static rules = [[/^you removed (?:any )?damage this way$/i, () => ({ healedWay: true })]];
+  static test(rt, s, C, env) { return (env.job?.ctx.healed || 0) > 0; }
+  static say() { return 'damage was removed this way'; }
+}
 export class RefIs extends Condition {
   static key = 'refIs';
   static rules = [

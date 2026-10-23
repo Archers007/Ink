@@ -90,7 +90,7 @@ export class Mod extends Effect {
   static run(rt, s, job, st, ev) {
     const ids = rt.targets(s, job, st, st.sel);
     if (!ids) return null;
-    const mult = st.per ? Amount.count(rt, s, st.per, job.seat, job.src) : 1;
+    const mult = st.per ? Amount.count(rt, s, st.per, job.seat, job.src, job) : 1;
     job.ctx.it = ids;
     return rt.each(ids, (iid) => {
       rt.addMods(s, job, st, iid, ev, st.per?.count?.damageOnRef ? s.cards[iid].damage : mult);

@@ -12,6 +12,10 @@ export class History extends Condition {
   static key = 'history';
   static rules = [
     [new RegExp(String.raw`^${NUM} or more cards were put into your discard this turn$`, 'i'), (m) => H('toDiscard', { mine: true, n: { gte: N(m[1]) } })],
+    [new RegExp(String.raw`^${NUM} or more other cards were put into your discard this turn$`, 'i'), (m) => H('toDiscard', { mine: true, n: { gte: N(m[1]) }, notSelf: true })],
+    [/^it is the (second|third) challenge this turn$/i, (m) => H('challenges', { n: { gte: m[1] === 'second' ? 2 : 3, lte: m[1] === 'second' ? 2 : 3 } })],
+    [/^it is the (second|third) card you've put into your inkwell this turn$/i, (m) => H('inked', { mine: true, n: { gte: m[1] === 'second' ? 2 : 3, lte: m[1] === 'second' ? 2 : 3 } })],
+    [new RegExp(String.raw`^(?:a card|${NUM} or more cards) (?:has |have )?left a player's discard this turn$`, 'i'), (m) => H('leavesDiscard', { n: { gte: m[1] ? N(m[1]) : 1 } })],
     [/^none of your characters challenged this turn$/i, () => H('challenges', { mine: true, n: { lte: 0 } })],
     [/^(?:one of )?your characters? challenged this turn$/i, () => H('challenges', { mine: true })],
     [/^an? (opposing )?character was banished( in a challenge)? this turn$/i, (m) => H('banished', { ...(m[1] ? { opp: true } : {}), ...(m[2] ? { inChallenge: true } : {}), of: { types: ['character'] } })],
@@ -26,7 +30,7 @@ export class History extends Condition {
   ];
   static test(rt, s, C, env) {
     const h = C.history;
-    const n = (s.turnLog || []).filter((e) => e.ev === h.ev
+    const n = (s.turnLog || []).filter((e) => e.ev === h.ev && (!h.notSelf || e.iid !== env.src)
       && (!h.mine || e.seat === env.ctl) && (!h.opp || e.seat !== env.ctl) && (!h.inChallenge || e.inChallenge)
       && (!h.of || (e.iid && rt.matches(s, h.of, s.cards[e.iid], env.ctl, env.src, { anyZone: true })))).length;
     const r = h.n || { gte: 1 };

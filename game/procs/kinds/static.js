@@ -32,6 +32,11 @@ export class Static extends Kind {
     if (/^you can't play this (?:character|action|item|location|song)$/i.test(t)) return wrap({ fn: 'selfBan' });
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to play this (?:character|item|location)$/i))) return wrap({ fn: 'selfCost', n: +m[1] });
+    // "If you have a character named Lilo in play, you can play this character for free" · "… for free if <condition>"
+    if ((m = t.match(/^you (?:may|can) play this (?:character|item|card|location|action|song) for free(?: if (.+))?$/i))) {
+      if (m[1]) { const c2 = c.condition(m[1].replace(/ this turn$/i, ' this turn'), t); cond = cond ? { all: [cond, c2] } : c2; }
+      return { kind: 'static', ...mods, ...(cond ? { cond } : {}), effect: { fn: 'selfCost', n: 99, free: true } };
+    }
     if ((m = t.match(/^this (?:character|item|location) enters play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', ...(m[2] ? { damage: +m[2] } : { exerted: true }) });
     // "opposing items enter play exerted" · "opposing characters with Singer enter play with 1 damage"
     if ((m = t.match(/^(.+?) enters? play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', filter: c.filter(m[1], t), ...(m[3] ? { damage: +m[3] } : { exerted: true }) });

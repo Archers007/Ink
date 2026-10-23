@@ -2,6 +2,7 @@
 import { miss, N, STAT_WORD } from './text.js';
 import { filter } from './filter.js';
 import { Query } from '../query.js';
+import { Did } from '../conditions/exists.js';
 
 export class Amount {
   static parse(phrase, at) {
@@ -23,6 +24,11 @@ export class Amount {
     if ((m = p.match(/^different ink type of (.+)$/i))) return { count: { inks: filter(m[1], at) } };
     // "for each 1 damage removed this way" · "for each damage counter moved this way" · "for each 1 lore lost this way"
     if (/^(?:1 )?(?:damage(?: counter)?|lore|card) (?:removed|moved|lost|discarded|put \w+) this way$/i.test(p)) return { count: { thisWay: true } };
+    // "for each item banished this way" · "for each item card put into your discard this way" — what the last step moved
+    if ((m = p.match(/^(.+?) (?:banished|put into (?:your|their) discard|discarded|moved|returned|revealed|exerted|readied) this way$/i))) return { count: { thisWayOf: filter(m[1], at) } };
+    // "for each opposing character banished in a challenge this turn" — the turn log, counted like the "did" condition
+    const did = Did.rules[0][0].exec(p);
+    if (did) { const C = Did.rules[0][1](did, at); if (C) return { count: { did: C } }; }
     return { count: filter(p, at) };
   }
   static value(rt, s, job, n) {
@@ -40,14 +46,16 @@ export class Amount {
       return n.max != null ? Math.min(v, n.max) : v;
     }
     if (n && n.per?.count?.thisWay) return n.n * (job.ctx.n || 0);
-    if (n && n.per) return n.n * Amount.count(rt, s, n.per, job.seat, job.src);
+    if (n && n.per) return n.n * Amount.count(rt, s, n.per, job.seat, job.src, job);
     if (n && n.healed) return job.ctx.healed || 0;
     if (n && n.last) return job.ctx.n || 0;                                // "that much" — what the last step dealt / lost
     return 0;
   }
-  static count(rt, s, per, ctl, src) {
+  static count(rt, s, per, ctl, src, job) {
     const c = per.count;
     const me = s.cards[src];
+    if (c.thisWayOf) return (job?.ctx.it || []).filter((id) => rt.matches(s, c.thisWayOf, s.cards[id], ctl, src, { anyZone: true })).length;
+    if (c.did) return Did.count(rt, s, c.did, { ctl, src, job });
     if (c.under) return me ? me.under.length : 0;
     if (c.damageOnSelf) return me ? me.damage : 0;
     if (c.damageOnRef) return 0;                                      // counted per target by the effect
@@ -77,6 +85,8 @@ export class Amount {
     if (c.damageOn) return `1 damage on ${Query.describe(c.damageOn)}`;
     if (c.lore) return 'lore you have';
     if (c.inks) return `different ink type of ${Query.describe(c.inks)}`;
+    if (c.thisWayOf) return `${Query.describe(c.thisWayOf)} done this way`;
+    if (c.did) return `${Query.describe(c.did.of || {})} ${c.did.did} this turn`;
     if (c.size) return `card in ${c.owner === 'opp' ? "opponents'" : 'your'} ${c.zone}`;
     return Query.describe(c);
   }

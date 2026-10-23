@@ -309,6 +309,8 @@ export class Compiler {
         if (i > 0) sts[0].linked = true;
         if (i === 0 && ifDid) sts.forEach((x) => { x.ifDid = true; });
         if (i === 0 && cond) sts.forEach((x) => { x.cond = cond; });
+        // "If a character sang this song, you may move them …" — them = the singers
+        if (cond?.sang) sts.forEach((x) => { if (x.sel?.ref && !x.sel.pron) x.sel = { singers: true }; });
         steps.push(...sts);
       });
     }

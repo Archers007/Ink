@@ -499,6 +499,7 @@ H.play = (s, seat, a, ev) => {
   const banned = R.playBlocked(s, seat, c);
   if (banned) throw RE(banned);
   c.paidDrops = 0;                                                  // set again below when ink drops pay for it
+  c.sungBy = 0; c.singers = [];                                     // "if a character sang this song, … move them"
 
   if (mode === 'ink') {
     const auto = R.costDelta(s, seat, c, true);                   // "you pay N {ink} less …"
@@ -564,6 +565,7 @@ H.play = (s, seat, a, ev) => {
     how = `— sung by ${singers.map((x) => cardLabel(D(s, x))).join(' + ')}`;
     ev.push({ k: 'sing', singers: singers.map((x) => x.iid), cardId: d.id });
     sungBy = singers.map((x) => x.iid);
+    c.sungBy = sungBy.length; c.singers = [...sungBy];
   } else {
     throw RE('Unknown way to play a card.');
   }

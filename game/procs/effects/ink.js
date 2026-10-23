@@ -33,7 +33,7 @@ export class CostMod extends Effect {
 export class SelfCost extends Effect {
   static fn = 'selfCost';
   static staticOnly = true;
-  static say(st) { return `you pay ${st.n} {ink} less to play this${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''}`; }
+  static say(st) { return st.free ? 'you may play this for free' : `you pay ${st.n} {ink} less to play this${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''}`; }
 }
 // static-only: "this character enters play exerted / with 2 damage"
 export class Enters extends Effect {
