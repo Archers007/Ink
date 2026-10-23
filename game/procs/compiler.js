@@ -456,6 +456,8 @@ export class Compiler {
         const kw = KeywordLine.parse(text.slice(m.index + 2));
         if (kw) { also = kw.kws; body = text.slice(0, m.index + 1); break; }
       }
+      // "If you used Shift to play this character, you may draw 2 cards when he enters play." — the trigger at the end
+      body = body.replace(/^(If [^,]+), (you may )?(.+?) when (?:he|she|it|they|this character) enters play\.$/, (_, c, may, x) => `When you play this character, ${c.replace(/^If/, 'if')}, ${may || ''}${x}.`);
       const proc = this.text(quote(body), cardType, !!name);
       if (also) proc.also = also;
       return { ...base, ...proc, ...this.check(proc) };

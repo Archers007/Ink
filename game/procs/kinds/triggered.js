@@ -38,6 +38,7 @@ export class Triggered extends Kind {
       const label = rt.labelOf(s, c, proc);
       if (!proc.exec) { rt.log(s, `↳ ${label}: ${rt.E.prettyText(proc.text)}`, { kind: 'effect' }); return; }
       if (!rt.duringOk(s, proc, c.owner)) return;
+      if (on.during && !rt.duringOk(s, { during: on.during }, c.owner)) return;   // "… and whenever he banishes … during your turn"
       if (on.whileCond && !rt.test(s, on.whileCond, c.owner, c.iid)) return;
       if (proc.once) {
         c.once ||= {};

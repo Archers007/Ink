@@ -23,6 +23,12 @@ export function parseTrigger(head, P) {
   if (fm) { const r = parseTrigger(`whenever ${fm[1]}`, P); return r && r.map((o) => ({ ...o, first: true })); }
   fm = head.match(/^((?:when|whenever) .+?) for the first time each turn$/i);
   if (fm) { const r = parseTrigger(fm[1], P); return r && r.map((o, i, a) => (i === a.length - 1 ? { ...o, first: true } : o)); }
+  // checked first: the specific rules would read "an action while this character is exerted" as a filter
+  const m = head.match(/^(.+?) while (?:he|she|it|they|this character) ((?:has|have|is|are) .+)$/i);
+  if (m) {
+    const on = parseTrigger(m[1], P);
+    if (on) { const c = parseCondition(`this character ${m[2]}`, P.at); return on.map((o) => ({ ...o, whileCond: c })); }
+  }
   for (const T of TRIGGERS) for (const [rx, f] of T.rules) {
     const m = head.match(rx);
     if (m) return f(m, P);
@@ -30,18 +36,16 @@ export function parseTrigger(head, P) {
   // grouping: "When you play this character and whenever you play a location" = either trigger fires it
   const g = head.match(/^((?:when|whenever|at) .+?) and ((?:when|whenever|at) .+)$/i);
   if (g) {
-    const a = parseTrigger(g[1], P), b = a && parseTrigger(g[2], P);
+    const a = parseTrigger(g[1], P);
+    // "… and whenever he banishes another character in a challenge during your turn" — the duration is that trigger's
+    const d = g[2].match(/^(.+) during (your|an opponent's|opponents') turns?$/i);
+    const b = a && (d ? parseTrigger(d[1], P)?.map((o) => ({ ...o, during: /^your$/i.test(d[2]) ? 'yours' : 'opp' })) : parseTrigger(g[2], P));
     if (a && b) return [...a, ...b];
   }
   // "when" and "whenever" are the same trigger word (CR 7.4) — retry with the other spelling
   if (!P.swapped) {
     const alt = /^when /i.test(head) ? head.replace(/^when /i, 'whenever ') : /^whenever /i.test(head) ? head.replace(/^whenever /i, 'when ') : null;
     if (alt) { const r = parseTrigger(alt, { ...P, swapped: true }); if (r) return r; }
-  }
-  const m = head.match(/^(.+?) while (?:he|she|it|they|this character) ((?:has|have|is|are) .+)$/i);
-  if (m) {
-    const on = parseTrigger(m[1], P);
-    if (on) { const c = parseCondition(`this character ${m[2]}`, P.at); return on.map((o) => ({ ...o, whileCond: c })); }
   }
   // any subject, any verb in the act table: "Whenever one of your Hyena characters challenges a damaged character"
   return P.swapped ? null : Act.parse(head, P);

@@ -92,8 +92,9 @@ export class Runtime {
     const u = st.dur ? { until: DURATIONS[st.dur].until, by: st.dur === 'theirNext' ? c.owner : job.seat, setTurn: s.turn, ...(st.dur === 'src' ? { srcIid: job.src } : {}) } : { until: 'static' };
     for (const m of st.mods || []) {
       // nOf: the size comes from a stat, read once as the effect resolves ("equal to this character's {lore}")
-      const of = m.nOf && s.cards[m.nOf.of === 'target' ? iid : job.src];
-      const base = m.nOf ? (of ? m.n * Math.max(0, this.statOf(s, of, m.nOf.stat)) : 0) : m.n;
+      // nOf.last: "equal to that number" — what the step before counted
+      const of = m.nOf && !m.nOf.last && s.cards[m.nOf.of === 'target' ? iid : job.src];
+      const base = m.nOf?.last ? m.n * (job.ctx.n || 0) : m.nOf ? (of ? m.n * Math.max(0, this.statOf(s, of, m.nOf.stat)) : 0) : m.n;
       c.mods.push({ stat: m.stat, delta: base * mult, ...u, src: job.label });
       if (ev) ev.push({ k: 'mod', iid, stat: m.stat, delta: base * mult });
     }
@@ -195,7 +196,7 @@ export class Runtime {
       const before = JSON.stringify(job.ctx.it);
       const r = E.run(this, s, job, st, ev);
       if (r === null) return;                                  // waiting on a choice
-      if (JSON.stringify(job.ctx.it) !== before) job.ctx.picked = true;
+      if (JSON.stringify(job.ctx.it) !== before) { job.ctx.picked = true; (job.ctx.byFn ||= {})[st.fn] = job.ctx.it; }   // "the exerted character" later
       const declined = st.may && E.chooses(st) && Object.values(job.tmp).some((t) => t && t.done && !t.acc?.length);
       job.ctx.did = !!r;
       job.ctx.declined = declined;
