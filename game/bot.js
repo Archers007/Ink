@@ -3,7 +3,7 @@
 // ink → play characters/items/locations → profitable challenges → quest → end turn.
 // Card abilities and actions/songs are ignored (it inks those instead).
 
-import { D, readyInk } from './engine.js';
+import { D, readyInk, playBlocked } from './engine.js';
 import {
   LORE_TO_WIN, questBlocker, attackerBlocker, defenderBlocker, challengeDamage,
   effWp, effLore, hasKw, shiftOptions, shiftOntoOk, shiftDiscardOk,
@@ -74,7 +74,7 @@ function choosePlay(s, seat) {
   let bestVal = -Infinity;
   for (const c of cardsIn(s, p.hand)) {
     const d = D(s, c);
-    if (isSpell(d)) continue;
+    if (isSpell(d) || playBlocked(s, seat, c.iid)) continue;          // "You can't play this character unless …"
     if (d.cost <= ink) {
       const val = d.cost * 10 + (d.type === 'character' ? 5 : 0) + (d.lore || 0);
       if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, mode: 'ink' }; }

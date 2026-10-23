@@ -7,6 +7,9 @@ export class Selector {
   static parse(phrase, at = phrase) {
     const p = phrase.trim().replace(/^the /i, '');
     if (/^this (character|item|location|card)$/i.test(p)) return { self: true };
+    // the two sides of the challenge this ability fired in
+    if (/^(?:challenging character|challenger|character who challenged)$/i.test(p)) return { role: 'challenger' };
+    if (/^(?:challenged character|character who was challenged|character (?:he|she|they) challenged)$/i.test(p)) return { role: 'challenged' };
     if (/^(he|she|him|her)$/i.test(p)) return { ref: true, pron: true };
     if (/^(him|her|it|them|that character|the chosen character|that card|those characters|those cards|that item|that location|they|he|she|the challenging character|the challenged character|the revealed card|that song|the banished character|the moved character|discarded character|those characters|each of them|both of them)$/i.test(p)) return { ref: true };
     let m;
@@ -43,6 +46,7 @@ export class Selector {
   static say(s) {
     if (!s) return '';
     if (s.self) return 'this card';
+    if (s.role) return `the ${s.role} character`;
     if (s.ref && s.pron) return 'him/her';
     if (s.ref) return 'that card';
     if (s.all) return `each ${Query.describe(s.all)}`;

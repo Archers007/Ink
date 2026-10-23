@@ -42,7 +42,10 @@ export class Static extends Kind {
       const eff = c.clause(parts[0], { static: true });
       if (here && eff.sel?.all) (eff.sel.all.with ||= []).push({ here: true });
       else if (here) c.miss('static: "while here" without a group', t);
-      if (eff.sel?.ref) eff.sel = { self: true };            // static "he/she/it gets …" = this card
+      // "While one of your Knight characters is at a location, that character gains Resist +2" — the pronoun is the
+      // condition's subject; otherwise a static "he/she/it gets …" is this card
+      if (eff.sel?.ref && cond?.exists && !eff.sel.pron) eff.sel = { all: cond.exists };
+      else if (eff.sel?.ref) eff.sel = { self: true };
       if (eff.fn === 'mod' || eff.fn === 'costMod' || eff.fn === 'playBan') {
         if (eff.dur) c.miss('static with a duration', t);
         return wrap(eff);

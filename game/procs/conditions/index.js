@@ -9,9 +9,10 @@ import { YourTurn, PlayedThisTurn } from './turn.js';
 import { Shifted, RefIs } from './card.js';
 import { History } from './history.js';
 import { Inkwell, Compare, FewerInHand, FirstTurnSecond, HasInkDrop } from './player.js';
+import { Exists, Did, Challenging } from './exists.js';
 
 export const CONDITIONS = [AnyOf, NotCond, HasInkDrop, History, Inkwell, Compare, FewerInHand, FirstTurnSecond, HandSize, MoreCards, OppMoreCards, OppMoreLore, YouMoreLore, LoreAmount,
-  Have, SelfIs, PlayedThisTurn, YourTurn, Shifted, RefIs, AllOf];
+  Have, SelfIs, PlayedThisTurn, YourTurn, Shifted, RefIs, Challenging, Did, Exists, AllOf];   // generic ones last: specific wording wins
 const BY_KEY = new Map(CONDITIONS.map((C) => [C.key, C]));
 
 export function conditionOf(C) {

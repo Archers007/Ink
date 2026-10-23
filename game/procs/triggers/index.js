@@ -7,8 +7,10 @@ import * as banish from './banish.js';
 import * as turn from './turn.js';
 import * as sing from './sing.js';
 import * as board from './board.js';
+import * as act from './act.js';
+import { Act } from './act.js';
 
-const FAMILIES = [play, quest, challenge, banish, turn, sing, board];
+const FAMILIES = [play, quest, challenge, banish, turn, sing, board, act];
 export const TRIGGERS = FAMILIES.flatMap((f) => Object.values(f).filter((x) => typeof x === 'function' && x.ev));
 export const TRIGGER = Object.fromEntries(TRIGGERS.map((T) => [T.ev, T]));
 export const EVENTS = Object.assign({}, ...FAMILIES.map((f) => f.events || {}));
@@ -35,6 +37,7 @@ export function parseTrigger(head, P) {
     const on = parseTrigger(m[1], P);
     if (on) { const c = parseCondition(`this character ${m[2]}`, P.at); return on.map((o) => ({ ...o, whileCond: c })); }
   }
-  return null;
+  // any subject, any verb in the act table: "Whenever one of your Hyena characters challenges a damaged character"
+  return P.swapped ? null : Act.parse(head, P);
 }
 export const sayTrigger = (o) => (TRIGGER[o.ev] ? TRIGGER[o.ev].say(o) : o.ev);

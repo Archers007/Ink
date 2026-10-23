@@ -15,6 +15,7 @@
 import { Query } from '../query.js';
 import { EFFECT } from '../effects/index.js';
 import { EVENTS } from '../triggers/index.js';
+import { Act } from '../triggers/act.js';
 import { testCondition } from '../conditions/index.js';
 import { Triggered, Static, Activated, Action } from '../kinds/index.js';
 import { DURATIONS } from '../phrases/duration.js';
@@ -112,8 +113,10 @@ export class Runtime {
     };
     if (info.iid && !s.cards[info.iid]) return;
     // per-turn history for "this turn" conditions (conditions/history.js)
-    (s.turnLog ||= []).push({ ev, seat: info.seat ?? s.cards[info.iid]?.owner, iid: info.iid, ...(info.inChallenge ? { inChallenge: true } : {}) });
+    (s.turnLog ||= []).push({ ev, seat: info.seat ?? s.cards[info.iid]?.owner, iid: info.iid, ...(info.inChallenge ? { inChallenge: true } : {}),
+      ...(info.other != null ? { other: info.other } : {}), ...(info.defending ? { defending: true } : {}), ...(info.to ? { to: info.to } : {}) });
     EVENTS[ev]?.(this, s, info, fireOn);
+    Act.dispatch(this, s, ev, info, fireOn);                     // generic "whenever <subject> <verb>" triggers
     // delayed triggers: the same event, heard by each player's "this turn" triggers (once per event)
     const live = (s.delayed || []).filter((d) => d.turn === s.turn);
     if (live.length && EVENTS[ev]) {
