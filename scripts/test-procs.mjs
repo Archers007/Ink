@@ -647,6 +647,42 @@ test('deck distributions: inkwell / top / bottom · reveal each · any number ·
     assert.equal(s.players[0].deck[0], a, 'kept on top');
   }
 });
+test('query restrictions: who can challenge it · enters exerted · ready damaged characters · gained classification', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // Rajah: "While you have no cards in your hand, characters with cost 4 or less can't challenge this character."
+    const rajah = byName('Rajah - Royal Protector');
+    const cheap = plain((d) => d.cost <= 4), big = plain((d) => d.cost >= 5);
+    const { s, ids } = setup({ play0: [cheap, big], play1: [rajah] }); unready(s, ids.play0);
+    s.cards[ids.play1[0]].exerted = true;
+    s.players[1].hand.splice(0).forEach((iid) => { s.cards[iid].zone = 'deck'; s.players[1].deck.push(iid); });
+    ok(applyAction(s, 0, { type: 'ink', iid: s.players[0].hand[0] }));          // state check applies the static
+    assert.equal(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] }).ok, false, 'cost 4 or less is blocked');
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[1], target: ids.play1[0] }));
+  }
+  { // Figaro: "Opposing items enter play exerted."
+    const figaro = byName('Figaro - Tuxedo Cat');
+    const item = all.find((d) => d.type === 'item' && !d.abilities.some((a) => /enter/i.test(a.text)) && d.cost <= 5);
+    const { s, ids } = setup({ hand0: [item], play1: [figaro] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].exerted, true);
+  }
+  { // Gizmoduck: "This character can challenge ready damaged characters."
+    const giz = byName('Gizmoduck - Suited Up');
+    const v = plain((d) => d.wp >= 3);
+    const { s, ids } = setup({ play0: [giz], play1: [v, v] }); unready(s, ids.play0);
+    ok(applyAction(s, 0, { type: 'ink', iid: s.players[0].hand[0] }));
+    assert.equal(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[0] }).ok, false, 'ready and undamaged: no');
+    s.cards[ids.play1[1]].damage = 1;
+    ok(applyAction(s, 0, { type: 'challenge', attacker: ids.play0[0], target: ids.play1[1] }));
+  }
+  { // Chief Bogo: "Your other characters gain the Detective classification."
+    const bogo = byName('Chief Bogo - Calling the Shots');
+    const v = plain((d) => !(d.classes || []).includes('detective'));
+    const { s, ids } = setup({ play0: [bogo, v] });
+    ok(applyAction(s, 0, { type: 'ink', iid: s.players[0].hand[0] }));
+    assert.ok(s.cards[ids.play0[1]].mods.some((m) => m.stat === 'class' && m.cls === 'detective'));
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

@@ -32,6 +32,8 @@ export class Static extends Kind {
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to play this (?:character|item|location)$/i))) return wrap({ fn: 'selfCost', n: +m[1] });
     if ((m = t.match(/^this (?:character|item|location) enters play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', ...(m[2] ? { damage: +m[2] } : { exerted: true }) });
+    // "opposing items enter play exerted" · "opposing characters with Singer enter play with 1 damage"
+    if ((m = t.match(/^(.+?) enters? play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', filter: c.filter(m[1], t), ...(m[3] ? { damage: +m[3] } : { exerted: true }) });
     if ((m = t.match(/^this character also counts as being named (.+?) for shift$/i))) return wrap({ fn: 'shiftAs', names: m[1].split(/\s*(?:,|\band\b|\bor\b)\s*/).filter(Boolean) });
     if (/^you can shift any character on top of this character$/i.test(t)) return wrap({ fn: 'shiftAs', any: true });
     // moving: "<movers> may/can move here for free" · "you pay N {ink} less to move <movers> (here|to a location)"
@@ -156,10 +158,16 @@ export class Static extends Kind {
 
   // runtime: "enters play exerted / with N damage"
   static onEnter(rt, s, c) {
-    for (const proc of rt.procsOf(s, c)) {
-      if (proc.kind !== 'static' || !proc.exec || proc.effect.fn !== 'enters') continue;
-      if (proc.effect.exerted) c.exerted = true;
-      if (proc.effect.damage) c.damage += proc.effect.damage;
+    const apply = (st) => { if (st.exerted) c.exerted = true; if (st.damage) c.damage += st.damage; };
+    for (const proc of rt.procsOf(s, c)) if (proc.kind === 'static' && proc.exec && proc.effect.fn === 'enters' && !proc.effect.filter) apply(proc.effect);
+    // the board's "<cards> enter play exerted": every card in play whose static names the entering card
+    for (const p of s.players) for (const iid of p.play) {
+      const src = s.cards[iid];
+      if (iid === c.iid) continue;
+      for (const proc of rt.procsOf(s, src)) {
+        if (proc.kind === 'static' && proc.effect.fn === 'enters' && proc.effect.filter && Static.active(rt, s, proc, src.owner, iid)
+          && rt.matches(s, proc.effect.filter, c, src.owner, iid, { anyZone: true })) apply(proc.effect);
+      }
     }
   }
 }

@@ -5,7 +5,7 @@ export class Classification extends Classifier {
   static id = 'class';
   static pre = true;
   static test(x, card, def) {
-    const mine = (def.classes || []).map((k) => String(k).toLowerCase());
+    const mine = [...(def.classes || []), ...(card.mods || []).filter((m) => m.stat === 'class').map((m) => m.cls)].map((k) => String(k).toLowerCase());
     return x.class.some((k) => mine.includes(k));
   }
   static say(x) { return x.class.map(cap).join('/'); }

@@ -26,8 +26,9 @@ import {
   LORE_TO_WIN, OPENING_HAND, INKS_PER_TURN, KEYWORD_LABEL,
   cardLabel, effStr, effWp, effLore, kwVal, hasKw, effectiveKeywords, singValue,
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker,
-  shiftOptions, shiftOntoOk, shiftOntoCount, shiftDiscardOk, shiftCostLabel, parseActivatedCost, prettyText,
+  shiftOptions, shiftOntoOk, shiftOntoCount, shiftDiscardOk, shiftCostLabel, parseActivatedCost, prettyText, setQueryHook,
 } from '../public/js/play/rules.js';
+import { Query } from './procs/query.js';
 import { createRuntime } from './procs/index.js';
 
 export class RuleError extends Error {}
@@ -965,7 +966,7 @@ H.resolvePeek = (s, seat, a, ev) => {
   log(s, `${nameOf(s, seat)} put ${parts.join(', ') || 'nothing'}${shown.length ? ` (discarded ${shown.join(', ')})` : ''}.`, { seat, kind: 'manual' });
 };
 
-const MOD_STATS = new Set(['str', 'wp', 'lore', 'sing', 'kw']);
+const MOD_STATS = new Set(['str', 'wp', 'lore', 'sing', 'kw', 'class']);
 H.mod = (s, seat, a, ev) => {
   needPlaying(s);
   const c = inPlay(s, a.iid);
@@ -993,11 +994,14 @@ H.clearMods = (s, seat, a, ev) => {
 
 // ---------- proc runtime ----------
 
-const R = createRuntime({
+const ENGINE = {
   D, P, nameOf, log, cardLabel, prettyText, KEYWORD_LABEL, LORE_TO_WIN, RE,
   effStr, effWp, effLore, kwVal, hasKw, rand, shuffleArr, readyInk, payInk, opponentsOf,
   moveTo, banish, drawCards, gainLore, gameStateCheck, playFree, challengeDamageStep, finishEndTurn, putUnder, moveChar, exertCard,
-});
+};
+const R = createRuntime(ENGINE);
+// restrictions that name a query ("can't be challenged by characters with cost 3 or less") — see rules.js
+setQueryHook((F, card, def, ctl) => Query.matches(F, card, def, { E: ENGINE, s: null, ctl, src: null }, { anyZone: true }));
 
 // ---------- public API ----------
 

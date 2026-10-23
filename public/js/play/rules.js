@@ -38,7 +38,7 @@ export const KEYWORD_LABEL = {
   vanish: 'Vanish', ward: 'Ward',
   cantQuest: "Can't quest", cantChallenge: "Can't challenge", mustQuest: 'Must quest if able', adventurous: 'Adventurous', cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
   noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
-  cantSing: "Can't sing", challengeReady: 'Can challenge ready characters',
+  cantSing: "Can't sing", challengeReady: 'Can challenge ready characters', challengeReadyOf: 'Can challenge some ready characters', questFresh: 'Can quest the turn it\'s played',
 };
 
 export function cardLabel(def) {
@@ -100,10 +100,24 @@ export function sharesName(a, b) {
 // ---------- turn-action legality ----------
 // Each returns null when legal, or a short human-readable reason.
 
+// Some restrictions name a query ("can't be challenged by characters with cost 3 or less", "can challenge ready
+// damaged characters"). The engine installs a hook that evaluates it; the client has none and stays lenient —
+// the server has the final say.
+let queryHook = null;
+export const setQueryHook = (f) => { queryHook = f; };
+const queryOk = (F, card, def, ctl) => (queryHook ? queryHook(F, card, def, ctl) : null);
+const blockedBy = (by, att, attDef, ctl) => (by.q ? queryOk(by.q, att, attDef, ctl) === true
+  : by.class ? (attDef.classes || []).map((x) => x.toLowerCase()).includes(by.class) : effStr(att, attDef) >= by.strGte);
+// "can challenge ready characters" — all of them, or only ones a query names ("ready damaged characters")
+function mayChallengeReady(att, attDef, tgt, tgtDef) {
+  if (hasKw(att, attDef, 'challengeReady')) return true;
+  return (att.mods || []).some((m) => m.stat === 'kw' && m.kw === 'challengeReadyOf' && queryOk(m.of, tgt, tgtDef, att.owner) !== false);
+}
+
 export function questBlocker(card, def) {
   if (def.type !== 'character') return 'Only characters can quest.';
   if (card.exerted) return 'Already exerted.';
-  if (card.drying) return 'Still drying — characters can quest the turn after they\'re played.';
+  if (card.drying && !hasKw(card, def, 'questFresh')) return 'Still drying — characters can quest the turn after they\'re played.';
   if (hasKw(card, def, 'reckless')) return 'Reckless characters can\'t quest.';
   if (hasKw(card, def, 'cantQuest')) return 'An ability says this character can\'t quest.';
   return null;
@@ -124,12 +138,11 @@ function evasiveBlocks(att, attDef, tgt, tgtDef) {
 
 // `defenderSide` = [{ card, def }] for every card the defending player has in play.
 export function defenderBlocker(att, attDef, tgt, tgtDef, defenderSide) {
+  for (const m of tgt.mods || []) if (m.stat === 'kw' && m.kw === 'cantBeChallengedBy' && m.by && blockedBy(m.by, att, attDef, tgt.owner)) return 'An ability says this can\'t be challenged by that character.';
   if (tgtDef.type === 'location') return null;                                 // 4.6.8 — locations can always be challenged
   if (tgtDef.type !== 'character') return 'You can only challenge characters and locations.';
   if (hasKw(tgt, tgtDef, 'cantBeChallenged')) return 'An ability says this character can\'t be challenged.';
-  for (const m of tgt.mods || []) if (m.stat === 'kw' && m.kw === 'cantBeChallengedBy' && m.by
-    && (m.by.class ? (attDef.classes || []).map((x) => x.toLowerCase()).includes(m.by.class) : effStr(att, attDef) >= m.by.strGte)) return 'An ability says this character can\'t be challenged by that character.';
-  if (!tgt.exerted && !hasKw(att, attDef, 'challengeReady')) return 'Only exerted characters can be challenged.';       // 4.6.4.2
+  if (!tgt.exerted && !mayChallengeReady(att, attDef, tgt, tgtDef)) return 'Only exerted characters can be challenged.';       // 4.6.4.2
   if (evasiveBlocks(att, attDef, tgt, tgtDef)) return 'Evasive — only characters with Evasive (or Alert) can challenge it.';
   if (!hasKw(tgt, tgtDef, 'bodyguard')) {
     const guard = defenderSide.find(({ card, def }) => def.type === 'character' && card.exerted

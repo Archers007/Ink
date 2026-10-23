@@ -39,7 +39,7 @@ export class SelfCost extends Effect {
 export class Enters extends Effect {
   static fn = 'enters';
   static staticOnly = true;
-  static say(st) { return `enters play ${st.exerted ? 'exerted' : `with ${st.damage} damage`}`; }
+  static say(st) { return `${st.filter ? `${Query.describe(st.filter)} enter` : 'enters'} play ${st.exerted ? 'exerted' : `with ${st.damage} damage`}`; }
 }
 
 // "get 1 ink drop" — an ink drop counter (CR 1.13.1.2): spend it to pay 1 {ink} toward any cost
