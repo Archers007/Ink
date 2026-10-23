@@ -67,6 +67,7 @@ export class Compiler {
     s = s.replace(/^you (?=(?:draw|look|reveal|return|banish|exert|ready|choose|put|discard)\b)/i, '');   // "you draw a card" = "draw a card"
     s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
     s = s.replace(/ damage each (to|from) /i, ' damage $1 ');
+    s = s.replace(/^also /i, '');                                       // "If …, you may also banish chosen character" 
     s = s.replace(/^give (.+?) (\+\d+ \{\w+\}) and ([A-Z]\w*(?: \+\d+)?)( .+)?$/, '$1 gets $2 and gains $3$4');   // "give this character +1 {lore} and Evasive …"
     s = s.replace(/( on the (?:top|bottom) of (?:your|their|their players'|its owner's|their player's) decks?) in any order$/i, '$1');   // CR 7.2.3: the player picks the order                // "deal 1 damage each to up to 2 chosen characters"
     let dur;
@@ -235,6 +236,12 @@ export class Compiler {
     }
     if (!alt) miss(`instead: "${altText}"`, at);
     let target = steps[steps.length - 1];
+    // "You may reveal an item card and put it into your hand. If that item costs 3 or less, you may play it for free instead"
+    // — the card isn't known until the look picks it: offer the play after, from the hand it just went to
+    if (target?.fn === 'look' && target.pick?.to === 'hand' && alt.fn === 'playIt') {
+      steps.push({ ...alt, may: true, cond, ifDid: true });
+      return;
+    }
     if (JSON.stringify(cond).includes('"refIs"') && target.sel?.chosen) {
       const { may, cond: c0, ifDid, linked, otherwise, ...rest } = target;
       const gate = { ...(c0 ? { cond: c0 } : {}), ...(ifDid ? { ifDid } : {}), ...(linked ? { linked } : {}), ...(otherwise ? { otherwise } : {}) };
@@ -317,7 +324,8 @@ export class Compiler {
     }
     for (const sent of sentences(text)) {
       const last = steps[steps.length - 1];
-      if (last?.fn === 'look' && Look.tail(sent, last, at)) continue;
+      const lk = last?.fn === 'look' ? last : last?.fn === 'playIt' && steps[steps.length - 2]?.fn === 'look' ? steps[steps.length - 2] : null;
+      if (lk && Look.tail(sent, lk, at)) continue;                     // (past "you may play it for free instead")
       // "Reveal the top 2 cards of your deck. Put revealed character cards into your hand." — a reveal with a distribution
       if (last?.fn === 'reveal' && !last.sel && Look.distribute(sent.replace(/[.!]$/, ''), last, at)) { last.fn = 'look'; last.reveal = true; continue; }
       // "Each opponent reveals the top card of their deck. If it's a character card, they may put it into their hand.
@@ -345,6 +353,7 @@ export class Compiler {
       }
       if ((m = s.match(/^if you do and (.+?), (.+)$/i))) { ifDid = true; cond = parseCondition(m[1], at); s = m[2]; }
       else if ((m = s.match(/^if you do,? (.+)$/i))) { ifDid = true; s = m[1]; }
+      s = s.replace(/ instead and (it|they) enters? play exerted$/i, ' and $1 enters play exerted instead');   // The Queen - Diviner
       if ((m = s.match(/^if (.+?), (.+?) instead$/i)) && steps.length) { this.instead(steps, m[1], m[2], ctx, at); continue; }
       if ((m = s.match(/^if (.+?), (.+)$/i)) && !/^if you do/i.test(s)) { cond = parseCondition(m[1], at); s = m[2]; }
       // "choose and discard a card unless you have a character named Darkwing Duck in play"

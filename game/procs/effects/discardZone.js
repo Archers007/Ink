@@ -37,7 +37,7 @@ export class PlayFree extends Effect {
     }],
   ];
   static run(rt, s, job, st, ev) {
-    const valid = rt.candidates(s, st.filter, job.seat, job.src);
+    const valid = rt.candidates(s, st.filter, job.seat, job.src, job.ctx.it);   // "with the same cost or less" reads the card before
     if (!valid.length) { rt.log(s, `↳ ${job.label}: nothing to play for free.`, { kind: 'effect' }); return false; }
     const picked = rt.pickFrom(s, job, st, 'playFree', valid, { n: 1, optional: !!st.may, prompt: `play ${Query.describe(st.filter)} for free.` });
     if (!picked) return null;

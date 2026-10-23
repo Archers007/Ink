@@ -91,3 +91,16 @@ export class Count extends Effect {
   }
   static say(st) { return `count ${Query.describe(st.filter)}`; }
 }
+
+// "If it's a Dragon character card, put it into your hand and repeat this effect." — the ability's steps again
+export class Again extends Effect {
+  static fn = 'again';
+  static rules = [[/^repeat this effect$/i, () => ({ fn: 'again' })]];
+  static run(rt, s, job) {
+    job.ctx.again = (job.ctx.again || 0) + 1;
+    if (job.ctx.again > 60) return false;                              // a deck can't be revealed forever
+    job.i = -1; job.ctx.it = [];                                       // the pump steps on to 0
+    return true;
+  }
+  static say() { return 'repeat this effect'; }
+}

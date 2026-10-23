@@ -32,7 +32,7 @@ export class Mill extends Effect {
 }
 export class Shuffle extends Effect {
   static fn = 'shuffle';
-  static rules = [[/^shuffle your deck$/i, () => ({ fn: 'shuffle' })]];
+  static rules = [[/^shuffle (?:your deck|the rest into your deck)$/i, () => ({ fn: 'shuffle' })]];   // the rest were only revealed
   static run(rt, s, job, st, ev) { rt.E.shuffleArr(s, rt.E.P(s, job.seat).deck); ev.push({ k: 'shuffle', seat: job.seat }); return true; }
   static say() { return 'shuffle your deck'; }
 }

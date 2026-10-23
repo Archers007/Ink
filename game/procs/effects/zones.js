@@ -48,7 +48,7 @@ export class ToDeckBottom extends Move {
 export class ShuffleIn extends Move {
   static fn = 'shuffleIn';
   static past = 'Shuffled $ into their deck';
-  static rules = [[new RegExp(String.raw`^shuffle (.+?) into ${DECK}$`, 'i'), (m, P) => ({ fn: 'shuffleIn', sel: P.sel(m[1]) })]];
+  static rules = [[new RegExp(String.raw`^shuffle (?!the rest\b)(.+?) into ${DECK}$`, 'i'), (m, P) => ({ fn: 'shuffleIn', sel: P.sel(m[1]) })]];
   static move(rt, s, iid, ev) {
     const owner = s.cards[iid].owner;
     rt.E.moveTo(s, iid, 'deckBottom', ev); rt.E.shuffleArr(s, rt.E.P(s, owner).deck); ev.push({ k: 'shuffle', seat: owner });

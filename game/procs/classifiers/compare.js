@@ -36,6 +36,9 @@ export class Compare extends Classifier {
     if ((m = s.match(new RegExp(String.raw`^(more|less) (\{strength\}|\{willpower\}|\{lore\}) than (${REF}|${SELF})`, 'i')))) {
       return [{ cmp: { stat: STAT[m[2]], op: /more/i.test(m[1]) ? 'gt' : 'lt', vs: { of: new RegExp(`^${SELF}$`, 'i').test(m[3]) ? 'self' : 'ref', stat: STAT[m[2]] } } }, m[0].length];
     }
+    // "a character with the same cost or less" (as the card just returned) · "with cost up to 2 more than the banished character"
+    if ((m = s.match(/^the same cost or less\b/i))) return [{ cmp: { stat: 'cost', op: 'lte', vs: { of: 'ref', stat: 'cost' } } }, m[0].length];
+    if ((m = s.match(new RegExp(String.raw`^cost up to (\d+) more than (?:${REF}|the banished character|the returned character)`, 'i')))) return [{ cmp: { stat: 'cost', op: 'lte', vs: { of: 'ref', stat: 'cost', plus: +m[1] } } }, m[0].length];
     // "cost equal to or less than this character's {strength}" · "{strength} equal to or less than the {strength} he had in play"
     if ((m = s.match(new RegExp(String.raw`^(cost|\{strength\}|\{willpower\}|\{lore\}) equal to or (less|more) than (?:(${SELF})'s|(${REF})'s|his|her|their|its|the) (cost|\{strength\}|\{willpower\}|\{lore\})(?: (?:he|she|it|they) had in play)?`, 'i')))) {
       const self = !!m[3];
@@ -52,11 +55,12 @@ export class Compare extends Classifier {
     }
     const other = c.vs.of === 'self' ? env.s?.cards[env.src] : refCard(env);
     if (!other) return false;
-    return OPS[c.op](mine, statOf(env.E, other, env.E.D(env.s, other), c.vs.stat));
+    return OPS[c.op](mine, statOf(env.E, other, env.E.D(env.s, other), c.vs.stat) + (c.vs.plus || 0));
   }
   static say(x) {
     const c = x.cmp;
     const op = { gt: 'more', lt: 'less', lte: 'equal to or less', gte: 'equal to or more' }[c.op];
+    if (c.vs.plus) return `with ${SAY[c.stat]} up to ${c.vs.plus} more than that card's`;
     return `with ${op} ${SAY[c.stat]} than ${c.vs.maxOf ? 'each other' : c.vs.of === 'self' ? "this card's" : "that card's"}${c.vs.maxOf ? '' : ` ${SAY[c.vs.stat]}`}`;
   }
 }

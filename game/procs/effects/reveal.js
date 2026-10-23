@@ -11,10 +11,20 @@ export class Reveal extends Effect {
   static rules = [
     [new RegExp(String.raw`^reveal the top (?:${NUM} )?cards? of your deck$`, 'i'), (m) => ({ fn: 'reveal', n: N(m[1] || '1') })],
     [/^reveal the top card$/i, () => ({ fn: 'reveal', n: 1 })],
+    // "reveal cards from the top of your deck until you reveal a Floodborn character card" — it = that card
+    [/^reveal cards from the top of your deck until you reveal (?:a|an) (.+)$/i, (m, P) => ({ fn: 'reveal', n: 1, until: P.filter(m[1]) })],
     [/^reveal a number of cards from the top of your deck equal to the number of cards under (?:him|her|it|them|this character)$/i, () => ({ fn: 'reveal', n: { n: 1, per: { count: { under: true } } } })],
   ];
   static run(rt, s, job, st, ev) {
     const p = rt.E.P(s, job.seat);
+    if (st.until) {
+      const k = p.deck.findIndex((iid) => rt.matches(s, st.until, s.cards[iid], job.seat, job.src, { anyZone: true }));
+      const shown = k < 0 ? [...p.deck] : p.deck.slice(0, k + 1);
+      for (const iid of shown) ev.push({ k: 'reveal', seat: job.seat, iid, cardId: s.cards[iid].cardId });
+      rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} revealed ${shown.map((iid) => rt.E.cardLabel(rt.E.D(s, s.cards[iid]))).join(', ') || 'nothing'}${k < 0 ? ' — no match' : ''}.`, { seat: job.seat, kind: 'effect' });
+      job.ctx.it = k < 0 ? [] : [p.deck[k]];
+      return k >= 0;
+    }
     const top = p.deck.slice(0, Amount.value(rt, s, job, st.n));
     job.ctx.it = top;
     for (const iid of top) ev.push({ k: 'reveal', seat: job.seat, iid, cardId: s.cards[iid].cardId });
@@ -22,7 +32,7 @@ export class Reveal extends Effect {
     return top.length > 0;
   }
   static verb(rt, s, job, st) { return `reveal the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')} of your deck`; }
-  static say(st) { return `reveal the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')} of your deck`; }
+  static say(st) { return st.until ? `reveal cards from the top of your deck until a ${Query.describe(st.until)}` : `reveal the top ${plural(typeof st.n === 'number' ? st.n : 'N', 'card')} of your deck`; }
 }
 // "put it on the top of your deck" (keeps a revealed card where it is) · "put it into your discard"
 export class ToDeckTop extends Effect {
