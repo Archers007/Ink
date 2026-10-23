@@ -10,11 +10,13 @@ import { Under } from './under.js';
 import { AtLocation, Here } from './location.js';
 import { NotType } from './notType.js';
 import { Not } from './not.js';
+import { Compare, SameName } from './compare.js';
 
 export { KEYWORDS, RESTRICTIONS, KEYWORD_ALT, keywordId, kwLabel } from './keyword.js';
 
 export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, Damaged, Undamaged,
-  Exerted, Ready, Under, AtLocation, Here, NotType, Not];
+  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName];
+export { Compare };
 const BY_ID = new Map(CLASSIFIERS.map((C) => [C.id, C]));
 
 export function classifierOf(x) {

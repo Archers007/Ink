@@ -336,7 +336,12 @@ export class Compiler {
       break;
     }
     const mods = { ...(once ? { once } : {}), ...(during ? { during } : {}) };
-    return Activated.parse(t, this, mods) || Triggered.parse(t, this, mods) || Static.parse(t, this, mods);
+    const proc = Activated.parse(t, this, mods) || Triggered.parse(t, this, mods);
+    if (proc) return proc;
+    // "Once during your turn, you may move him to another location for free. If you do, gain 1 lore." — something you
+    // choose to do on your turn, once: a free activated ability
+    if (once && /^you may /i.test(t)) return { kind: 'activated', cost: {}, once: true, during: 'yours', do: this.effects(t) };
+    return Static.parse(t, this, mods);
   }
 
   // can the engine run it?  → { exec } | { exec:false, why }

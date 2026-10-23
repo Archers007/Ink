@@ -17,6 +17,7 @@ export const EVENTS = Object.assign({}, ...FAMILIES.map((f) => f.events || {}));
 
 // head text → [on…] or null.  "<head> while this character has/is X" adds a condition checked at fire time.
 export function parseTrigger(head, P) {
+  head = head.replace(/\b(he|she|it)'s\b/gi, '$1 is').replace(/\bthey're\b/gi, 'they are');
   for (const T of TRIGGERS) for (const [rx, f] of T.rules) {
     const m = head.match(rx);
     if (m) return f(m, P);

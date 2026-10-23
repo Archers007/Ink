@@ -37,6 +37,8 @@ export class Mod extends Effect {
     [/^give (.+?) ([+-]\d+) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2) })],
     [/^give (.+?) ([+-]\d+) \{(strength|willpower|lore)\} and ([+-]\d+) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: [...mods2(m, 2), ...mods2(m, 4)] })],
     [new RegExp(String.raw`^give (.+?) (${KWS})$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), kws: kwList(m[2], P) ?? P.miss(`keywords: "${m[2]}"`) })],
+    [new RegExp(String.raw`^give (.+?) ([+-]\d+) \{(strength|willpower|lore)\} and (${KWS})$`, 'i'), (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2), kws: kwList(m[4], P) ?? P.miss(`keywords: "${m[4]}"`) })],
+    [/^give (.+?) the ([A-Z][\w'-]*(?: [A-Z][\w'-]*)?) classification$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), cls: m[2].toLowerCase() })],
     [/^(.+?) (?:gets?|gains?) ([+-]\d+) \{(strength|willpower|lore)\}(?: and ([+-]\d+) \{(strength|willpower|lore)\})?(?: for each (.+))?$/i, (m, P) => {
       const st = { fn: 'mod', sel: P.sel(m[1]), mods: [...mods2(m, 2), ...(m[4] ? mods2(m, 4) : [])] };
       if (m[6]) st.per = P.forEach(m[6]);
