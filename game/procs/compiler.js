@@ -64,7 +64,7 @@ export class Compiler {
     let m;
     if ((m = s.match(/^you may (.+)$/i))) { may = true; s = m[1]; }
     s = lc(s);
-    s = s.replace(/^you (?=(?:draw|look|reveal|return|banish|exert|ready|choose|put)\b)/i, '');   // "you draw a card" = "draw a card"
+    s = s.replace(/^you (?=(?:draw|look|reveal|return|banish|exert|ready|choose|put|discard)\b)/i, '');   // "you draw a card" = "draw a card"
     s = s.replace(/ (this turn|until the start of your next turn) (for each .+)$/i, ' $2 $1');
     s = s.replace(/ damage each (to|from) /i, ' damage $1 ');
     s = s.replace(/^give (.+?) (\+\d+ \{\w+\}) and ([A-Z]\w*(?: \+\d+)?)( .+)?$/, '$1 gets $2 and gains $3$4');   // "give this character +1 {lore} and Evasive …"

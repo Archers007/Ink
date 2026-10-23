@@ -34,6 +34,8 @@ export class Damage extends Effect {
 export class Heal extends Effect {
   static fn = 'heal';
   static rules = [
+    // "remove up to 4 damage total from any number of your characters" — one pool, spent in the order picked
+    [/^remove up to (\d+) damage total from any number of (.+)$/i, (m, P) => ({ fn: 'heal', n: +m[1], total: true, sel: { chosen: P.filter(m[2].replace(/^your /i, 'your ')), upTo: 99 } })],
     [/^remove up to (\d+) damage from (.+)$/i, (m, P) => ({ fn: 'heal', n: +m[1], sel: P.sel(m[2]) })],
     [/^remove (\d+) damage from (.+)$/i, (m, P) => ({ fn: 'heal', n: +m[1], sel: P.sel(m[2]) })],
     [/^remove all damage from (.+)$/i, (m, P) => ({ fn: 'heal', n: 99, sel: P.sel(m[1]) })],
@@ -46,7 +48,8 @@ export class Heal extends Effect {
     job.ctx.healedIds = [];                                            // "each character you removed damage from this way"
     return rt.each(ids, (iid) => {
       const c = s.cards[iid];
-      const n = rt.rule(s, 'removeDamage', c.owner) ? Math.min(Amount.value(rt, s, job, st.n), c.damage) : 0;   // "damage counters can't be removed"
+      const cap = st.total ? Amount.value(rt, s, job, st.n) - job.ctx.healed : Amount.value(rt, s, job, st.n);
+      const n = rt.rule(s, 'removeDamage', c.owner) ? Math.max(0, Math.min(cap, c.damage)) : 0;   // "damage counters can't be removed"
       c.damage -= n; job.ctx.healed += n; job.ctx.n = job.ctx.healed;
       if (n) { ev.push({ k: 'damage', iid, n: -n }); rt.fire(s, 'healed', { iid, n, seat: job.seat }); job.ctx.healedIds.push(iid); }
       rt.log(s, `↳ Removed ${n} damage from ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });

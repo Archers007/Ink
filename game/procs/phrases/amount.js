@@ -15,6 +15,8 @@ export class Amount {
     const p = phrase.trim().replace(/^of your (.+?)(?: in play)?$/i, 'your $1');   // "for each of your characters named Maleficent in play"
     let m;
     if ((m = p.match(/^card in (your|an opponent's|each opponent's|opponents'|your opponents') (hands?|discard)$/i))) return { count: { zone: m[2].replace(/s$/, ''), owner: m[1] === 'your' ? 'you' : 'opp', size: true } };
+    // "for each item with a different name you have in play" — how many names
+    if ((m = p.match(/^(item|character|location) with a different name you have in play$/i))) return { count: { names: { types: [m[1].toLowerCase()], owner: 'you' } } };
     if (/^character that sang this song$/i.test(p)) return { count: { sang: true } };   // Sing Together: every singer (CR 8.12)
     if ((m = p.match(/^(.+?) card in your (discard|hand)$/i))) { const F = filter(m[1] + ' card', at); F.zone = m[2]; F.owner = 'you'; return { count: F }; }
     // "for each card under him" · "for each card that was under them" (it left play — what was under it then)
@@ -53,6 +55,7 @@ export class Amount {
     }
     if (n && n.per?.count?.thisWay) return n.n * (job.ctx.n || 0);
     if (n && n.per) return n.n * Amount.count(rt, s, n.per, job.seat, job.src, job);
+    if (n && n.handOver != null) return Math.max(0, rt.E.P(s, job.seat).hand.length - n.handOver);   // "discard until you have 2"
     if (n && n.healed) return job.ctx.healed || 0;
     if (n && n.itCount) return (job.ctx.it || []).length + (n.plus || 0);   // "that number of cards [plus 1]"
     if (n && n.last) return job.ctx.n || 0;                                // "that much" — what the last step dealt / lost
@@ -69,6 +72,7 @@ export class Amount {
       return ref ? (c.was ? ref.lastUnder || [] : ref.under).length : 0;
     }
     if (c.sang) return me?.sungBy || 0;
+    if (c.names) return new Set(rt.candidates(s, c.names, ctl, src).map((id) => rt.E.D(s, s.cards[id]).name)).size;
     if (c.damageOnSelf) return me ? me.damage : 0;
     if (c.damageOnRef) return 0;                                      // counted per target by the effect
     if (c.damageOn) return rt.candidates(s, c.damageOn, ctl, src).reduce((n, id) => n + (s.cards[id].damage || 0), 0);
@@ -101,6 +105,8 @@ export class Amount {
     if (c.thisWayOf) return `${Query.describe(c.thisWayOf)} done this way`;
     if (c.did) return `${Query.describe(c.did.of || {})} ${c.did.did} this turn`;
     if (c.size) return `card in ${c.owner === 'opp' ? "opponents'" : 'your'} ${c.zone}`;
+    if (c.sang) return 'character that sang this song';
+    if (c.names) return `${Query.describe(c.names)} with a different name`;
     return Query.describe(c);
   }
 }

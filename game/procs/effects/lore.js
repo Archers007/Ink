@@ -9,7 +9,7 @@ export class GainLore extends Effect {
     [/^gain lore equal to (?:the damage removed|the amount of damage removed)$/i, () => ({ fn: 'gainLore', n: { healed: true } })],
     // "each opponent loses 1 lore and you gain lore equal to the lore lost [this way]"
     [/^(?:you )?gain lore equal to the lore lost(?: this way)?$/i, () => ({ fn: 'gainLore', n: { last: true } })],
-    [/^gain (\d+) lore for each (.+)$/i, (m, P) => ({ fn: 'gainLore', n: { n: +m[1], per: Amount.forEach(m[2], P.at) } })],
+    [/^(?:you )?gain (\d+) lore for each (.+)$/i, (m, P) => ({ fn: 'gainLore', n: { n: +m[1], per: Amount.forEach(m[2], P.at) } })],
     // "gain lore equal to the {lore} of a character card in your discard" — pick the card, then read it ("that card" next)
     [/^gain lore equal to the \{lore\} of (?:a|an) (.+?) in your discard$/i, (m, P) => ({ fn: 'gainLore', n: { stat: 'lore', of: 'ref' }, pick: { ...P.filter(m[1]), zone: 'discard', owner: 'you' } })],
   ];
