@@ -460,13 +460,13 @@ export class Board {
           o.setBadges('', () => {});
           const x = (i - (n - 1) / 2) * step;
           const hovered = !this.mobile && this.hover === o && !this.drag;          // no hover on a touch screen: a tap selects
-          const lifted = hovered || this.ui.multi.has(c.iid) || (this.mobile && this.ui.selected === c.iid);
+          const lifted = hovered || this.ui.multi.has(c.iid) || this.ui.selected === c.iid;   // a tapped card stays up (its options float above it)
           const arc = Math.abs(i - (n - 1) / 2) * 0.18;
           o.setProxy({ x, y: 8 + i * 0.05, z: handZ + arc, tilt: 0.55, scale: 1.22 });
           if (this.drag?.obj === o) return;
           put(o, {
             x, y: 8 + i * 0.05 + (lifted ? 4 : 0), z: handZ + arc + (lifted ? -8.5 : 0),
-            yaw: 0, tilt: 0.55, flip: 0, scale: hovered || (this.mobile && lifted) ? 1.55 : 1.22,
+            yaw: 0, tilt: 0.55, flip: 0, scale: hovered || this.ui.selected === c.iid ? 1.55 : 1.22,
           });
         });
       } else {
@@ -623,7 +623,7 @@ export class Board {
   setUi(ui) {
     const was = this.ui.selected;
     Object.assign(this.ui, ui);
-    if (this.mobile && 'selected' in ui && ui.selected !== was && this.view) this.render(this.view, this.defs, []);   // re-fan the hand (lift)
+    if ('selected' in ui && ui.selected !== was && this.view) this.render(this.view, this.defs, []);   // re-fan the hand (lift)
     else this.refreshGlow();
   }
   refreshGlow() {
@@ -675,6 +675,7 @@ export class Board {
         const d = this.drag;
         if (!d.active && Math.hypot(ev.clientX - d.sx, ev.clientY - d.sy) > 7) {
           d.active = true;
+          clearTimeout(this.pressTimer);                                  // moving means dragging, not holding
           this.cb.onDragStart?.(d.obj.info);
         }
         if (d.active) {
@@ -685,6 +686,7 @@ export class Board {
           return;
         }
       }
+      if (this.downAt && Math.hypot(ev.clientX - this.downAt.x, ev.clientY - this.downAt.y) > 7) clearTimeout(this.pressTimer);
       const hit = this.pick(ev);
       this.setHover(hit?.card || null, hit);
       el.style.cursor = hit ? 'pointer' : 'default';
@@ -697,8 +699,15 @@ export class Board {
         el.setPointerCapture(ev.pointerId);
       }
       this.downHit = hit;
+      // hold a card (no drag) → its full breakdown; a tap → its quick options
+      clearTimeout(this.pressTimer);
+      this.pressFired = false;
+      this.downAt = { x: ev.clientX, y: ev.clientY };
+      if (hit?.card?.info?.iid) this.pressTimer = setTimeout(() => { if (this.drag?.active) return; this.pressFired = true; this.cb.onLongPress?.(hit.card.info); }, 450);
     });
     el.addEventListener('pointerup', (ev) => {
+      clearTimeout(this.pressTimer);
+      if (this.pressFired) { this.pressFired = false; this.drag = null; return; }   // the hold already did its thing
       const d = this.drag;
       if (d?.active) {
         const over = this.pick(ev);   // while this.drag is set, so the dragged card is excluded
@@ -750,6 +759,13 @@ export class Board {
     this.renderer.render(this.scene, this.camera);
   }
 
+  // the top edge of a card (where it's heading), in screen pixels — the quick-options strip hangs above it
+  cardTop(iid) {
+    const t = this.cards.get(iid)?.target;
+    if (!t) return null;
+    const half = (H / 2) * (t.scale || 1);
+    return this.toScreen({ x: t.x, y: (t.y || 0) + half * Math.sin(t.tilt || 0), z: t.z - half * Math.cos(t.tilt || 0) });
+  }
   // project a world point to screen pixels (for DOM overlays)
   toScreen(v) {
     const p = new THREE.Vector3(v.x, v.y || 0, v.z).project(this.camera);

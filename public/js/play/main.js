@@ -105,6 +105,8 @@ const board = new Board($('#board'), {
   onClickCard: (info, ev) => clickCard(info, ev),
   onClickZone: (z) => clickZone(z),
   onClickEmpty: () => { if (!S.targeting) select(null); },
+  onLongPress: (info) => { if (!S.targeting && info.iid) openDetails(info.iid); },   // hold a card → the full breakdown
+  onDragStart: () => { if (S.quick) select(null); },                                  // the strip would float over a moving card
   onHover: (info) => hoverPreview(info),
   canDrag: (info) => canDrag(info),
   onDrop: (d) => dropCard(d),
@@ -138,10 +140,16 @@ const sideOf = (seat) => V().players[seat].play.map((c) => ({ card: c, def: D(c.
 const myChars = () => me().play.filter((c) => D(c.cardId)?.type === 'character');
 
 // ---------- selection + targeting ----------
+// tapping a hand card shows the quick options above it (S.quick); holding it, or ⓘ, opens the full breakdown
 function select(iid) {
   S.selected = iid;
   board.setUi({ selected: iid });
   renderInspector();
+}
+function openDetails(iid) {
+  S.quick = false;
+  navigator.vibrate?.(8);
+  select(iid);
 }
 function startTargeting(t) {
   S.targeting = { picked: new Set(), color: 0x58ff8a, ...t };
@@ -219,7 +227,9 @@ function clickCard(info) {
     if (info.zone === 'hand') toast(`${V().players[info.seat].name} has ${V().players[info.seat].handCount} cards in hand.`);
     return;
   }
-  select(S.selected === info.iid ? null : info.iid);
+  if (S.selected === info.iid) { select(null); return; }
+  S.quick = info.zone === 'hand' && info.seat === you();                 // my hand: options first, details on hold / ⓘ
+  select(info.iid);
 }
 function clickZone(z) {
   if (S.targeting) return;
@@ -476,10 +486,36 @@ function grantKeyword(c, def) {
 }
 
 // ---------- DOM: inspector ----------
+// the thin strip above a tapped hand card: what you can play it as, and ⓘ for the breakdown
+const shortLabel = (l) => l.replace(/\s+·\s+/g, ' · ').replace(/\s{2,}/g, ' ')
+  .replace(/^Put into inkwell/, 'Ink').replace(/^Play exerted \(Bodyguard\)/, 'Play exerted').replace(/^Sing with…\s*\(free\)/, 'Sing…')
+  .replace(/^Shift onto…/, 'Shift…').replace(/^(\w[\w ]*Shift) onto…/, '$1…').replace(/^Play for free \(alternate cost\)…/, 'Play free…');
+function renderQuick(f) {
+  const el = $('#quick');
+  const { primary } = actionsFor(f);
+  el.innerHTML = `${primary.map((a, i) => `<button class="q ${a.hot ? 'hot' : ''} ${a.reason ? 'off' : ''}" data-q="${i}" title="${esc(a.reason || a.title || '')}">${esc(shortLabel(a.label))}</button>`).join('')}
+    <button class="q info" data-info title="Full card breakdown (or hold the card)">ⓘ</button>`;
+  el.querySelectorAll('[data-q]').forEach((b) => { b.onclick = () => { const a = primary[b.dataset.q]; if (a.reason) toast(a.reason); else a.run(); }; });
+  el.querySelector('[data-info]').onclick = () => openDetails(f.c.iid);
+  el.hidden = false;
+  positionQuick(f.c.iid);
+}
+function positionQuick(iid) {
+  const el = $('#quick');
+  if (el.hidden) return;
+  const p = board.cardTop(iid);
+  if (!p) { el.hidden = true; return; }
+  const half = el.offsetWidth / 2;
+  el.style.left = `${Math.max(8 + half, Math.min(innerWidth - 8 - half, p.x))}px`;
+  el.style.top = `${Math.max(el.offsetHeight + 8, p.y - 10)}px`;
+}
 function renderInspector() {
   const el = $('#inspector');
+  const q = $('#quick');
   const f = findCard(S.selected);
-  if (!f || !f.def || S.targeting) { el.hidden = true; return; }
+  if (!f || !f.def || S.targeting) { el.hidden = true; q.hidden = true; return; }
+  if (S.quick && f.zone === 'hand' && f.seat === you()) { el.hidden = true; renderQuick(f); return; }
+  q.hidden = true;
   const { c, def, zone, seat } = f;
   const kws = zone === 'play' ? effectiveKeywords(c, def) : def.kw;
   const eff = c.eff || {};
@@ -809,7 +845,7 @@ function openTools() {
 function openHelp() {
   openModal(`<h3>How to play here</h3>
     <ul class="help">
-      <li><b>Click</b> any card to inspect it and see what you can do. Disabled buttons tell you <i>why</i>.</li>
+      <li><b>Tap</b> a card in your hand for its play options (play, ink, shift, sing); <b>hold</b> it, or tap ⓘ, for the full breakdown. Click any other card to inspect it. Disabled buttons tell you <i>why</i>.</li>
       <li><b>Drag</b> a hand card onto the table to play it, onto your inkwell (left) to ink it, or onto a same-name character to Shift.</li>
       <li><b>Drag</b> one of your ready characters onto an exerted opposing character to challenge.</li>
       <li><b>Esc</b> cancels targeting / closes panels · <b>Enter</b> ends your turn · click your <b>deck</b> for draw/look/shuffle tools.</li>
@@ -997,7 +1033,7 @@ function applyDevice() {
   board.setMobile(mobileMq.matches);
   updateInsets();
 }
-window.addEventListener('resize', applyDevice);
+window.addEventListener('resize', () => { applyDevice(); if (S.selected) positionQuick(S.selected); });
 mobileMq.addEventListener('change', applyDevice);
 portraitMq.addEventListener('change', applyDevice);
 applyDevice();
