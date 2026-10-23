@@ -56,7 +56,11 @@ export class Heal extends Effect {
 }
 export class MoveDamage extends Effect {
   static fn = 'moveDamage';
-  static rules = [[/^move (?:up to )?(\d+) damage(?: counters?)? from (.+?) to (.+)$/i, (m, P) => ({ fn: 'moveDamage', n: +m[1], from: P.sel(m[2]), to: P.sel(m[3]) })]];
+  static rules = [
+    [/^move (?:up to )?(\d+) damage(?: counters?)? from (.+?) to (.+)$/i, (m, P) => ({ fn: 'moveDamage', n: +m[1], from: P.sel(m[2]), to: P.sel(m[3]) })],
+    // "move all damage counters from all other characters to that character" (CR 1.9.2: damage can be moved)
+    [/^move all damage(?: counters)? from (.+?) to (.+)$/i, (m, P) => ({ fn: 'moveDamage', n: 99, from: P.sel(m[1]), to: P.sel(m[2]) })],
+  ];
   static chooses(st) { return !!(st.from?.chosen || st.to?.chosen); }
   static run(rt, s, job, st, ev) {
     const from = rt.targets(s, job, st, st.from, 'from', { keep: (iid) => s.cards[iid].damage > 0, verb: `move ${st.n} damage from` });
@@ -79,5 +83,5 @@ export class MoveDamage extends Effect {
     job.ctx.it = [b.iid];
     return job.ctx.n > 0;
   }
-  static say(st) { return `move ${st.n} damage from ${Selector.say(st.from)} to ${Selector.say(st.to)}`; }
+  static say(st) { return `move ${st.n === 99 ? 'all' : st.n} damage from ${Selector.say(st.from)} to ${Selector.say(st.to)}`; }
 }

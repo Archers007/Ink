@@ -18,6 +18,11 @@ export const EVENTS = Object.assign({}, ...FAMILIES.map((f) => f.events || {}));
 // head text → [on…] or null.  "<head> while this character has/is X" adds a condition checked at fire time.
 export function parseTrigger(head, P) {
   head = head.replace(/\b(he|she|it)'s\b/gi, '$1 is').replace(/\bthey're\b/gi, 'they are');
+  // "the first time you move a character here [each turn]" · "whenever he sings a song for the first time each turn"
+  let fm = head.match(/^the first time (.+?)(?: each turn)?$/i);
+  if (fm) { const r = parseTrigger(`whenever ${fm[1]}`, P); return r && r.map((o) => ({ ...o, first: true })); }
+  fm = head.match(/^((?:when|whenever) .+?) for the first time each turn$/i);
+  if (fm) { const r = parseTrigger(fm[1], P); return r && r.map((o, i, a) => (i === a.length - 1 ? { ...o, first: true } : o)); }
   for (const T of TRIGGERS) for (const [rx, f] of T.rules) {
     const m = head.match(rx);
     if (m) return f(m, P);

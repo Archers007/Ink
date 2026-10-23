@@ -17,3 +17,9 @@ export class PlayedTurn extends Classifier {
   static test(x, card, def, env) { return !!env.s && (env.E.P(env.s, env.ctl).playedThisTurn || []).includes(card.iid); }
   static say() { return 'you played this turn'; }
 }
+// "chosen character who was challenged this turn" — in the turn log
+export class WasChallenged extends Classifier {
+  static id = 'wasChallenged';
+  static test(x, card, def, env) { return !!env.s && (env.s.turnLog || []).some((e) => e.ev === 'challenged' && e.iid === card.iid); }
+  static say() { return 'who was challenged this turn'; }
+}

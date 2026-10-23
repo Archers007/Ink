@@ -44,9 +44,15 @@ export class Triggered extends Kind {
         if (c.once[k] === s.turn) return;
         c.once[k] = s.turn;
       }
+      if (on.first) {                                                  // "the first time … each turn" (this trigger only)
+        const key = `${k}:${proc.on.indexOf(on)}`;
+        c.firsts ||= {};
+        if (c.firsts[key] === s.turn) return;
+        c.firsts[key] = s.turn;
+      }
       // self-subject triggers ('whenever this character moves, he gets +3'): he/she = this card until a step picks something
       const cx = s.challengeCtx || s.challenge;                    // "the challenging character / player"
-      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}), ...(cx ? { cx: { a: cx.a, t: cx.t } } : {}),
+      rt.queue(s, c.owner, c.iid, label, proc.do, { it: it || [], trigIt: it || [], ...(TRIGGER[ev]?.selfSubject ? { selfSubj: true } : {}), ...(cx ? { cx: { a: cx.a, t: cx.t } } : {}),
         ...(typeof info.n === 'number' ? { n: info.n } : {}) }, { cond: proc.cond || null });   // n: how much the event dealt ("deal that much damage")
     });
   }
