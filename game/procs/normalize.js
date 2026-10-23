@@ -1,5 +1,5 @@
 // L0 — one canonical spelling for ability text, whatever source it came from
-// (dreamborn DB rows of different eras, scanned text, lorcanajson).
+// (Ravensburger / dreamborn text of different eras, scanned text).
 //
 //   icons      {I} {S} {E} {L} {W} → {ink} {strength} {exert} {lore} {willpower}
 //   tags       <Bodyguard> → Bodyguard
@@ -25,6 +25,7 @@ export function canon(text) {
     .replace(/[\u2018\u2019\u02bc`´]/g, "'")
     .replace(/[\u201c\u201d]/g, '"')
     .replace(/\u00a0/g, ' ')
+    .replace(/[\u2013\u2212](?=\s?\d)/g, '-')                 // "gets –2" (Ravensburger's minus) → -2
     .replace(/\bcharacterin\b/g, 'character in')
     .replace(/\s+/g, ' ')
     .trim();

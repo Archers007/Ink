@@ -107,14 +107,14 @@ export class Healed extends Trigger {
 export class DamagedAny extends Trigger {
   static ev = 'damagedAny';
   static rules = [
-    [/^whenever (?:a|an|one of your) (.+?) is (?:damaged|dealt damage)$/i, (m, P) => { const F = P.filter(m[1]); if (/one of your/i.test(m[0])) F.owner = 'you'; return [{ ev: 'damagedAny', filter: F }]; }],
+    [/^whenever (?:a|an|one of your) (.+?) (?:is (?:damaged|dealt damage)|takes damage)$/i, (m, P) => { const F = P.filter(m[1]); if (/one of your/i.test(m[0])) F.owner = 'you'; return [{ ev: 'damagedAny', filter: F }]; }],
   ];
   static say(o) { return `${Query.describe(o.filter)} is dealt damage`; }
 }
 export class DealtDamage extends Trigger {
   static selfSubject = true;
   static ev = 'dealtDamage';
-  static rules = [[/^whenever (?:this character|he|she|they) (?:is|are) dealt damage$/i, () => [{ ev: 'dealtDamage' }]]];
+  static rules = [[/^whenever (?:this character|he|she|they) (?:(?:is|are) dealt damage|takes? damage)$/i, () => [{ ev: 'dealtDamage' }]]];
   static say() { return 'this character is dealt damage'; }
 }
 
