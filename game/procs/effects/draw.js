@@ -36,7 +36,7 @@ export class DrawUntil extends Effect {
   static fn = 'drawUntil';
   static rules = [
     [/^draw cards until you have the same number(?: of cards in your hand as (?:that|chosen) opponent)?$/i, () => ({ fn: 'drawUntil' })],
-    [/^draw (?:cards )?until you have (\d+) cards? in your hand$/i, (m) => ({ fn: 'drawUntil', to: +m[1] })],   // "draw until you have 3 cards in your hand"
+    [/^draw (?:cards )?until you have (\d+)(?: cards?)?(?: in your hand)?$/i, (m) => ({ fn: 'drawUntil', to: +m[1] })],   // "draw until you have 3 cards in your hand"
   ];
   static run(rt, s, job, st, ev) {
     const { E } = rt;

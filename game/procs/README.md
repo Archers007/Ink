@@ -81,3 +81,17 @@ Example: Hades - Lord of the Underworld. *"When you play this character, return 
 2. Teach the compiler the phrase (L2/L3) so it emits a step. Coverage stays the same, but the reason changes to `engine can't run: fn X`.
 3. Implement `FN.X` in `runtime.js` and add `'X'` to `support.js`. The runtime throws at startup if support lists a fn it doesn't have.
 4. Add a scenario in `scripts/test-procs.mjs`, then run `pnpm test`.
+
+## The rulebook (`game/rulebook/`)
+
+The engine reads the game's rules as data tied to the Comprehensive Rules, so a card that changes a rule is one entry:
+
+- `cr.js` — the CR text (`docs/rules/`) indexed by section; `quote('6.5')`.
+- `rules.js` — rule values with a base and the card phrases that change them (win lore, Draw step, lore gain/loss,
+  damage removal, challenges per turn, inking, top card face up). The engine asks `R.rule(s, id, seat)`.
+- `turn.js` — the turn's phases and steps in order (CR 3), with where the bag resolves; `runPhase` walks them.
+- `replace.js` — replacement effects (CR 6.5): "would … instead" for damage, banish, discard and ink drops.
+- `deck.js` — deck construction (CR 1.10.1) and the cards that adjust it.
+- `features.js` — the engine features still missing, each with its CR section; `node scripts/learn.mjs --features`
+  ranks them by the cards each would finish (`--features <id>` lists them). The build loop: pick the top feature,
+  build it to its CR section, `learn.mjs --accept`, test, repeat.
