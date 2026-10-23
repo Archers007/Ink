@@ -11,6 +11,7 @@ import { Amount } from '../phrases/amount.js';
 import { Query } from '../query.js';
 import { PlayBan } from '../effects/playBan.js';
 import { parseRule } from '../../rulebook/rules.js';
+import { KEYWORD_ALT, keywordId } from '../classifiers/keyword.js';
 import { parseDeckRule } from '../../rulebook/deck.js';
 import { PLAY_FROM, PLAY_FROM_TAIL, playFromOf } from '../effects/playFrom.js';
 
@@ -45,6 +46,18 @@ export class Static extends Kind {
     }
     // "You can't play this character unless …" (the unless is already folded into cond as a not)
     if (/^you can't play this (?:character|action|item|location|song)$/i.test(t)) return wrap({ fn: 'selfBan' });
+    // abilities and targeting (CR 6.6, 8.15): "lose Rush and can't gain Rush" · "can't gain Evasive" · "lose the X ability" ·
+    // "{strength} can't be reduced below their printed value" · "Opponents can't choose your items" · "must choose this character"
+    {
+      const KW = KEYWORD_ALT;
+      const sel = (x) => (/^this character$/i.test(x) ? { self: true } : /^all characters$/i.test(x) ? { all: { types: ['character'] } } : c.P(t).sel(x.replace(/^[A-Z]/, (ch) => ch.toLowerCase())));
+      if ((m = t.match(new RegExp(String.raw`^(.+?) lose (${KW}) and can't gain \2$`, 'i')))) return wrap({ fn: 'mod', sel: sel(m[1]), kws: [{ kw: keywordId(m[2]), n: -99, lose: true }], blocks: [keywordId(m[2])] });
+      if ((m = t.match(new RegExp(String.raw`^(.+?) can't gain (${KW})$`, 'i')))) return wrap({ fn: 'mod', sel: sel(m[1]), blocks: [keywordId(m[2])] });
+      if ((m = t.match(/^(.+?) lose the (.+?) ability$/i))) return wrap({ fn: 'mod', sel: sel(m[1]), loseAbility: [m[2]] });
+      if (/^your characters' \{strength\} can't be reduced below their printed value$/i.test(t)) return wrap({ fn: 'mod', sel: { all: { types: ['character'], owner: 'you' } }, floor: 'str' });
+      if ((m = t.match(/^opponents can't choose your (items|characters|locations) for abilities or effects$/i))) return wrap({ fn: 'mod', sel: { all: { types: [m[1].toLowerCase().replace(/s$/, '')], owner: 'you' } }, kws: [{ kw: 'ward' }] });
+      if (/^opponents must choose this character for actions and abilities if able$/i.test(t)) return wrap({ fn: 'mod', sel: { self: true }, kws: [{ kw: 'mustChoose' }] });
+    }
     // costs by kind of play (CR 1.5): Shift, "the first action you play each turn", "each player pays N more", "for free"
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character using (?:her|his|their|its) shift ability$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t), shift: true });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to shift a character on top of this character$/i))) return wrap({ fn: 'costMod', n: +m[1], filter: { types: ['character'] }, shift: true, onto: 'self' });

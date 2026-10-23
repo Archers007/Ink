@@ -12,6 +12,7 @@ import { RULES } from '../game/rulebook/rules.js';
 import { section } from '../game/rulebook/cr.js';
 import { TURN } from '../game/rulebook/turn.js';
 import { FEATURES } from '../game/rulebook/features.js';
+import { hasKw as kwHas } from '../public/js/play/rules.js';
 import { deckProblems } from '../game/rulebook/deck.js';
 import { namesOf } from '../game/procs/classifiers/named.js';
 
@@ -1313,6 +1314,44 @@ test('players and counts (CR 1.3, 6.7): you and another player, any number of pl
     const b = setup({ play0: [duchess], play1: [big] });
     ok(applyAction(b.s, 0, { type: 'endTurn' })); ok(applyAction(b.s, 1, { type: 'endTurn' }));
     assert.equal(lore(b.s, b.ids.play0[0]), duchess.lore);
+  }
+});
+test('abilities and targeting (CR 6.6, 8.15): can\'t gain, lose and can\'t gain, printed-value floor, must choose, can\'t choose items', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  const settle = (s) => { ok(applyAction(s, 0, { type: 'endTurn' })); ok(applyAction(s, 1, { type: 'endTurn' })); };
+  const kwOf = (s, seat, iid) => viewFor(s, 0).players[seat].play.find((c) => c.iid === iid);
+  { // Flash - Efficient Clerk: "All characters lose Rush and can't gain Rush."
+    const rusher = all.find((d) => d.type === 'character' && d.kw?.rush && d.abilities.length === 1);
+    const { s, ids } = setup({ play0: [byName('Flash - Efficient Clerk')], hand0: [rusher] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    const c = s.cards[ids.hand0[0]];
+    assert.equal(kwHas(c, s.defs[c.cardId], 'rush'), false, 'lost Rush');
+    c.mods.push({ stat: 'kw', kw: 'rush', delta: 1, until: 'eot', by: 0 });
+    assert.equal(kwHas(c, s.defs[c.cardId], 'rush'), false, "can't gain it back");
+  }
+  { // Elisa Maza - Transformed Gargoyle: "Your characters' {strength} can't be reduced below their printed value."
+    const x = plain((d) => d.str >= 2);
+    const { s, ids } = setup({ play0: [byName('Elisa Maza - Transformed Gargoyle'), x] });
+    s.cards[ids.play0[1]].mods.push({ stat: 'str', delta: -2, until: 'eot', by: 1 });
+    settle(s);
+    assert.equal(kwOf(s, 0, ids.play0[1]).eff.str, x.str);
+  }
+  { // John Smith - Undaunted Protector: "Opponents must choose this character for actions and abilities if able."
+    const js = byName('John Smith - Undaunted Protector');
+    const zap = all.find((d) => d.type === 'action' && d.procs.every((p) => p.exec) && /^Deal 2 damage to chosen character\.$/.test(d.abilities[0]?.text || ''));
+    const other = plain(() => true);
+    const { s, ids } = setup({ hand0: [zap], play1: [js, other] });
+    settle(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    assert.deepEqual(s.pending.valid, [ids.play1[0]]);
+  }
+  { // Aurora - Lore Guardian: "Opponents can't choose your items for abilities or effects."
+    const banishItem = all.find((d) => d.type === 'action' && d.procs.every((p) => p.exec) && /^Banish chosen item\.$/.test(d.abilities[0]?.text || ''));
+    const item = all.find((d) => d.type === 'item' && !d.abilities.length) || all.find((d) => d.type === 'item');
+    const { s, ids } = setup({ hand0: [banishItem], play1: [byName('Aurora - Lore Guardian'), item] });
+    settle(s);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(s.cards[ids.play1[1]].zone, 'play');
   }
 });
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {

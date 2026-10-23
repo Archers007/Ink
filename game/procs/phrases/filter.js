@@ -14,7 +14,7 @@ const OWNER_ADJ = /^(other|another|opposing|your|their|its|chosen opponent's|an 
 const ADJ = new RegExp(String.raw`^(${ADJECTIVES.join('|')})\s+`, 'i');
 const CLASSES = new RegExp(String.raw`^((?:[A-Z][\w'.-]*)(?:(?: |, |,? or |,? and )(?!${TYPE}\b)[A-Z][\w'.-]*)*) (?=${TYPE}\b)`);
 const NAME_WORD = String.raw`(?:[\p{Lu}0-9][\p{L}\p{N}'.!-]*|of|the|and|de|la|in|a)`;
-const NAMED = new RegExp(String.raw`^named (${NAME_WORD}(?: ${NAME_WORD})*?)(?= or | (?:in|of|with|from|at|this|to|you|they|that|and|is|are|gets?|gains?)\b|$|\s*[,.])\s*`, 'u');
+const NAMED = new RegExp(String.raw`^named (${NAME_WORD}(?: ${NAME_WORD})*?)(?= or | (?:in|of(?! \p{Lu})|with|from|at|this|to|you|they|that|and|is|are|gets?|gains?)\b|$|\s*[,.])\s*`, 'u');
 
 export function filter(phrase, at = phrase) {
   phrase = phrase.trim().replace(/^(?:a|an) (?=\S)/i, '');

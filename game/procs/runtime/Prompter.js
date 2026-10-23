@@ -52,6 +52,9 @@ export class Prompter {
       .filter((iid) => !T.acc.includes(iid))
       .filter((iid) => s.cards[iid].owner === job.seat || !rt.E.hasKw(s.cards[iid], rt.E.D(s, s.cards[iid]), 'ward'));   // Ward (8.15)
     if (o.keep) valid = valid.filter(o.keep);
+    // "Opponents must choose this character for actions and abilities if able"
+    const must = valid.filter((iid) => s.cards[iid].owner !== job.seat && rt.E.hasKw(s.cards[iid], rt.E.D(s, s.cards[iid]), 'mustChoose'));
+    if (must.length) valid = must;
     if (!valid.length) {
       if (!T.acc.length) rt.log(s, `↳ ${job.label}: no valid ${Query.describe(sel.chosen)} — skipped.`, { kind: 'effect' });
       return this.vanish(s, job, T);
