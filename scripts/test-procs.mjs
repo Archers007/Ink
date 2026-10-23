@@ -683,6 +683,32 @@ test('query restrictions: who can challenge it · enters exerted · ready damage
     assert.ok(s.cards[ids.play0[1]].mods.some((m) => m.stat === 'class' && m.cls === 'detective'));
   }
 });
+test('durations: no duration on what was played · at the end of the turn · while the source is in play', () => {
+  const plain = (f) => all.find((d) => d.type === 'character' && !d.abilities.length && !Object.keys(d.kw || {}).length && f(d));
+  { // "Play a character with cost 4 or less for free. They gain Rush. At the end of the turn, banish them."
+    const song = byName('Gruesome and Grim');
+    const c = plain((d) => d.cost <= 4);
+    const { s, ids } = setup({ hand0: [song, c] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    for (let k = 0; k < 4 && s.pending; k++) ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[1] }));
+    drain(s);
+    const x = s.cards[ids.hand0[1]];
+    assert.equal(x.zone, 'play');
+    assert.ok(x.mods.some((m) => m.kw === 'rush'), 'gained Rush');
+    ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+    assert.equal(x.zone, 'discard', 'banished at the end of the turn');
+  }
+  { // The Magic Feather: "choose a character of yours. While this item is in play, that character gains Evasive."
+    const feather = byName('The Magic Feather');
+    const c = plain(() => true);
+    const { s, ids } = setup({ hand0: [feather], play0: [c] });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'ink', iid: s.players[0].hand[0] }));
+    assert.ok(s.cards[ids.play0[0]].mods.some((m) => m.kw === 'evasive'), 'Evasive while the feather is in play');
+    ok(applyAction(s, 0, { type: 'moveCard', iid: ids.hand0[0], to: 'discard' }));
+    assert.ok(!s.cards[ids.play0[0]].mods.some((m) => m.kw === 'evasive'), 'gone once the feather leaves');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

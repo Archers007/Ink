@@ -64,6 +64,7 @@ export class Static extends Kind {
       if (eff.sel?.ref && cond?.exists && !eff.sel.pron) eff.sel = { all: cond.exists };
       else if (eff.sel?.ref) eff.sel = { self: true };
       if (eff.fn === 'mod' || eff.fn === 'costMod' || eff.fn === 'playBan') {
+        if (eff.dur === 'turn' && cond && /"(?:history|did|playedTurn)"/.test(JSON.stringify(cond))) delete eff.dur;   // "If you've played a song this turn, … gains Rush this turn"
         if (eff.dur) c.miss('static with a duration', t);
         return wrap(eff);
       }
@@ -80,7 +81,7 @@ export class Static extends Kind {
   static apply(rt, s) {
     for (const p of s.players) for (const iid of p.play) {
       const c = s.cards[iid];
-      if (c.mods.some((m) => m.until === 'static')) c.mods = c.mods.filter((m) => m.until !== 'static');
+      if (c.mods.some((m) => m.until === 'static' || m.until === 'src')) c.mods = c.mods.filter((m) => m.until !== 'static' && !(m.until === 'src' && s.cards[m.srcIid]?.zone !== 'play'));
     }
     for (const which of ['own+temp', 'granted-static']) for (const p of s.players) for (const iid of p.play) {
       const c = s.cards[iid];
