@@ -171,6 +171,7 @@ export function singerBlocker(card, def, songDef) {
   if (card.exerted) return 'Already exerted.';
   if (card.drying) return 'Still drying.';
   if (hasKw(card, def, 'cantSing')) return 'An ability says this character can\'t sing.';
+  if (songDef && hasKw(card, def, 'cantSingSolo')) return 'This character can only sing with Sing Together.';   // Meilin Lee - Lead Vocalist
   if (songDef && singValue(card, def) < songDef.cost) return `Needs cost ${songDef.cost}+ to sing this song.`;
   return null;
 }

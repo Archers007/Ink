@@ -370,6 +370,9 @@ export class Compiler {
         if (st[0].sel?.ref && st[0].fn !== 'mod' && !steps.some((x) => x.fn === 'reveal' || x.fn === 'look')) miss(`otherwise: "${m[1]}" has nothing to refer to`, s);
         st[0].otherwise = true; steps.push(...st); continue;
       }
+      // "he gets +{strength} equal to the {strength} of chosen character this turn" — choose it, then read it
+      const eq = s.match(/^(?:he|she|this character) gets \+\{(\w+)\} equal to the \{(\w+)\} of chosen (.+?)( this turn)?$/i);
+      if (eq) { steps.push(...this.effects(`Choose a ${eq[3]}. This character gets +{${eq[1]}} equal to that character's {${eq[2]}}${eq[4] || ''}.`, ctx)); continue; }
       // "each player draws 3 cards, then discards 3 cards at random" — the second verb has the same subject
       s = s.replace(/^((?:each|chosen) (?:player|opponent)) (\w+s .+?), then (\w+s .+)$/i, '$1 $2, then $1 $3');
       s.split(/,? then,? /i).forEach((part, i) => {

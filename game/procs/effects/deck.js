@@ -19,7 +19,11 @@ export class InkTop extends Effect {
 }
 export class Mill extends Effect {
   static fn = 'mill';
-  static rules = [[new RegExp(String.raw`^put the top (?:${NUM} )?cards? of your deck into your discard$`, 'i'), (m) => ({ fn: 'mill', n: N(m[1] || '1') })]];
+  static rules = [
+    [new RegExp(String.raw`^put the top (?:${NUM} )?cards? of your deck into your discard$`, 'i'), (m) => ({ fn: 'mill', n: N(m[1] || '1') })],
+    // "put the top 3 cards of chosen player's deck into their discard" — that player's own mill
+    [new RegExp(String.raw`^put the top (?:${NUM} )?cards? of chosen player's deck into their discard$`, 'i'), (m) => ({ fn: 'eachPlayer', who: 'chosenPlayer', do: [{ fn: 'mill', n: N(m[1] || '1') }] })],
+  ];
   static run(rt, s, job, st, ev) {
     const p = rt.E.P(s, job.seat); const names = [];
     for (let k = 0; k < st.n && p.deck.length; k++) { names.push(rt.E.cardLabel(rt.E.D(s, s.cards[p.deck[0]]))); rt.E.moveTo(s, p.deck[0], 'discard', ev); }

@@ -50,6 +50,10 @@ export const RULES = {
     cr: '4.2.1.3', base: false, say: 'cards enter the inkwell exerted',
     phrases: [[/^cards enter (opponents'|your) inkwells? exerted$/i, (m) => ({ who: /opponents/i.test(m[1]) ? 'opp' : 'you', set: true })]],
   },
+  inksPerTurn: {
+    cr: '4.2.3', base: 1, say: 'cards you may ink each turn',          // 4.2.3: once during your turn — unless a card says
+    phrases: [[/^you may ink an additional card$/i, () => ({ who: 'you', add: 1 })]],   // 4.2.3.1: each one adds — two Belles, three cards
+  },
   topFaceUp: {
     cr: '7.2.2', base: false, say: 'top card of the deck is face up',      // 7.2.2: the deck stays facedown — unless a card says
     phrases: [[/^(each player|each opponent) plays? with the top card of their deck face ?up$/i, (m) => ({ who: whoOf(/opponent/i.test(m[1]) ? 'opponents' : 'each'), set: true })]],
@@ -77,9 +81,9 @@ export function ruleValue(rt, s, rule, seat) {
       const st = proc.effect;
       if (!applies(st.who, src.owner, seat)) continue;
       if (st.unless && rt.test(s, st.unless, seat, iid)) continue;          // "… unless one of their characters has challenged this turn"
-      v = st.set;
+      v = st.add != null ? v + st.add : st.set;
     }
   }
   return v;
 }
-export const ruleSay = (st) => `${RULES[st.rule]?.say || st.rule}: ${st.set === Infinity ? 'any' : st.set} for ${st.who === 'you' ? 'you' : st.who === 'opp' ? 'opponents' : 'everyone'}${st.unless ? ' (unless …)' : ''} [CR ${RULES[st.rule]?.cr}]`;
+export const ruleSay = (st) => `${RULES[st.rule]?.say || st.rule}: ${st.add != null ? `+${st.add}` : st.set === Infinity ? 'any' : st.set} for ${st.who === 'you' ? 'you' : st.who === 'opp' ? 'opponents' : 'everyone'}${st.unless ? ' (unless …)' : ''} [CR ${RULES[st.rule]?.cr}]`;
