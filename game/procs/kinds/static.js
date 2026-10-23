@@ -4,13 +4,14 @@
 //   selfCost   "You pay 2 {ink} less to play this character [for each X]"  (from hand)
 //   enters     "This character enters play exerted"
 //   shiftAs    "This character also counts as being named Syndrome for Shift" · "You can shift any character on top of this character"
+//   moveCost   "Your Pirate characters may move here for free" · "You pay 1 {ink} less to move your characters to a location"
 import { Kind, sayDuring } from './Kind.js';
 import { sentences } from '../phrases/text.js';
 import { Amount } from '../phrases/amount.js';
 import { Query } from '../query.js';
 import { PlayBan } from '../effects/playBan.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs', 'moveCost']);
 
 export class Static extends Kind {
   static kind = 'static';
@@ -33,6 +34,12 @@ export class Static extends Kind {
     if ((m = t.match(/^this (?:character|item|location) enters play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', ...(m[2] ? { damage: +m[2] } : { exerted: true }) });
     if ((m = t.match(/^this character also counts as being named (.+?) for shift$/i))) return wrap({ fn: 'shiftAs', names: m[1].split(/\s*(?:,|\band\b|\bor\b)\s*/).filter(Boolean) });
     if (/^you can shift any character on top of this character$/i.test(t)) return wrap({ fn: 'shiftAs', any: true });
+    // moving: "<movers> may/can move here for free" · "you pay N {ink} less to move <movers> (here|to a location)"
+    if ((m = t.match(/^(.+?) (?:may|can) move (here|to a location|to this location) for free$/i))) return wrap({ fn: 'moveCost', who: c.filter(m[1].replace(/^your /i, 'your '), t), ...(/here|this/i.test(m[2]) ? { here: true } : {}), n: 'free' });
+    if ((m = t.match(/^(?:you )?pay (\d+) \{ink\} less to move (.+?) (here|to (?:a|this) location|to locations?)$/i))) {
+      const who = /^this character$/i.test(m[2]) ? null : c.filter(/^(a|an) /i.test(m[2]) ? m[2].replace(/^an? /i, '') : m[2], t);
+      return wrap({ fn: 'moveCost', ...(who ? { who } : {}), ...(/here|this/i.test(m[3]) ? { here: true } : {}), n: +m[1] });
+    }
     if (/^you may play any character with shift on this character as if this character had any name$/i.test(t)) return wrap({ fn: 'shiftAs', anyName: true });
     // location statics: "characters get +2 {strength} while here" → the characters at this location
     let here = false;
@@ -121,6 +128,22 @@ export class Static extends Kind {
       if (consume && m.next) p.costMods.splice(p.costMods.indexOf(m), 1);
     }
     return delta;
+  }
+
+  // runtime: ink change for moving `c` to location `loc` (board moveCost statics) → { free } | { delta }
+  static moveDelta(rt, s, seat, c, loc) {
+    let delta = 0, free = false;
+    for (const iid of rt.E.P(s, seat).play) {
+      const src = s.cards[iid];
+      for (const proc of rt.procsOf(s, src)) {
+        if (proc.kind !== 'static' || proc.effect.fn !== 'moveCost' || !Static.active(rt, s, proc, seat, iid)) continue;
+        const st = proc.effect;
+        if (st.here && loc.iid !== iid) continue;
+        if (st.who ? !rt.matches(s, st.who, c, seat, iid) : c.iid !== iid) continue;
+        if (st.n === 'free') free = true; else delta -= st.n;
+      }
+    }
+    return { free, delta };
   }
 
   // runtime: "enters play exerted / with N damage"

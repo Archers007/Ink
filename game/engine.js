@@ -698,7 +698,8 @@ H.move = (s, seat, a, ev) => {
   if (!L || L.owner !== seat || L.zone !== 'play' || D(s, L).type !== 'location') throw RE('Choose one of your locations.');
   const Ld = D(s, L);
   if (C.atLocation === L.iid) throw RE(`${cardLabel(Cd)} is already at ${cardLabel(Ld)}.`);
-  const cost = Math.max(0, (Ld.move ?? 0) + clampInt(a.costAdjust, -20, 20));
+  const md = R.moveDelta(s, seat, C, L);                            // "may move here for free" · "pay 1 {ink} less to move"
+  const cost = md.free ? 0 : Math.max(0, (Ld.move ?? 0) + md.delta + clampInt(a.costAdjust, -20, 20));
   payInk(s, seat, cost);
   log(s, `${nameOf(s, seat)} moved ${cardLabel(Cd)} to ${cardLabel(Ld)} for ${cost} ink.`, { seat });
   moveChar(s, C.iid, L.iid, ev);

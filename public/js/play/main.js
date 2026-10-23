@@ -361,7 +361,9 @@ function actionsFor(found) {
       }), why || (!targets.size ? 'No valid targets — only exerted characters (or locations) can be challenged.' : null));
       for (const l of me().play.filter((x) => D(x.cardId)?.type === 'location' && x.iid !== c.atLocation)) {
         const ld = D(l.cardId);
-        P(`Move to ${ld.name}  ·  ${ld.move ?? 0} ⬡`, () => act({ type: 'move', iid: c.iid, location: l.iid }), readyInk() < (ld.move ?? 0) ? `Needs ${ld.move} ink.` : null);
+        // a "move here for free / pay less to move" static changes the cost — the server works it out
+        const discounted = me().play.some((x) => D(x.cardId)?.procs?.some((p) => p.kind === 'static' && p.exec && p.effect?.fn === 'moveCost'));
+        P(`Move to ${ld.name}  ·  ${discounted ? '≤' : ''}${ld.move ?? 0} ⬡`, () => act({ type: 'move', iid: c.iid, location: l.iid }), !discounted && readyInk() < (ld.move ?? 0) ? `Needs ${ld.move} ink.` : null);
       }
     }
     if (mine && typeof def.kw?.boost === 'number') {
