@@ -386,6 +386,12 @@ export class Compiler {
       break;
     }
     const mods = { ...(once ? { once } : {}), ...(during ? { during } : {}) };
+    // "While this character is exerted, whenever you draw a card, gain 1 lore." — a trigger that only listens while …
+    if ((m = t.match(/^while (.+?), (whenever .+)$/i))) {
+      const cond = this.condition(m[1], t);
+      const tp = Triggered.parse(m[2], this, mods);
+      if (tp) return { ...tp, on: tp.on.map((o) => ({ ...o, whileCond: o.whileCond ? { all: [o.whileCond, cond] } : cond })) };
+    }
     const rep = parseReplace(t);                                    // "if … would …, … instead" (CR 6.5)
     if (rep) return { kind: 'static', ...mods, effect: rep };
     const proc = Activated.parse(t, this, mods) || Triggered.parse(t, this, mods);

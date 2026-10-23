@@ -11,7 +11,7 @@ export class Damage extends Effect {
     [/^deal damage equal to (?:their|his|her|its|this character's) \{strength\} to (.+)$/i, (m, P) => ({ fn: 'damage', n: { stat: 'str', of: P.ctx.refIsSelf ? 'self' : 'ref' }, sel: P.sel(m[1]) })],
     [/^deal damage to (.+?) equal to (?:their|his|her|its|this character's) \{strength\}$/i, (m, P) => ({ fn: 'damage', n: { stat: 'str', of: P.ctx.refIsSelf ? 'self' : 'ref' }, sel: P.sel(m[1]) })],
     [/^deal (\d+) damage to (.+?) for each (.+)$/i, (m, P) => ({ fn: 'damage', n: { n: +m[1], per: P.forEach(m[3]) }, sel: P.sel(m[2]) })],
-    [/^put (\d+) damage(?: counters?)? on (.+)$/i, (m, P) => ({ fn: 'damage', n: +m[1], sel: P.sel(m[2]), put: true })],
+    [/^put (\d+|a) damage(?: counters?)? on (.+)$/i, (m, P) => ({ fn: 'damage', n: m[1] === 'a' ? 1 : +m[1], sel: P.sel(m[2]), put: true })],
   ];
   static run(rt, s, job, st, ev) {
     const ids = rt.targets(s, job, st, st.sel);

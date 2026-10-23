@@ -84,3 +84,10 @@ export class TheyDont extends Condition {
   static test(rt, s, C, env) { return (env.job?.ctx.tally?.didnt.length || 0) > 0; }
   static say() { return "they didn't"; }
 }
+// "if it's the second card they've drawn this turn" — the active player's draws, counted in the turn log
+export class NthDraw extends Condition {
+  static key = 'nthDraw';
+  static rules = [[/^it is the (second|third) card (?:they've|they have|you've|you have) drawn this turn$/i, (m) => ({ nthDraw: m[1].toLowerCase() === 'second' ? 2 : 3 })]];
+  static test(rt, s, C) { return (s.turnLog || []).filter((e) => e.ev === 'draw' && e.seat === s.active).length === C.nthDraw; }
+  static say(C) { return `it's draw #${C.nthDraw} this turn`; }
+}

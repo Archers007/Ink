@@ -163,6 +163,7 @@ function moveTo(s, iid, to, ev, opt = {}) {
     const visibleAfter = PUBLIC_ZONES.has(k.zone);
     if (id === iid && k.zone === 'discard') (s.turnLog ||= []).push({ ev: 'toDiscard', seat: c.owner, iid });
     if (id === iid && from === 'discard' && s.status === 'playing') R.fire(s, 'leavesDiscard', { iid, seat: c.owner });
+    if (id === iid && from === 'discard' && to === 'hand' && s.status === 'playing') R.fire(s, 'returnFromDiscard', { iid });
     if (visibleBefore || visibleAfter || opt.reveal) ev.push({ k: 'move', iid: id, cardId: k.cardId, from: fromZ, to: toZ, parent: id !== iid ? iid : undefined, revealed: (opt.reveal && !visibleBefore && !visibleAfter) || undefined });
     else ev.push(privateMove(s, id, fromZ, toZ, c.owner));
   }
@@ -201,10 +202,11 @@ function putUnder(s, seat, iid, ev, opt = {}) {
 // a character moves to a location (4.7) — the move action and "move … for free" effects share this
 function moveChar(s, iid, loc, ev) {
   const C = s.cards[iid];
+  const from = C.atLocation;                                        // "when you move a character here from a location"
   C.atLocation = loc;
   ev.push({ k: 'moveTo', iid, location: loc });
   R.fire(s, 'moves', { iid, at: loc });
-  R.fire(s, 'moveHere', { iid, at: loc });
+  R.fire(s, 'moveHere', { iid, at: loc, ...(from != null ? { from } : {}) });
 }
 
 function drawCards(s, seat, n, ev) {
@@ -571,6 +573,7 @@ function playFree(s, seat, iid, ev, opt = {}) {
   if (opt.exerted) c.exerted = true;
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
   R.fire(s, 'play', { iid });
+  R.fire(s, 'entersPlay', { iid });
   return true;
 }
 function manualActionText(s, d) {
@@ -719,6 +722,7 @@ H.play = (s, seat, a, ev) => {
   p.playedThisTurn.push(c.iid);
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${c.exerted ? ' (entered exerted)' : ''}.`, { seat, kind: 'play' });
   R.fire(s, 'play', { iid: c.iid, paid });
+  R.fire(s, 'entersPlay', { iid: c.iid });                          // "whenever another character is played / enters play exerted"
   if (shiftTarget) for (const t of shiftTarget) R.fire(s, 'shiftedOnto', { iid: t.iid, by: c.iid });
 };
 

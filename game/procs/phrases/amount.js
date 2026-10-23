@@ -26,6 +26,8 @@ export class Amount {
     if ((m = p.match(/^different ink type of (.+)$/i))) return { count: { inks: filter(m[1], at) } };
     // "for each 1 damage removed this way" · "for each damage counter moved this way" · "for each 1 lore lost this way"
     if (/^(?:1 )?(?:damage(?: counter)?|lore|card) (?:removed|moved|lost|discarded|put \w+) this way$/i.test(p)) return { count: { thisWay: true } };
+    // in a trigger: "gain 1 lore for each 1 damage removed" · "draw a card for each card discarded" — how much the event did
+    if (/^(?:1 )?(?:damage removed|card discarded)$/i.test(p)) return { count: { thisWay: true } };
     // "for each item banished this way" · "for each item card put into your discard this way" — what the last step moved
     if ((m = p.match(/^(.+?) (?:banished|put into (?:your|their) discard|discarded|moved|returned|revealed|exerted|readied) this way$/i))) return { count: { thisWayOf: filter(m[1], at) } };
     // "for each opposing character banished in a challenge this turn" — the turn log, counted like the "did" condition

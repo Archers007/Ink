@@ -103,7 +103,7 @@ export class RevealHandDiscard extends Effect {
     if (!valid.length || rt.discardBlocked(s, o)) return false;
     const picked = rt.pickFrom(s, job, st, 'rhd', valid, { n: 1, optional: false, prompt: `choose ${Query.describe(st.filter)} for them to discard.` });
     if (!picked) return null;
-    return rt.each(picked, (iid) => { rt.E.moveTo(s, iid, 'discard', ev); rt.log(s, `↳ ${rt.E.nameOf(s, o)} discarded ${rt.E.cardLabel(rt.E.D(s, s.cards[iid]))}.`, { kind: 'effect' }); });
+    return rt.each(picked, (iid) => { rt.E.moveTo(s, iid, 'discard', ev); rt.fire(s, 'discarded', { iid, seat: o, n: 1 }); rt.log(s, `↳ ${rt.E.nameOf(s, o)} discarded ${rt.E.cardLabel(rt.E.D(s, s.cards[iid]))}.`, { kind: 'effect' }); });
   }
   static say(st) { return `chosen opponent reveals their hand and discards ${Query.describe(st.filter)} of your choice`; }
 }
