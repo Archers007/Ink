@@ -109,6 +109,7 @@ export class Runtime {
     if (F.any && F.any.some((G) => G.zone)) return [...new Set(F.any.flatMap((G) => this.pool(s, { ...G, owner: G.owner || F.owner }, ctl)))];
     const zone = F.zone || 'play';
     const seats = F.owner === 'you' ? [ctl] : F.owner === 'opp' ? this.E.opponentsOf(s, ctl) : s.players.map((p) => p.seat);
+    if (zone === 'under') return seats.flatMap((seat) => this.E.P(s, seat).play.flatMap((iid) => s.cards[iid].under));   // cards under a player's cards in play
     return seats.flatMap((seat) => this.E.P(s, seat)[zone] || []);
   }
   // it = what the ability last acted on ("with the same name as that character")

@@ -6,16 +6,44 @@ import { Query } from '../query.js';
 
 const describeQ = (F) => Query.describe(F);
 
+// what goes under: the top of the deck (default) · 'self' ("put this character facedown under …") · 'lastUnder' (the
+// cards that were under this card when it left play) · pick: a card chosen from a zone ("a character card from your discard")
 export class PutUnder extends Effect {
   static fn = 'putUnder';
-  static rules = [[/^put the top card of your deck facedown under (.+)$/i, (m, P) => ({ fn: 'putUnder', sel: P.sel(m[1]) })]];
+  static rules = [
+    [/^put the top card of your deck (?:facedown )?under (.+?)(?: facedown)?$/i, (m, P) => ({ fn: 'putUnder', sel: P.sel(m[1]) })],
+    [/^put a card from the top of your deck facedown under (.+)$/i, (m, P) => ({ fn: 'putUnder', sel: P.sel(m[1]) })],
+    [/^put this character facedown under (.+)$/i, (m, P) => ({ fn: 'putUnder', sel: P.sel(m[1]), card: 'self' })],
+    [/^put (?:a|an) (.+?) from your discard under (.+?) (faceup|facedown)$/i, (m, P) => ({ fn: 'putUnder', sel: P.sel(m[2]), pick: { ...P.filter(m[1]), zone: 'discard', owner: 'you' }, ...(/faceup/i.test(m[3]) ? { faceUp: true } : {}) })],
+    [/^put all cards that were under (?:him|her|them|it) under (.+?)(?: facedown)?$/i, (m, P) => ({ fn: 'putUnder', sel: P.sel(m[1]), card: 'lastUnder' })],
+  ];
   static run(rt, s, job, st, ev) {
-    const ids = rt.targets(s, job, st, st.sel);
+    const { E } = rt;
+    if (st.card === 'self' && s.cards[job.src]?.zone !== 'play') return false;
+    const ids = rt.targets(s, job, st, st.sel, 'sel', st.card === 'self' ? { keep: (iid) => iid !== job.src } : undefined);
     if (!ids) return null;
-    return rt.each(ids.slice(0, 1), (iid) => { if (rt.E.putUnder(s, job.seat, iid, ev)) rt.log(s, `↳ Put the top card of ${rt.E.nameOf(s, job.seat)}'s deck facedown under ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' }); });
+    const onto = st.sel.all ? ids : ids.slice(0, 1);
+    let cards = [null];
+    if (st.card === 'self') cards = [job.src];
+    else if (st.card === 'lastUnder') cards = (s.cards[job.src]?.lastUnder || []).filter((iid) => s.cards[iid]?.zone === 'discard');
+    else if (st.pick) {
+      const valid = rt.candidates(s, st.pick, job.seat, job.src);
+      if (!valid.length) return false;
+      const got = rt.pickFrom(s, job, st, 'putUnderPick', valid, { n: 1, optional: false, prompt: `choose ${Query.describe(st.pick)} to put under it.` });
+      if (!got) return null;
+      cards = got;
+    }
+    job.ctx.it = onto;                                                  // "those characters gain Ward …"
+    let n = 0;
+    for (const iid of onto) for (const card of cards) {
+      if (!E.putUnder(s, job.seat, iid, ev, { ...(card != null ? { card } : {}), ...(st.faceUp ? { faceUp: true } : {}) })) continue;
+      n++;
+      rt.log(s, `↳ Put ${card == null ? `the top card of ${E.nameOf(s, job.seat)}'s deck` : E.cardLabel(E.D(s, s.cards[card]))} ${st.faceUp ? 'faceup' : 'facedown'} under ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
+    }
+    return n > 0;
   }
-  static verb() { return 'put the top card of your deck under'; }
-  static say(st) { return `put the top card of your deck facedown under ${Selector.say(st.sel)}`; }
+  static verb() { return 'put a card under'; }
+  static say(st) { return `put ${st.card === 'self' ? 'this card' : st.card === 'lastUnder' ? 'the cards that were under it' : st.pick ? `${Query.describe(st.pick)}` : 'the top card of your deck'} ${st.faceUp ? 'faceup' : 'facedown'} under ${Selector.say(st.sel)}`; }
 }
 // "move <who> to <where> for free" — who is one or more movers joined by "and" ("him and one of your other characters",
 // "up to 2 characters of yours", "any number of your characters"); where is a location of yours ("a location",

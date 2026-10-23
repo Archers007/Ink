@@ -140,6 +140,7 @@ function moveTo(s, iid, to, ev, opt = {}) {
   const from = c.zone;
   if (from === 'under' && !opt.fromUnder) throw RE('Cards under another card move together with it.');
   const stack = from === 'play' ? [...c.under, iid] : [iid];
+  const wasUnder = from === 'play' ? [...c.under] : null;           // "for each card that was under him"
   detach(s, c);
   if (from === 'play' && D(s, c).type === 'location') {
     for (const pl of s.players) for (const id of pl.play) if (s.cards[id].atLocation === iid) s.cards[id].atLocation = null;
@@ -165,19 +166,35 @@ function moveTo(s, iid, to, ev, opt = {}) {
     if (visibleBefore || visibleAfter || opt.reveal) ev.push({ k: 'move', iid: id, cardId: k.cardId, from: fromZ, to: toZ, parent: id !== iid ? iid : undefined, revealed: (opt.reveal && !visibleBefore && !visibleAfter) || undefined });
     else ev.push(privateMove(s, id, fromZ, toZ, c.owner));
   }
+  if (wasUnder) c.lastUnder = wasUnder;
   if (from === 'play' && to !== 'play') R.fire(s, 'leaves', { iid, to });
 }
 
 // "put the top card of your deck facedown under X" — Boost (8.4) and effects share this
-function putUnder(s, seat, iid, ev) {
+// Put a card under `iid` (CR 8.4 Boost and the effects that stack cards): the top card of the deck facedown, or
+// opt.card from wherever it is (a card in the discard, a character in play — its own stack goes along); opt.faceUp
+function putUnder(s, seat, iid, ev, opt = {}) {
   const C = s.cards[iid];
   const p = P(s, seat);
-  if (!p.deck.length) return false;
-  const top = p.deck.shift();
+  let top = opt.card;
+  let from = 'deck';
+  if (top == null) {
+    if (!p.deck.length) return false;
+    top = p.deck.shift();
+  } else {
+    const u0 = s.cards[top];
+    if (!u0 || u0.iid === C.iid || u0.zone === 'under') return false;
+    from = u0.zone;
+    const stack = from === 'play' ? [...u0.under] : [];
+    detach(s, u0);
+    resetCard(u0);
+    for (const x of stack) { s.cards[x].parent = C.iid; C.under.push(x); }
+    if (from === 'play') R.fire(s, 'leaves', { iid: top, to: 'under' });
+  }
   const u = s.cards[top];
-  u.zone = 'under'; u.parent = C.iid; u.faceDown = true;
+  u.zone = 'under'; u.parent = C.iid; u.faceDown = !opt.faceUp;
   C.under.push(top);
-  ev.push({ k: 'move', from: { seat, zone: 'deck' }, to: { seat, zone: 'under' }, parent: C.iid });
+  ev.push({ k: 'move', ...(opt.faceUp || from !== 'deck' ? { iid: top, cardId: u.cardId } : {}), from: { seat, zone: from }, to: { seat, zone: 'under' }, parent: C.iid });
   R.fire(s, 'putUnder', { iid: C.iid, seat });
   return true;
 }
@@ -813,6 +830,7 @@ H.boost = (s, seat, a, ev) => {
   C.boostedTurn = s.turn;
   putUnder(s, seat, C.iid, ev);
   log(s, `${nameOf(s, seat)} used Boost ${n} on ${cardLabel(Cd)} — the top card of their deck went facedown under it.`, { seat });
+  R.fire(s, 'boosted', { iid: C.iid, seat });                       // "whenever you use the Boost ability of a character"
 };
 
 H.useAbility = (s, seat, a, ev) => {
