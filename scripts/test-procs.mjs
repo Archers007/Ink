@@ -1248,6 +1248,37 @@ test('new triggers (CR 6.2): any character played, opponent discards, an action 
     assert.equal(s.players[0].lore, 2, 'exerted: 1 per card drawn');
   }
 });
+test('cost rules (CR 1.5): each player pays more, Shift discounts, the first action each turn, free by name', () => {
+  const ready = (s, seat) => s.players[seat].inkwell.filter((i) => !s.cards[i].exerted).length;
+  { // Gantu - Experienced Enforcer: "Each player pays 2 {ink} more to play actions or items."
+    const act = all.find((d) => d.type === 'action' && d.cost === 2 && d.procs.every((p) => p.exec) && /^Draw/.test(d.abilities[0]?.text || ''));
+    const { s, ids } = setup({ play1: [byName('Gantu - Experienced Enforcer')], hand0: [act] });
+    const before = ready(s, 0);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(before - ready(s, 0), 4, 'the opponent\'s Gantu applies too');
+  }
+  { // Yokai - Intellectual Schemer: "You pay 1 {ink} less to play characters using their Shift ability."
+    const base = all.find((d) => d.type === 'character' && d.cost <= 3 && all.some((x) => x.name === d.name && typeof x.kw?.shift === 'number' && x.kw.shift >= 3 && x.procs.every((p) => p.kind === 'keyword' || p.exec)));
+    const top = all.find((x) => x.name === base.name && typeof x.kw?.shift === 'number' && x.kw.shift >= 3 && x.procs.every((p) => p.kind === 'keyword' || p.exec));
+    const { s, ids } = setup({ play0: [byName('Yokai - Intellectual Schemer'), base], hand0: [top] });
+    const before = ready(s, 0);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'shift', target: ids.play0[1] })); drain(s);
+    assert.equal(before - ready(s, 0), top.kw.shift - 1);
+  }
+  { // Owl Island - Secluded Entrance: "For each character you have here, you pay 1 {ink} less for the first action you play each turn."
+    const owl = byName('Owl Island - Secluded Entrance');
+    const x = all.find((d) => d.type === 'character' && !d.abilities.length);
+    const act = all.find((d) => d.type === 'action' && d.cost === 3 && d.procs.every((p) => p.exec) && /^Draw/.test(d.abilities[0]?.text || ''));
+    const { s, ids } = setup({ play0: [owl, x, x], hand0: [act, act], ink0: 12 });
+    s.cards[ids.play0[1]].atLocation = ids.play0[0]; s.cards[ids.play0[2]].atLocation = ids.play0[0];
+    let before = ready(s, 0);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] })); drain(s);
+    assert.equal(before - ready(s, 0), 1, '3 - 2');
+    before = ready(s, 0);
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1] })); drain(s);
+    assert.equal(before - ready(s, 0), 3, 'only the first');
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

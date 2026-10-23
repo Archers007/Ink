@@ -45,6 +45,13 @@ export class Static extends Kind {
     }
     // "You can't play this character unless …" (the unless is already folded into cond as a not)
     if (/^you can't play this (?:character|action|item|location|song)$/i.test(t)) return wrap({ fn: 'selfBan' });
+    // costs by kind of play (CR 1.5): Shift, "the first action you play each turn", "each player pays N more", "for free"
+    if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character using (?:her|his|their|its) shift ability$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t), shift: true });
+    if ((m = t.match(/^you pay (\d+) \{ink\} less to shift a character on top of this character$/i))) return wrap({ fn: 'costMod', n: +m[1], filter: { types: ['character'] }, shift: true, onto: 'self' });
+    if ((m = t.match(/^you pay (\d+) \{ink\} less to play (.+?) using their shift ability$/i))) return wrap({ fn: 'costMod', n: +m[1], filter: c.filter(m[2], t), shift: true });
+    if ((m = t.match(/^each player pays (\d+) \{ink\} more to play (.+)$/i))) return wrap({ fn: 'costMod', n: -m[1], filter: c.filter(m[2], t), who: 'each' });
+    if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less for the first (action|character|item|song|location) you play each turn$/i))) return wrap({ fn: 'costMod', n: +m[2], per: Amount.forEach(m[1], t), filter: { types: [m[3].toLowerCase()] }, first: true });
+    if ((m = t.match(/^you may play (.+? named .+?) for free$/i))) return wrap({ fn: 'costMod', n: 99, filter: c.filter(m[1], t), free: true });
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to play this (?:character|item|location)$/i))) return wrap({ fn: 'selfCost', n: +m[1] });
     // "If you have a character named Lilo in play, you can play this character for free" · "… for free if <condition>"
@@ -59,7 +66,7 @@ export class Static extends Kind {
     if (/^you can shift any character on top of this character$/i.test(t)) return wrap({ fn: 'shiftAs', any: true });
     // moving: "<movers> may/can move here for free" · "you pay N {ink} less to move <movers> (here|to a location)"
     if ((m = t.match(/^(.+?) (?:may|can) move (here|to a location|to this location) for free$/i))) return wrap({ fn: 'moveCost', who: c.filter(m[1].replace(/^your /i, 'your '), t), ...(/here|this/i.test(m[2]) ? { here: true } : {}), n: 'free' });
-    if ((m = t.match(/^(?:you )?pay (\d+) \{ink\} less to move (.+?) (here|to (?:a|this) location|to locations?)$/i))) {
+    if ((m = t.match(/^(?:you )?(?:may )?pay (\d+) \{ink\} less to move (.+?) (here|to (?:a|this) location|to locations?)$/i))) {
       const who = /^this character$/i.test(m[2]) ? null : c.filter(/^(a|an) /i.test(m[2]) ? m[2].replace(/^an? /i, '') : m[2], t);
       return wrap({ fn: 'moveCost', ...(who ? { who } : {}), ...(/here|this/i.test(m[3]) ? { here: true } : {}), n: +m[1] });
     }
@@ -137,25 +144,30 @@ export class Static extends Kind {
   }
 
   // runtime: ink cost change for playing `c` from hand (its own selfCost, board costMods, one-shot costMods)
-  static costDelta(rt, s, seat, c, consume) {
+  // how: 'play' (paying its cost) | 'shift' (paying a Shift cost; onto = the card(s) it goes on top of)
+  static costDelta(rt, s, seat, c, consume, how = 'play', onto = []) {
     let delta = 0;
+    const kindOk = (e) => !!e.shift === (how === 'shift');
+    const times = (e, ctl, src) => (e.per ? Amount.count(rt, s, e.per, ctl, src) : 1);
+    const p = rt.E.P(s, seat);
     for (const proc of rt.procsOf(s, c)) {
-      if (proc.kind === 'static' && proc.exec && proc.effect.fn === 'selfCost' && rt.test(s, proc.cond, seat, c.iid)) {
-        delta -= proc.effect.n * (proc.effect.per ? Amount.count(rt, s, proc.effect.per, seat, c.iid) : 1);
-      }
-      if (proc.kind === 'action' && proc.playCost && proc.exec && rt.test(s, proc.playCost.cond, seat, c.iid)) delta -= proc.playCost.n * (proc.playCost.per ? Amount.count(rt, s, proc.playCost.per, seat, c.iid) : 1);
+      if (proc.kind === 'static' && proc.exec && proc.effect.fn === 'selfCost' && kindOk(proc.effect) && rt.test(s, proc.cond, seat, c.iid)) delta -= proc.effect.n * times(proc.effect, seat, c.iid);
+      if (how === 'play' && proc.kind === 'action' && proc.playCost && proc.exec && rt.test(s, proc.playCost.cond, seat, c.iid)) delta -= proc.playCost.n * (proc.playCost.per ? Amount.count(rt, s, proc.playCost.per, seat, c.iid) : 1);
     }
-    for (const iid of rt.E.P(s, seat).play) {
+    for (const pl of s.players) for (const iid of pl.play) {
       const src = s.cards[iid];
       for (const proc of rt.procsOf(s, src)) {
-        if (proc.kind === 'static' && proc.effect.fn === 'costMod' && Static.active(rt, s, proc, seat, iid)
-          && rt.matches(s, proc.effect.filter, c, seat, iid, { anyZone: true })) delta -= proc.effect.n;
+        const e = proc.effect;
+        if (proc.kind !== 'static' || e?.fn !== 'costMod' || !kindOk(e) || (pl.seat !== seat && e.who !== 'each')) continue;
+        if (!Static.active(rt, s, proc, pl.seat, iid) || !rt.matches(s, e.filter, c, pl.seat, iid, { anyZone: true })) continue;
+        if (e.onto === 'self' && !onto.includes(iid)) continue;                        // "to shift a character on top of this character"
+        if (e.first && p.playedThisTurn.some((x) => s.cards[x] && rt.E.D(s, s.cards[x]).type === e.filter.types?.[0])) continue;   // "the first action you play each turn"
+        delta -= e.n * times(e, pl.seat, iid);
       }
     }
-    const p = rt.E.P(s, seat);
     p.costMods = (p.costMods || []).filter((m) => m.turn === s.turn);
     for (const m of [...p.costMods]) {
-      if (!rt.matches(s, m.filter, c, seat, null, { anyZone: true })) continue;
+      if (!!m.shift !== (how === 'shift') || !rt.matches(s, m.filter, c, seat, null, { anyZone: true })) continue;
       delta -= m.n;
       if (consume && m.next) p.costMods.splice(p.costMods.indexOf(m), 1);
     }
@@ -165,6 +177,7 @@ export class Static extends Kind {
   // runtime: ink change for moving `c` to location `loc` (board moveCost statics) → { free } | { delta }
   static moveDelta(rt, s, seat, c, loc) {
     let delta = 0, free = false;
+    const used = [];
     for (const iid of rt.E.P(s, seat).play) {
       const src = s.cards[iid];
       for (const proc of rt.procsOf(s, src)) {
@@ -172,10 +185,11 @@ export class Static extends Kind {
         const st = proc.effect;
         if (st.here && loc.iid !== iid) continue;
         if (st.who ? !rt.matches(s, st.who, c, seat, iid) : c.iid !== iid) continue;
+        if (proc.once) { if (src.onceMove === s.turn) continue; used.push(iid); }
         if (st.n === 'free') free = true; else delta -= st.n;
       }
     }
-    return { free, delta };
+    return { free, delta, used };
   }
 
   // runtime: "enters play exerted / with N damage"

@@ -257,7 +257,7 @@ export class Runtime {
     this.log(s, `↳ ${this.E.nameOf(s, seat)} doesn't discard (${this.E.cardLabel(this.E.D(s, s.cards[by]))}).`, { seat, kind: 'effect' });
     return true;
   }
-  costDelta(s, seat, c, consume = false) { return Static.costDelta(this, s, seat, c, consume); }
+  costDelta(s, seat, c, consume = false, how = 'play', onto = []) { return Static.costDelta(this, s, seat, c, consume, how, onto); }
   onEnter(s, c) { Static.onEnter(this, s, c); }
   activate(s, seat, c, index, ev) { return Activated.activate(this, s, seat, c, index, ev); }
   castAction(s, seat, c) { return Action.cast(this, s, seat, c); }
