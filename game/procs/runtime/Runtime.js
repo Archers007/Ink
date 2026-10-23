@@ -81,12 +81,13 @@ export class Runtime {
       c.mods.push({ stat: m.stat, delta: base * mult, ...u, src: job.label });
       if (ev) ev.push({ k: 'mod', iid, stat: m.stat, delta: base * mult });
     }
+    if (st.cls) c.mods.push({ stat: 'class', cls: st.cls, delta: 1, ...u, src: job.label });   // "gains the Detective classification"
     for (const k of st.kws || []) {
       if (k.kw === 'grant') {
         if (!c.mods.some((m) => m.stat === 'grant' && m.proc === k.proc && m.until === u.until)) c.mods.push({ stat: 'grant', proc: k.proc, ...u, src: job.label });
         continue;
       }
-      c.mods.push({ stat: 'kw', kw: k.kw, delta: k.n ?? 1, ...(k.by ? { by: k.by } : {}), ...u, src: job.label });
+      c.mods.push({ stat: 'kw', kw: k.kw, delta: k.n ?? 1, ...(k.by ? { by: k.by } : {}), ...(k.of ? { of: k.of } : {}), ...u, src: job.label });
       if (ev) ev.push({ k: 'mod', iid, stat: 'kw', delta: 1 });
     }
   }
