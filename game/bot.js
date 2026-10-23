@@ -6,7 +6,7 @@
 import { D, readyInk } from './engine.js';
 import {
   LORE_TO_WIN, questBlocker, attackerBlocker, defenderBlocker, challengeDamage,
-  effWp, effLore, hasKw, shiftOptions, shiftTargetOk,
+  effWp, effLore, hasKw, shiftOptions, shiftOntoOk, shiftDiscardOk,
 } from '../public/js/play/rules.js';
 
 const cardsIn = (s, ids) => ids.map((id) => s.cards[id]);
@@ -44,10 +44,32 @@ function chooseInk(s, seat) {
   return best?.iid ?? null;
 }
 
+// One legal way to pay this Shift option and the card(s) it goes on top of → the play action's extras, or null.
+// Duo / Combo pick a pair, a discard cost gives up the cheapest matching cards in hand.
+function shiftPlan(s, seat, c, d, opt, ink) {
+  const p = s.players[seat];
+  const cost = opt.spec.cost;
+  if (cost.ink != null && cost.ink > ink) return null;
+  if (cost.inkDrops != null && (p.inkDrops || 0) < cost.inkDrops) return null;
+  let discard;
+  if (cost.discard != null) {
+    const pool = cardsIn(s, p.hand).filter((x) => x.iid !== c.iid && shiftDiscardOk({ spec: { cost: { ...cost, discard: 1 } } }, [D(s, x)]))
+      .sort((a, b) => D(s, a).cost - D(s, b).cost);
+    if (pool.length < cost.discard) return null;
+    discard = pool.slice(0, cost.discard).map((x) => x.iid);
+  }
+  const mine = cardsIn(s, p.play);
+  let targets = mine.filter((t) => shiftOntoOk(opt, d, [D(s, t)])).slice(0, 1);
+  if (!targets.length && (opt.spec.onto.by === 'duo' || opt.spec.onto.by === 'combo')) {
+    for (const a of mine) for (const b of mine) if (!targets.length && a !== b && shiftOntoOk(opt, d, [D(s, a), D(s, b)])) targets = [a, b];
+  }
+  if (!targets.length) return null;
+  return { mode: 'shift', shiftKind: opt.kind, targets: targets.map((t) => t.iid), ...(discard ? { discard } : {}) };
+}
+
 function choosePlay(s, seat) {
   const p = s.players[seat];
   const ink = readyInk(s, seat);
-  const mine = cardsIn(s, p.play);
   let best = null;
   let bestVal = -Infinity;
   for (const c of cardsIn(s, p.hand)) {
@@ -58,11 +80,10 @@ function choosePlay(s, seat) {
       if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, mode: 'ink' }; }
     }
     for (const opt of shiftOptions(d)) {
-      if (typeof opt.cost !== 'number' || opt.cost > ink) continue;
-      const target = mine.find((t) => shiftTargetOk(opt.kind, d, D(s, t)));
-      if (!target) continue;
-      const val = d.cost * 10 + 8;
-      if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, mode: 'shift', shiftKind: opt.kind, target: target.iid }; }
+      const plan = shiftPlan(s, seat, c, d, opt, ink);
+      if (!plan) continue;
+      const val = d.cost * 10 + 8 - (plan.discard?.length || 0) * 6 - (opt.spec.temp ? 12 : 0);
+      if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, ...plan }; }
     }
   }
   return best;

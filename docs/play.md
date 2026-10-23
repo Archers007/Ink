@@ -16,7 +16,7 @@ Online Disney Lorcana for two players at `/play`. Host a room, send the invite l
 
 ## Automated vs. manual
 
-Automated: setup + mulligan, ready/set/draw, drying, 1 ink per turn, paying costs, playing every card type, singing + Sing Together, Shift (incl. Puppy/Universal), questing, challenges (Evasive, Alert, Bodyguard, Challenger, Resist, Rush, Reckless), locations (move cost, start-of-turn lore, being challenged), Support, Boost, damage → banish, 20 lore win, deck-out, concede.
+Automated: setup + mulligan, ready/set/draw, drying, 1 ink per turn, paying costs, playing every card type, singing + Sing Together, Shift in every variant — [Classification], Universal, Duo, Combo, Temporary, Potato and combinations, with ink, discard or ink-drop costs, and targets that count as other names (one spec per Shift line, `parseShift` in `public/js/play/rules.js`), questing, challenges (Evasive, Alert, Bodyguard, Challenger, Resist, Rush, Reckless), locations (move cost, start-of-turn lore, being challenged), Support, Boost, damage → banish, 20 lore win, deck-out, concede.
 
 Card text is compiled into **procs** at build time (`game/procs/`, see [game/procs/README.md](../game/procs/README.md)). When **every** clause of an ability compiles, the engine runs it through an effect queue, and choices show up as prompts for the right player. If any clause isn't recognised, the whole ability stays manual, so a card never gets half-resolved. Automated abilities are marked **⚡ auto** in the card panel. Look up any card's proc at **`/procs`**.
 

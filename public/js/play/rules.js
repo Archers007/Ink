@@ -21,7 +21,7 @@ export const KEYWORD_HELP = {
   reckless: "Reckless — This character can't quest and must challenge each turn if able. (8.7)",
   resist: 'Resist +N — Damage dealt to this character is reduced by N. (8.8)',
   rush: 'Rush — This character can challenge the turn they\'re played. (8.9)',
-  shift: 'Shift N — You may pay N ink to play this on top of one of your characters with the same name. (8.10)',
+  shift: 'Shift — Pay the Shift cost to play this on top of one of your characters with the same name. Its variants say what it may go on top of instead (8.10.8). (8.10)',
   puppyShift: 'Puppy Shift N — Pay N ink to play this on top of one of your Puppy characters. (8.10.8.1)',
   universalShift: 'Universal Shift N — Pay N ink to play this on top of any one of your characters. (8.10.8.2)',
   singer: 'Singer N — This character counts as cost N to sing songs. (8.11)',
@@ -158,23 +158,97 @@ export function singerBlocker(card, def, songDef) {
   return null;
 }
 
-// Which shift variants does this card have, and what do they cost?
-export function shiftOptions(def) {
-  const out = [];
-  if (def.kw?.shift != null) out.push({ kind: 'shift', cost: def.kw.shift });
-  if (def.kw?.puppyShift != null) out.push({ kind: 'puppyShift', cost: def.kw.puppyShift });
-  if (def.kw?.universalShift != null) out.push({ kind: 'universalShift', cost: def.kw.universalShift });
-  if (def.kw?.classShift) out.push({ kind: 'classShift', cost: def.kw.classShift.n, cls: def.kw.classShift.cls });
-  return out;
+// ---------- Shift (8.10) ----------
+// Every Shift line — plain, [Classification], Universal, Duo, Combo, Temporary, Potato, or several combined
+// (8.10.9: "Temporary Red Panda Shift") — is one spec built from three parts:
+//   cost  { ink: N }  ·  { discard: N, type? }  ("Shift: Discard an action card")  ·  { inkDrops: N }
+//   onto  { by: 'name' } · { by: 'class', cls } · { by: 'any' } · { by: 'duo' } · { by: 'combo' } · { by: 'item', named }
+//   temp  true → back to hand at the end of the turn (8.10.8.5)
+// The compiler turns each keyword line into a spec (def.shifts); the engine, bot and client all read it here.
+const SHIFT_LINE = /^((?:[A-Z][a-z]+ ){0,3})Shift\b(?::\s*([^.]+?)\.?|\s+(\d+)(?:\s*\{(?:ink|I)\})?|\s+(Remove \d+ ink drops?))?\s*$/;
+const SHIFT_WORD = {
+  temporary: (sp) => { sp.temp = true; }, universal: (sp) => { sp.onto = { by: 'any' }; }, duo: (sp) => { sp.onto = { by: 'duo' }; },
+  combo: (sp) => { sp.onto = { by: 'combo' }; }, potato: (sp) => { sp.onto = { by: 'item', named: 'Potato' }; },
+};
+const NUM = { a: 1, an: 1, one: 1, two: 2, three: 3 };
+export function shiftCost(t) {
+  const x = String(t ?? '').trim();
+  if (/^\d+$/.test(x)) return { ink: Number(x) };
+  let m = x.match(/^discard (a|an|one|two|three|\d+) (?:(character|action|item|location|song) )?cards?$/i);
+  if (m) return { discard: NUM[m[1].toLowerCase()] ?? Number(m[1]), ...(m[2] ? { type: m[2].toLowerCase() } : {}) };
+  m = x.match(/^remove (\d+) ink drops?$/i);
+  if (m) return { inkDrops: Number(m[1]) };
+  return null;
 }
+// "Temporary Red Panda Shift 2 {ink}" → spec, or null when it isn't a Shift line / the cost is unknown
+export function parseShift(text) {
+  const m = String(text ?? '').replace(/\s*\([^()]*\)/g, '').trim().match(SHIFT_LINE);
+  if (!m) return null;
+  const sp = { label: `${m[1]}Shift`, onto: { by: 'name' }, temp: false };
+  const cls = [];
+  for (const w of m[1].trim().split(/\s+/).filter(Boolean)) (SHIFT_WORD[w.toLowerCase()] || (() => cls.push(w)))(sp);
+  if (cls.length) {
+    if (sp.onto.by !== 'name') return null;                             // "Universal Puppy Shift" — no such card
+    sp.onto = { by: 'class', cls: cls.join(' ').toLowerCase() };
+  }
+  sp.cost = shiftCost(m[3] ?? m[2] ?? m[4]);
+  return sp.cost ? sp : null;
+}
+export const shiftCostLabel = (c) => (c.ink != null ? `${c.ink} ⬡` : c.inkDrops != null ? `remove ${c.inkDrops} ink drop${c.inkDrops === 1 ? '' : 's'}`
+  : `discard ${c.discard} ${c.type ? `${c.type} ` : ''}card${c.discard === 1 ? '' : 's'}`);
+const SHIFT_KIND = { name: 'shift', class: 'classShift', any: 'universalShift', duo: 'duoShift', combo: 'comboShift', item: 'potatoShift' };
 
-export function shiftTargetOk(kind, shifterDef, tgtDef) {
-  if (tgtDef.type !== 'character') return false;
-  if (kind === 'universalShift') return true;
-  if (kind === 'puppyShift') return (tgtDef.classes || []).includes('puppy');
-  if (kind === 'classShift') return (tgtDef.classes || []).includes(shifterDef.kw?.classShift?.cls);
-  return sharesName(shifterDef, tgtDef);
+// This card's ways to shift: [{ kind, label, cost (ink number, or the cost in words), spec }]
+export function shiftOptions(def) {
+  let specs = def.shifts;
+  if (!specs) {                                   // a def built without procs: its keyword column only
+    specs = [];
+    const k = def.kw || {};
+    if (typeof k.shift === 'number') specs.push({ label: 'Shift', cost: { ink: k.shift }, onto: { by: 'name' }, temp: !!k.tempShift });
+    if (typeof k.puppyShift === 'number') specs.push({ label: 'Puppy Shift', cost: { ink: k.puppyShift }, onto: { by: 'class', cls: 'puppy' }, temp: false });
+    if (typeof k.universalShift === 'number') specs.push({ label: 'Universal Shift', cost: { ink: k.universalShift }, onto: { by: 'any' }, temp: false });
+  }
+  return specs.map((spec) => ({ kind: SHIFT_KIND[spec.onto.by], label: spec.label, cost: spec.cost.ink ?? shiftCostLabel(spec.cost), spec }));
 }
+// the names a Duo / Combo Shift card is made of ("Mickey Mouse & Minnie Mouse" → Mickey Mouse, Minnie Mouse)
+const partNames = (def) => [...namesOf(def)].filter((n) => n !== def.name);
+// a target's names for Shift, plus what its own abilities add (def.shiftAs: "also counts as being named Syndrome")
+const shiftNames = (t) => new Set([...namesOf(t), ...(t.shiftAs?.names || [])]);
+const anyNameOk = (t) => !!(t.shiftAs?.any || t.shiftAs?.anyName);
+function ontoOne(spec, shifter, t) {
+  const ch = t.type === 'character';
+  if (ch && t.shiftAs?.any) return true;                               // Morph: every Shift variant
+  switch (spec.onto.by) {
+    case 'any': return ch;
+    case 'class': return ch && (t.classes || []).includes(spec.onto.cls);
+    case 'item': return t.type === 'item' && namesOf(t).has(spec.onto.named);
+    default: return ch && (anyNameOk(t) || [...namesOf(shifter)].some((n) => shiftNames(t).has(n)));   // name · duo / combo halves
+  }
+}
+// Can the shifter go on top of exactly these cards? One card — or two for Duo / Combo Shift, one of each name (8.10.8.3)
+export function shiftOntoOk(opt, shifter, tgts) {
+  const spec = opt.spec || opt;
+  if (spec.onto.by === 'duo' || spec.onto.by === 'combo') {
+    if (tgts.length === 1) return spec.onto.by === 'combo' && ontoOne(spec, shifter, tgts[0]);
+    if (tgts.length !== 2 || !tgts.every((t) => t.type === 'character')) return false;
+    const parts = partNames(shifter);
+    const [a, b] = tgts.map((t) => (anyNameOk(t) ? new Set(parts) : shiftNames(t)));
+    return parts.some((n1) => a.has(n1) && parts.some((n2) => n2 !== n1 && b.has(n2)));
+  }
+  return tgts.length === 1 && ontoOne(spec, shifter, tgts[0]);
+}
+// Could this card be one of the cards it shifts onto? (what to highlight while picking)
+export function shiftTargetOk(opt, shifter, tgt) {
+  if (typeof opt === 'string') opt = shiftOptions(shifter).find((o) => o.kind === opt) || shiftOptions(shifter)[0];
+  return !!opt && ontoOne(opt.spec || opt, shifter, tgt);
+}
+// How many cards it goes on top of: [min, max]
+export const shiftOntoCount = (opt) => ({ duo: [2, 2], combo: [1, 2] }[(opt.spec || opt).onto.by] || [1, 1]);
+// Can these hand cards pay a "discard" Shift cost?
+export const shiftDiscardOk = (opt, defs) => {
+  const c = (opt.spec || opt).cost;
+  return c.discard == null ? defs.length === 0 : defs.length === c.discard && defs.every((d) => !c.type || d.type === c.type || (c.type === 'action' && d.type === 'song'));
+};
 
 // Parse the cost of an activated ability, e.g. "{exert}, 2 {ink} - Draw a card."
 // Returns { exert, ink, effect } or null if it doesn't look like an activated ability.

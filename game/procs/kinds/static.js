@@ -3,13 +3,14 @@
 //   costMod    "You pay 1 {ink} less to play Princess characters"
 //   selfCost   "You pay 2 {ink} less to play this character [for each X]"  (from hand)
 //   enters     "This character enters play exerted"
+//   shiftAs    "This character also counts as being named Syndrome for Shift" · "You can shift any character on top of this character"
 import { Kind, sayDuring } from './Kind.js';
 import { sentences } from '../phrases/text.js';
 import { Amount } from '../phrases/amount.js';
 import { Query } from '../query.js';
 import { PlayBan } from '../effects/playBan.js';
 
-export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan']);
+export const STATIC_FNS = new Set(['mod', 'costMod', 'selfCost', 'enters', 'playBan', 'selfBan', 'shiftAs']);
 
 export class Static extends Kind {
   static kind = 'static';
@@ -30,6 +31,9 @@ export class Static extends Kind {
     if ((m = t.match(/^for each (.+?), you pay (\d+) \{ink\} less to play this character$/i))) return wrap({ fn: 'selfCost', n: +m[2], per: Amount.forEach(m[1], t) });
     if ((m = t.match(/^you pay (\d+) \{ink\} less to play this (?:character|item|location)$/i))) return wrap({ fn: 'selfCost', n: +m[1] });
     if ((m = t.match(/^this (?:character|item|location) enters play (exerted|with (\d+) damage)$/i))) return wrap({ fn: 'enters', ...(m[2] ? { damage: +m[2] } : { exerted: true }) });
+    if ((m = t.match(/^this character also counts as being named (.+?) for shift$/i))) return wrap({ fn: 'shiftAs', names: m[1].split(/\s*(?:,|\band\b|\bor\b)\s*/).filter(Boolean) });
+    if (/^you can shift any character on top of this character$/i.test(t)) return wrap({ fn: 'shiftAs', any: true });
+    if (/^you may play any character with shift on this character as if this character had any name$/i.test(t)) return wrap({ fn: 'shiftAs', anyName: true });
     // location statics: "characters get +2 {strength} while here" → the characters at this location
     let here = false;
     if ((m = t.match(/^(.+?) while here$/i))) { here = true; t = m[1]; }
