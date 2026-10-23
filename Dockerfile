@@ -29,6 +29,8 @@ RUN pnpm install --frozen-lockfile --prod
 COPY server.js ./
 COPY game ./game
 COPY public ./public
+# the card import the server runs on boot (ensureCards): tools/import-cards.mjs → cache/sanitized.db, tools/compile-procs.mjs → cache/proc.db
+COPY tools ./tools
 
 # The runtime cache/ and data/ directories must be writable by the unprivileged
 # "node" user (shipped in the official image). Expose them as volumes so the

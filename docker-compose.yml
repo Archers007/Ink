@@ -4,9 +4,10 @@ services:
     image: ink:latest
     container_name: ink
     # Publish on the host. Change the published port with INK_PORT (the app
-    # always listens on 5060 inside the container).
+    # always listens on 5060 inside the container). The default is 8080, not
+    # 5060: Chrome refuses to open port 5060 (SIP, ERR_UNSAFE_PORT).
     ports:
-      - "${INK_PORT:-5060}:5060"
+      - "${INK_PORT:-8080}:5060"
     environment:
       PORT: "5060"
     # Persist the downloaded cards.db / prices.db (cache) and the visit-stats DB

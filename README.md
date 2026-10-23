@@ -67,11 +67,11 @@ Environment (all optional):
 
 ```bash
 # Build + run with compose (recommended)
-docker compose up --build           # http://localhost:5060
+docker compose up --build           # http://localhost:8080
 
 # …or plain Docker
 docker build -t ink .
-docker run -p 5060:5060 -v ink-cache:/app/cache -v ink-data:/app/data ink
+docker run -p 8080:5060 -v ink-cache:/app/cache -v ink-data:/app/data ink
 ```
 
 Notes:
@@ -104,6 +104,18 @@ docker compose up --build          # starts ink + cloudflared
   network).
 - The token is read from `CLOUDFLARED_TOKEN` in your local, git-ignored `.env`.
 - To run Ink **without** the tunnel: `docker compose up ink`.
+
+
+## Play on a phone (PWA)
+
+`/play` is an installable web app with a landscape layout in the style of MTG Arena: player plates on the left,
+End turn and the ☰ menu (log, chat, tools) on the right, your hand across the bottom. Tap a card to see what it can do,
+drag it onto the table to play it (or onto your inkwell to ink it). Portrait shows a "turn your phone" screen.
+
+- Android / Chrome: open the site, the lobby offers **📲 Install the app** (or use the browser menu → Install).
+- iPhone / iPad: Share → **Add to Home Screen**.
+- The service worker (`public/sw.js`) caches the shell and card images so the app opens fast; the game itself always
+  needs the server (WebSocket), there is no offline play.
 
 ## Architecture
 

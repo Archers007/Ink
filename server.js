@@ -551,7 +551,10 @@ function findDeckObject(arr, expectedId) {
 }
 
 // ----- static -----
-app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+app.use(express.static(PUBLIC_DIR, {
+  extensions: ['html'],
+  setHeaders(res, file) { if (file.endsWith(`${path.sep}sw.js`)) res.set('Cache-Control', 'no-cache'); },   // a new service worker is picked up on the next load
+}));
 
 // the rulebook modules the client shares with the engine (deck construction limits)
 app.use('/rulebook', express.static(path.join(__dirname, 'game', 'rulebook'), { index: false }));
