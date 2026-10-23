@@ -43,11 +43,12 @@ export class Heal extends Effect {
     if (!ids) return null;
     job.ctx.it = ids;
     job.ctx.healed = 0;
+    job.ctx.healedIds = [];                                            // "each character you removed damage from this way"
     return rt.each(ids, (iid) => {
       const c = s.cards[iid];
       const n = rt.rule(s, 'removeDamage', c.owner) ? Math.min(Amount.value(rt, s, job, st.n), c.damage) : 0;   // "damage counters can't be removed"
       c.damage -= n; job.ctx.healed += n; job.ctx.n = job.ctx.healed;
-      if (n) { ev.push({ k: 'damage', iid, n: -n }); rt.fire(s, 'healed', { iid, n, seat: job.seat }); }
+      if (n) { ev.push({ k: 'damage', iid, n: -n }); rt.fire(s, 'healed', { iid, n, seat: job.seat }); job.ctx.healedIds.push(iid); }
       rt.log(s, `↳ Removed ${n} damage from ${rt.tl(s, iid)}.`, { seat: job.seat, kind: 'effect' });
     });
   }

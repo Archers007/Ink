@@ -77,6 +77,8 @@ export class Compiler {
       const per = Amount.forEach(fe[1], raw);
       if (st.fn === 'mod') return { ...st, per, ...(may ? { may: true } : {}) };
       if (typeof st.n === 'number') return { ...st, n: { n: st.n, per }, ...(may ? { may: true } : {}) };
+      // "for each of your characters named Maleficent in play, return a chosen opposing character …" — once per count
+      if (st.sel?.chosen) return { ...st, repeat: per, ...(may ? { may: true } : {}) };
       miss(`for each: "${s}"`, raw);
     }
     const P = this.P(raw, ctx, dur);
@@ -341,12 +343,22 @@ export class Compiler {
       else if ((m = s.match(/^if you do,? (.+)$/i))) { ifDid = true; s = m[1]; }
       if ((m = s.match(/^if (.+?), (.+?) instead$/i)) && steps.length) { this.instead(steps, m[1], m[2], ctx, at); continue; }
       if ((m = s.match(/^if (.+?), (.+)$/i)) && !/^if you do/i.test(s)) { cond = parseCondition(m[1], at); s = m[2]; }
+      // "choose and discard a card unless you have a character named Darkwing Duck in play"
+      if (!cond && (m = s.match(/^(.+) unless (you have .+|you control .+)$/i))) {
+        try { cond = { not: parseCondition(m[2], at) }; s = m[1]; } catch (e) { if (!(e instanceof Miss)) throw e; }
+      }
       if ((m = s.match(/^otherwise,? (.+)$/i))) {
         const st = this.effects(m[1], ctx);
+        // "If you have a Detective, return an item card from your discard to your hand. Otherwise, put it on the top of
+        // your deck." — "it" is the same kind of card, from the same place
+        const prev = steps[steps.length - 1];
+        if (st[0].sel?.ref && prev?.fn === 'fromDiscard' && prev.cond) st[0].sel = { chosen: { ...prev.filter } };
         // "otherwise, put it on …" only has an antecedent after a reveal / look
         if (st[0].sel?.ref && st[0].fn !== 'mod' && !steps.some((x) => x.fn === 'reveal' || x.fn === 'look')) miss(`otherwise: "${m[1]}" has nothing to refer to`, s);
         st[0].otherwise = true; steps.push(...st); continue;
       }
+      // "each player draws 3 cards, then discards 3 cards at random" — the second verb has the same subject
+      s = s.replace(/^((?:each|chosen) (?:player|opponent)) (\w+s .+?), then (\w+s .+)$/i, '$1 $2, then $1 $3');
       s.split(/,? then,? /i).forEach((part, i) => {
         const prev = steps[steps.length - 1];
         if (i > 0 && prev?.fn === 'look' && Look.tail(part, prev, at)) return;      // "look at the top 2 …, then put one into your hand …"

@@ -17,6 +17,8 @@ export class Discard extends Effect {
     [/^(?:choose and )?discard that many cards$/i, () => ({ fn: 'discard', who: 'you', n: { last: true } })],   // as many as were just drawn
     [/^(?:choose and )?discard (?:a|an|1) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'you', n: 1, filter: P.filter(m[1]) })],
     [/^(?:each|chosen) opponent (?:chooses and )?discards (?:a|an) (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'opp', n: 1, filter: P.filter(m[1]) })],
+    // "choose and discard any number of [item] cards" — the player stops when they like
+    [/^(?:choose and )?discard any number of (.+?)$/i, (m, P) => ({ fn: 'discard', who: 'you', n: 99, upTo: true, ...(/^cards?$/i.test(m[1]) ? {} : { filter: P.filter(m[1]) }) })],
     [/^discard (?:your hand|all (?:the )?cards in your hand)$/i, () => ({ fn: 'discard', who: 'you', all: true })],
     [/^each (?:player|opponent) discards their hand$/i, (m) => ({ fn: 'discard', who: /player/.test(m[0]) ? 'each' : 'opp', all: true })],
   ];
@@ -37,6 +39,7 @@ export class Discard extends Effect {
         for (let k = 0; k < Amount.value(rt, s, job, st.n) && p.hand.length; k++) {
           const iid = p.hand[Math.floor(rt.E.rand(s) * p.hand.length)];
           gone.push(rt.E.cardLabel(rt.E.D(s, s.cards[iid]))); rt.E.moveTo(s, iid, 'discard', ev); rt.fire(s, 'discarded', { iid, seat, n: 1 });
+          (job.ctx.discarded ||= []).push(iid);                          // "for each action card discarded this way"
         }
         rt.log(s, `↳ ${rt.E.nameOf(s, seat)} discarded ${gone.join(', ') || 'nothing'} at random.`, { seat, kind: 'effect' });
       }
@@ -44,6 +47,7 @@ export class Discard extends Effect {
     }
     // one pick per card per player; each player chooses their own
     const T = (job.tmp.discard ||= { queue: seats().flatMap((seat) => Array(Amount.value(rt, s, job, st.n)).fill(seat)), any: false });
+    if (job.answer?.key === 'discard' && job.answer.skip && st.upTo) { job.answer = null; T.queue = []; }
     if (job.answer?.key === 'discard') {
       const a = job.answer; job.answer = null;
       const c = s.cards[a.target];
@@ -59,10 +63,11 @@ export class Discard extends Effect {
       const valid = P(s, seat).hand.filter((iid) => !st.filter || rt.matches(s, { ...st.filter, zone: 'hand' }, s.cards[iid], seat, job.src));
       if (!valid.length) { rt.log(s, `↳ ${rt.E.nameOf(s, seat)} has nothing to discard.`, { kind: 'effect' }); T.queue.shift(); continue; }
       job.waitKey = 'discard';
-      return rt.ask(s, job, { seat, valid, op: seat === job.seat ? 'selfDiscard' : 'oppDiscardPick', harmful: false, prompt: 'choose a card to discard.' });
+      return rt.ask(s, job, { seat, valid, op: seat === job.seat ? 'selfDiscard' : 'oppDiscardPick', harmful: false, ...(st.upTo ? { optional: true } : {}), prompt: st.upTo ? 'choose a card to discard (or stop).' : 'choose a card to discard.' });
     }
+    if (st.upTo) { job.ctx.it = job.ctx.discarded = T.got || []; job.ctx.n = job.ctx.it.length; return true; }   // "then draw that many cards"
     return T.any;
   }
-  static verb(rt, s, job, st) { return st.all ? 'discard your hand' : `discard ${plural(Amount.value(rt, s, job, st.n), 'card')}`; }
-  static say(st) { return `${WHO[st.who] || 'discard'} ${st.all ? 'their hand' : `${Amount.say(st.n)}${st.random ? ' at random' : ''}${st.filter ? ` ${Query.describe(st.filter)}` : ''}`}`; }
+  static verb(rt, s, job, st) { return st.upTo ? 'discard any number of cards' : st.all ? 'discard your hand' : `discard ${plural(Amount.value(rt, s, job, st.n), 'card')}`; }
+  static say(st) { return `${WHO[st.who] || 'discard'} ${st.all ? 'their hand' : st.upTo ? `any number of ${st.filter ? Query.describe(st.filter) : 'cards'}` : `${Amount.say(st.n)}${st.random ? ' at random' : ''}${st.filter ? ` ${Query.describe(st.filter)}` : ''}`}`; }
 }
