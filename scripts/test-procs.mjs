@@ -455,6 +455,75 @@ test('Shift variants: Floodborn Shift (classification), Temporary Shift (back to
     assert.ok(!s.cards[ids.hand0[0]].shifted, 'leaving play clears "used Shift"');
   }
 });
+test('Shift by spec: discard cost, ink-drop cost, Duo, Combo, Potato, Temporary [Classification]', () => {
+  const char = (name, f = () => true) => all.find((d) => d.type === 'character' && d.name === name && !d.shifts && f(d));
+  const play = (s, a) => applyAction(s, 0, { type: 'play', mode: 'shift', ...a });
+  { // Shift: Discard an action card — the discard pays it, no ink
+    const diablo = byName('Diablo - Devoted Herald');
+    const act = all.find((d) => d.type === 'action'), item = all.find((d) => d.type === 'item');
+    const { s, ids } = setup({ hand0: [diablo, item, act], play0: [char('Diablo')] });
+    assert.equal(play(s, { iid: ids.hand0[0], target: ids.play0[0] }).ok, false, 'needs the discard');
+    assert.equal(play(s, { iid: ids.hand0[0], target: ids.play0[0], discard: [ids.hand0[1]] }).ok, false, 'an item is not an action card');
+    ok(play(s, { iid: ids.hand0[0], target: ids.play0[0], discard: [ids.hand0[2]] }));
+    assert.equal(s.cards[ids.hand0[2]].zone, 'discard');
+    assert.equal(s.players[0].inkwell.filter((i) => s.cards[i].exerted).length, 0, 'no ink paid');
+    assert.deepEqual(s.cards[ids.hand0[0]].under, [ids.play0[0]]);
+  }
+  { // Shift Remove 2 ink drops
+    const baymax = byName('Baymax - Amped Up');
+    const { s, ids } = setup({ hand0: [baymax], play0: [char('Baymax')] });
+    assert.equal(play(s, { iid: ids.hand0[0], target: ids.play0[0] }).ok, false, 'no ink drops');
+    s.players[0].inkDrops = 2;
+    ok(play(s, { iid: ids.hand0[0], target: ids.play0[0] }));
+    assert.equal(s.players[0].inkDrops, 0);
+  }
+  { // Duo Shift: on top of two, one of each name — damage of both, exerted if either is
+    const duo = byName('Mickey Mouse & Minnie Mouse - Adventuring Duo');
+    const mickey = char('Mickey Mouse'), minnie = char('Minnie Mouse');
+    const { s, ids } = setup({ hand0: [duo], play0: [mickey, minnie, char('Mickey Mouse', (d) => d.full !== mickey.full)] });
+    assert.equal(play(s, { iid: ids.hand0[0], target: ids.play0[0] }).ok, false, 'Duo needs two');
+    assert.equal(play(s, { iid: ids.hand0[0], targets: [ids.play0[0], ids.play0[2]] }).ok, false, 'two Mickeys are not one of each');
+    s.cards[ids.play0[0]].damage = 1; s.cards[ids.play0[1]].damage = 2; s.cards[ids.play0[1]].exerted = true;
+    ok(play(s, { iid: ids.hand0[0], targets: [ids.play0[0], ids.play0[1]] }));
+    const c = s.cards[ids.hand0[0]];
+    assert.deepEqual(c.under, [ids.play0[0], ids.play0[1]]);
+    assert.equal(c.damage, 3); assert.equal(c.exerted, true);
+    assert.ok(!s.players[0].play.includes(ids.play0[1]) && s.players[0].play.includes(c.iid));
+  }
+  { // Combo Shift: one of either name, or one of each
+    const combo = byName('Sulley & Boo - Scare Buddies');
+    const sulley = char('Sulley'), boo = char('Boo');
+    { const { s, ids } = setup({ hand0: [combo], play0: [boo] }); ok(play(s, { iid: ids.hand0[0], target: ids.play0[0] })); }
+    { const { s, ids } = setup({ hand0: [combo], play0: [sulley, boo] }); ok(play(s, { iid: ids.hand0[0], targets: ids.play0 }));
+      assert.equal(s.cards[ids.hand0[0]].under.length, 2); }
+  }
+  { // Potato Shift: on top of an item named Potato — dry only if the Potato was there since the turn began
+    const posey = byName('Posey - Vampire Potato'), potato = all.find((d) => d.type === 'item' && d.name === 'Potato');
+    const { s, ids } = setup({ hand0: [posey], play0: [potato, char('Mickey Mouse')] });
+    assert.equal(play(s, { iid: ids.hand0[0], target: ids.play0[1] }).ok, false, 'not onto a character');
+    ok(play(s, { iid: ids.hand0[0], target: ids.play0[0] }));
+    assert.equal(s.cards[ids.hand0[0]].drying, false);
+  }
+  { // Temporary Red Panda Shift: any Red Panda character, back to hand at the end of the turn
+    const sun = byName('Sun Yee - Red Panda Spirit');
+    const panda = all.find((d) => d.type === 'character' && (d.classes || []).includes('red panda') && d.name !== sun.name && !d.shifts);
+    const { s, ids } = setup({ hand0: [sun], play0: [panda] });
+    ok(play(s, { iid: ids.hand0[0], target: ids.play0[0] })); drain(s);
+    ok(applyAction(s, 0, { type: 'endTurn' })); drain(s);
+    assert.equal(s.cards[ids.hand0[0]].zone, 'hand');
+    assert.equal(s.cards[ids.play0[0]].zone, 'play');
+  }
+  { // what the target counts as: "also counts as being named King Candy for Shift" · Morph takes any Shift
+    const turbo = byName('Turbo - Royal Hack');
+    const candy = all.find((d) => d.name === 'King Candy' && d.shifts?.some((x) => x.onto.by === 'name' && x.cost.ink != null));
+    { const { s, ids } = setup({ hand0: [candy], play0: [turbo] }); ok(play(s, { iid: ids.hand0[0], target: ids.play0[0] })); }
+    const morph = byName('Morph - Little Imitator');
+    const vine = byName('The Vine - Towering Stalk');                       // Floodborn Shift — Morph isn't Floodborn
+    { const { s, ids } = setup({ hand0: [vine], play0: [morph] }); ok(play(s, { iid: ids.hand0[0], target: ids.play0[0] })); }
+    const plain = all.find((d) => d.type === 'character' && !d.shiftAs && !d.shifts && d.name !== 'King Candy');
+    { const { s, ids } = setup({ hand0: [candy], play0: [plain] }); assert.equal(play(s, { iid: ids.hand0[0], target: ids.play0[0] }).ok, false); }
+  }
+});
 test('Vanish: chosen by an opponent\'s action → banished after the action resolves', () => {
   const abu = byName('Abu - Illusory Pachyderm');
   const zap = all.find((d) => d.type === 'action' && d.cost <= 3 && d.procs.length === 1 && d.procs[0].exec && d.procs[0].do?.length === 1

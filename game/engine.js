@@ -26,7 +26,7 @@ import {
   LORE_TO_WIN, OPENING_HAND, INKS_PER_TURN, KEYWORD_LABEL,
   cardLabel, effStr, effWp, effLore, kwVal, hasKw, effectiveKeywords, singValue,
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker,
-  shiftOptions, shiftTargetOk, parseActivatedCost, prettyText,
+  shiftOptions, shiftOntoOk, shiftOntoCount, shiftDiscardOk, shiftCostLabel, parseActivatedCost, prettyText,
 } from '../public/js/play/rules.js';
 import { createRuntime } from './procs/index.js';
 
@@ -487,7 +487,8 @@ H.play = (s, seat, a, ev) => {
   const mode = a.mode || 'ink';
   const adjust = clampInt(a.costAdjust, -20, 20);
   let how = '';
-  let shiftTarget = null;
+  let shiftTarget = null;                                          // the card(s) it goes on top of
+  let shiftOpt = null;
   let paid = null;                                                  // ink paid to play it (for "pay 2 or less to play")
   let sungBy = [];
   const banned = R.playBlocked(s, seat, c);
@@ -503,23 +504,37 @@ H.play = (s, seat, a, ev) => {
   } else if (mode === 'free') {
     how = 'for free';
   } else if (mode === 'shift') {
+    // a: { shiftKind? | shift? (option index), target | targets: [iid, iid] (Duo / Combo), discard?: [hand iids] }
     if (d.type !== 'character') throw RE('Only characters can shift.');
     const opts = shiftOptions(d);
-    const opt = opts.find((o) => o.kind === a.shiftKind) || opts[0];
+    const opt = Number.isInteger(a.shift) ? opts[a.shift] : opts.find((o) => o.kind === a.shiftKind) || opts[0];
     if (!opt) throw RE(`${cardLabel(d)} doesn't have Shift.`);
-    const t = s.cards[a.target];
-    if (!t || t.owner !== seat || t.zone !== 'play' || !shiftTargetOk(opt.kind, d, D(s, t))) {
-      throw RE(`Choose one of your characters that ${cardLabel(d)} can shift onto.`);
+    const ts = uniq(Array.isArray(a.targets) ? a.targets : [a.target]).map((id) => s.cards[id]);
+    const [lo, hi] = shiftOntoCount(opt);
+    if (ts.length < lo || ts.length > hi || ts.some((t) => !t || t.owner !== seat || t.zone !== 'play') || !shiftOntoOk(opt, d, ts.map((t) => D(s, t)))) {
+      throw RE(`Choose ${lo === 2 ? 'two' : lo === hi ? 'one' : 'one or two'} of your ${opt.spec.onto.by === 'item' ? 'items' : 'characters'} that ${cardLabel(d)} can shift onto (${opt.label}).`);
     }
-    if (typeof opt.cost === 'number') {
-      const cost = Math.max(0, opt.cost + adjust);
-      payInk(s, seat, cost);
-      how = `by shifting onto ${cardLabel(D(s, t))} for ${cost} ink`;
-      paid = cost;
-    } else {
-      how = `by shifting onto ${cardLabel(D(s, t))} (shift cost: ${opt.cost} — resolve by hand)`;
+    const onto = ts.map((t) => cardLabel(D(s, t))).join(' and ');
+    const cost = opt.spec.cost;
+    if (cost.ink != null) {
+      const n = Math.max(0, cost.ink + adjust);
+      payInk(s, seat, n);
+      how = `by ${opt.label} onto ${onto} for ${n} ink`;
+      paid = n;
+    } else if (cost.inkDrops != null) {                              // "Shift Remove 2 ink drops"
+      if ((p.inkDrops || 0) < cost.inkDrops) throw RE(`${opt.label}: remove ${cost.inkDrops} ink drops — you have ${p.inkDrops || 0}.`);
+      p.inkDrops -= cost.inkDrops; p.usedDropTurn = s.turn; R.fire(s, 'inkDropUsed', { seat });
+      how = `by ${opt.label} onto ${onto}, removing ${cost.inkDrops} ink drops`;
+    } else {                                                          // "Shift: Discard an action card"
+      const ds = uniq(Array.isArray(a.discard) ? a.discard : []).map((id) => s.cards[id]);
+      if (ds.some((x) => !x || x.owner !== seat || x.zone !== 'hand' || x.iid === c.iid) || !shiftDiscardOk(opt, ds.map((x) => D(s, x)))) {
+        throw RE(`${opt.label}: choose ${shiftCostLabel(cost).replace(/^discard /, '')} from your hand to discard.`);
+      }
+      for (const x of ds) { moveTo(s, x.iid, 'discard', ev); R.fire(s, 'discarded', { iid: x.iid, seat }); }
+      how = `by ${opt.label} onto ${onto}, discarding ${ds.map((x) => cardLabel(D(s, x))).join(' and ')}`;
     }
-    shiftTarget = t;
+    shiftTarget = ts;
+    shiftOpt = opt;
   } else if (mode === 'sing' || mode === 'singTogether') {
     if (d.type !== 'song') throw RE('Only songs can be sung.');
     const singers = uniq(Array.isArray(a.singers) ? a.singers : []).map((id) => s.cards[id]);
@@ -565,21 +580,24 @@ H.play = (s, seat, a, ev) => {
   c.mods = [];
   c.damage = 0;
   if (shiftTarget) {
-    const t = shiftTarget;
-    c.exerted = t.exerted;            // 8.10.2
-    c.drying = t.drying;              // 8.10.4
-    c.damage = t.damage;              // 8.10.6
-    c.atLocation = t.atLocation;
-    c.mods = t.mods;                  // keeps effects applied to the character (8.10.5)
+    const ts = shiftTarget;
+    // a character below: its state carries over; an item (Potato Shift): dry only if it's been in play since the
+    // turn began (8.10.4.1). On two (Duo / Combo): exerted or drying if either one is, damage of both (8.10.4.2, 8.10.6)
+    const dryingOf = (t) => (D(s, t).type === 'character' ? !!t.drying : t.enteredTurn === s.turn);
+    c.exerted = ts.some((t) => t.exerted);       // 8.10.2
+    c.drying = ts.some(dryingOf);                // 8.10.4
+    c.damage = ts.reduce((n, t) => n + (t.damage || 0), 0);
+    c.atLocation = ts[0].atLocation;
+    c.mods = ts.flatMap((t) => t.mods || []);    // keeps effects applied to the character (8.10.5)
     if (a.enterExerted && hasKw(c, d, 'bodyguard')) c.exerted = true;
-    c.under = [...t.under, t.iid];
-    const idx = p.play.indexOf(t.iid);
-    p.play[idx] = c.iid;
-    t.zone = 'under'; t.parent = c.iid; t.under = []; t.exerted = false; t.damage = 0; t.mods = []; t.atLocation = null; t.drying = false;
+    c.under = ts.flatMap((t) => [...t.under, t.iid]);
+    p.play[p.play.indexOf(ts[0].iid)] = c.iid;
+    for (const t of ts.slice(1)) p.play.splice(p.play.indexOf(t.iid), 1);
+    for (const t of ts) { t.zone = 'under'; t.parent = c.iid; t.under = []; t.exerted = false; t.damage = 0; t.mods = []; t.atLocation = null; t.drying = false; }
     for (const u of c.under) s.cards[u].parent = c.iid;
     c.shifted = true;
-    if (d.kw?.tempShift) c.tempShift = s.turn;                     // 8.10.8.5: back to hand at end of turn
-    ev.push({ k: 'shift', iid: c.iid, onto: t.iid });
+    if (shiftOpt.spec.temp) c.tempShift = s.turn;                     // 8.10.8.5: back to hand at end of turn
+    ev.push({ k: 'shift', iid: c.iid, onto: ts[0].iid, ...(ts.length > 1 ? { also: ts.slice(1).map((t) => t.iid) } : {}) });
   } else {
     c.exerted = d.type === 'character' && !!a.enterExerted && hasKw(c, d, 'bodyguard');  // 8.3.2
     c.drying = d.type === 'character';
@@ -590,7 +608,7 @@ H.play = (s, seat, a, ev) => {
   p.playedThisTurn.push(c.iid);
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}${c.exerted ? ' (entered exerted)' : ''}.`, { seat, kind: 'play' });
   R.fire(s, 'play', { iid: c.iid, paid });
-  if (shiftTarget) R.fire(s, 'shiftedOnto', { iid: shiftTarget.iid, by: c.iid });
+  if (shiftTarget) for (const t of shiftTarget) R.fire(s, 'shiftedOnto', { iid: t.iid, by: c.iid });
 };
 
 H.quest = (s, seat, a, ev) => {

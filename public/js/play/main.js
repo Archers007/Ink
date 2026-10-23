@@ -5,7 +5,7 @@ import { IMG } from './textures.js';
 import {
   LORE_TO_WIN, KEYWORD_HELP, KEYWORD_LABEL, cardLabel, prettyText, effectiveKeywords,
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker, singValue,
-  shiftOptions, shiftTargetOk, parseActivatedCost, hasKw,
+  shiftOptions, shiftTargetOk, shiftOntoOk, shiftOntoCount, shiftDiscardOk, parseActivatedCost, hasKw,
 } from './rules.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -233,6 +233,36 @@ function canDrag(info) {
   if (info.zone === 'hand') return true;
   return info.zone === 'play' && D(info.cardId)?.type === 'character';
 }
+// Shift by its spec: pick what it goes on top of (one card, or two for Duo / Combo), then any discard cost, then play
+function startShift(iid, def, opt, onto = null) {
+  const play = (targets, discard) => act({ type: 'play', iid, mode: 'shift', shiftKind: opt.kind, targets, ...(discard ? { discard } : {}) });
+  const pay = (targets) => {
+    const cost = opt.spec.cost;
+    if (cost.discard == null) return play(targets);
+    const valid = new Set(me().hand.filter((h) => h.iid !== iid && shiftDiscardOk({ spec: { cost: { ...cost, discard: 1 } } }, [D(h.cardId)])).map((h) => h.iid));
+    startTargeting({
+      prompt: `${opt.label}: ${opt.cost} from your hand.`, valid, multi: true, doneLabel: 'Discard & shift',
+      status: (picked) => `${picked.size} / ${cost.discard}`,
+      onDone: (picked) => (shiftDiscardOk(opt, [...picked].map((x) => D(findCard(x).c.cardId))) ? play(targets, [...picked]) : toast(`Pick exactly ${cost.discard}.`, 'err')),
+    });
+  };
+  const [lo, hi] = shiftOntoCount(opt);
+  if (onto && lo === 1) return pay([onto]);
+  const valid = new Set(me().play.filter((t) => shiftTargetOk(opt, def, D(t.cardId))).map((t) => t.iid));
+  const what = opt.spec.onto.by === 'item' ? 'item' : 'character';
+  if (hi === 1) return startTargeting({ prompt: `Choose a ${what} to shift ${def.name} onto (${opt.label}).`, valid, onPick: (t) => pay([t]) });
+  startTargeting({
+    prompt: `${opt.label}: choose ${lo === 2 ? 'two characters, one of each name' : 'one character, or two — one of each name'}.`,
+    valid, multi: true, doneLabel: 'Shift', status: (picked) => `${picked.size} / ${hi}`,
+    onDone: (picked) => {
+      const ts = [...picked];
+      if (!shiftOntoOk(opt, def, ts.map((x) => D(findCard(x).c.cardId)))) return toast(`${opt.label} can't go on top of those.`, 'err');
+      pay(ts);
+    },
+  });
+  if (onto) { S.targeting?.picked.add(onto); board.setUi({ multi: S.targeting?.picked }); renderBanner(); }
+}
+
 function dropCard({ info, over, point }) {
   const def = D(info.cardId);
   if (info.zone === 'hand') {
@@ -241,8 +271,8 @@ function dropCard({ info, over, point }) {
     if (overInk || inInkArea) { act({ type: 'ink', iid: info.iid }); return; }
     if (over?.iid && over.zone === 'play' && over.seat === you()) {
       const tgt = D(over.cardId);
-      const opt = shiftOptions(def).find((o) => shiftTargetOk(o.kind, def, tgt));
-      if (opt) { act({ type: 'play', iid: info.iid, mode: 'shift', shiftKind: opt.kind, target: over.iid }); return; }
+      const opt = shiftOptions(def).find((o) => shiftTargetOk(o, def, tgt));
+      if (opt) { startShift(info.iid, def, opt, over.iid); return; }
     }
     if (point && point.z > -2 && point.z < 26) {
       if (def.type === 'song') { select(info.iid); toast('Songs: pay ink with "Play", or pick "Sing with…" in the card panel.'); return; }
@@ -277,13 +307,14 @@ function actionsFor(found) {
       P(`Play exerted (Bodyguard)  ·  ${def.cost} ⬡`, () => act({ type: 'play', iid: c.iid, mode: 'ink', enterExerted: true }), lacking(def.cost));
     }
     for (const opt of shiftOptions(def)) {
-      const valid = new Set(myChars().filter((t) => shiftTargetOk(opt.kind, def, D(t.cardId))).map((t) => t.iid));
-      const costN = typeof opt.cost === 'number' ? opt.cost : null;
-      const label = `${KEYWORD_LABEL[opt.kind]} onto…  ·  ${costN ?? opt.cost}${costN != null ? ' ⬡' : ''}`;
-      P(label, () => startTargeting({
-        prompt: `Choose a character to shift ${def.name} onto.`, valid,
-        onPick: (t) => act({ type: 'play', iid: c.iid, mode: 'shift', shiftKind: opt.kind, target: t }),
-      }), !valid.size ? 'No matching character of yours in play.' : costN != null ? lacking(costN) : null);
+      const valid = me().play.filter((t) => shiftTargetOk(opt, def, D(t.cardId)));
+      const cost = opt.spec.cost;
+      const label = `${opt.label} onto…  ·  ${typeof opt.cost === 'number' ? `${opt.cost} ⬡` : opt.cost}`;
+      const why = !valid.length ? `No ${opt.spec.onto.by === 'item' ? 'matching item' : 'matching character'} of yours in play.`
+        : cost.ink != null ? lacking(cost.ink)
+        : cost.inkDrops != null ? ((me().inkDrops || 0) < cost.inkDrops ? `Needs ${cost.inkDrops} ink drops — you have ${me().inkDrops || 0}.` : null)
+        : me().hand.filter((h) => h.iid !== c.iid && shiftDiscardOk({ spec: { cost: { ...cost, discard: 1 } } }, [D(h.cardId)])).length < cost.discard ? `Needs ${opt.cost} in hand.` : null;
+      P(label, () => startShift(c.iid, def, opt), why);
     }
     if (def.type === 'song') {
       const singers = new Set(myChars().filter((t) => !singerBlocker(t, D(t.cardId), def)).map((t) => t.iid));

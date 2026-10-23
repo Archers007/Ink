@@ -13,6 +13,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { compileCard, KINDS } from './procs/index.js';
+import { shiftCostLabel } from '../public/js/play/rules.js';
 const Base = KINDS.base;
 
 const INK_BITS = [[1, 'amber'], [2, 'amethyst'], [4, 'emerald'], [8, 'ruby'], [16, 'sapphire'], [32, 'steel']];
@@ -196,13 +197,17 @@ function attachProcs(def, built) {
   Object.assign(def, Base.stats(def.base));
   // keywords printed at the end of another ability ("…less to play this character. Evasive")
   for (const p of def.procs) for (const k of p.also || []) { def.kw ||= {}; def.kw[k.kw] ??= k.n ?? true; }
-  // Shift variants (CR 8.10.8): "Floodborn Shift 7" is a classification shift, "Temporary Shift 4" shifts by name
-  for (const p of def.procs) for (const k of p.kind === 'keyword' ? p.kws : []) {
-    if (k.kw !== 'classShift' || k.n == null) continue;
+  // Shift, every variant (CR 8.10.8): one spec per Shift line — cost · what it goes on top of · temporary
+  // (public/js/play/rules.js parseShift). The engine, bot and client play shifts from def.shifts alone.
+  const shifts = def.procs.flatMap((p) => (p.kind === 'keyword' ? p.kws : [])).map((k) => k.shift).filter(Boolean);
+  // …and what this card counts as when something shifts onto it (Morph, Turbo — "counts as being named X for Shift")
+  const as = def.procs.filter((p) => p.kind === 'static' && p.exec && !p.cond && p.effect?.fn === 'shiftAs').map((p) => p.effect);
+  if (as.length) def.shiftAs = { names: as.flatMap((e) => e.names || []), any: as.some((e) => e.any), anyName: as.some((e) => e.anyName) };
+  if (shifts.length) {
+    def.shifts = shifts;
     def.kw ||= {};
-    if (/^temporary$/i.test(k.cls)) { def.kw.shift = k.n; def.kw.tempShift = true; }
-    else if (!/^(duo|combo|potato)$/i.test(k.cls)) { delete def.kw.shift; def.kw.classShift = { cls: k.cls.toLowerCase(), n: k.n }; }
-    else delete def.kw.shift;                                         // unique variants stay manual
+    for (const k of ['puppyShift', 'universalShift', 'classShift', 'tempShift']) delete def.kw[k];
+    def.kw.shift = shifts[0].cost.ink ?? shiftCostLabel(shifts[0].cost);   // for the keyword chips
   }
   const spell = def.type === 'action' || def.type === 'song';
   const whole = spell && isFullyAutomated(def);

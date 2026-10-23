@@ -25,6 +25,18 @@ export class PlayBan extends Effect {
     return `${st.who === 'you' ? 'you' : 'opponents'} can't play ${Query.describe(F)}${st.dur === 'next' ? ' until the start of your next turn' : st.dur === 'turn' ? ' this turn' : ''}`;
   }
 }
+// static-only: what this character counts as when another card shifts onto it (public/js/play/rules.js reads it)
+//   { names: ['Syndrome'] }  "also counts as being named Syndrome for Shift"
+//   { anyName: true }        "play any character with Shift on this character as if this character had any name"
+//   { any: true }            "you can shift any character on top of this character" (every Shift variant)
+export class ShiftAs extends Effect {
+  static fn = 'shiftAs';
+  static staticOnly = true;
+  static say(st) {
+    return st.any ? 'any character can shift onto this character' : st.anyName ? 'characters with Shift can shift onto this character whatever its name'
+      : `this character also counts as being named ${st.names.join(' and ')} for Shift`;
+  }
+}
 // static-only: "You can't play this character unless …" (the static's cond is the not-unless)
 export class SelfBan extends Effect {
   static fn = 'selfBan';
