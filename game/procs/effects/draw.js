@@ -14,6 +14,7 @@ export class Draw extends Effect {
     [/^draw cards equal to (?:the damage removed|the amount of damage removed)$/i, () => ({ fn: 'draw', n: { healed: true } })],
     // "If you do, draw that number of cards plus 1" — as many as the last step moved
     [/^draw (?:that many|that number of) cards(?: plus (\d+))?$/i, (m) => ({ fn: 'draw', n: { itCount: true, ...(m[1] ? { plus: +m[1] } : {}) } })],
+    [/^draw a card from the bottom of your deck$/i, () => ({ fn: 'draw', n: 1, bottom: true })],
     [/^draw a card for each (.+)$/i, (m, P) => ({ fn: 'draw', n: { n: 1, per: Amount.forEach(m[1], P.at) } })],
     [new RegExp(String.raw`^(?:you )?draw cards until you have ${NUM} cards? in your hand$`, 'i'), (m) => ({ fn: 'draw', upTo: N(m[1]) })],
   ];
@@ -21,14 +22,14 @@ export class Draw extends Effect {
     for (const seat of rt.who(s, job, st.who)) {
       if (seat == null) continue;
       const n = st.upTo != null ? Math.max(0, st.upTo - rt.E.P(s, seat).hand.length) : Amount.value(rt, s, job, st.n);
-      const { names } = rt.E.drawCards(s, seat, n, ev);
+      const { names } = rt.E.drawCards(s, seat, n, ev, { bottom: st.bottom });
       if (seat === job.seat) job.ctx.n = names.length;                // "then choose and discard that many cards"
       rt.log(s, `↳ ${rt.E.nameOf(s, seat)} drew ${plural(names.length, 'card')}.`, { seat, kind: 'effect', priv: names.length ? { seat, text: `↳ You drew ${names.join(', ')}.` } : undefined });
     }
     return true;
   }
   static verb(rt, s, job, st) { return st.upTo != null ? `draw up to ${st.upTo} cards in hand` : `draw ${plural(Amount.value(rt, s, job, st.n), 'card')}`; }
-  static say(st) { return st.upTo != null ? `draw until you have ${st.upTo} cards in hand` : `${WHO[st.who] || 'draw'} ${Amount.say(st.n)}`; }
+  static say(st) { return st.upTo != null ? `draw until you have ${st.upTo} cards in hand` : `${WHO[st.who] || 'draw'} ${Amount.say(st.n)}${st.bottom ? ' from the bottom of the deck' : ''}`; }
 }
 
 // "draw cards until you have the same number" (as the opponent with the most cards in hand)

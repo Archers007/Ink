@@ -14,7 +14,8 @@ export class Amount {
   static forEach(phrase, at) {
     const p = phrase.trim();
     let m;
-    if ((m = p.match(/^card in (your|an opponent's|each opponent's) (hand|discard)$/i))) return { count: { zone: m[2], owner: m[1] === 'your' ? 'you' : 'opp', size: true } };
+    if ((m = p.match(/^card in (your|an opponent's|each opponent's|opponents'|your opponents') (hands?|discard)$/i))) return { count: { zone: m[2].replace(/s$/, ''), owner: m[1] === 'your' ? 'you' : 'opp', size: true } };
+    if (/^character that sang this song$/i.test(p)) return { count: { sang: true } };   // Sing Together: every singer (CR 8.12)
     if ((m = p.match(/^(.+?) card in your (discard|hand)$/i))) { const F = filter(m[1] + ' card', at); F.zone = m[2]; F.owner = 'you'; return { count: F }; }
     // "for each card under him" · "for each card that was under them" (it left play — what was under it then)
     if ((m = p.match(/^card (that (?:was|were) )?under (this character|him|her|it|them)$/i))) return { count: { under: true, ...(m[1] ? { was: true } : {}), ...(/^them$/i.test(m[2]) ? { pron: true } : {}) } };
@@ -66,6 +67,7 @@ export class Amount {
       const ref = c.pron && (job?.ctx.it || [])[0] != null && !job.ctx.selfSubj ? s.cards[job.ctx.it[0]] : me;   // "them": the card the trigger is about
       return ref ? (c.was ? ref.lastUnder || [] : ref.under).length : 0;
     }
+    if (c.sang) return me?.sungBy || 0;
     if (c.damageOnSelf) return me ? me.damage : 0;
     if (c.damageOnRef) return 0;                                      // counted per target by the effect
     if (c.damageOn) return rt.candidates(s, c.damageOn, ctl, src).reduce((n, id) => n + (s.cards[id].damage || 0), 0);

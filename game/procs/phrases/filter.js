@@ -101,7 +101,7 @@ function filter1(phrase, at) {
     } else if ((m = s.match(/^(?:from )?(?:here|at this location|at that location)\b\s*/i))) W.push({ here: true });
     else if ((m = s.match(/^at a location\b\s*/i))) W.push({ atLocation: true });
     else if ((m = s.match(/^who (?:was|were) challenged(?: this turn)?\b\s*/i))) W.push({ wasChallenged: true });   // the turn log
-    else if ((m = s.match(/^that (?:isn't|is not) (?:a|an) (character|item|location|action|song)\b\s*/i))) W.push({ notType: [m[1].toLowerCase()] });
+    else if ((m = s.match(/^that (?:isn't|is not) (?:a|an) (character|item|location|action|song)(?: card)?\b\s*/i))) W.push({ notType: [m[1].toLowerCase()] });
     else if ((m = s.match(NAMED))) {
       const names = [m[1].trim()];
       const more = s.slice(m[0].length).match(/^or (?:named )?((?:[A-Z][\w'.-]*)(?: [A-Z][\w'.-]*)*)\s*/);

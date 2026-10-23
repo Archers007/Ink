@@ -209,13 +209,13 @@ function moveChar(s, iid, loc, ev) {
   R.fire(s, 'moveHere', { iid, at: loc, ...(from != null ? { from } : {}) });
 }
 
-function drawCards(s, seat, n, ev) {
+function drawCards(s, seat, n, ev, opt = {}) {
   const p = P(s, seat);
   let drawn = 0;
   const names = [];
   for (let i = 0; i < n; i++) {
     if (!p.deck.length) { log(s, `${nameOf(s, seat)} can't draw — their deck is empty!`, { seat, kind: 'warn' }); break; }
-    const iid = p.deck.shift();
+    const iid = opt.bottom ? p.deck.pop() : p.deck.shift();         // "draw a card from the bottom of your deck"
     const c = s.cards[iid];
     c.zone = 'hand';
     p.hand.push(iid);
