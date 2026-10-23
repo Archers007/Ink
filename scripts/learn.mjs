@@ -14,6 +14,7 @@
 //   node scripts/learn.mjs --show <n>      every ability behind template #n
 //   node scripts/learn.mjs --top 40        more templates
 //   node scripts/learn.mjs --accept        make this run the baseline (only with no regressions, or --force) + rebuild proc.db
+//                                          + sync the review ledger (scripts/verify/ledger.jsonl)
 //   node scripts/learn.mjs --features      the engine-feature backlog: every miss sorted into the mechanic it needs
 //                                          (game/rulebook/features.js), ranked by cards it would finish, with the
 //                                          rulebook section to build it to (--features <id> lists its cards)
@@ -169,4 +170,6 @@ if (flag('--accept')) {
   // the engine and the tests read the compiled proc.db — rebuild it so they see what was accepted
   const r = spawnSync(process.execPath, ['tools/compile-procs.mjs'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env, NODE_NO_WARNINGS: '1' } });
   if (r.status !== 0) process.exit(1);
+  // the review ledger: new abilities are listed, reviewed ones whose proc changed go back to be reviewed (scripts/verify/)
+  spawnSync(process.execPath, ['scripts/verify/ledger.mjs', '--sync'], { cwd: ROOT, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, NODE_NO_WARNINGS: '1' } });
 }
