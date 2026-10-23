@@ -1125,8 +1125,8 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
   }
   { // Television Set: "If it's a Puppy character card, you may … put it into your hand. Otherwise, put it on the bottom" — declining leaves it on top
     const tv = byName('Television Set'), pup = all.find((d) => d.type === 'character' && (d.classes || []).includes('puppy'));
-    const { s, ids } = setup({ play0: [tv] });
-    const top = s.players[0].deck[0]; s.cards[top].cardId = pup.id;
+    const { s, ids } = setup({ play0: [tv], hand0: [pup] });
+    const top = ids.hand0[0]; s.players[0].hand.splice(s.players[0].hand.indexOf(top), 1); s.cards[top].zone = 'deck'; s.players[0].deck.unshift(top);
     ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: act(tv) }));
     while (s.pending) ok(applyAction(s, 0, { type: 'choose', skip: true, confirm: false }));
     assert.equal(s.players[0].deck[0], top, 'still on top');
@@ -1226,6 +1226,31 @@ test('replacement effects (CR 6.5): prevent, redirect, banish → inkwell, no di
     ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] })); ok(applyAction(s, 0, { type: 'choose', target: ids.play0[1] })); drain(s);
     assert.deepEqual([s.cards[ids.play0[0]].damage, s.cards[ids.play0[1]].damage], [0, 2]);
     assert.equal(s.players[0].lore, lore + 4);
+  }
+  { // Fred - Giant-Sized: "reveal cards from the top of your deck until you reveal a Floodborn character card. Put that card into your hand"
+    const fred = byName('Fred - Giant-Sized'), flood = all.find((d) => d.type === 'character' && (d.classes || []).includes('floodborn'));
+    const { s, ids } = setup({ play0: [fred], hand0: [flood] }); unready(s, ids.play0);
+    const target = ids.hand0[0]; s.players[0].hand.splice(s.players[0].hand.indexOf(target), 1); s.players[0].deck.splice(5, 0, target); s.cards[target].zone = 'deck';
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+    assert.equal(s.cards[target].zone, 'hand');
+  }
+  { // Sisu - Uniting Dragon: "If it's a Dragon character card, put it into your hand and repeat this effect."
+    const sisu = byName('Sisu - Uniting Dragon'), dragon = all.find((d) => d.type === 'character' && (d.classes || []).includes('dragon'));
+    const { s, ids } = setup({ play0: [sisu], hand0: [dragon, dragon] }); unready(s, ids.play0);
+    for (const x of ids.hand0) { s.players[0].hand.splice(s.players[0].hand.indexOf(x), 1); s.cards[x].zone = 'deck'; }
+    s.players[0].deck.unshift(...ids.hand0);
+    const [a, b, c] = s.players[0].deck;
+    ok(applyAction(s, 0, { type: 'quest', iid: ids.play0[0] })); drain(s);
+    assert.deepEqual([a, b, c].map((x) => s.cards[x].zone), ['hand', 'hand', 'deck']);
+  }
+  { // Bibbidi Bobbidi Boo: "Return chosen character of yours to your hand to play a character with the same cost or less for free."
+    const bbb = byName('Bibbidi Bobbidi Boo'), mid = vanilla((d) => d.cost === 4), cheap = vanilla((d) => d.cost === 3), big = vanilla((d) => d.cost === 6);
+    const { s, ids } = setup({ hand0: [bbb, cheap, big], play0: [mid], ink0: bbb.cost });
+    ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0] }));
+    ok(applyAction(s, 0, { type: 'choose', target: ids.play0[0] }));
+    assert.ok(s.pending && !s.pending.valid.includes(ids.hand0[2]) && s.pending.valid.includes(ids.hand0[1]), 'cost 6 not offered, cost 3 is');
+    ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[1] })); drain(s);
+    assert.equal(s.cards[ids.hand0[1]].zone, 'play');
   }
   { // Rapunzel - Ready for Adventure: "Whenever one of your characters is chosen for Support, until the start of your next turn, the next time they would be dealt damage they take no damage instead."
     const rap = byName('Rapunzel - Ready for Adventure');

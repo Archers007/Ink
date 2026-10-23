@@ -16,7 +16,7 @@ import { PayInk, CostMod, SelfCost, Enters, InkDrop, ExtraInk } from './ink.js';
 import { ChooseOne } from './chooseOne.js';
 import { Reveal, RevealCard, ToDeckTop, ToDiscard, PutInHand, PlayIt, RevealHandDiscard, RevealHand, PeekHand } from './reveal.js';
 import { PutUnder, MoveFree, MoveCost } from './board.js';
-import { Choose, EachPlayer, Delayed, Count } from './meta.js';
+import { Choose, EachPlayer, Delayed, Count, Again } from './meta.js';
 import { ChallengeDamage, TurnStep } from './internal.js';
 import { RuleFx, DeckFx } from './rule.js';
 import { NameCard } from './name.js';
@@ -27,7 +27,7 @@ export const EFFECTS = [
   Choose, EachPlayer, Delayed, Count, Reveal, RevealCard, RevealHandDiscard, RevealHand, PeekHand, PutInHand, PlayIt, PutUnder, MoveFree,
   Draw, GainLore, LoseLore, Damage, Heal, MoveDamage, Banish, FromDiscard, FromUnder, ToHand, ToDeckBottom, ShuffleIn,
   InkTop, Mill, ToDeckTop, ToDiscard, ToInkwell, Exert, Ready, Discard, OppChoose, UnlessOther, PlayFree, PayInk, InkDrop, Look, Shuffle, CostMod, Mod,
-  Search, DrawUntil, PlayBan, SelfBan, ShiftAs, MoveCost, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, PlayFrom, GrantPlayFrom, ChallengeDamage, TurnStep,
+  Search, DrawUntil, PlayBan, SelfBan, ShiftAs, MoveCost, ChooseOne, SelfCost, Enters, ExtraInk, RuleFx, DeckFx, NameCard, ReplaceFx, GrantReplace, PlayFrom, GrantPlayFrom, Again, ChallengeDamage, TurnStep,
 ];
 export const EFFECT = Object.fromEntries(EFFECTS.map((C) => [C.fn, C]));
 export { Look, Mod };
