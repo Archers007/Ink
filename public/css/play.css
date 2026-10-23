@@ -172,6 +172,15 @@ i.hx { display: inline-block; width: 11px; height: 12px; vertical-align: -1px; c
 .mgrid { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .mgrid button { font-size: 12px; padding: 4px 8px; }
 
+/* the quick-options strip above a tapped hand card */
+#hud #quick { z-index: 3; transform: translate(-50%, -100%); display: flex; gap: 4px; flex-wrap: nowrap; max-width: 92vw; overflow-x: auto; scrollbar-width: none;
+  padding: 4px; background: var(--panel2); border: 1px solid var(--gold); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .55); }
+#quick::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: var(--panel2); border-right: 1px solid var(--gold); border-bottom: 1px solid var(--gold); transform: translateX(-50%) rotate(45deg); }
+#quick .q { padding: 4px 9px; font-size: 12.5px; border-radius: 8px; white-space: nowrap; }
+#quick .q.off { opacity: .5; }
+#quick .q.info { padding: 4px 8px; font-weight: 700; }
+body.mobile #quick .q { min-height: 30px; font-size: 13px; padding: 3px 8px; }
+
 #preview { left: 262px; bottom: 14px; width: 250px; pointer-events: none; filter: drop-shadow(0 16px 30px rgba(0,0,0,.7)); }
 #preview img { width: 100%; border-radius: 12px; display: block; }
 #preview img.land { transform: rotate(90deg) scale(.72); }
