@@ -15,6 +15,7 @@ export const RESTRICTIONS = {
   noDamageChallenging: 'takes no damage while challenging', noEffectDamage: "can't be dealt damage unless being challenged", skipReady: "can't ready at the start of the turn", cantBeChallenged: "can't be challenged",
   cantSing: "can't sing songs", cantMove: "can't move", challengeReady: 'can challenge ready characters',
   mustChallenge: 'must challenge if able', mustQuest: 'must quest if able',
+  mustChoose: 'opponents must choose it for actions and abilities if able',
 };
 const BY_ID = new Map(KEYWORDS.map((k) => [k[0], k]));
 const BY_LABEL = new Map(KEYWORDS.map((k) => [k[1].toLowerCase(), k[0]]));

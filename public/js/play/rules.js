@@ -38,7 +38,7 @@ export const KEYWORD_LABEL = {
   vanish: 'Vanish', ward: 'Ward',
   cantQuest: "Can't quest", cantChallenge: "Can't challenge", mustQuest: 'Must quest if able', adventurous: 'Adventurous', cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
   noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage outside challenges", skipReady: "Skips its next ready", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
-  cantSing: "Can't sing", challengeReady: 'Can challenge ready characters', challengeReadyOf: 'Can challenge some ready characters', questFresh: 'Can quest the turn it\'s played',
+  mustChoose: 'Opponents must choose it if able', cantSing: "Can't sing", challengeReady: 'Can challenge ready characters', challengeReadyOf: 'Can challenge some ready characters', questFresh: 'Can quest the turn it\'s played',
 };
 
 export function cardLabel(def) {
@@ -53,7 +53,8 @@ export function modSum(card, stat) {
   for (const m of card?.mods || []) if (m.stat === stat) n += m.delta;
   return n;
 }
-export const effStr = (card, def) => (def.str ?? 0) + modSum(card, 'str');
+// "Your characters' {strength} can't be reduced below their printed value" (CR 6.6.4: after modifiers)
+export const effStr = (card, def) => { const v = (def.str ?? 0) + modSum(card, 'str'); return (card?.mods || []).some((m) => m.stat === 'strFloor') ? Math.max(v, def.str ?? 0) : v; };
 export const effWp = (card, def) => (def.wp ?? 0) + modSum(card, 'wp');
 export const effLore = (card, def) => (def.lore ?? 0) + modSum(card, 'lore');
 
@@ -61,7 +62,8 @@ export const effLore = (card, def) => (def.lore ?? 0) + modSum(card, 'lore');
 export function kwVal(card, def, k) {
   const base = def?.kw?.[k];
   let v = typeof base === 'number' ? base : (base ? 1 : 0);
-  for (const m of card?.mods || []) if (m.stat === 'kw' && m.kw === k) v += m.delta;
+  const blocked = (card?.mods || []).some((m) => m.stat === 'kwBlock' && m.kw === k);   // "can't gain Evasive" — gains don't count (6.6)
+  for (const m of card?.mods || []) if (m.stat === 'kw' && m.kw === k && !(blocked && m.delta > 0)) v += m.delta;
   return v;
 }
 export const hasKw = (card, def, k) => kwVal(card, def, k) > 0;

@@ -60,7 +60,9 @@ export class Runtime {
   effect(fn) { const E = EFFECT[fn]; if (!E) throw new Error(`no effect "${fn}"`); return E; }
   statOf(s, c, stat) { const d = this.E.D(s, c); return stat === 'str' ? this.E.effStr(c, d) : stat === 'wp' ? this.E.effWp(c, d) : stat === 'lore' ? this.E.effLore(c, d) : 0; }
   procsOf(s, c, which = 'all') {
-    const own = ownProcs(this.E.D(s, c));
+    let own = ownProcs(this.E.D(s, c));
+    const lost = c.zone === 'play' && c.mods.some((m) => m.stat === 'loseAbility') ? c.mods.filter((m) => m.stat === 'loseAbility').map((m) => m.name.toLowerCase()) : null;
+    if (lost) own = own.filter((p) => !lost.includes(String(p.name || '').toLowerCase()));   // "lose the Stone by Day ability" (6.6)
     const g = c.zone === 'play' ? c.mods.filter((m) => m.stat === 'grant') : c.leftGrants || [];
     if (!g.length) return which === 'granted-static' ? [] : own;
     if (which === 'own+temp') return [...own, ...g.filter((m) => m.until !== 'static').map((m) => m.proc)];
@@ -97,6 +99,9 @@ export class Runtime {
     }
     if (st.cls) c.mods.push({ stat: 'class', cls: st.cls, delta: 1, ...u, src: job.label });   // "gains the Detective classification"
     if (st.rep) c.mods.push({ stat: 'replace', replace: st.rep, delta: 0, ...u, src: job.label });   // a one-shot replacement (CR 6.5)
+    for (const kw of st.blocks || []) c.mods.push({ stat: 'kwBlock', kw, delta: 0, ...u, src: job.label });   // "can't gain Evasive"
+    if (st.floor) c.mods.push({ stat: 'strFloor', delta: 0, ...u, src: job.label });                     // "can't be reduced below their printed value"
+    for (const name of st.loseAbility || []) c.mods.push({ stat: 'loseAbility', name, delta: 0, ...u, src: job.label });   // "lose the Stone by Day ability"
     for (const k of st.kws || []) {
       if (k.kw === 'grant') {
         if (!c.mods.some((m) => m.stat === 'grant' && m.proc === k.proc && m.until === u.until)) c.mods.push({ stat: 'grant', proc: k.proc, ...u, src: job.label });
