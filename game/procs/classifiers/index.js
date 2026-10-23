@@ -11,12 +11,12 @@ import { Under, PlayedTurn } from './under.js';
 import { AtLocation, Here } from './location.js';
 import { NotType } from './notType.js';
 import { Not } from './not.js';
-import { Compare, SameName } from './compare.js';
+import { Compare, SameName, HighestCost } from './compare.js';
 
 export { KEYWORDS, RESTRICTIONS, KEYWORD_ALT, keywordId, kwLabel } from './keyword.js';
 
 export const CLASSIFIERS = [Keyword, Classification, Named, Cost, Strength, Willpower, LoreValue, DamageCount, Damaged, Undamaged,
-  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn, NamedCard, Inkable];
+  Exerted, Ready, Under, AtLocation, Here, NotType, Not, Compare, SameName, PlayedTurn, NamedCard, Inkable, HighestCost];
 export { Compare };
 const BY_ID = new Map(CLASSIFIERS.map((C) => [C.id, C]));
 

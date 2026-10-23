@@ -21,6 +21,7 @@ export class CostMod extends Effect {
   static fn = 'costMod';
   static rules = [
     [/^you pay (\d+) \{ink\} less (?:for the next (.+?) you play|to play (.+?))$/i, (m, P) => ({ fn: 'costMod', n: +m[1], filter: P.filter(m[2] || m[3]), next: !!m[2] || undefined, ...(P.dur ? { dur: P.dur } : {}) })],
+    [/^you pay that amount of \{ink\} less for the next (.+?) you play$/i, (m, P) => ({ fn: 'costMod', n: { last: true }, filter: P.filter(m[1]), next: true, ...(P.dur ? { dur: P.dur } : {}) })],
     [/^you pay (\d+) \{ink\} less for the next (.+?) you shift$/i, (m, P) => ({ fn: 'costMod', n: +m[1], filter: P.filter(m[2]), next: true, shift: true, ...(P.dur ? { dur: P.dur } : {}) })],
   ];
   static run(rt, s, job, st) {

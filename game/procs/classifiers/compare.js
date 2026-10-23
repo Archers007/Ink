@@ -72,3 +72,15 @@ export class SameName extends Classifier {
   }
   static say(x) { return `with the same name as ${x.sameName === 'self' ? 'this card' : 'that card'}`; }
 }
+// "a character in play with the highest cost, or tied for highest cost" — among every character in play
+export class HighestCost extends Classifier {
+  static id = 'highestCost';
+  static parseWith(s) { const m = s.match(/^the highest cost(?:,? or tied for (?:the )?highest cost)?/i); return m ? [{ highestCost: true }, m[0].length] : null; }
+  static test(x, card, def, env) {
+    if (!env.s) return false;
+    let max = -Infinity;
+    for (const p of env.s.players) for (const iid of p.play) { const d = env.E.D(env.s, env.s.cards[iid]); if (d.type === 'character') max = Math.max(max, d.cost); }
+    return def.cost >= max;
+  }
+  static say() { return 'with the highest cost (or tied)'; }
+}

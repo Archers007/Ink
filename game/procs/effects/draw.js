@@ -2,7 +2,7 @@ import { Effect } from './Effect.js';
 import { N, NUM, plural } from '../phrases/text.js';
 import { Amount } from '../phrases/amount.js';
 
-const WHO = { each: 'each player draws', opp: 'each opponent draws', refOwner: "that card's player draws" };
+const WHO = { each: 'each player draws', opp: 'each opponent draws', refOwner: "that card's player draws", youAndOne: 'you and another chosen player each draw' };
 export class Draw extends Effect {
   static fn = 'draw';
   static rules = [
@@ -10,6 +10,7 @@ export class Draw extends Effect {
     [new RegExp(String.raw`^each player draws ${NUM} cards?$`, 'i'), (m) => ({ fn: 'draw', n: N(m[1]), who: 'each' })],
     [new RegExp(String.raw`^(?:each|chosen) opponent draws ${NUM} cards?$`, 'i'), (m) => ({ fn: 'draw', n: N(m[1]), who: 'opp' })],
     [new RegExp(String.raw`^(?:that player|its player|their player|they) draws? ${NUM} cards?$`, 'i'), (m) => ({ fn: 'draw', n: N(m[1]), who: 'refOwner' })],
+    [new RegExp(String.raw`^you and another chosen player each draw ${NUM} cards?$`, 'i'), (m) => ({ fn: 'draw', n: N(m[1]), who: 'youAndOne' })],
     [/^draw cards equal to (?:the damage removed|the amount of damage removed)$/i, () => ({ fn: 'draw', n: { healed: true } })],
     // "If you do, draw that number of cards plus 1" — as many as the last step moved
     [/^draw (?:that many|that number of) cards(?: plus (\d+))?$/i, (m) => ({ fn: 'draw', n: { itCount: true, ...(m[1] ? { plus: +m[1] } : {}) } })],

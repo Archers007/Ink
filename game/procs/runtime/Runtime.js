@@ -76,6 +76,7 @@ export class Runtime {
     if (w === 'challenger') { const cx = job.ctx.cx || s.challenge; return [s.cards[cx?.a]?.owner].filter((x) => x != null); }
     if (w === 'chosenPlayer') return s.players.filter((p) => !p.out).map((p) => p.seat);
     if (w === 'chosenOpp') return this.E.opponentsOf(s, job.seat);
+    if (w === 'youAndOne') return [job.seat, ...this.E.opponentsOf(s, job.seat).slice(0, 1)];   // 2-player: you and your opponent
     if (w === 'chooser') return [job.ctx.chooser ?? this.E.opponentsOf(s, job.seat)[0]];   // the opponent who chose ("They …")
     return w === 'each' ? s.players.filter((p) => !p.out).map((p) => p.seat) : w === 'opp' ? this.E.opponentsOf(s, job.seat) : [job.seat];
   }
