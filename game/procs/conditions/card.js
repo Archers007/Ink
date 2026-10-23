@@ -47,7 +47,8 @@ export class RefIs extends Condition {
     [/^(?:it is|it's|that card is) the named card$/i, () => ({ refIs: { with: [{ namedCard: true }] } })],   // CR 5.2.6 — after "Name a card"
     [/^its card type is:? •? ?(character|item|location|action|song)$/i, (m) => ({ refIs: { types: [m[1].toLowerCase()] } })],
     // "you discarded a Pirate character card this way" · "an Illusion character card is discarded this way"
-    [new RegExp(String.raw`^you (?:${PAST_THIS_WAY}) (.+?)(?: this way)?$`, 'i'), (m, a) => RefIs.counted(m[1], a)],
+    // "you discarded a Pirate character card" reads the discarded cards even when a later step chose another
+    [new RegExp(String.raw`^you (${PAST_THIS_WAY}) (.+?)(?: this way)?$`, 'i'), (m, a) => RefIs.counted(m[2], a, m[1].toLowerCase() === 'discarded' ? 'discarded' : undefined)],
     [new RegExp(String.raw`^(.+?) (?:is|was|were|are) (?:${PAST_THIS_WAY}) this way$`, 'i'), (m, a) => RefIs.counted(m[1], a)],
     // "that character had a card under them" · "the banished item is named Maurice's Machine" · "it has 3 {strength} or more"
     [new RegExp(String.raw`^${REF} ((?:is|are|was|were|has|have|had) .+)$`, 'i'), (m, a) => {
@@ -64,14 +65,15 @@ export class RefIs extends Condition {
     [/^(?:that item|that card|it) costs (\d+) or less$/i, (m) => ({ refIs: { with: [{ cost: { lte: +m[1] } }] } })],
     [/^(?:the challenging character|that character) has (\d+) \{strength\} or more$/i, (m) => ({ refIs: { with: [{ str: { gte: +m[1] } }] } })],
   ];
-  static counted(np, at) {
+  static counted(np, at, of) {
     let c;
     try { c = counted(np.replace(/ cards?$/i, (x) => x), at); } catch { return undefined; }
     if (c.self) return undefined;
-    return { refIs: c.F, n: c.n };
+    return { refIs: c.F, n: c.n, ...(of ? { of } : {}) };
   }
   static test(rt, s, C, env) {
-    const it = ((C.trig ? env.job?.ctx.trigIt : env.job?.ctx.it) || []).filter((id) => s.cards[id]);
+    const ctx = env.job?.ctx;
+    const it = ((C.trig ? ctx?.trigIt : C.of ? ctx?.[C.of] ?? ctx?.it : ctx?.it) || []).filter((id) => s.cards[id]);
     if (C.n) return countOk(C.n, it.filter((id) => rt.matches(s, C.refIs, s.cards[id], env.ctl, env.src, { anyZone: true })).length);
     const id = it[0];
     return !!id && rt.matches(s, C.refIs, s.cards[id], env.ctl, env.src, { anyZone: true });
