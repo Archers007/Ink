@@ -47,7 +47,7 @@ function rectGeo(w, h, r, segs = 6) {
 }
 const GEO = {
   card: rectGeo(W, H, 0.38),
-  glow: rectGeo(W + 2.2, H + 2.2, 1.4),
+  glow: rectGeo(W + 0.7, H + 0.7, 0.62),          // a thin rim, not a frame
   edge: rectGeo(W + 0.12, H + 0.12, 0.44),
   unit: new THREE.PlaneGeometry(1, 1),
 };
