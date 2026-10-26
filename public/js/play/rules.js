@@ -36,6 +36,7 @@ export const KEYWORD_LABEL = {
   reckless: 'Reckless', resist: 'Resist', rush: 'Rush', shift: 'Shift', puppyShift: 'Puppy Shift',
   universalShift: 'Universal Shift', classShift: 'Shift', tempShift: 'Temporary Shift', vanish: 'Vanish', singer: 'Singer', singTogether: 'Sing Together', support: 'Support',
   vanish: 'Vanish', ward: 'Ward',
+  actCost: 'Pays ink to act', challengerLoc: 'Challenger vs locations', cantSingSolo: 'Sings only with Sing Together', mustChallenge: 'Must challenge if able', grant: 'Granted ability',
   cantQuest: "Can't quest", cantChallenge: "Can't challenge", mustQuest: 'Must quest if able', adventurous: 'Adventurous', cantReady: "Can't ready", cantMove: "Can't move", noDamage: "Can't be dealt damage", noChallengeDamage: 'Takes no damage from challenges',
   noDamageChallenging: 'Takes no damage while challenging', noEffectDamage: "Can't be dealt damage unless being challenged", skipReady: "Skips its next ready", skipReadyOffLoc: "Skips its next ready unless at a location", cantBeChallenged: "Can't be challenged", cantBeChallengedBy: "Can't be challenged by some characters",
   mustChoose: 'Opponents must choose it if able', cantSing: "Can't sing", challengeReady: 'Can challenge ready characters', challengeReadyOf: 'Can challenge some ready characters', questFresh: 'Can quest the turn it\'s played',

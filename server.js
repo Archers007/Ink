@@ -2,7 +2,7 @@
 //
 // Responsibilities:
 //   1. Static-serve the frontend (public/).
-//   2. Cache dreamborn.ink's public cards.db (as cache/dreamborn.db) / prices.db (SQLite), merge Ravensburger's
+//   2. Cache dreamborn.ink's public cards.db (as cache/dreamborn.db) (SQLite), merge Ravensburger's
 //      card data onto it (tools/import-cards.mjs → cache/sanitized.db) and serve them to the browser, which queries
 //      them in-place via sql.js.
 //   3. Proxy dreamborn's auth flow (Firebase identitytoolkit -> dreamborn session
@@ -39,7 +39,6 @@ const DREAMBORN_OWNED = (uid) => `https://dreamborn.ink/api/users/${encodeURICom
 const DREAMBORN_DECKS = 'https://dreamborn.ink/api/v2/decks';
 const DREAMBORN_DECK_PAGE = (id) => `https://dreamborn.ink/decks/${encodeURIComponent(id)}`;
 const DREAMBORN_DB_URL = 'https://dreamborn.ink/cache/en/cards.db';
-const PRICES_DB_URL   = (currency = 'USD') => `https://dreamborn.ink/cache/prices/${currency}/prices.db`;
 
 const COMMON_HEADERS = {
   'accept': '*/*',
@@ -157,7 +156,6 @@ async function ensureCards() {
 (async () => {
   try {
     await ensureCards();
-    await ensureCached('prices-USD.db', PRICES_DB_URL('USD'));
   } catch (e) {
     console.error('[cache] warmup failed:', e.message);
   }
@@ -216,17 +214,6 @@ function newSessionId() {
 app.get('/api/sanitized.db', async (req, res) => {
   try {
     const p = await ensureCards();
-    res.set('Cache-Control', 'public, max-age=3600');
-    res.sendFile(p);
-  } catch (e) {
-    res.status(502).json({ error: e.message });
-  }
-});
-
-app.get('/api/prices.db', async (req, res) => {
-  try {
-    const currency = (req.query.currency || 'USD').toString().toUpperCase().replace(/[^A-Z]/g, '');
-    const p = await ensureCached(`prices-${currency}.db`, PRICES_DB_URL(currency));
     res.set('Cache-Control', 'public, max-age=3600');
     res.sendFile(p);
   } catch (e) {
@@ -468,7 +455,6 @@ function parseDreambornDeckHTML(html, id) {
   const lastUpdated = ref(deckObj.lastUpdated);
   const likeCount   = ref(deckObj.likeCount);
   const views       = ref(deckObj.views);
-  const totalPrice  = ref(deckObj.totalPrice);
   const description = ref(deckObj.description);
   const formats     = refArr(deckObj.formats);
   const pbCode      = ref(deckObj.pbCode);
@@ -507,7 +493,6 @@ function parseDreambornDeckHTML(html, id) {
     lastUpdated: typeof lastUpdated === 'string' ? lastUpdated : null,
     likeCount: Number(likeCount) || 0,
     views:     Number(views)     || 0,
-    totalPrice: Number(totalPrice) || 0,
     formats: formats.filter((f) => typeof f === 'number' || typeof f === 'string'),
     cardIds: Object.entries(cardsMap).map(([cid, qty]) => ({ id: cid, qty: Number(qty) || 0 })),
     cards,

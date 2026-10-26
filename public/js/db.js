@@ -1,4 +1,4 @@
-// Loads sanitized.db + prices.db via sql.js and exposes query helpers.
+// Loads sanitized.db via sql.js and exposes query helpers.
 
 const SQL_WASM_URL = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.wasm';
 
@@ -24,7 +24,6 @@ export function inksOf(colorMask) {
 
 export const DB = {
   cards: null,    // sql.js Database
-  prices: null,
   ready: false,
   cardsByKey: new Map(),   // name|title -> [card row]
 };
@@ -39,14 +38,6 @@ export async function loadDB(onProgress = () => {}) {
     return r.arrayBuffer();
   });
   DB.cards = new SQL.Database(new Uint8Array(cardsBuf));
-
-  onProgress('fetch', 'Downloading prices.db…');
-  try {
-    const pricesBuf = await fetch('/api/prices.db').then((r) => r.ok ? r.arrayBuffer() : null);
-    if (pricesBuf) DB.prices = new SQL.Database(new Uint8Array(pricesBuf));
-  } catch (e) {
-    console.warn('prices.db unavailable:', e);
-  }
 
   // Build lookup index: by lowercase "name|title"
   const all = rows('SELECT id,name,title,setId,number,cost,type,colorMask,ink,strength,willpower,lore,movement,rarity,characteristics,keywords,abilities,variants,formats,franchise FROM cards');

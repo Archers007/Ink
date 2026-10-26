@@ -121,7 +121,6 @@ function renderResults({ loading } = {}) {
       <div class="deck-card-stats">
         <span title="Likes">❤ ${d.likeCount ?? 0}</span>
         <span title="Views">👁 ${d.views ?? 0}</span>
-        <span title="Total price">${d.totalPrice ? '$' + Number(d.totalPrice).toFixed(2) : '—'}</span>
         <span class="spacer"></span>
         <button class="deck-import-btn" data-id="${escapeAttr(d.id)}">Import</button>
         <a href="https://dreamborn.ink/decks/${encodeURIComponent(d.id)}" target="_blank" rel="noopener" title="Open on dreamborn.ink">↗</a>

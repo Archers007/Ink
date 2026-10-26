@@ -143,6 +143,7 @@ const myChars = () => me().play.filter((c) => D(c.cardId)?.type === 'character')
 // tapping a hand card shows the quick options above it (S.quick); holding it, or ⓘ, opens the full breakdown
 function select(iid) {
   S.selected = iid;
+  if (iid) $('#preview').hidden = true;                                   // the panel shows it — no second copy from the hover preview
   board.setUi({ selected: iid });
   renderInspector();
 }

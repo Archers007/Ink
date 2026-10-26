@@ -78,7 +78,7 @@ Notes:
 
 - The image is a small `node:24-alpine` build, runs as the non-root `node`
   user, and ships a `HEALTHCHECK`.
-- `sanitized.db` / `prices.db` are **not** baked in — the server downloads dreamborn's
+- `sanitized.db` is **not** baked in — the server downloads dreamborn's
   DBs and Ravensburger's card gallery into `/app/cache` on first boot and builds
   `sanitized.db` from them, so the container needs outbound internet. The `ink-cache`
   volume persists them across restarts.
@@ -126,7 +126,6 @@ drag it onto the table to play it (or onto your inkwell to ink it). Portrait sho
 │  index.html · style.css    │ ─────▶ │  /api/login    ─▶ Firebase   │
 │  app.js · deck.js          │        │  /api/login    ─▶ dreamborn  │
 │  db.js  (sql.js + WASM) ◀──┼─.db────│  /api/sanitized.db (built)   │
-│                            │        │  /api/prices.db (cached)     │
 │  sanitized.db in-mem       │        │  /api/collection ─▶ dreamborn│
 │                            │        │  /api/decks     ─▶ dreamborn │
 │                            │        │  /api/decks/:id ─▶ dreamborn │
@@ -134,10 +133,10 @@ drag it onto the table to play it (or onto your inkwell to ink it). Portrait sho
 └────────────────────────────┘        └──────────────────────────────┘
 ```
 
-`sanitized.db` and `prices.db` are SQLite files cached on disk for 1 hour. The
+`sanitized.db` is a SQLite file cached on disk for 1 hour. The
 browser loads them via `sql.js` and runs queries client-side — no per-card
 network calls. `sanitized.db` is built by `tools/import-cards.mjs`: dreamborn's
-printings (ids, sets, rarity — decks, collections and prices key on them) with
+printings (ids, sets, rarity — decks and collections key on them) with
 every rules field (cost, inkable, stats, classifications, keywords, text,
 flavour, FAQ) taken from Ravensburger's catalog, which is the source of truth.
 
@@ -169,7 +168,6 @@ public/dreamborn-sniffer.js  Console-paste fetch/XHR/WebSocket recorder
 | Path                      | Source                                              | Notes                          |
 | ------------------------- | --------------------------------------------------- | ------------------------------ |
 | `/api/sanitized.db`       | `dreamborn.ink/cache/en/cards.db` + `cards.disneylorcana.com` | 1h cache, official page re-read daily |
-| `/api/prices.db`          | `dreamborn.ink/cache/prices/{cur}/prices.db`        | 1h cache                       |
 | `/api/login`              | Firebase Identity Toolkit → dreamborn `/api/auth/login` | issues `ink_sid` cookie    |
 | `/api/me`                 | (session lookup)                                    | who am I                       |
 | `/api/collection`         | `dreamborn.ink/api/users/{uid}/owned-cards`         | needs sign-in                  |
