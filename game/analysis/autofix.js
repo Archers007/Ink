@@ -59,9 +59,12 @@ export function proposeEdits(index, counts, report, { locks = [], max = 6 } = {}
 
   const out = [];
   const seen = new Set();
+  // each proposal pairs an add with one of the three weakest cards in turn, so a round tests what to take out too
+  let k = 0;
   for (const want of wants) {
     for (const add of want.cards) {
-      const cut = (want.cutUninkable ? cuts.filter((x) => !x.d.inkable) : cuts).find((x) => x.d.full !== add.full);
+      const from = (want.cutUninkable ? cuts.filter((x) => !x.d.inkable) : cuts).filter((x) => x.d.full !== add.full).slice(0, 3);
+      const cut = from[k++ % Math.max(1, from.length)];
       if (!cut) continue;
       const key = `${cut.id}>${add.id}`;
       if (seen.has(key)) continue;
