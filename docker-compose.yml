@@ -11,6 +11,7 @@ services:
     environment:
       PORT: "5060"
       # Sign-in: set these in your .env (see .env.example); unset providers are hidden
+      INK_OAUTH: "${INK_OAUTH:-}"
       PUBLIC_URL: "${PUBLIC_URL:-}"
       DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
       DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"

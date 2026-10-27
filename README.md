@@ -10,17 +10,23 @@ for names and Figtree for everything else (`public/css/ink.css`).
   (cards.disneylorcana.com) merged onto `dreamborn.ink`'s public `sanitized.db`, queried locally via `sql.js`.
 - **Deck builder** — click to add, right-click (or long-press) to remove, hover for the full card.
   Live legality (60 cards, ≤ 2 inks, ≤ 4 copies, and cards that change those rules), ink curve.
-- **Accounts** — sign in with Discord or Google and your decks are saved on the server, so they follow you
+- **Accounts** — sign in with an email and password and your decks are saved on the server, so they follow you
   between phone and desktop. Guests keep decks in the browser; they move into the account on first sign-in.
 - **Play** — `/play`: pick a deck tile and hit *Play … vs bot*, or create a room and send the invite link.
 - **Dreamborn collection (optional)** — link a dreamborn.ink account to filter the pool to cards you own.
 - **Import / export** — paste a decklist like `4 Mickey Mouse - Brave Little Tailor`, or copy yours back out.
 - **Browse public decks** — proxies `https://dreamborn.ink/api/v2/decks`; one click imports a deck.
 
-## Sign-in (Discord / Google)
+## Sign-in
 
-`lib/accounts.js` runs the OAuth 2.0 authorization-code flow and keeps users, sessions (only a SHA-256 of the
-cookie token) and decks in `data/ink.db`. Set either provider, or both; one that isn't configured is hidden.
+Email + password: `lib/accounts.js` keeps users, password hashes (scrypt, per-user salt), sessions (only a SHA-256
+of the cookie token) and decks in `data/ink.db`. Ten failed sign-ins from one IP or for one email in 15 minutes
+pause sign-in for that IP/email. There's no password reset yet (it needs an email sender).
+
+### Discord / Google (off for now)
+
+The OAuth 2.0 flow is built but switched off. To turn it on, set `INK_OAUTH=1` plus either provider's credentials;
+one that isn't configured stays hidden.
 
 1. **Discord**: discord.com/developers/applications → New Application → OAuth2. Add the redirect
    `<PUBLIC_URL>/auth/discord/callback`, copy the Client ID and Secret into `DISCORD_CLIENT_ID` /
@@ -61,6 +67,7 @@ Environment (all optional):
 | Var                 | Effect                                          |
 | ------------------- | ----------------------------------------------- |
 | `PORT`              | Defaults to 3000.                                |
+| `INK_OAUTH`         | `1` turns Discord / Google sign-in on (off by default). |
 | `PUBLIC_URL`        | Public origin for OAuth redirects, e.g. `https://ink.example.com`. |
 | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | Discord sign-in. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`   | Google sign-in. |
@@ -152,7 +159,7 @@ features, use the **🐛 Issues** link in the header (or the footer).
 
 ```
 server.js              Express: db cache, decks proxy, visit stats, static, lobby
-lib/accounts.js        Discord / Google sign-in, sessions, /api/my/decks
+lib/accounts.js        Email + password sign-in (Discord / Google behind INK_OAUTH), sessions, /api/my/decks
 data/ink.db            Persistent SQLite: visits, users, sessions, decks (created at runtime, git-ignored)
 public/index.html      Deck builder
 public/css/ink.css     Theme tokens + shared components (all pages)

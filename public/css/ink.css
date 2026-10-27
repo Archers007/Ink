@@ -83,3 +83,14 @@
 .strip.bad { background: rgba(90, 30, 34, .55); border-color: rgba(255, 143, 134, .4); color: #ffd6d2; }
 .strip > .txt { flex: 1; }
 .strip button { background: none; border: 0; color: var(--muted); font-size: 15px; cursor: pointer; padding: 2px 4px; }
+
+/* email + password sign-in (account.js signInForm) */
+.signin-form { display: flex; flex-direction: column; gap: 10px; }
+.signin-form .field { margin: 0; }
+.signin-form .sf-err { color: var(--ember); font-size: 12.5px; }
+.signin-form .sf-err:empty { display: none; }
+.sf-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: rgba(8,11,31,.5); border: 1px solid var(--line-cool); }
+.sf-tabs button { flex: 1; padding: 8px; border: 0; border-radius: 8px; background: none; color: var(--muted); font: 600 13px var(--font-ui); cursor: pointer; }
+.sf-tabs button.on { background: var(--ink-panel-2); color: var(--vellum); }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: rgba(169,176,214,.25); }

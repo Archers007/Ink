@@ -1,5 +1,5 @@
 // Account + deck storage shared by the builder (/) and the table (/play).
-// Signed in (Discord / Google, lib/accounts.js): decks live on the server. Guest: in this browser's
+// Signed in (email + password, lib/accounts.js): decks live on the server. Guest: in this browser's
 // localStorage as 'ink.deck.<name>' → { name, cards: [[cardId, qty], …] }. On the first sign-in from a
 // browser its guest decks move into the account.
 
@@ -15,6 +15,13 @@ const emit = () => listeners.forEach((fn) => { try { fn(state.user); } catch (e)
 
 export function signInUrl(provider, next = location.pathname + location.search) {
   return `/auth/${provider}?next=${encodeURIComponent(next.replace(/([?&])signin=\w+&?/, '$1').replace(/[?&]$/, ''))}`;
+}
+
+// email + password: sign in, or create the account; then reload so the page picks up the account (and guest decks move in)
+export async function passwordSignIn({ email, password, name, create }) {
+  const j = await api(create ? '/api/account/register' : '/api/account/login', { method: 'POST', body: JSON.stringify({ email, password, name }) });
+  state.user = j.user; state.decks = null; state.loaded = null;
+  return j.user;
 }
 
 export async function signOut() {
@@ -117,3 +124,44 @@ export function signInButtons(next) {
   return out.join('');
 }
 export const anyProvider = () => Object.values(state.providers).some(Boolean);
+
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// The email + password form (with any enabled provider buttons above it). Bind it with bindSignInForm.
+export function signInForm({ next, name = '' } = {}) {
+  const buttons = signInButtons(next);
+  return `<form class="signin-form" novalidate>
+    ${buttons ? `<div class="side-signin">${buttons}</div><div class="or"><span>or</span></div>` : ''}
+    <div class="sf-tabs" role="tablist"><button type="button" class="on" data-mode="in" role="tab" aria-selected="true">Sign in</button><button type="button" data-mode="up" role="tab" aria-selected="false">Create account</button></div>
+    <label class="field sf-name" hidden>Name at the table <input class="field-in" name="name" maxlength="24" autocomplete="nickname" value="${esc(name)}"></label>
+    <label class="field">Email <input class="field-in" name="email" type="email" autocomplete="email" required></label>
+    <label class="field">Password <input class="field-in" name="password" type="password" autocomplete="current-password" minlength="8" required></label>
+    <div class="sf-err warn small" role="alert"></div>
+    <button class="btn btn-gold" type="submit">Sign in</button>
+  </form>`;
+}
+export function bindSignInForm(root, onDone) {
+  const f = root.querySelector('.signin-form');
+  if (!f) return;
+  let create = false;
+  const setMode = (up) => {
+    create = up;
+    f.querySelectorAll('[data-mode]').forEach((b) => { const on = (b.dataset.mode === 'up') === up; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+    f.querySelector('.sf-name').hidden = !up;
+    f.password.autocomplete = up ? 'new-password' : 'current-password';
+    f.querySelector('[type=submit]').textContent = up ? 'Create account' : 'Sign in';
+    f.querySelector('.sf-err').textContent = '';
+  };
+  f.querySelectorAll('[data-mode]').forEach((b) => b.onclick = () => setMode(b.dataset.mode === 'up'));
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const err = f.querySelector('.sf-err');
+    const btn = f.querySelector('[type=submit]');
+    err.textContent = '';
+    if (create && f.password.value.length < 8) { err.textContent = 'Use a password of at least 8 characters.'; return; }
+    btn.disabled = true;
+    try {
+      await passwordSignIn({ email: f.email.value, password: f.password.value, name: f.name.value, create });
+      onDone?.();
+    } catch (x) { err.textContent = x.message; btn.disabled = false; }
+  };
+}

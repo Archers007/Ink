@@ -941,18 +941,18 @@ function accountSide() {
   if (u) {
     return `<div class="who">
         ${u.avatar ? `<img class="avatar lg" src="${esc(u.avatar)}" alt="">` : `<span class="avatar lg">${esc(u.name.slice(0, 1).toUpperCase())}</span>`}
-        <div><div class="who-name">${esc(u.name)}</div><div class="note">Signed in with ${u.providers.map((p) => p[0].toUpperCase() + p.slice(1)).join(' + ')}. Your decks follow you between devices.</div></div>
+        <div><div class="who-name">${esc(u.name)}</div><div class="note">${u.email ? `Signed in as ${esc(u.email)}` : `Signed in with ${u.providers.map((p) => p[0].toUpperCase() + p.slice(1)).join(' + ')}`}. Your decks follow you between devices.</div></div>
       </div>
       <div class="side-actions"><a class="btn btn-quiet" href="/">Open the deck builder</a><button class="btn btn-quiet" id="signOutBtn">Sign out</button>${install}</div>${ios}`;
   }
-  const buttons = account.signInButtons('/play');
   return `<div class="side-copy">
-      <h1 class="display">${buttons ? 'Sign in to keep your decks' : 'Play Lorcana'}</h1>
-      <p>${buttons ? 'Your decks follow you between phone and desktop. We only read your name and avatar.' : 'Every card runs on the rules engine. Pick a deck and play a friend or the bot.'}</p>
+      <h1 class="display">Sign in to keep your decks</h1>
+      <p>Your decks follow you between phone and desktop.</p>
     </div>
-    ${buttons ? `<div class="side-signin">${buttons}</div><div class="or"><span>or</span></div>` : ''}
+    ${account.signInForm({ next: '/play', name: S.name })}
+    <div class="or"><span>or</span></div>
     <label class="field">Play as a guest — your name <input id="nameInput" class="field-in" maxlength="24" placeholder="e.g. Mickey" value="${esc(S.name)}"></label>
-    ${buttons ? '<p class="note">Guest decks live in this browser only. Sign in later and they move to your account.</p>' : ''}
+    <p class="note">Guest decks live in this browser only. Sign in later and they move to your account.</p>
     <div class="side-actions">${install}</div>${ios}`;
 }
 
@@ -1010,6 +1010,7 @@ function renderLobby() {
     $('#joinCode').onkeydown = (e) => { if (e.key === 'Enter') $('#joinBtn').click(); };
     $('#refreshRooms').onclick = () => net.send({ t: 'rooms' });
     $('#installBtn')?.addEventListener('click', install);
+    account.bindSignInForm(el, () => location.reload());
     $('#signOutBtn')?.addEventListener('click', async () => { await account.signOut(); S.deckInfo = {}; refreshDecks(); });
     el.querySelectorAll('.room-row').forEach((b) => b.onclick = () => nameOk() && net.send({ t: 'join', code: b.dataset.code, name: S.name }));
     return;
