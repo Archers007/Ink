@@ -31,6 +31,7 @@ const S = {
   myDecks: [],          // the builder's decks: the account's when signed in, else this browser's
   deckInfo: {},         // tile id → { size, inks, legal, problems, cover } (/api/play/deck-check)
   quickBot: false,      // "Play … vs bot": seat the deck, ready up and start as soon as the room exists
+  botLevel: localStorage.getItem('ink.play.bot') || 'hard',   // 'hard' = the search bot (game/searchbot.js), 'easy' = the quick heuristic one
 };
 
 // ---------- network ----------
@@ -985,6 +986,9 @@ function renderLobby() {
             <button class="btn btn-gold btn-lg" id="botBtn" ${pickOk ? '' : 'disabled'}>${pickOk ? `Play ${esc(pick.name)} vs bot` : pick ? `${esc(pick.name)} is empty` : 'Pick a deck'}</button>
             <div class="lob-row2"><button class="btn" id="createBtn">Create room</button>
               <span class="joinbox"><input id="joinCode" class="field-in" maxlength="5" placeholder="CODE" aria-label="Room code" value="${esc(new URL(location.href).searchParams.get('room') || '')}"><button class="btn btn-quiet" id="joinBtn">Join</button></span></div>
+            <div class="lob-row2 botlvl"><span class="note">Bot</span>
+              <label class="check"><input type="radio" name="botLevel" value="hard" ${S.botLevel !== 'easy' ? 'checked' : ''}> Hard <span class="note">(plans ahead)</span></label>
+              <label class="check"><input type="radio" name="botLevel" value="easy" ${S.botLevel === 'easy' ? 'checked' : ''}> Easy</label></div>
             <label class="check"><input type="checkbox" id="publicChk"> List my room publicly</label>
           </div>
           <div class="panel lob-panel">
@@ -1004,7 +1008,8 @@ function renderLobby() {
     };
     $('#nameInput')?.addEventListener('input', (e) => { S.name = e.target.value.trim(); localStorage.setItem(NAME_KEY, S.name); net.name = S.name; });
     el.querySelectorAll('[data-deck]').forEach((b) => b.onclick = () => { localStorage.setItem(DECK_KEY, b.dataset.deck); renderLobby(); });
-    $('#botBtn').onclick = () => { if (!nameOk()) return; S.quickBot = true; net.send({ t: 'create', name: S.name, vsBot: true }); };
+    el.querySelectorAll('[name=botLevel]').forEach((r) => r.onchange = () => { S.botLevel = r.value; localStorage.setItem('ink.play.bot', r.value); });
+    $('#botBtn').onclick = () => { if (!nameOk()) return; S.quickBot = true; net.send({ t: 'create', name: S.name, vsBot: true, botLevel: S.botLevel === 'easy' ? 'easy' : 'hard' }); };
     $('#createBtn').onclick = () => nameOk() && net.send({ t: 'create', name: S.name, public: $('#publicChk').checked });
     $('#joinBtn').onclick = () => nameOk() && net.send({ t: 'join', code: $('#joinCode').value.trim(), name: S.name });
     $('#joinCode').onkeydown = (e) => { if (e.key === 'Enter') $('#joinBtn').click(); };

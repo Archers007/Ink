@@ -1161,7 +1161,9 @@ setQueryHook((F, card, def, ctl) => Query.matches(F, card, def, { E: ENGINE, s: 
 
 // ---------- public API ----------
 
-export function applyAction(s, seat, a) {
+// opts.scratch: the caller owns a throwaway copy (search bot rollouts) — skip the rollback snapshot; a rejected or
+// crashed action then leaves the copy half-applied, reported as { ok: false, broken: true }, and the copy is discarded.
+export function applyAction(s, seat, a, opts = null) {
   try {
     needSeat(s, seat);
   } catch (e) {
@@ -1169,7 +1171,7 @@ export function applyAction(s, seat, a) {
   }
   const handler = a && typeof a.type === 'string' && Object.hasOwn(H, a.type) ? H[a.type] : null;
   if (!handler) return { ok: false, error: `Unknown action: ${a?.type}` };
-  const backup = structuredClone(s);
+  const backup = opts?.scratch ? null : structuredClone(s);
   const ev = [];
   try {
     handler(s, seat, a, ev);
@@ -1178,6 +1180,7 @@ export function applyAction(s, seat, a) {
     gameStateCheck(s, ev);
     return { ok: true, events: ev };
   } catch (e) {
+    if (!backup) return { ok: false, broken: true, error: e.message };
     for (const k of Object.keys(s)) delete s[k];
     Object.assign(s, backup);
     if (e instanceof RuleError) return { ok: false, error: e.message };

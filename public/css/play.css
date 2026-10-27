@@ -76,6 +76,7 @@ i.ink.ruby { background: var(--ruby); } i.ink.sapphire { background: var(--sapph
 .lob-panel { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 .lob-row2 { display: flex; gap: 10px; flex-wrap: wrap; }
 .lob-row2 > .btn { flex: 1; }
+.botlvl { align-items: center; gap: 14px; }
 .joinbox { display: flex; gap: 6px; flex: 1; min-width: 180px; }
 .joinbox input { width: 0; flex: 1; min-width: 70px; text-transform: uppercase; letter-spacing: 3px; font-family: ui-monospace, monospace; }
 .room-row { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border-radius: 12px; background: var(--ink-table); border: 1px solid rgba(169,176,214,.14); text-align: left; width: 100%; }
