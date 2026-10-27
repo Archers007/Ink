@@ -3,6 +3,7 @@ import { Net } from './net.js';
 import { Board } from './board.js';
 import { IMG } from './textures.js';
 import { install, installable } from '../pwa.js';
+import * as account from '../account.js';
 import {
   LORE_TO_WIN, KEYWORD_HELP, KEYWORD_LABEL, cardLabel, prettyText, effectiveKeywords,
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker, singValue,
@@ -27,6 +28,9 @@ const S = {
   publicRooms: [],
   logSeen: 0,
   conn: 'connecting',
+  myDecks: [],          // the builder's decks: the account's when signed in, else this browser's
+  deckInfo: {},         // tile id → { size, inks, legal, problems, cover } (/api/play/deck-check)
+  quickBot: false,      // "Play … vs bot": seat the deck, ready up and start as soon as the room exists
 };
 
 // ---------- network ----------
@@ -39,7 +43,7 @@ const net = new Net({
         S.demoDecks = m.demoDecks || [];
         if (!S.name && m.name && m.name !== 'Player') S.name = m.name;
         maybeAutoJoin();
-        renderLobby();
+        refreshDecks();
         break;
       case 'room':
         S.room = m.room;
@@ -49,6 +53,11 @@ const net = new Net({
         } else {
           const u = new URL(location.href); u.searchParams.delete('room'); history.replaceState(null, '', u);
           S.view = null; board.render(null, {});
+        }
+        if (S.quickBot && m.room?.you >= 0 && !m.room.game) {
+          S.quickBot = false;
+          const d = deckChoice(chosenDeck());
+          if (d) { net.send({ t: 'setDeck', deck: { name: d.name, cards: d.cards } }); net.send({ t: 'ready', ready: true }); net.send({ t: 'start' }); }
         }
         renderLobby(); renderAll();
         break;
@@ -85,7 +94,7 @@ function maybeAutoJoin() {
   // hello already resumed us if we were seated; otherwise join (needs a name)
   setTimeout(() => {
     if (S.room?.code === code) return;
-    if (!S.name) { $('#joinCode').value = code; $('#nameInput').focus(); toast('Pick a name, then hit Join to enter the room.'); return; }
+    if (!S.name) { $('#joinCode').value = code; $('#nameInput')?.focus(); toast('Pick a name, then hit Join to enter the room.'); return; }
     net.send({ t: 'join', code, name: S.name });
   }, 150);
 }
@@ -153,7 +162,7 @@ function openDetails(iid) {
   select(iid);
 }
 function startTargeting(t) {
-  S.targeting = { picked: new Set(), color: 0x58ff8a, ...t };
+  S.targeting = { picked: new Set(), color: 0x6fa8ff, ...t };
   if (!S.targeting.valid.size) { toast('No valid targets.', 'err'); S.targeting = null; return; }
   board.setUi({ targets: S.targeting.valid, multi: S.targeting.picked, targetColor: S.targeting.color });
   $('#inspector').hidden = true;
@@ -195,7 +204,7 @@ function validateUi() {
       pendKey: 'choose:' + key,
       prompt: pend.prompt,
       valid: new Set(pend.valid),
-      color: pend.harmful ? 0xff6a5a : 0x58ff8a,
+      color: pend.harmful ? 0xff8f86 : 0x6fa8ff,
       skipLabel: pend.optional ? 'Skip' : null,
       mandatory: !pend.optional,
       onPick: (iid) => { clearTargeting(); act({ type: 'choose', target: iid }); },
@@ -392,7 +401,7 @@ function actionsFor(found) {
       const targets = new Set();
       for (const p of V().players) if (p.seat !== you()) for (const t of p.play) if (!defenderBlocker(c, def, t, D(t.cardId), sideOf(p.seat))) targets.add(t.iid);
       P('Challenge…  ⚔️', () => startTargeting({
-        prompt: `Choose who ${def.name} challenges. (Damage preview on hover.)`, valid: targets, color: 0xff5a5a,
+        prompt: `Choose who ${def.name} challenges. (Damage preview on hover.)`, valid: targets, color: 0xff8f86,
         preview: (t) => { const f = findCard(t); const d = challengeDamage(c, def, f.c, f.def); return `${def.name} deals ${d.toDefender}, takes ${d.toAttacker}`; },
         onPick: (t) => act({ type: 'challenge', attacker: c.iid, target: t }),
       }), why || (!targets.size ? 'No valid targets — only exerted characters (or locations) can be challenged.' : null));
@@ -442,7 +451,7 @@ function actionsFor(found) {
     if (!mine && turn) {
       const attackers = new Set(myChars().filter((a) => !attackerBlocker(a, D(a.cardId)) && !defenderBlocker(a, D(a.cardId), c, def, sideOf(seat))).map((a) => a.iid));
       P('Challenge this with…  ⚔️', () => startTargeting({
-        prompt: `Choose your character to challenge ${def.name}.`, valid: attackers, color: 0xff5a5a,
+        prompt: `Choose your character to challenge ${def.name}.`, valid: attackers, color: 0xff8f86,
         onPick: (a) => act({ type: 'challenge', attacker: a, target: c.iid }),
       }), !attackers.size ? (defenderBlocker(myChars()[0] || c, def, c, def, sideOf(seat)) || 'None of your characters can challenge it right now.') : null);
     }
@@ -599,19 +608,22 @@ function hoverPreview(info) {
 function plate(p, isMe) {
   if (!p) return '';
   const active = V().status === 'playing' && V().active === p.seat;
-  const pips = Array.from({ length: LORE_TO_WIN }, (_, i) => `<i class="${i < p.lore ? 'on' : ''} ${i >= 15 ? 'hi' : ''}"></i>`).join('');
   const inks = Array.from({ length: p.inkTotal }, (_, i) => `<i class="${i < p.inkReady - (p.inkDrops || 0) ? 'on' : ''}"></i>`).join('');
+  const pct = Math.min(100, (p.lore / LORE_TO_WIN) * 100);
   return `
-    <div class="pl-head"><span class="pl-name">${esc(p.name)}</span>${active ? '<span class="turn-tag">TURN</span>' : ''}${V().starting === p.seat ? '<span class="first" title="Went first">1st</span>' : ''}</div>
-    <div class="lore-row" title="Lore — first to ${LORE_TO_WIN} wins"><span class="lore-num">${p.lore}</span><span class="lore-of">/ ${LORE_TO_WIN} ◆</span></div>
-    <div class="pips">${pips}</div>
-    <div class="counts">
-      <span title="Ink ready / total"><i class="hx"></i> <b>${p.inkReady}</b>/${p.inkTotal}${p.inkDrops ? ` <em title="Ink drops — each pays 1 ink">+${p.inkDrops}💧</em>` : ''}${isMe && active ? (p.inkedThisTurn >= p.inkLimit ? ' <em class="ok">✓ inked</em>' : ' <em>ink 1 card</em>') : ''}</span>
-      <span title="Cards in hand">✋ <b>${p.handCount}</b></span>
-      <span title="Cards left in deck" class="${p.deckCount <= 5 ? 'warn' : ''}">🂠 <b>${p.deckCount}</b>${p.deckTop ? ` <em title="Top card of the deck is face up">↑ ${esc(D(p.deckTop.cardId)?.full || D(p.deckTop.cardId)?.name || '?')}</em>` : ''}</span>
-      <span title="Discard pile" class="click" data-discard="${p.seat}">🗑 <b>${p.discard.length}</b></span>
+    <div class="pl-head">
+      <span class="dial ${isMe ? 'mine' : ''} ${p.lore >= 15 ? 'close' : ''}" style="--p:${pct}" title="Lore — first to ${LORE_TO_WIN} wins"><b>${p.lore}</b></span>
+      <div class="pl-who"><span class="pl-name">${esc(p.name)}</span><span class="pl-sub">${p.lore} / ${LORE_TO_WIN} lore${V().starting === p.seat ? ' · <span class="first" title="Went first">1st</span>' : ''}</span></div>
+      ${active ? '<span class="turn-tag">Turn</span>' : ''}
     </div>
-    <div class="inkbar">${inks}</div>`;
+    <div class="inkbar" title="Ink ready / total">${inks}<span class="ink-n">Ink <b>${p.inkReady}</b>/${p.inkTotal}${p.inkDrops ? ` <em title="Ink drops — each pays 1 ink">+${p.inkDrops}</em>` : ''}</span></div>
+    <div class="counts">
+      <span title="Cards in hand">Hand <b>${p.handCount}</b></span>
+      <span title="Cards left in deck" class="${p.deckCount <= 5 ? 'warn' : ''}">Deck <b>${p.deckCount}</b></span>
+      <span title="Discard pile" class="click" data-discard="${p.seat}">Discard <b>${p.discard.length}</b></span>
+    </div>
+    ${isMe && active ? `<div class="pl-note ${p.inkedThisTurn >= p.inkLimit ? 'ok' : ''}">${p.inkedThisTurn >= p.inkLimit ? '✓ Inked this turn' : 'You can ink 1 card'}</div>` : ''}
+    ${p.deckTop ? `<div class="pl-note" title="Top card of the deck is face up">Top: ${esc(D(p.deckTop.cardId)?.full || D(p.deckTop.cardId)?.name || '?')}</div>` : ''}`;
 }
 function renderHud() {
   const v = V();
@@ -624,6 +636,8 @@ function renderHud() {
   const o = v.players.find((p) => p.seat !== m.seat);
   $('#plateMe').innerHTML = plate(m, you() >= 0);
   $('#plateOpp').innerHTML = plate(o, false);
+  $('#plateMe').classList.toggle('active', v.status === 'playing' && v.active === m.seat);
+  $('#plateOpp').classList.toggle('active', v.status === 'playing' && v.active === o?.seat);
   document.querySelectorAll('[data-discard]').forEach((b) => b.onclick = () => openDiscard(Number(b.dataset.discard)));
   const endBtn = $('#endTurn');
   endBtn.disabled = !myTurn();
@@ -875,19 +889,68 @@ function openHelp() {
 }
 
 // ---------- lobby ----------
-function savedDecks() {
-  const out = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k?.startsWith('ink.deck.')) continue;
-    try { const d = JSON.parse(localStorage.getItem(k)); if (d?.cards?.length) out.push({ id: 'saved:' + k.slice(9), name: d.name || k.slice(9), cards: d.cards }); } catch { /* ignore */ }
-  }
-  return out.sort((a, b) => a.name.localeCompare(b.name));
+function deckTiles() {
+  return [
+    ...S.myDecks.map((d) => ({ id: 'saved:' + d.id, name: d.name, cards: d.cards, mine: true })),
+    ...S.demoDecks.map((d) => ({ id: 'demo:' + d.id, name: d.name.replace(/^Demo:\s*/, ''), cards: d.cards, demo: true })),
+  ];
 }
 function deckChoice(id) {
-  if (id?.startsWith('demo:')) return S.demoDecks.find((d) => d.id === id.slice(5));
-  if (id?.startsWith('saved:')) return savedDecks().find((d) => d.id === id);
-  return null;
+  return deckTiles().find((d) => d.id === id) || null;
+}
+function chosenDeck() {
+  const tiles = deckTiles();
+  const want = localStorage.getItem(DECK_KEY);
+  if (want === 'paste' || tiles.some((t) => t.id === want)) return want;
+  return tiles.find((t) => t.mine && S.deckInfo[t.id]?.legal)?.id || tiles.find((t) => t.demo)?.id || tiles[0]?.id || '';
+}
+async function refreshDecks() {
+  try { S.myDecks = await account.listDecks(); } catch (e) { S.myDecks = []; toast(`Couldn't load your decks: ${e.message}`, 'err'); }
+  const tiles = deckTiles().filter((t) => !S.deckInfo[t.id]);
+  if (tiles.length) {
+    try {
+      const r = await fetch('/api/play/deck-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decks: tiles.map(({ id, cards }) => ({ id, cards })) }) });
+      if (r.ok) Object.assign(S.deckInfo, await r.json());
+    } catch { /* tiles show without counts */ }
+  }
+  if (!S.view) renderLobby();
+}
+function deckStatus(info) {
+  if (!info) return '<span class="dt-sub">…</span>';
+  if (info.legal) return `<span class="dt-sub">${info.size} cards · legal</span>`;
+  const short = info.size < 60 ? `needs ${60 - info.size}` : 'not legal';
+  return `<span class="dt-sub bad" title="${esc(info.problems.join('\n'))}">${info.size} cards · ${short}</span>`;
+}
+function deckTile(t, on) {
+  const info = S.deckInfo[t.id];
+  const art = info?.cover != null ? `<img src="${IMG(info.cover)}" alt="" loading="lazy">` : '';
+  return `<button class="dtile ${on ? 'on' : ''}" data-deck="${esc(t.id)}" aria-pressed="${on}">
+    <span class="dt-art">${art}</span>
+    <span class="dt-meta"><b>${esc(t.name)}</b>
+      <span class="dt-inks">${(info?.inks || []).map((x) => `<i class="hexi ${x}" title="${x}"></i>`).join('')}${t.demo ? '<span class="dt-tag">Starter</span>' : ''}</span>
+      ${deckStatus(info)}</span>
+  </button>`;
+}
+function accountSide() {
+  const u = account.user();
+  const install = installable() ? '<button class="btn btn-quiet" id="installBtn">Install the app</button>' : '';
+  const ios = /iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone ? '<p class="note">On iPhone or iPad: Share → “Add to Home Screen” installs Ink as an app.</p>' : '';
+  if (u) {
+    return `<div class="who">
+        ${u.avatar ? `<img class="avatar lg" src="${esc(u.avatar)}" alt="">` : `<span class="avatar lg">${esc(u.name.slice(0, 1).toUpperCase())}</span>`}
+        <div><div class="who-name">${esc(u.name)}</div><div class="note">Signed in with ${u.providers.map((p) => p[0].toUpperCase() + p.slice(1)).join(' + ')}. Your decks follow you between devices.</div></div>
+      </div>
+      <div class="side-actions"><a class="btn btn-quiet" href="/">Open the deck builder</a><button class="btn btn-quiet" id="signOutBtn">Sign out</button>${install}</div>${ios}`;
+  }
+  const buttons = account.signInButtons('/play');
+  return `<div class="side-copy">
+      <h1 class="display">${buttons ? 'Sign in to keep your decks' : 'Play Lorcana'}</h1>
+      <p>${buttons ? 'Your decks follow you between phone and desktop. We only read your name and avatar.' : 'Every card runs on the rules engine. Pick a deck and play a friend or the bot.'}</p>
+    </div>
+    ${buttons ? `<div class="side-signin">${buttons}</div><div class="or"><span>or</span></div>` : ''}
+    <label class="field">Play as a guest — your name <input id="nameInput" class="field-in" maxlength="24" placeholder="e.g. Mickey" value="${esc(S.name)}"></label>
+    ${buttons ? '<p class="note">Guest decks live in this browser only. Sign in later and they move to your account.</p>' : ''}
+    <div class="side-actions">${install}</div>${ios}`;
 }
 
 function renderLobby() {
@@ -895,71 +958,93 @@ function renderLobby() {
   if (S.view) { el.hidden = true; return; }
   el.hidden = false;
   const r = S.room;
-  const nameField = `<label class="field">Your name <input id="nameInput" maxlength="24" placeholder="e.g. Mickey" value="${esc(S.name)}"></label>`;
   if (!r) {
-    el.innerHTML = `<div class="lobby-card">
-      <h1>Ink ▸ Play <span>Disney Lorcana, live in your browser</span></h1>
-      ${nameField}
-      <div class="lob-row">
-        <button class="hot big" id="createBtn">🏰 Host a game</button>
-        <button class="big" id="botBtn">🤖 Practice vs bot</button>
-      </div>
-      <label class="check"><input type="checkbox" id="publicChk"> List my room publicly</label>
-      ${installable() ? '<div class="lob-row"><button class="ghost" id="installBtn">📲 Install the app</button></div>' : ''}
-      ${/iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone ? '<p class="muted small">📲 On iPhone or iPad: Share → “Add to Home Screen” installs Ink as an app.</p>' : ''}
-      <div class="lob-join">
-        <input id="joinCode" maxlength="5" placeholder="ROOM CODE" value="${esc(new URL(location.href).searchParams.get('room') || '')}">
-        <button id="joinBtn">Join</button>
-      </div>
-      <div class="pubrooms"><div class="pr-head">Open public rooms <button class="sm ghost" id="refreshRooms">↻</button></div>
-        ${S.publicRooms.length ? S.publicRooms.map((x) => `<button class="pr" data-code="${x.code}">${esc(x.host)}'s room <b>${x.code}</b></button>`).join('') : '<div class="muted">None right now — host one!</div>'}
-      </div>
-      <p class="muted small">${S.welcome ? '' : 'Connecting to the server…'} Uses card data &amp; images from dreamborn.ink. Unofficial fan project — not affiliated with Disney or Ravensburger.</p>
+    const tiles = deckTiles();
+    const chosen = chosenDeck();
+    const pick = deckChoice(chosen);
+    const u = account.user();
+    el.innerHTML = `<div class="lobby">
+      <aside class="lob-side"><a class="brandmark" href="/">Ink</a>${accountSide()}</aside>
+      <main class="lob-main">
+        <div class="lob-top">
+          <nav class="tabs"><a class="on" href="/play">Play</a><a href="/">Decks</a><a href="/procs">Cards</a></nav>
+          ${u ? `<span class="chip-user">${u.avatar ? `<img class="avatar" src="${esc(u.avatar)}" alt="">` : `<span class="avatar">${esc(u.name.slice(0, 1).toUpperCase())}</span>`}${esc(u.name)}</span>` : ''}
+        </div>
+        <section>
+          <div class="sec-head"><span class="lbl">Choose a deck</span><a class="link" href="/">+ New deck</a></div>
+          <div class="dtiles">${tiles.map((t) => deckTile(t, t.id === chosen)).join('')}
+            <a class="dtile add" href="/"><span class="plus">+</span><span class="dt-sub">Build or import a list</span></a></div>
+        </section>
+        <div class="lob-grid">
+          <div class="panel lob-panel">
+            <span class="lbl">Start a match</span>
+            <button class="btn btn-gold btn-lg" id="botBtn" ${pick ? '' : 'disabled'}>${pick ? `Play ${esc(pick.name)} vs bot` : 'Pick a deck'}</button>
+            <div class="lob-row2"><button class="btn" id="createBtn">Create room</button>
+              <span class="joinbox"><input id="joinCode" class="field-in" maxlength="5" placeholder="CODE" aria-label="Room code" value="${esc(new URL(location.href).searchParams.get('room') || '')}"><button class="btn btn-quiet" id="joinBtn">Join</button></span></div>
+            <label class="check"><input type="checkbox" id="publicChk"> List my room publicly</label>
+          </div>
+          <div class="panel lob-panel">
+            <div class="sec-head"><span class="lbl">Open rooms</span><button class="btn btn-quiet btn-sm" id="refreshRooms" aria-label="Refresh">↻</button></div>
+            ${S.publicRooms.length ? S.publicRooms.map((x) => `<button class="room-row" data-code="${x.code}"><span class="avatar">${esc((x.host || '?').slice(0, 1).toUpperCase())}</span><span class="rr-name">${esc(x.host)}'s room<small>${x.code}</small></span><span class="rr-join">Join</span></button>`).join('') : '<div class="note">No open rooms right now. Create one and tick “List my room publicly”.</div>'}
+          </div>
+        </div>
+        <p class="note foot">${S.welcome ? '' : 'Connecting to the server… '}Card data and images from dreamborn.ink. Unofficial fan project, not affiliated with Disney or Ravensburger.</p>
+      </main>
     </div>`;
-    const nameOk = () => { S.name = $('#nameInput').value.trim(); localStorage.setItem(NAME_KEY, S.name); net.name = S.name; if (!S.name) { toast('Enter a name first.', 'err'); $('#nameInput').focus(); } return !!S.name; };
-    $('#nameInput').oninput = (e) => { S.name = e.target.value.trim(); localStorage.setItem(NAME_KEY, S.name); net.name = S.name; };
+    const nameOk = () => {
+      if (account.user()) { S.name = account.user().name; net.name = S.name; return true; }
+      const inp = $('#nameInput');
+      S.name = inp.value.trim(); localStorage.setItem(NAME_KEY, S.name); net.name = S.name;
+      if (!S.name) { toast('Enter a name first.', 'err'); inp.focus(); }
+      return !!S.name;
+    };
+    $('#nameInput')?.addEventListener('input', (e) => { S.name = e.target.value.trim(); localStorage.setItem(NAME_KEY, S.name); net.name = S.name; });
+    el.querySelectorAll('[data-deck]').forEach((b) => b.onclick = () => { localStorage.setItem(DECK_KEY, b.dataset.deck); renderLobby(); });
+    $('#botBtn').onclick = () => { if (!nameOk()) return; S.quickBot = true; net.send({ t: 'create', name: S.name, vsBot: true }); };
     $('#createBtn').onclick = () => nameOk() && net.send({ t: 'create', name: S.name, public: $('#publicChk').checked });
-    $('#botBtn').onclick = () => nameOk() && net.send({ t: 'create', name: S.name, vsBot: true });
     $('#joinBtn').onclick = () => nameOk() && net.send({ t: 'join', code: $('#joinCode').value.trim(), name: S.name });
     $('#joinCode').onkeydown = (e) => { if (e.key === 'Enter') $('#joinBtn').click(); };
     $('#refreshRooms').onclick = () => net.send({ t: 'rooms' });
     $('#installBtn')?.addEventListener('click', install);
-    el.querySelectorAll('.pr').forEach((b) => b.onclick = () => nameOk() && net.send({ t: 'join', code: b.dataset.code, name: S.name }));
+    $('#signOutBtn')?.addEventListener('click', async () => { await account.signOut(); S.deckInfo = {}; refreshDecks(); });
+    el.querySelectorAll('.room-row').forEach((b) => b.onclick = () => nameOk() && net.send({ t: 'join', code: b.dataset.code, name: S.name }));
     return;
   }
 
   const mySeat = r.you;
   const meSeat = mySeat >= 0 ? r.seats[mySeat] : null;
-  const chosen = localStorage.getItem(DECK_KEY) || (S.demoDecks[0] ? 'demo:' + S.demoDecks[0].id : '');
-  const saved = savedDecks();
+  const chosen = chosenDeck();
+  const tiles = deckTiles();
   const invite = inviteUrl();
   const allReady = r.seats.every((s) => s?.ready && s.deck);
-  el.innerHTML = `<div class="lobby-card room">
-    <h1>Room <b class="bigcode">${r.code}</b> <span>${r.status === 'over' ? 'Game finished' : 'Waiting to start'}</span></h1>
-    <div class="invite"><input readonly value="${esc(invite)}" id="inviteInput"><button id="copyBtn">🔗 Copy invite link</button></div>
-    <div class="seats">${r.seats.map((s, i) => `<div class="seat ${i === mySeat ? 'me' : ''}">
-      ${s ? `<div class="seat-name">${s.bot ? '🤖 ' : ''}${esc(s.name)} ${i === mySeat ? '<em>(you)</em>' : ''} <span class="dot ${s.online ? 'on' : ''}" title="${s.online ? 'online' : 'offline'}"></span></div>
-        <div class="seat-deck">${s.deck ? `${esc(s.deck.name)} · ${s.deck.size} cards ${s.deck.inks.map((x) => `<i class="ink ${x}" title="${x}"></i>`).join('')} ${s.deck.legal ? '' : `<span class="bad" title="${esc(s.deck.problems.join('\n'))}">⚠ not tournament-legal</span>`}` : '<span class="muted">choosing a deck…</span>'}</div>
-        <div class="seat-ready ${s.ready ? 'ok' : ''}">${s.ready ? '✓ Ready' : 'Not ready'}</div>`
-      : `<div class="seat-empty">Empty seat — send the invite link</div>`}
-    </div>`).join('<div class="vs">VS</div>')}</div>
-    ${meSeat ? `<div class="deckpick">
-      <label class="field">Deck
-        <select id="deckSel">
-          <optgroup label="Demo decks (ready to play)">${S.demoDecks.map((d) => `<option value="demo:${d.id}" ${chosen === 'demo:' + d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</optgroup>
-          ${saved.length ? `<optgroup label="My decks (from the builder)">${saved.map((d) => `<option value="${esc(d.id)}" ${chosen === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</optgroup>` : ''}
-          <option value="paste" ${chosen === 'paste' ? 'selected' : ''}>Paste a decklist…</option>
-        </select>
-      </label>
-      <textarea id="pasteDeck" placeholder="4 Mickey Mouse - Brave Little Tailor&#10;4 Let It Go&#10;…" ${chosen === 'paste' ? '' : 'hidden'}>${esc(localStorage.getItem('ink.play.paste') || '')}</textarea>
-      <div class="lob-row">
-        <button id="useDeck">Use this deck</button>
-        <button class="${meSeat.ready ? '' : 'hot'}" id="readyBtn" ${meSeat.deck ? '' : 'disabled'}>${meSeat.ready ? 'Not ready' : '✓ Ready'}</button>
-        ${r.isHost ? `<button class="hot big" id="startBtn" ${allReady ? '' : 'disabled'} title="${allReady ? '' : 'Both players need a deck and Ready'}">▶ Start game</button>` : '<span class="muted">The host starts the game.</span>'}
-      </div>
-    </div>` : '<p class="muted">You are spectating.</p>'}
-    <div class="chatbox"><div class="chat-msgs"></div><form class="chat-form"><input placeholder="Say hi…" maxlength="280"><button>Send</button></form></div>
-    <div class="lob-row end"><button class="ghost" id="leaveBtn">Leave room</button></div>
+  el.innerHTML = `<div class="lobby room">
+    <main class="lob-main narrow">
+      <div class="lob-top"><a class="brandmark" href="/">Ink</a><button class="btn btn-quiet btn-sm" id="leaveBtn">Leave room</button></div>
+      <h1 class="display room-title">Room <b class="bigcode">${r.code}</b><span>${r.status === 'over' ? 'Game finished' : 'Waiting to start'}</span></h1>
+      <div class="invite"><input readonly class="field-in" value="${esc(invite)}" id="inviteInput"><button class="btn" id="copyBtn">Copy invite link</button></div>
+      <div class="seats">${r.seats.map((s, i) => `<div class="seat ${i === mySeat ? 'me' : ''}">
+        ${s ? `<div class="seat-name">${esc(s.name)} ${s.bot ? '<em>bot</em>' : ''}${i === mySeat ? '<em>you</em>' : ''} <span class="dot ${s.online ? 'on' : ''}" title="${s.online ? 'online' : 'offline'}"></span></div>
+          <div class="seat-deck">${s.deck ? `${esc(s.deck.name)} · ${s.deck.size} cards ${s.deck.inks.map((x) => `<i class="hexi ${x}" title="${x}"></i>`).join('')} ${s.deck.legal ? '' : `<span class="bad" title="${esc(s.deck.problems.join('\n'))}">not tournament-legal</span>`}` : '<span class="muted">choosing a deck…</span>'}</div>
+          <div class="seat-ready ${s.ready ? 'ok' : ''}">${s.ready ? '✓ Ready' : 'Not ready'}</div>`
+        : `<div class="seat-empty">Empty seat. Send the invite link.</div>`}
+      </div>`).join('<div class="vs">vs</div>')}</div>
+      ${meSeat ? `<div class="deckpick">
+        <label class="field">Your deck
+          <select id="deckSel" class="field-in">
+            ${S.myDecks.length ? `<optgroup label="${account.user() ? 'My decks' : 'My decks (this browser)'}">${tiles.filter((t) => t.mine).map((d) => `<option value="${esc(d.id)}" ${chosen === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</optgroup>` : ''}
+            <optgroup label="Starter decks">${tiles.filter((t) => t.demo).map((d) => `<option value="${esc(d.id)}" ${chosen === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</optgroup>
+            <option value="paste" ${chosen === 'paste' ? 'selected' : ''}>Paste a decklist…</option>
+          </select>
+        </label>
+        <textarea id="pasteDeck" class="field-in" placeholder="4 Mickey Mouse - Brave Little Tailor&#10;4 Let It Go&#10;…" ${chosen === 'paste' ? '' : 'hidden'}>${esc(localStorage.getItem('ink.play.paste') || '')}</textarea>
+        <div class="lob-row">
+          ${chosen === 'paste' ? '<button class="btn" id="useDeck">Use this list</button>' : ''}
+          <button class="btn ${meSeat.ready || r.isHost ? '' : 'btn-gold'}" id="readyBtn" ${meSeat.deck ? '' : 'disabled'}>${meSeat.ready ? 'Not ready' : '✓ Ready'}</button>
+          ${r.isHost ? `<button class="btn btn-gold btn-lg" id="startBtn" ${allReady ? '' : 'disabled'} title="${allReady ? '' : 'Both players need a deck and Ready'}">Start game</button>` : '<span class="muted">The host starts the game.</span>'}
+        </div>
+      </div>` : '<p class="muted">You are spectating.</p>'}
+      <div class="chatbox"><div class="chat-msgs"></div><form class="chat-form"><input class="field-in" placeholder="Say hi…" maxlength="280"><button class="btn">Send</button></form></div>
+    </main>
   </div>`;
   $('#copyBtn').onclick = copyInvite;
   $('#leaveBtn').onclick = () => net.send({ t: 'leave' });
@@ -967,15 +1052,15 @@ function renderLobby() {
   renderChat();
   if (!meSeat) return;
   const sel = $('#deckSel');
-  sel.onchange = () => { localStorage.setItem(DECK_KEY, sel.value); $('#pasteDeck').hidden = sel.value !== 'paste'; if (sel.value !== 'paste') sendDeck(); };
-  $('#useDeck').onclick = sendDeck;
+  sel.onchange = () => { localStorage.setItem(DECK_KEY, sel.value); if (sel.value !== 'paste') sendDeck(); renderLobby(); };
+  $('#useDeck')?.addEventListener('click', sendDeck);
   $('#readyBtn').onclick = () => net.send({ t: 'ready', ready: !meSeat.ready });
   $('#startBtn')?.addEventListener('click', () => net.send({ t: 'start' }));
   // auto-submit the remembered deck the first time we sit down
   if (!meSeat.deck && S.autoDeckFor !== r.code) { S.autoDeckFor = r.code; if (chosen !== 'paste') sendDeck(); }
 }
 function sendDeck() {
-  const v = $('#deckSel').value;
+  const v = $('#deckSel')?.value || chosenDeck();
   localStorage.setItem(DECK_KEY, v);
   if (v === 'paste') {
     const text = $('#pasteDeck').value;
@@ -1057,5 +1142,11 @@ portraitMq.addEventListener('change', applyDevice);
 applyDevice();
 renderLobby();
 renderTopbar();
+account.load().then(({ user, migrated, signin }) => {
+  if (user) { S.name = user.name; net.name = user.name; }
+  if (signin === 'failed') toast("Sign-in didn't go through. Try again, or play as a guest.", 'err');
+  else if (migrated) toast(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} from this browser into your account.`);
+  refreshDecks();
+});
 // debug handle for automated tests
 window.__ink = { S, board, net, act };
