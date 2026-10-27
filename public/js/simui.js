@@ -9,7 +9,8 @@ const IMG = (id) => `https://cdn.dreamborn.ink/images/en/cards/${id}`;
 const pctS = (p) => `${Math.round(p * 100)}%`;
 const POLL_MS = 800;
 
-let ctx = null;          // { getDeck: () => {name, cards}, onRole(role) }
+let ctx = null;          // { getDeck: () => {name, cards}, onRole(role), applyCards(cards) }
+let fix = null;          // auto-fix: { job, state, locks:Set, data }
 let run = null;          // { id, timer }
 let last = null;         // last poll payload
 let demo = null;
@@ -111,13 +112,16 @@ function renderRun(j) {
     <div class="sim-progress">
       <div class="bar"><i style="width:${Math.round(prog * 100)}%"></i></div>
       <span>${j.done ? (j.cancelled ? 'Stopped' : 'Done') : j.queued ? `Waiting for the simulator (${j.queued} ahead)` : 'Playing'} · ${j.finished} of ${j.total} games · ${clock(j.elapsedMs || 0)}${j.failed ? ` · ${j.failed} failed` : ''}</span>
-      ${j.done ? '<button class="btn btn-sm" id="simAgain">New test</button>' : '<button class="btn btn-quiet btn-sm" id="simCancel">Stop</button>'}
+      ${j.done ? `${!j.cancelled && j.report ? '<button class="btn btn-gold btn-sm" id="simFix" title="Try swaps for the weaknesses and keep the ones that win more">Auto-fix</button>' : ''}<button class="btn btn-sm" id="simAgain">New test</button>` : '<button class="btn btn-quiet btn-sm" id="simCancel">Stop</button>'}
     </div>
+    ${fix && fix.run === j.id ? fixHtml(j.report) : ''}
     ${j.preview ? previewHtml(j.preview) : ''}
     ${j.report ? reportHtml(j.report, j.done) : '<p class="note">The first results show up after a few games.</p>'}`;
   body.querySelectorAll('details[data-k]').forEach((d) => { if (keepOpen.has(d.dataset.k)) d.open = true; });
   $('#simCancel')?.addEventListener('click', () => api(`/api/sim/${run.id}/cancel`, { method: 'POST' }).catch(() => {}));
-  $('#simAgain')?.addEventListener('click', () => { run = null; last = null; renderSetup(ctx.getDeck()); });
+  $('#simAgain')?.addEventListener('click', () => { run = null; last = null; fix = null; renderSetup(ctx.getDeck()); });
+  $('#simFix')?.addEventListener('click', () => { if (!fix || fix.run !== j.id) fix = { run: j.id, state: 'setup', locks: new Set() }; renderRun(j); $('#simBody').scrollTop = 0; });
+  bindFix(j);
   body.querySelectorAll('[data-role]').forEach((b) => b.onclick = () => { $('#simModal').classList.remove('show'); ctx.onRole(b.dataset.role); });
 }
 
@@ -130,6 +134,56 @@ function previewHtml(f) {
     <div class="pv-side"><div class="pv-row">${row(f.me.play)}</div><span class="pv-who">Your deck <b>${f.me.lore}</b> lore · ${f.me.ink} ink</span><div class="pv-row hand">${f.me.hand.map((id) => `<img src="${IMG(id)}" alt="" loading="lazy">`).join('')}</div></div>
     <ol class="pv-log">${f.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
   </div>`;
+}
+
+// ---------- auto-fix ----------
+const winTxt = (w) => `${Math.round(w.p * 100)}%`;
+function fixHtml(report) {
+  if (fix.state === 'setup') {
+    const names = (report.cards || []).map((c) => c.name);
+    return `<div class="fix-panel"><h3 class="display">Auto-fix</h3>
+      <p class="note">Tap the cards auto-fix must keep (your combo pieces). It proposes swaps for the weaknesses above, plays each one on the same ${'games'} as your list, and keeps a swap only if it wins clearly more. It uses the Quick bot, so lock cards the bot doesn't play well.</p>
+      <div class="fix-locks">${names.map((n) => `<button class="lock ${fix.locks.has(n) ? 'on' : ''}" data-lock="${esc(n)}">${fix.locks.has(n) ? '🔒 ' : ''}${esc(n)}</button>`).join('')}</div>
+      <div class="sim-actions"><span class="note">About 1–3 minutes.</span><button class="btn btn-gold" id="fixGo">Find improvements</button></div></div>`;
+  }
+  const d = fix.data;
+  if (!d) return '<div class="fix-panel"><p class="note">Starting auto-fix…</p></div>';
+  const prog = d.total ? Math.round((d.done / d.total) * 100) : 0;
+  const tried = d.rounds.flatMap((r, i) => r.tried.map((t) => ({ ...t, round: i + 1 })));
+  return `<div class="fix-panel"><h3 class="display">Auto-fix</h3>
+    ${d.state === 'running' ? `<div class="sim-progress"><div class="bar"><i style="width:${prog}%"></i></div><span>Testing swaps · ${d.done} of up to ${d.total} lists</span><button class="btn btn-quiet btn-sm" id="fixStop">Stop</button></div>` : ''}
+    ${d.before ? `<p>Your list: <b>${winTxt(d.before.win)}</b> wins over ${d.before.games} games${d.after && d.state !== 'running' ? ` → with the changes: <b>${winTxt(d.after.win)}</b> (same games)` : ''}.</p>` : ''}
+    ${d.changes.length ? `<div class="finding good"><b>Kept</b>${d.changes.map((c) => `<p>−${c.n} ${esc(c.cut)} · +${c.n} ${esc(c.put)} <span class="muted">(${esc(c.why)}, +${c.gain} points)</span></p>`).join('')}</div>` : d.state !== 'running' ? '<div class="finding info"><b>No swap won clearly more.</b><p>Your list stays as it is. Try locking fewer cards, or test against different decks.</p></div>' : ''}
+    ${tried.length ? `<details data-k="fixtried"><summary>Every swap it tried (${tried.length})</summary><table class="sim-table"><thead><tr><th>Round</th><th>Out</th><th>In</th><th>For</th><th>Wins</th><th>Change</th></tr></thead><tbody>
+      ${tried.map((t) => `<tr><td>${t.round}</td><td>−${t.n} ${esc(t.cut)}</td><td>+${t.n} ${esc(t.put)}</td><td>${esc(t.why)}</td><td>${winTxt(t.win)}</td><td class="${t.gain > 0 ? 'ok' : t.gain < 0 ? 'warn' : ''}">${t.gain > 0 ? '+' : ''}${t.gain}${t.kept ? ' ✓' : ''}</td></tr>`).join('')}</tbody></table></details>` : ''}
+    ${d.rounds.at(-1)?.note && d.state !== 'running' ? `<p class="note">${esc(d.rounds.at(-1).note)}</p>` : ''}
+    ${d.state === 'failed' ? `<div class="strip bad"><span class="txt">${esc(d.error || 'Auto-fix failed.')}</span></div>` : ''}
+    ${d.state !== 'running' && d.changes.length ? '<div class="sim-actions"><span class="note">Results come from bot games; check the swaps make sense for how you play.</span><button class="btn btn-gold" id="fixApply">Apply to my deck</button></div>' : ''}
+  </div>`;
+}
+function bindFix(j) {
+  if (!fix || fix.run !== j.id) return;
+  const body = $('#simBody');
+  body.querySelectorAll('[data-lock]').forEach((b) => b.onclick = () => { const n = b.dataset.lock; fix.locks.has(n) ? fix.locks.delete(n) : fix.locks.add(n); renderRun(j); });
+  $('#fixGo')?.addEventListener('click', async () => {
+    try {
+      const r = await api(`/api/sim/${j.id}/autofix`, { method: 'POST', body: JSON.stringify({ locks: [...fix.locks] }) });
+      fix.state = 'running'; fix.job = r.job; fix.data = null;
+      renderRun(j);
+      pollFix(j);
+    } catch (e) { alert(e.message); }
+  });
+  $('#fixStop')?.addEventListener('click', () => api(`/api/sim/autofix/${fix.job}/cancel`, { method: 'POST' }).catch(() => {}));
+  $('#fixApply')?.addEventListener('click', () => { ctx.applyCards(fix.data.cards); $('#simModal').classList.remove('show'); });
+}
+async function pollFix(j) {
+  if (!fix?.job) return;
+  try {
+    fix.data = await api(`/api/sim/autofix/${fix.job}`);
+    fix.state = fix.data.state === 'running' ? 'running' : 'done';
+    if ($('#simModal').classList.contains('show') && last?.id === j.id) renderRun(last);
+    if (fix.data.state === 'running') setTimeout(() => pollFix(j), 1500);
+  } catch (e) { fix.state = 'done'; fix.data = { ...(fix.data || {}), state: 'failed', error: e.message, rounds: [], changes: [] }; renderRun(last); }
 }
 
 // ---------- report ----------

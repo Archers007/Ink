@@ -39,8 +39,9 @@ export function deckProblems(defs) {
   const perFull = new Map();
   for (const d of defs) { const k = norm(d.full); const e = perFull.get(k) || perFull.set(k, { d, n: 0 }).get(k); e.n++; }
   for (const { d, n } of perFull.values()) {
-    const own = rulesOf(d).find((r) => r.copies != null && norm(r.name) === norm(r.of === 'name' ? d.name : d.full));
-    const max = own ? own.copies : DECK.maxCopies.base;
+    // copies: Infinity ("any number") is stored as null once the rule has been through JSON (cache/proc.db)
+    const own = rulesOf(d).find((r) => 'copies' in r && norm(r.name) === norm(r.of === 'name' ? d.name : d.full));
+    const max = own ? (own.copies ?? Infinity) : DECK.maxCopies.base;
     if (n > max) problems.push(`more than ${max} copies of ${d.full}`);
   }
   return problems;
