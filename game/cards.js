@@ -353,7 +353,7 @@ function buildDemoDecks(index) {
       + (d.kw.rush ? 1 : 0) + (d.kw.evasive ? 1 : 0) + (d.kw.bodyguard ? 0.5 : 0) + (d.kw.support ? 0.5 : 0);
     const statScore = (d) => ((d.str || 0) + (d.wp || 0) + (d.lore || 0) * 2) / Math.max(1, d.cost);
     const charScore = (d) => kwScore(d) + statScore(d) * 2 + (d.inkable ? 2 : 0) - (d.kw.reckless ? 1 : 0) + (hasAutomatedText(d) ? 2.5 : 0);
-    const chars = canon.filter((d) => d.type === 'character' && fits(d) && isFullyAutomated(d) && !d.kw.shift)
+    const chars = canon.filter((d) => d.type === 'character' && fits(d) && isFullyAutomated(d) && !('shift' in d.kw))   // 'in': Shift 0 (Duo Shift 0) is falsy
       .sort((a, b) => charScore(b) - charScore(a) || a.full.localeCompare(b.full));
     const curve = [[1, 2], [2, 2], [3, 2], [4, 2], [5, 1], [6, 1], [7, 1]];
     const picked = [];
