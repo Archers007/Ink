@@ -1,23 +1,24 @@
-// Account + deck storage shared by the builder (/) and the table (/play).
-// Signed in (email + password, lib/accounts.js): decks live on the server. Guest: in this browser's
-// localStorage as 'ink.deck.<name>' → { name, cards: [[cardId, qty], …] }. On the first sign-in from a
-// browser its guest decks move into the account.
+// Account + deck storage shared by the builder (/) and the table (/play). Every deck lives in our database
+// (lib/accounts.js): a guest's first save makes a guest account for this browser (a cookie, no email), and creating
+// an account with an email and password keeps it, decks and all. Decks saved by older versions in this browser's
+// localStorage ('ink.deck.<name>') are moved up to the server once.
 
 const LOCAL = 'ink.deck.';
 const state = { loaded: null, user: null, providers: {}, enabled: false, decks: null };
 const listeners = new Set();
 
-export const signedIn = () => !!state.user;
-export const user = () => state.user;
+// user() is a signed-in account; a guest account (or none yet) reads as not signed in
+export const signedIn = () => !!state.user && !state.user.guest;
+export const user = () => (signedIn() ? state.user : null);
 export const providers = () => state.providers;
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-const emit = () => listeners.forEach((fn) => { try { fn(state.user); } catch (e) { console.error(e); } });
+const emit = () => listeners.forEach((fn) => { try { fn(user()); } catch (e) { console.error(e); } });
 
 export function signInUrl(provider, next = location.pathname + location.search) {
   return `/auth/${provider}?next=${encodeURIComponent(next.replace(/([?&])signin=\w+&?/, '$1').replace(/[?&]$/, ''))}`;
 }
 
-// email + password: sign in, or create the account; then reload so the page picks up the account (and guest decks move in)
+// email + password: sign in, or create the account (a guest's decks come along either way)
 export async function passwordSignIn({ email, password, name, create }) {
   const j = await api(create ? '/api/account/register' : '/api/account/login', { method: 'POST', body: JSON.stringify({ email, password, name }) });
   state.user = j.user; state.decks = null; state.loaded = null;
@@ -30,35 +31,37 @@ export async function signOut() {
   emit();
 }
 
-// ---------- guest storage ----------
-function localDecks() {
-  const out = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k?.startsWith(LOCAL)) continue;
-    try { const d = JSON.parse(localStorage.getItem(k)); if (d && Array.isArray(d.cards)) out.push({ id: 'local:' + k.slice(LOCAL.length), name: d.name || k.slice(LOCAL.length), cards: d.cards, updated: d.updated || 0 }); }
-    catch { /* skip a corrupt entry */ }
-  }
-  return out;
-}
-
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `${path} failed (${r.status})`);
   return j;
 }
+const playerName = () => { try { return localStorage.getItem('ink.play.name') || ''; } catch { return ''; } };
 
-async function migrateGuestDecks() {
-  const guest = localDecks().filter((d) => d.cards.length);
-  if (!guest.length) return 0;
-  const j = await api('/api/my/decks/import', { method: 'POST', body: JSON.stringify({ decks: guest.map(({ name, cards }) => ({ name, cards })) }) });
-  for (const d of guest) localStorage.removeItem(LOCAL + d.id.slice(6));
-  state.decks = j.decks;
+// decks an older version kept only in this browser
+function legacyDecks() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k?.startsWith(LOCAL)) continue;
+      try { const d = JSON.parse(localStorage.getItem(k)); if (d && Array.isArray(d.cards) && d.cards.length) out.push({ key: k, name: d.name || k.slice(LOCAL.length), cards: d.cards }); }
+      catch { /* skip a corrupt entry */ }
+    }
+  } catch { /* storage blocked */ }
+  return out;
+}
+async function moveLegacyDecks() {
+  const old = legacyDecks();
+  if (!old.length) return 0;
+  const j = await api('/api/my/decks/import', { method: 'POST', body: JSON.stringify({ player: playerName(), decks: old.map(({ name, cards }) => ({ name, cards })) }) });
+  for (const d of old) localStorage.removeItem(d.key);
+  state.user = j.user; state.decks = j.decks;
   return j.added;
 }
 
-// Load the account once per page. Returns { user, migrated } — migrated = guest decks just moved in.
+// Load the account once per page. Returns { user, migrated } — migrated = browser-only decks just moved to the server.
 export async function load() {
   if (state.loaded) return state.loaded;
   state.loaded = (async () => {
@@ -66,51 +69,51 @@ export async function load() {
     try {
       const j = await api('/api/account');
       state.user = j.user; state.providers = j.providers || {}; state.enabled = !!j.enabled;
-      if (state.user) {
-        try { migrated = await migrateGuestDecks(); } catch (e) { console.warn('[account] guest deck move failed:', e.message); }
-      }
+      try { migrated = await moveLegacyDecks(); } catch (e) { console.warn('[account] moving browser decks failed:', e.message); }
     } catch (e) { console.warn('[account] offline:', e.message); }
     const u = new URL(location.href);
     const signin = u.searchParams.get('signin');
     if (signin) { u.searchParams.delete('signin'); history.replaceState(null, '', u); }
     emit();
-    return { user: state.user, migrated, signin };
+    return { user: user(), migrated, signin };
   })();
   return state.loaded;
 }
 
-// ---------- decks (whichever store applies) ----------
+// ---------- decks ----------
 export async function listDecks({ fresh = false } = {}) {
   await load();
-  if (!state.user) return localDecks().sort((a, b) => a.name.localeCompare(b.name));
+  if (!state.user) return [];                       // no account of any kind yet: nothing saved
   if (!state.decks || fresh) state.decks = (await api('/api/my/decks')).decks;
   return [...state.decks].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// by id, or by name (a 'local:<name>' id still finds that deck after it moved into the account)
+// by id, or by name (an old 'local:<name>' id still finds that deck after it moved to the server)
 export async function getDeck(id) {
   const name = String(id).replace(/^local:/, '');
   const all = await listDecks();
   return all.find((d) => d.id === id) || all.find((d) => d.name === name) || null;
 }
 
-export async function saveDeck({ id, name, cards }) {
+export async function saveDeck({ id, name, cards, shared }) {
   await load();
-  if (!state.user) {
-    if (id?.startsWith('local:') && id.slice(6) !== name) localStorage.removeItem(LOCAL + id.slice(6));   // renamed
-    localStorage.setItem(LOCAL + name, JSON.stringify({ name, cards, updated: Date.now() }));
-    return { id: 'local:' + name, name, cards };
-  }
-  const j = await api('/api/my/decks', { method: 'POST', body: JSON.stringify({ id: id?.startsWith('local:') ? undefined : id, name, cards }) });
+  const j = await api('/api/my/decks', { method: 'POST', body: JSON.stringify({ id: id?.startsWith('local:') ? undefined : id, name, cards, shared, player: playerName() }) });
+  if (!state.user) state.user = j.user;             // the first save made a guest account
   state.decks = [...(state.decks || []).filter((d) => d.id !== j.deck.id && d.name !== j.deck.name), j.deck];
   return j.deck;
 }
 
 export async function deleteDeck(id) {
   await load();
-  if (id.startsWith('local:')) { localStorage.removeItem(LOCAL + id.slice(6)); return; }
   await api(`/api/my/decks/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (state.decks) state.decks = state.decks.filter((d) => d.id !== id);
+}
+
+// decks other players shared
+export async function communityDecks({ q = '', ink = [], page = 1 } = {}) {
+  const p = new URLSearchParams({ q, page: String(page) });
+  if (ink.length) p.set('ink', ink.join(','));
+  return api(`/api/community/decks?${p}`);
 }
 
 // The sign-in buttons, for any page. Providers the server hasn't configured are left out.

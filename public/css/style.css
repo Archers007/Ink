@@ -231,3 +231,8 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; background
   .foot { padding: 14px 14px calc(20px + env(safe-area-inset-bottom, 0px)); }
   .notice { margin: 10px 14px 0; }
 }
+
+/* deck browser sources */
+.src-tabs { margin: 0 0 14px; }
+.deck-card .deck-sub { font-size: 12px; color: var(--muted); }
+#shareWrap { margin-top: -2px; }

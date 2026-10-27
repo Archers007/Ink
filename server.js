@@ -189,7 +189,10 @@ app.use(express.json({ limit: '512kb' }));
 app.set('trust proxy', 'loopback, linklocal, uniquelocal');   // cloudflared / a reverse proxy on the LAN sets X-Forwarded-Proto
 
 // Discord / Google sign-in + server-side decks (lib/accounts.js)
-const accounts = attachAccounts(app, { db: statsDb });
+const accounts = attachAccounts(app, {
+  db: statsDb,
+  summarize: (cards) => { if (!cardIndex) return {}; const r = resolveDeck(cardIndex, { cards }); return { size: r.size, inks: r.inks, legal: r.legal }; },
+});
 
 // Count one visit per top-level HTML page load (real navigations only — not API
 // calls, the .db downloads, or static assets like /css, /js, the favicon).
