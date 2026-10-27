@@ -23,6 +23,7 @@ import * as procLookup from './game/procs/lookup.js';
 import { rolesForIndex } from './game/procs/roles.js';
 import { attachLobby } from './game/lobby.js';
 import { attachAccounts } from './lib/accounts.js';
+import { attachSim } from './lib/sim.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -598,6 +599,9 @@ app.get('/api/play/demo-decks', (req, res) => {
   if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
   res.json(cardIndex.demoDecks);
 });
+
+// deck simulations (lib/sim.js)
+attachSim(app, { db: statsDb, getIndex: () => cardIndex, accounts });
 
 const server = app.listen(PORT, () => {
   console.log(`\n  Ink ▸ http://localhost:${PORT}\n`);

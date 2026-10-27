@@ -1,16 +1,31 @@
-// A simple practice opponent. It only uses public information plus its own
-// hand (no peeking), and only takes actions the engine fully automates:
-// ink → play characters/items/locations → profitable challenges → quest → end turn.
-// Card abilities and actions/songs are ignored (it inks those instead).
+// A simple practice opponent (and the search bot's rollout policy). It only uses public information plus its
+// own hand (no peeking): ink → play characters/items/locations, and actions/songs when they have something to
+// hit (songs sung for free by a character when one can) → profitable challenges → quest → end turn.
 
 import { D, readyInk, playBlocked, shiftCondOk } from './engine.js';
 import {
-  LORE_TO_WIN, questBlocker, attackerBlocker, defenderBlocker, challengeDamage,
+  LORE_TO_WIN, questBlocker, singerBlocker, attackerBlocker, defenderBlocker, challengeDamage,
   effWp, effLore, hasKw, shiftOptions, shiftOntoOk, shiftDiscardOk,
 } from '../public/js/play/rules.js';
 
 const cardsIn = (s, ids) => ids.map((id) => s.cards[id]);
 const isSpell = (d) => d.type === 'action' || d.type === 'song';
+const HARMFUL = new Set(['banish', 'damage', 'toHand', 'toDeckBottom', 'shuffleIn', 'toInkwell', 'exert', 'mod']);
+// an action worth casting now: the engine runs it, and anything it aims at the opponent's board has a target there
+function spellUseful(s, seat, d) {
+  const acts = (d.procs || []).filter((p) => p.kind === 'action');
+  if (!acts.length || !acts.every((p) => p.exec)) return false;
+  const oppBoard = s.players.some((p) => p.seat !== seat && p.play.length);
+  const myBoard = s.players[seat].play.length > 0;
+  for (const p of acts) for (const st of p.do || []) {
+    const F = st.sel?.chosen || st.sel?.all;
+    if (!F || !HARMFUL.has(st.fn)) continue;
+    if (F.owner === 'opp' && !oppBoard) return false;
+    if (!F.owner && st.fn !== 'mod' && !oppBoard) return false;          // "banish chosen character": wait for one of theirs
+    if (F.owner === 'you' && !myBoard) return false;
+  }
+  return true;
+}
 
 export function chooseMulligan(s, seat) {
   const hand = cardsIn(s, s.players[seat].hand);
@@ -34,7 +49,7 @@ function chooseInk(s, seat) {
   for (const c of hand) {
     const d = D(s, c);
     let score = 0;
-    if (isSpell(d)) score += 100;                       // the bot can't resolve effects — ink them
+    if (isSpell(d)) score += 20;                        // spells do less for a curve than characters
     if (d.cost > inkNext + 2) score += 30;              // too expensive for a while
     if (d.cost <= inkNext) score -= 20;                 // castable soon — keep it
     if ((dupes.get(c.cardId) || 0) > 1) score += 8;
@@ -80,7 +95,17 @@ function choosePlay(s, seat) {
   let bestVal = -Infinity;
   for (const c of cardsIn(s, p.hand)) {
     const d = D(s, c);
-    if (isSpell(d) || playBlocked(s, seat, c.iid)) continue;          // "You can't play this character unless …"
+    if (playBlocked(s, seat, c.iid)) continue;                         // "You can't play this character unless …"
+    if (isSpell(d)) {
+      if (!spellUseful(s, seat, d)) continue;
+      // a song: sung for free by the cheapest character that can, else paid for
+      if (d.type === 'song') {
+        const singer = cardsIn(s, p.play).filter((x) => D(s, x).type === 'character' && !singerBlocker(x, D(s, x), d)).sort((a, b) => D(s, a).cost - D(s, b).cost)[0];
+        if (singer) { const val = d.cost * 10 + 4; if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, mode: 'sing', singers: [singer.iid] }; } continue; }
+      }
+      if (d.cost <= ink) { const val = d.cost * 9; if (val > bestVal) { bestVal = val; best = { type: 'play', iid: c.iid, mode: 'ink' }; } }
+      continue;
+    }
     if (d.cost <= ink) {
       const val = d.cost * 10 + (d.type === 'character' ? 5 : 0) + (d.lore || 0);
       // "may enter play exerted to draw a card": take the bonus

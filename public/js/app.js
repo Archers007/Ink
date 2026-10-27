@@ -6,6 +6,7 @@ import * as Auth from './auth.js';
 import { compileQuery, HELP_HTML } from './search.js';
 import * as Decks from './decks.js';
 import * as account from './account.js';
+import * as Sim from './simui.js';
 
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -838,6 +839,12 @@ function wireUI() {
     try { await account.deleteDeck(Deck.Deck.id); newDeck(); }
     catch (e) { alert('Delete failed: ' + e.message); }
   });
+  // test the deck: the engine plays it against other decks on the server (simui.js, lib/sim.js)
+  Sim.init({
+    getDeck: () => ({ name: ($('#deckTitle').value || '').trim() || 'Untitled deck', cards: [...Deck.Deck.cards.entries()] }),
+    onRole: (role) => showRoleInInks(role),
+  });
+  $('#testDeckBtn').addEventListener('click', () => Sim.open());
   // phones: pool and deck are two tabs
   $$('.mtabs button').forEach((b) => b.addEventListener('click', () => {
     $$('.mtabs button').forEach((x) => x.classList.toggle('on', x === b));
