@@ -11,7 +11,7 @@
 //
 // Messages client → server:
 //   hello {token?}                     — first message; resumes an existing seat if token matches
-//   create {name, public?, vsBot?}     — make a room, become host
+//   create {name, public?, vsBot?, botLevel?: 'easy'|'hard'}   — make a room, become host (hard = the search bot)
 //   join {code, name}                  — take a free seat (or spectate if full)
 //   leave
 //   setDeck {deck: {name, cards:[[id,qty]]} | {name, text}}
@@ -30,6 +30,7 @@ import { WebSocketServer } from 'ws';
 import { resolveDeck } from './cards.js';
 import { newGame, applyAction, viewFor, eventsFor, defsInView } from './engine.js';
 import { botDecide } from './bot.js';
+import { Worker } from 'node:worker_threads';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';   // no I/O to avoid confusion
 const ROOM_IDLE_MS = 2 * 60 * 60 * 1000;           // drop rooms idle for 2h
@@ -37,6 +38,26 @@ const MAX_ROOMS = 500;
 const MAX_MSG_BYTES = 64 * 1024;
 const RATE = { windowMs: 5000, max: 80 };
 const BOT_DELAY_MS = 650;
+const HARD_BUDGET_MS = 450;          // the search bot's thinking time per decision
+
+// one worker runs the search bot for every room; requests queue up
+let worker = null, workerSeq = 0;
+const waiting = new Map();
+function searchWorker() {
+  if (worker) return worker;
+  worker = new Worker(new URL('./botworker.js', import.meta.url));
+  worker.on('message', (m) => { const w = waiting.get(m.id); if (w) { waiting.delete(m.id); w(m); } });
+  worker.on('error', (e) => { console.error('[bot] search worker crashed:', e.message); for (const w of waiting.values()) w({ error: e.message }); waiting.clear(); worker = null; });
+  worker.unref();
+  return worker;
+}
+function askSearchBot(state, seat, seen) {
+  return new Promise((resolve) => {
+    const id = ++workerSeq;
+    waiting.set(id, resolve);
+    searchWorker().postMessage({ id, state, seat, seen, budgetMs: HARD_BUDGET_MS });
+  });
+}
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24) || 'Player';
 
@@ -146,22 +167,36 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
     if (!room.game || room.botTimer) return;
     const botSeat = room.seats.findIndex((s) => s?.bot);
     if (botSeat < 0) return;
-    if (!botDecide(room.game, botSeat)) return;
-    room.botTimer = setTimeout(() => {
+    if (!botDecide(room.game, botSeat)) return;                  // nothing for the bot to do right now
+    const hard = room.seats[botSeat].level !== 'easy';
+    const started = Date.now();
+    room.botTimer = setTimeout(async () => {
+      if (!rooms.has(room.code) || !room.game) { room.botTimer = null; return; }
+      const g = room.game;
+      const seq = g.seq;
+      let act = null;
+      if (hard) {
+        const m = await askSearchBot(g, botSeat, [...(room.botSeen || [])]);
+        if (m.error) console.warn('[bot] search failed, using the quick bot:', m.error);
+        else { act = m.action; room.botSeen = new Set(m.seen); }
+        if (room.game !== g || g.seq !== seq) { room.botTimer = null; scheduleBot(room); return; }   // the game moved on meanwhile
+      }
+      act ||= botDecide(g, botSeat);
+      if (!act) { room.botTimer = null; return; }
+      const wait = BOT_DELAY_MS - (Date.now() - started);       // keep a readable pace when the search was quick
+      if (hard && wait > 0) await new Promise((r) => setTimeout(r, wait));
       room.botTimer = null;
-      if (!rooms.has(room.code) || !room.game) return;
-      const act = botDecide(room.game, botSeat);
-      if (!act) return;
-      let r = applyAction(room.game, botSeat, act);
-      if (!r.ok && room.game.active === botSeat) r = applyAction(room.game, botSeat, { type: 'endTurn', force: true });
-      if (!r.ok && room.game.pending?.seat === botSeat) {
-        r = applyAction(room.game, botSeat, room.game.pending.type === 'support' ? { type: 'support' } : { type: 'choose', skip: true });
-        if (!r.ok && room.game.pending?.valid?.length) r = applyAction(room.game, botSeat, { type: 'choose', target: room.game.pending.valid[0] });
+      if (room.game !== g || g.seq !== seq) { scheduleBot(room); return; }
+      let r = applyAction(g, botSeat, act);
+      if (!r.ok && g.active === botSeat) r = applyAction(g, botSeat, { type: 'endTurn', force: true });
+      if (!r.ok && g.pending?.seat === botSeat) {
+        r = applyAction(g, botSeat, g.pending.type === 'support' ? { type: 'support' } : { type: 'choose', skip: true });
+        if (!r.ok && g.pending?.valid?.length) r = applyAction(g, botSeat, { type: 'choose', target: g.pending.valid[0] });
       }
       if (r.ok) sendGame(room, r.events);
       touch(room);
       scheduleBot(room);
-    }, BOT_DELAY_MS);
+    }, hard ? 60 : BOT_DELAY_MS);
   }
 
   // ---------- message handlers ----------
@@ -194,7 +229,8 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       if (m.vsBot) {
         const demo = getIndex().demoDecks;
         const pick = demo[Math.floor(Math.random() * demo.length)];
-        room.seats[1] = { token: `bot:${room.code}`, bot: true, name: 'Practice Bot', ready: true, deck: resolveDeck(getIndex(), pick) };
+        const level = m.botLevel === 'easy' ? 'easy' : 'hard';
+        room.seats[1] = { token: `bot:${room.code}`, bot: true, level, name: level === 'easy' ? 'Practice Bot' : 'Ink Bot', ready: true, deck: resolveDeck(getIndex(), pick) };
       }
       rooms.set(room.code, room);
       cl.room = room.code;
@@ -251,6 +287,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       if (room.seats.some((s) => !s)) throw new Error('Waiting for an opponent — send them the invite link.');
       if (room.seats.some((s) => !s.ready || !s.deck)) throw new Error('Both players need to pick a deck and hit Ready.');
       room.game = newGame({ players: room.seats.map((s) => ({ name: s.name, deck: s.deck.defs })) });
+      room.botSeen = null;                                  // what the bot has seen is per game
       room.sentDefs = new Map();
       touch(room);
       broadcastRoom(room);

@@ -12,7 +12,7 @@ import {
 const cardsIn = (s, ids) => ids.map((id) => s.cards[id]);
 const isSpell = (d) => d.type === 'action' || d.type === 'song';
 
-function chooseMulligan(s, seat) {
+export function chooseMulligan(s, seat) {
   const hand = cardsIn(s, s.players[seat].hand);
   const cheap = hand.filter((c) => D(s, c).cost <= 3).length;
   return hand.filter((c) => {
@@ -46,7 +46,7 @@ function chooseInk(s, seat) {
 
 // One legal way to pay this Shift option and the card(s) it goes on top of → the play action's extras, or null.
 // Duo / Combo pick a pair, a discard cost gives up the cheapest matching cards in hand.
-function shiftPlan(s, seat, c, d, opt, ink) {
+export function shiftPlan(s, seat, c, d, opt, ink) {
   const p = s.players[seat];
   const cost = opt.spec.cost;
   if (cost.ink != null && cost.ink > ink) return null;
