@@ -5,6 +5,7 @@ import { Query } from '../query.js';
 
 export class InkTop extends Effect {
   static fn = 'inkTop';
+  static role() { return 'ramp'; }
   static rules = [[/^put the top (card|\d+ cards) of your deck into your inkwell facedown( and exerted)?$/i, (m) => ({ fn: 'inkTop', exerted: !!m[2], ...(m[1] === 'card' ? {} : { n: parseInt(m[1], 10) }) })]];
   static run(rt, s, job, st, ev) {
     const p = rt.E.P(s, job.seat);
@@ -45,6 +46,7 @@ export class Shuffle extends Effect {
 // "search your deck for a Madrigal character card [and reveal that card to all players][, and put it into your hand]"
 export class Search extends Effect {
   static fn = 'search';
+  static role() { return 'draw'; }
   static rules = [[/^search your deck for (.+?)(?:,? and reveal (?:it|that card) to all players|, reveal (?:it|that card)(?: to all players)?)?(?:,? (?:and )?put (?:it|that card) (?:in|into) your hand)?$/i, (m, P) => ({
     fn: 'search', filter: P.filter(m[1]), reveal: /reveal/i.test(m[0]), ...(/put (?:it|that card) (?:in|into) your hand$/i.test(m[0]) ? { to: 'hand' } : {}),
   })]];

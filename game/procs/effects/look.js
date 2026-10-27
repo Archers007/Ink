@@ -15,6 +15,7 @@ import { Amount } from '../phrases/amount.js';
 
 export class Look extends Effect {
   static fn = 'look';
+  static role() { return 'draw'; }                 // card selection off the top of the deck
   static rules = [
     // "look at a number of cards from the top of your deck equal to the number of cards under him"
     [/^look at a number of cards from the top of your deck equal to the number of cards under (?:him|her|it|them|this character)$/i, () => ({ fn: 'look', n: { n: 1, per: { count: { under: true } } } })],

@@ -5,6 +5,7 @@ import { Amount } from '../phrases/amount.js';
 const WHO = { each: 'each player draws', opp: 'each opponent draws', refOwner: "that card's player draws", youAndOne: 'you and another chosen player each draw' };
 export class Draw extends Effect {
   static fn = 'draw';
+  static role(st) { return st.who === 'opp' ? null : 'draw'; }
   static rules = [
     [new RegExp(String.raw`^draw ${NUM} cards?$`, 'i'), (m) => ({ fn: 'draw', n: N(m[1]) })],
     [new RegExp(String.raw`^each player draws ${NUM} cards?$`, 'i'), (m) => ({ fn: 'draw', n: N(m[1]), who: 'each' })],
@@ -37,6 +38,7 @@ export class Draw extends Effect {
 // "draw cards until you have the same number" (as the opponent with the most cards in hand)
 export class DrawUntil extends Effect {
   static fn = 'drawUntil';
+  static role() { return 'draw'; }
   static rules = [
     [/^draw cards until you have the same number(?: of cards in your hand as (?:that|chosen) opponent)?$/i, () => ({ fn: 'drawUntil' })],
     [/^draw (?:cards )?until you have (\d+)(?: cards?)?(?: in your hand)?$/i, (m) => ({ fn: 'drawUntil', to: +m[1] })],   // "draw until you have 3 cards in your hand"

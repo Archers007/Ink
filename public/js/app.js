@@ -16,6 +16,7 @@ const state = {
   filtered: [],
   query: '',
   ownedOnly: false,
+  role: null,           // role chip filter: 'removal' · 'draw' · … · 'class:pirate'
 };
 
 // ---------- boot ----------
@@ -37,6 +38,8 @@ async function boot() {
   wireUI();
   renderDeck();
   renderChips();
+
+  loadRoles();
 
   const { migrated, signin } = await acct;
   if (signin === 'failed') showNotice("Sign-in didn't go through. Try again, or keep building as a guest.", true);
@@ -140,6 +143,7 @@ function applyFilters() {
   $('#searchError').textContent = errors.length ? errors.join(' · ') : '';
   let arr = state.catalog.filter(predicate);
   if (state.ownedOnly) arr = arr.filter((c) => Auth.ownedQty(c.id));
+  if (state.role) arr = arr.filter(roleMatch(state.role));
   // sort: cost asc, then name
   arr.sort((a, b) => (a.cost - b.cost) || a.name.localeCompare(b.name));
   state.filtered = arr;
@@ -483,7 +487,7 @@ function renderGrid() {
     t.dataset.id = c.id;
     const owned = Auth.Session.collection ? Auth.ownedQty(c.id) : null;
     const inkChips = c.inks.map((ink) => `<span class="ink ink-${ink}" title="${ink}"></span>`).join('');
-    const tags = roleTagsFor ? roleTagsFor(c) : '';
+    const tags = roleTagsFor(c);
     t.innerHTML = `
       <img loading="lazy" src="${c.image}" alt="${escapeHtml(c.name + (c.title ? ' - ' + c.title : ''))}">
       ${qty ? `<div class="qty-badge">×${qty}</div>` : ''}
@@ -504,8 +508,83 @@ function renderGrid() {
 }
 
 // ---------- deck list ----------
-let roleTagsFor = null;        // set by the role filters (card → tag html)
-let renderRoleMeters = () => {};
+// ---------- roles: what cards do, read off their compiled abilities (/api/cards/roles, game/procs/roles.js) ----------
+const R = { labels: {}, roles: {}, cares: {}, ready: false };
+const ROLE_ORDER = ['removal', 'draw', 'ramp', 'lore', 'protection', 'recursion', 'songs'];
+// rules of thumb for a 60-card deck, shown as a band on the meter and used by the suggestion; not hard limits
+const THUMB = { removal: [6, 8], draw: [4, 8] };
+const rolesOf = (c) => R.roles[c.id] || [];
+const classesOf = (c) => { try { return (JSON.parse(c.characteristics || '[]') || []).map((x) => String(x).toLowerCase()); } catch { return []; } };
+function roleMatch(role) {
+  if (role.startsWith('class:')) { const k = role.slice(6); return (c) => classesOf(c).includes(k) || (R.cares[c.id] || []).includes(k); }
+  return (c) => rolesOf(c).includes(role);
+}
+const titleCase = (s) => String(s).replace(/\b\w/g, (x) => x.toUpperCase());
+// the classification this deck leans on: its most common one among characters, if other cards pay it off
+function deckClass() {
+  const n = {};
+  const generic = new Set(['storyborn', 'dreamborn', 'floodborn', 'ally']);
+  for (const { card, qty } of Deck.entries()) if (card.type === 'character') for (const k of classesOf(card)) if (!generic.has(k)) n[k] = (n[k] || 0) + qty;
+  const payoffs = (k) => Object.values(R.cares).filter((v) => v.includes(k)).length;
+  return Object.entries(n).filter(([k, q]) => q >= 8 && payoffs(k) >= 3).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+async function loadRoles() {
+  try {
+    const r = await fetch('/api/cards/roles');
+    if (!r.ok) return;
+    Object.assign(R, await r.json(), { ready: true });
+  } catch { return; }
+  renderRoleChips(); renderGrid(); renderDeck();
+}
+function renderRoleChips() {
+  const el = $('#roleChips');
+  if (!R.ready) { el.innerHTML = ''; return; }
+  const cls = deckClass();
+  const chips = ROLE_ORDER.map((k) => [k, R.labels[k] || k]);
+  if (cls) chips.push([`class:${cls}`, `${titleCase(cls)} synergy`]);
+  if (state.role?.startsWith('class:') && !chips.some(([k]) => k === state.role)) chips.push([state.role, `${titleCase(state.role.slice(6))} synergy`]);
+  el.innerHTML = '<span class="lbl" style="align-self:center;margin-right:4px">Does</span>' + chips.map(([k, label]) => `<button class="role ${state.role === k ? 'on' : ''}" data-role="${escapeHtml(k)}" aria-pressed="${state.role === k}">${escapeHtml(label)}</button>`).join('');
+  el.querySelectorAll('[data-role]').forEach((b) => b.onclick = () => { state.role = state.role === b.dataset.role ? null : b.dataset.role; renderRoleChips(); applyFilters(); });
+}
+function roleTagsFor(c) {
+  if (!R.ready) return '';
+  const r = rolesOf(c).filter((k) => k !== 'songs' || c.type !== 'song').slice(0, 2);
+  return r.length ? `<div class="tags">${r.map((k) => `<span class="tag">${escapeHtml(R.labels[k] || k)}</span>`).join('')}</div>` : '';
+}
+function renderRoleMeters() {
+  const el = $('#roleMeters');
+  const sug = $('#suggest');
+  if (!R.ready || !Deck.Deck.cards.size) { el.innerHTML = ''; sug.hidden = true; return; }
+  const n = Object.fromEntries(ROLE_ORDER.map((k) => [k, 0]));
+  for (const { card, qty } of Deck.entries()) for (const k of rolesOf(card)) if (k in n) n[k] += qty;
+  const total = Deck.summary().total;
+  const SCALE = 16;
+  el.innerHTML = ['removal', 'draw', 'ramp', 'lore', 'protection', 'recursion'].map((k) => {
+    const t = THUMB[k];
+    const low = t && total >= 30 && n[k] < t[0];
+    return `<div class="meter ${low ? 'low' : ''}" data-role="${k}" title="${n[k]} card${n[k] === 1 ? '' : 's'} with ${escapeHtml((R.labels[k] || k).toLowerCase())}${t ? ` · rule of thumb ${t[0]}–${t[1]}` : ''} · click to show them in the pool">
+      <span>${escapeHtml(R.labels[k] || k)} <b>${n[k]}</b></span>
+      <span class="track">${t ? `<u style="left:${(t[0] / SCALE) * 100}%;width:${((t[1] - t[0]) / SCALE) * 100}%"></u>` : ''}<i style="width:${Math.min(100, (n[k] / SCALE) * 100)}%"></i></span></div>`;
+  }).join('');
+  el.querySelectorAll('[data-role]').forEach((m) => m.onclick = () => showRoleInInks(m.dataset.role));
+  // one suggestion at a time, once the deck has taken shape
+  const need = total >= 20 && ['removal', 'draw'].find((k) => n[k] < THUMB[k][0]);
+  if (!need) { sug.hidden = true; renderRoleChips(); return; }
+  const label = (R.labels[need] || need).toLowerCase();
+  const inks = Deck.summary().inks;
+  sug.innerHTML = `<span class="grow">Your deck is light on <b>${escapeHtml(label)}</b> (${n[need]}; a common rule of thumb is ${THUMB[need][0]}–${THUMB[need][1]}).</span>
+    <button class="btn btn-sm" id="sugBtn">Show ${escapeHtml(label)}${inks.length ? ` in ${inks.map(titleCase).join(' / ')}` : ''}</button>`;
+  sug.hidden = false;
+  $('#sugBtn').onclick = () => showRoleInInks(need);
+  renderRoleChips();
+}
+function showRoleInInks(role) {
+  state.role = role;
+  const inks = Deck.summary().inks;
+  setQuery(inks.length ? `c:${inks.join(',')}` : '');
+  renderRoleChips();
+  $('.mtabs button[data-pane="pool"]')?.click();
+}
 
 function renderDeck() {
   const list = $('#deckList');

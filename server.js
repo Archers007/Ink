@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
 import { loadCardIndex, resolveDeck } from './game/cards.js';
 import * as procLookup from './game/procs/lookup.js';
+import { rolesForIndex } from './game/procs/roles.js';
 import { attachLobby } from './game/lobby.js';
 import { attachAccounts } from './lib/accounts.js';
 
@@ -563,6 +564,14 @@ app.get('/api/procs/card', (req, res) => {
   const c = procLookup.card(cardIndex, String(req.query.full || ''));
   if (!c) return res.status(404).json({ error: 'no such card' });
   res.json(c);
+});
+// Deck-builder role tags (removal, card draw, ramp…) and class payoffs, read off each card's compiled procs
+let rolesCache = null;
+app.get('/api/cards/roles', (req, res) => {
+  if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
+  if (rolesCache?.at !== cardIndex.loadedAt) rolesCache = { at: cardIndex.loadedAt, body: rolesForIndex(cardIndex) };
+  res.set('Cache-Control', 'public, max-age=600');
+  res.json(rolesCache.body);
 });
 app.get('/api/procs/stats', (req, res) => {
   if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
