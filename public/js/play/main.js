@@ -70,6 +70,7 @@ const net = new Net({
         if (S.replay) break;                                  // watching a replay: the live table waits
         if (!m.view) { S.view = null; board.render(null, {}); clearTargeting(); S.selected = null; renderAll(); renderLobby(); break; }
         S.view = m.view;
+        if (S.hint) { S.hint = null; renderHint(); }             // the position moved on
         board.render(S.view, S.defs, m.events || []);
         validateUi();
         renderAll();
@@ -81,6 +82,12 @@ const net = new Net({
       case 'chat':
         S.chat.push(m); if (S.chat.length > 100) S.chat.shift();
         renderChat();
+        break;
+      case 'hint':
+        S.hintWait = false;
+        if (m.current && V()?.status === 'playing') { S.hint = m; renderHint(); }
+        else toast('The position changed while the engine was thinking.');
+        renderHud();
         break;
       case 'rooms':
         S.publicRooms = m.rooms || [];
@@ -650,6 +657,10 @@ function renderHud() {
   endBtn.disabled = !myTurn();
   endBtn.textContent = v.status === 'over' ? 'Game over' : myTurn() ? 'End turn ⏎' : v.status === 'mulligan' ? 'Mulligan…' : v.pending ? 'Waiting…' : `${v.players[v.active].name}'s turn`;
   $('#toolsBtn').disabled = v.status !== 'playing' || you() < 0 || !!S.replay;
+  const myChoice = !S.replay && v.status === 'playing' && (v.pending ? v.pending.seat === you() : v.active === you());
+  $('#hintBtn').hidden = !(S.room?.seats?.some((x) => x?.bot) && you() >= 0 && !S.replay);
+  $('#hintBtn').disabled = !myChoice || S.hintWait;
+  $('#hintBtn').textContent = S.hintWait ? '💡 Thinking…' : '💡 Hint';
   renderTopbar();
   renderBanner();
 }
@@ -1112,6 +1123,20 @@ async function copyInvite() {
   catch { prompt('Copy this invite link:', inviteUrl()); }
 }
 
+// ---------- the engine's hint (games against a bot) ----------
+function renderHint() {
+  const el = $('#hintBox');
+  const h = S.hint;
+  if (!h) { el.hidden = true; return; }
+  const fmt = (x) => (x >= 150 ? 'wins' : x <= -150 ? 'loses' : `${x > 0 ? '+' : ''}${x.toFixed(1)}`);
+  el.innerHTML = `<div class="hb-head"><span class="lbl">Engine</span><b class="hb-eval ${h.eval >= 0 ? 'up' : 'down'}">${fmt(h.eval)}</b><span class="muted small">lore ahead by your next turn · ${h.samples} samples</span><button class="sm ghost" id="hintX" aria-label="Close">✕</button></div>
+    <ol>${h.moves.map((mv, i) => `<li><span>${esc(mv.label)}</span><b>${fmt(mv.score)}</b>${i === 0 ? '<button class="sm hot" id="hintDo">Play it</button>' : ''}</li>`).join('')}</ol>`;
+  el.hidden = false;
+  $('#hintX').onclick = () => { S.hint = null; renderHint(); };
+  $('#hintDo')?.addEventListener('click', () => { const a = S.hint?.moves[0]?.action; S.hint = null; renderHint(); if (a) act(a); });
+}
+$('#hintBtn').onclick = () => { S.hintWait = true; renderHud(); net.send({ t: 'hint' }); setTimeout(() => { if (S.hintWait) { S.hintWait = false; renderHud(); } }, 8000); };
+
 // ---------- replays ----------
 // A saved game played back on the table, from one seat's side (the hand that seat held; the other stays hidden).
 async function loadReplay(id, seat = null) {
@@ -1164,6 +1189,54 @@ function exitReplay() {
   $('#replayBar').hidden = true;
   renderAll(); renderLobby(); refreshExtras();
 }
+// engine review of the watched seat's moves (lib/replays.js → game/analysis/review.js)
+async function startReview() {
+  const R = S.replay;
+  if (!R || R.review || R.reviewing) { if (R?.review) { R.showReview = !R.showReview; renderReview(); } return; }
+  const url = `/api/replays/${encodeURIComponent(R.id)}/review`;
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ seat: R.data.seat }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Could not start the review.');
+    R.reviewing = { progress: [0, 0] };
+    renderReplayBar();
+    const poll = async () => {
+      if (S.replay !== R) return;
+      const g = await fetch(`${url}?seat=${R.data.seat}`).then((x) => x.json()).catch(() => null);
+      if (g?.state === 'done') { R.review = g.review; R.reviewing = null; R.showReview = true; renderReplayBar(); return; }
+      if (g?.state === 'failed') { R.reviewing = null; toast(`Review failed: ${g.error}`, 'err'); renderReplayBar(); return; }
+      R.reviewing = { progress: g?.progress || [0, 0], ahead: g?.ahead };
+      renderReview();
+      setTimeout(poll, 1000);
+    };
+    poll();
+  } catch (e) { toast(e.message, 'err'); }
+}
+const CLS = { best: ['Best', 'best'], good: ['Good', 'good'], inaccuracy: ['Inaccuracy', 'inac'], mistake: ['Mistake', 'mist'], blunder: ['Blunder', 'blun'], forced: ['Only move', 'forced'] };
+function renderReview() {
+  const R = S.replay, el = $('#reviewBox');
+  if (!R || (!R.review && !R.reviewing) || (R.review && R.showReview === false)) { el.hidden = true; return; }
+  el.hidden = false;
+  if (!R.review) {
+    const [d, t] = R.reviewing.progress;
+    el.innerHTML = `<span class="lbl">Engine review</span> <span class="muted small">${R.reviewing.ahead > 1 ? `waiting (${R.reviewing.ahead - 1} ahead)` : t ? `${d} of ${t} moves analyzed` : 'starting…'}</span>`;
+    return;
+  }
+  const rv = R.review, fr = R.data.frames;
+  const next = rv.moves.find((m) => m.k === fr[R.i].k + 1);       // the move made from the position on screen
+  const frameOf = (k) => fr.findIndex((f) => f.k === k - 1);
+  const fmt = (x) => (x >= 150 ? 'wins' : x <= -150 ? 'loses' : `${x > 0 ? '+' : ''}${x}`);
+  el.innerHTML = `<div class="rv-head"><span class="lbl">Engine review · ${esc(R.data.seats[rv.seat].name)}</span>
+      <b class="rv-acc">${rv.accuracy ?? '—'}<small>% accuracy</small></b>
+      <span class="rv-counts">${['best', 'good', 'inaccuracy', 'mistake', 'blunder'].map((c) => `<span class="rv-c ${CLS[c][1]}">${rv.counts[c]} ${CLS[c][0].toLowerCase()}</span>`).join('')}</span>
+      <button class="sm ghost" id="rvX" aria-label="Hide review">✕</button></div>
+    <div class="rv-strip">${rv.moves.map((m) => `<button class="rv-dot ${CLS[m.cls][1]} ${next === m ? 'on' : ''}" data-jump="${frameOf(m.k)}" title="Turn ${m.turn}: ${esc(m.played)} · ${CLS[m.cls][0]}${m.loss ? ` (−${m.loss})` : ''}"></button>`).join('')}</div>
+    ${next ? `<div class="rv-now"><span class="rv-c ${CLS[next.cls][1]}">${CLS[next.cls][0]}</span> <b>${esc(next.played)}</b>${next.loss ? ` <span class="muted">−${next.loss} lore</span>` : ''}
+      ${next.cls !== 'best' && next.best ? `<span class="muted"> · engine: </span>${esc(next.best)} <span class="muted">(${fmt(next.bestScore)})</span>` : next.cls === 'best' ? '<span class="muted"> · the engine agrees</span>' : ''}
+      <span class="muted small"> · eval ${fmt(next.eval)}</span></div>` : '<div class="rv-now muted small">Step to one of their moves (the dots) to see how it rates.</div>'}`;
+  $('#rvX').onclick = () => { R.showReview = false; renderReview(); };
+  el.querySelectorAll('[data-jump]').forEach((b) => b.onclick = () => { stopReplay(); showFrame(Math.max(0, +b.dataset.jump)); });
+}
 function renderReplayBar() {
   const R = S.replay, el = $('#replayBar');
   if (!R) { el.hidden = true; return; }
@@ -1178,6 +1251,7 @@ function renderReplayBar() {
     <span class="rp-pos">Move ${R.i} of ${fr.length - 1} · turn ${f.view.turn}</span>
     <select aria-label="Speed"><option value="0.5">½×</option><option value="1" ${R.speed === 1 ? 'selected' : ''}>1×</option><option value="2" ${R.speed === 2 ? 'selected' : ''}>2×</option><option value="4" ${R.speed === 4 ? 'selected' : ''}>4×</option></select>
     <button class="sm" data-rp="seat" title="Watch from the other player's side">View as ${esc(seats[1 - R.data.seat].name)}</button>
+    <button class="sm" data-rp="review" title="The engine rates every move ${esc(seats[R.data.seat].name)} made">${R.review ? 'Review ✓' : R.reviewing ? 'Reviewing…' : 'Engine review'}</button>
     <button class="sm ghost" data-rp="exit">Exit</button>`;
   el.querySelectorAll('[data-rp]').forEach((b) => b.onclick = () => {
     const k = b.dataset.rp;
@@ -1191,7 +1265,9 @@ function renderReplayBar() {
     if (k === 'nturn') turnJump(1);
     if (k === 'seat') loadReplay(R.id, 1 - R.data.seat).then(() => showFrame(Math.min(R.i, S.replay.data.frames.length - 1)));
     if (k === 'exit') exitReplay();
+    if (k === 'review') startReview();
   });
+  renderReview();
   el.querySelector('input[type=range]').oninput = (e) => { stopReplay(); showFrame(+e.target.value); };
   el.querySelector('select').onchange = (e) => { R.speed = +e.target.value; if (R.timer) { stopReplay(); playReplay(); } };
 }

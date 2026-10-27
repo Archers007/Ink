@@ -4,12 +4,13 @@
 import { newGame, applyAction } from '../engine.js';
 import { resolveDeck } from '../cards.js';
 
-export function replayGame(index, rec, onStep = null, { scratch = false } = {}) {
+export function replayGame(index, rec, onStep = null, { scratch = false, onBefore = null } = {}) {
   const players = rec.seats.map((p) => ({ name: p.name, deck: resolveDeck(index, { cards: p.cards }).defs }));
   const s = newGame({ seed: rec.seed, players });
   if (onStep) onStep(s, -1, null, null, []);
   for (let k = 0; k < rec.actions.length; k++) {
     const [seat, a] = rec.actions[k];
+    if (onBefore) onBefore(s, k, seat, a);                       // the position the move was made in
     const handBefore = a?.type === 'mulligan' ? [...s.players[seat].hand] : null;
     const r = applyAction(s, seat, a, scratch ? { scratch: true } : null);
     if (!r.ok) return { s, ok: false, at: k, error: r.error };      // the cards changed since: the rest doesn't replay
