@@ -1,39 +1,39 @@
-# Ink — Lorcana Deck Builder (1996 edition)
+# Ink — Lorcana deck builder and online table
 
-A Disney Lorcana deck builder, styled like the web in **1996** (and a few wilder
-themes). Best viewed in Netscape Navigator 3.0+ (or, fine, anything modern).
-
-> Theme inspired by entry #34 ("HTML 1996") from `shopify-playground/CssSwatch`.
+Build Disney Lorcana decks, then play them in the browser against a friend or the bot; the rules engine
+runs every card. One theme, "Inkwell & Gold": deep ink blues, gilt for what you can act on, Marcellus
+for names and Figtree for everything else (`public/css/ink.css`).
 
 ## What it does
 
-- **Card catalog** — 2,680 Lorcana cards (3,450+ printings) across all sets: Ravensburger's official card data
+- **Card pool** — 2,680 Lorcana cards (3,450+ printings) across all sets: Ravensburger's official card data
   (cards.disneylorcana.com) merged onto `dreamborn.ink`'s public `sanitized.db`, queried locally via `sql.js`.
-- **Deck builder** — left-click to add, right-click to remove, hover for a preview.
-  Live legality: 60 cards, ≤ 2 inks, ≥ 30 inkable, ≤ 4 copies per unique card.
-- **Sign-in (optional)** — Dreamborn email/password → Firebase Identity Toolkit →
-  Dreamborn session cookie. The cookie stays on the server so the browser doesn't
-  fight CORS. Lets you sync your owned collection and filter the catalog by what
-  you own.
-- **Import / export** — paste a decklist like `4 Mickey Mouse - Brave Little Tailor`,
-  or copy yours back out.
-- **Browse public decks** — 🃄 Decks button opens a deck browser that proxies
-  `https://dreamborn.ink/api/v2/decks` (Popular / Trending / Video / Latest),
-  with color and format filters, name/creator search, and pagination. One
-  click imports any deck into the builder (decoded from dreamborn's `pbCode`).
-- **Profile + themes** — 👤 Profile button opens a panel with account info,
-  statistics, and a theme picker. Six themes:
-  * **HTML 1996** — the default silver chrome look.
-  * **Modern Dark** — slate + neon blue, soft shadows.
-  * **Modern Light** — clean white cards, blue title bar.
-  * **Lorcana Ink** — deep purple + gold, serif, glowing borders.
-  * **Terminal** — phosphor green CRT with scanlines, monospace.
-  * **Geocities '99** — rainbow chrome, Comic Sans, peak Web 1.0.
+- **Deck builder** — click to add, right-click (or long-press) to remove, hover for the full card.
+  Live legality (60 cards, ≤ 2 inks, ≤ 4 copies, and cards that change those rules), ink curve.
+- **Accounts** — sign in with Discord or Google and your decks are saved on the server, so they follow you
+  between phone and desktop. Guests keep decks in the browser; they move into the account on first sign-in.
+- **Play** — `/play`: pick a deck tile and hit *Play … vs bot*, or create a room and send the invite link.
+- **Dreamborn collection (optional)** — link a dreamborn.ink account to filter the pool to cards you own.
+- **Import / export** — paste a decklist like `4 Mickey Mouse - Brave Little Tailor`, or copy yours back out.
+- **Browse public decks** — proxies `https://dreamborn.ink/api/v2/decks`; one click imports a deck.
 
-  Themes live in `public/css/themes.css` as CSS custom-property overrides
-  on `[data-theme="..."]`; persisted in `localStorage` as `ink.theme`.
+## Sign-in (Discord / Google)
 
-## How auth works
+`lib/accounts.js` runs the OAuth 2.0 authorization-code flow and keeps users, sessions (only a SHA-256 of the
+cookie token) and decks in `data/ink.db`. Set either provider, or both; one that isn't configured is hidden.
+
+1. **Discord**: discord.com/developers/applications → New Application → OAuth2. Add the redirect
+   `<PUBLIC_URL>/auth/discord/callback`, copy the Client ID and Secret into `DISCORD_CLIENT_ID` /
+   `DISCORD_CLIENT_SECRET`. Scope used: `identify`.
+2. **Google**: console.cloud.google.com → APIs & Services → Credentials → Create OAuth client ID (Web).
+   Authorized redirect URI `<PUBLIC_URL>/auth/google/callback`; set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
+   Scopes used: `openid profile`.
+3. Set `PUBLIC_URL` to the address people open (e.g. your Cloudflare tunnel hostname), so the redirect URI
+   matches exactly.
+
+For local testing without a provider, `INK_DEV_LOGIN=1` (never in production) adds `/auth/dev?name=…`.
+
+## How the Dreamborn collection link works
 
 Three calls, chained server-side, matching the curls in the issue:
 
@@ -61,6 +61,9 @@ Environment (all optional):
 | Var                 | Effect                                          |
 | ------------------- | ----------------------------------------------- |
 | `PORT`              | Defaults to 3000.                                |
+| `PUBLIC_URL`        | Public origin for OAuth redirects, e.g. `https://ink.example.com`. |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | Discord sign-in. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`   | Google sign-in. |
 | `CLOUDFLARED_TOKEN` | Token for the optional `cloudflared` tunnel service. |
 
 ## Run it with Docker
@@ -129,7 +132,7 @@ drag it onto the table to play it (or onto your inkwell to ink it). Portrait sho
 │  sanitized.db in-mem       │        │  /api/collection ─▶ dreamborn│
 │                            │        │  /api/decks     ─▶ dreamborn │
 │                            │        │  /api/decks/:id ─▶ dreamborn │
-│  hit counter           ◀───┼─stats──│  /api/stats     ─▶ data/ink.db│
+│  account.js            ◀───┼─/auth──│  lib/accounts.js ─▶ data/ink.db│
 └────────────────────────────┘        └──────────────────────────────┘
 ```
 
@@ -141,23 +144,24 @@ every rules field (cost, inkable, stats, classifications, keywords, text,
 flavour, FAQ) taken from Ravensburger's catalog, which is the source of truth.
 
 Site visits are recorded server-side into a small persistent SQLite DB
-(`data/ink.db`, via Node's built-in `node:sqlite`). It survives restarts and
-feeds the “Hits since 1996” counter in the header. To report bugs or request
+(`data/ink.db`, via Node's built-in `node:sqlite`), next to the accounts and their decks. It survives
+restarts (`/api/stats`). To report bugs or request
 features, use the **🐛 Issues** link in the header (or the footer).
 
 ## File map
 
 ```
-server.js              Express: auth, db cache, decks proxy, visit stats, static
-data/ink.db            Persistent SQLite visit log (created at runtime, git-ignored)
-public/index.html      Win95-style chrome shell + modals
-public/css/style.css   Base layout + Win95 primitives, themed via CSS vars
-public/css/themes.css  Alternate themes (deep-sea-lab, vaporwave, brutalist-concrete, liquid-glass)
+server.js              Express: db cache, decks proxy, visit stats, static, lobby
+lib/accounts.js        Discord / Google sign-in, sessions, /api/my/decks
+data/ink.db            Persistent SQLite: visits, users, sessions, decks (created at runtime, git-ignored)
+public/index.html      Deck builder
+public/css/ink.css     Theme tokens + shared components (all pages)
+public/css/style.css   Deck builder layout
+public/js/account.js   Account + deck storage shared by the builder and /play
 public/js/db.js        sql.js wiring, ink bitmask decoding
-public/js/auth.js      /api/login, /api/me, /api/collection
+public/js/auth.js      Dreamborn collection link: /api/login, /api/me, /api/collection
 public/js/deck.js      Deck model, import/export, legality
 public/js/search.js    Scryfall-style query parser + predicate compiler
-public/js/themes.js    Theme registry; applies persisted theme before render
 public/js/decks.js     Deck-browser modal (proxies dreamborn.ink/decks)
 public/js/app.js       Everything wired together: UI, grid, deck
 public/dreamborn-sniffer.js  Console-paste fetch/XHR/WebSocket recorder

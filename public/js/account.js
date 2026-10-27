@@ -80,8 +80,11 @@ export async function listDecks({ fresh = false } = {}) {
   return [...state.decks].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// by id, or by name (a 'local:<name>' id still finds that deck after it moved into the account)
 export async function getDeck(id) {
-  return (await listDecks()).find((d) => d.id === id || d.name === id) || null;
+  const name = String(id).replace(/^local:/, '');
+  const all = await listDecks();
+  return all.find((d) => d.id === id) || all.find((d) => d.name === name) || null;
 }
 
 export async function saveDeck({ id, name, cards }) {

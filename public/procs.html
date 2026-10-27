@@ -3,21 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ink · Card procs</title>
+<title>Ink · Cards</title>
+<meta name="theme-color" content="#080b1f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ink.css">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5' fill='%23d9b45a'/></svg>">
 <style>
-  :root { --bg: #0f1117; --panel: #171a23; --panel2: #1e2230; --line: #2a3042; --fg: #e6e8ef; --mute: #8a90a6;
-    --auto: #3ddc84; --partial: #ffc857; --manual: #ff6a5a; --vanilla: #7a8199; --accent: #7aa2ff; }
+  :root { --bg: var(--ink-deep); --panel: var(--ink-table); --panel2: var(--ink-panel); --line: rgba(241,220,160,.14); --mute: var(--muted);
+    --auto: var(--ok); --partial: #ffcf6b; --manual: var(--ember); --vanilla: #7d86b5; --accent: var(--glimmer); }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
-  header { display: flex; gap: 14px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
-  header h1 { font-size: 16px; margin: 0; white-space: nowrap; }
-  header a { color: var(--mute); text-decoration: none; } header a:hover { color: var(--fg); }
-  #q { flex: 1; max-width: 640px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-size: 14px; }
+  body { margin: 0; background: var(--page-bg); background-attachment: fixed; color: var(--fg); font: 14px/1.45 var(--font-ui); }
+  header { display: flex; gap: 24px; align-items: center; padding: 14px 28px; border-bottom: 1px solid rgba(241,220,160,.1); background: rgba(8,11,31,.6); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 2; }
+  header .tabs { padding-top: 8px; }
+  #q { flex: 1; max-width: 560px; }
   #cov { color: var(--mute); font-size: 12px; white-space: nowrap; cursor: pointer; }
-  main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 53px); }
+  main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 67px); }
   #list { overflow: auto; border-right: 1px solid var(--line); }
   #list .meta { padding: 8px 12px; color: var(--mute); font-size: 12px; border-bottom: 1px solid var(--line); }
-  .r { display: flex; gap: 8px; align-items: center; padding: 7px 12px; cursor: pointer; border-bottom: 1px solid #1b1f2b; }
+  .r { display: flex; gap: 8px; align-items: center; padding: 7px 12px; cursor: pointer; border-bottom: 1px solid rgba(241,220,160,.06); }
   .r:hover, .r.sel { background: var(--panel2); }
   .r .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .r .t { color: var(--mute); font-size: 11px; }
@@ -27,7 +32,7 @@
   .card { display: grid; grid-template-columns: 250px 1fr; gap: 22px; align-items: start; }
   .card img { width: 250px; border-radius: 12px; box-shadow: 0 8px 30px #0008; }
   .card img.land { width: 250px; }
-  h2 { margin: 0 0 4px; font-size: 22px; }
+  h2 { margin: 0 0 4px; font: 400 26px/1.15 var(--font-display); color: var(--vellum); }
   .sub { color: var(--mute); margin-bottom: 12px; }
   .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; margin-right: 6px; border: 1px solid var(--line); background: var(--panel2); }
   .pill.s-auto { color: var(--auto); border-color: #2d6b48; } .pill.s-partial { color: var(--partial); border-color: #6d5a2a; }
@@ -35,10 +40,10 @@
   .ab { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--vanilla); border-radius: 10px; padding: 12px 14px; margin: 12px 0; }
   .ab.ok { border-left-color: var(--auto); } .ab.no { border-left-color: var(--manual); }
   .ab .txt { margin-bottom: 8px; } .ab .txt b { letter-spacing: .02em; }
-  .ab .rb { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfd6ff; background: #121521; border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; }
+  .ab .rb { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfd6ff; background: rgba(8,11,31,.6); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; }
   .ab .rb .why { color: var(--manual); }
   details { margin-top: 8px; } summary { cursor: pointer; color: var(--mute); font-size: 12px; user-select: none; }
-  pre.json { margin: 6px 0 0; padding: 10px; border-radius: 6px; background: #0b0d13; overflow: auto; font: 12px/1.5 ui-monospace, Menlo, monospace; }
+  pre.json { margin: 6px 0 0; padding: 10px; border-radius: 6px; background: rgba(8,11,31,.75); overflow: auto; font: 12px/1.5 ui-monospace, Menlo, monospace; }
   .k { color: #9cdcfe; } .s { color: #ce9178; } .nm { color: #b5cea8; } .b { color: #569cd6; }
   button.copy { float: right; font-size: 11px; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--panel2); color: var(--mute); cursor: pointer; }
   button.copy:hover { color: var(--fg); }
@@ -51,15 +56,15 @@
   .ex { color: var(--mute); font-size: 12px; }
   .hint { color: var(--mute); font-size: 12px; margin: 10px 0; } .hint code { color: #cfd6ff; }
   .ico { font-style: normal; }
-  @media (max-width: 820px) { main { grid-template-columns: 1fr; height: auto; } #list { max-height: 40vh; } .card { grid-template-columns: 1fr; } }
+  @media (max-width: 820px) { header { flex-wrap: wrap; gap: 10px 18px; padding: 10px 14px; } #q { order: 9; flex-basis: 100%; max-width: none; } main { grid-template-columns: 1fr; height: auto; } #list { max-height: 40vh; } .card { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>⚡ Card procs</h1>
-  <input id="q" placeholder="Search a card… (try: hades · fn:draw · kind:static · ev:quest · status:manual · why:&quot;reveal&quot;)" autocomplete="off" autofocus>
-  <span id="cov" title="Coverage — click for stats"></span>
-  <a href="/play">▶ Play</a><a href="/">Deck builder</a>
+  <a class="brandmark" href="/">Ink</a>
+  <nav class="tabs" aria-label="Sections"><a href="/play">Play</a><a href="/">Decks</a><a href="/procs" aria-current="page">Cards</a></nav>
+  <input id="q" class="field-in" placeholder="Search a card… (try: hades · fn:draw · kind:static · ev:quest · status:manual)" autocomplete="off" autofocus>
+  <span id="cov" title="How many abilities the engine runs by itself. Click for stats."></span>
 </header>
 <main>
   <section id="list"><div class="meta">loading…</div></section>

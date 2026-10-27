@@ -1,5 +1,5 @@
 // Deck model + decklist parser/exporter + legality checks.
-// A deck is a Map<cardId, qty>. Storage = localStorage 'ink.deck.<name>'.
+// A deck is a Map<cardId, qty>. Saving and loading: account.js (the account's decks, or this browser's).
 
 import { DB, findByNameTitle, INK_ORDER } from './db.js';
 import { DECK, parseDeckRule } from '/rulebook/deck.js';
@@ -17,7 +17,8 @@ export function maxCopies(card) {
 }
 
 export const Deck = {
-  name: 'Untitled Deck',
+  id: null,           // saved deck id (account.js), null until first saved
+  name: 'Untitled deck',
   cards: new Map(),   // cardId -> qty
 };
 
@@ -131,34 +132,6 @@ export function fromText(text) {
     setQty(card.id, (Deck.cards.get(card.id) || 0) + qty);
   }
   return errs;
-}
-
-// ---------- localStorage ----------
-const KEY_PREFIX = 'ink.deck.';
-export function save(name = Deck.name) {
-  Deck.name = name;
-  const payload = { name, cards: [...Deck.cards.entries()] };
-  localStorage.setItem(KEY_PREFIX + name, JSON.stringify(payload));
-  return payload;
-}
-export function load(name) {
-  const raw = localStorage.getItem(KEY_PREFIX + name);
-  if (!raw) return false;
-  const p = JSON.parse(raw);
-  Deck.name = p.name;
-  Deck.cards = new Map(p.cards);
-  return true;
-}
-export function listSaved() {
-  const out = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(KEY_PREFIX)) out.push(k.slice(KEY_PREFIX.length));
-  }
-  return out.sort();
-}
-export function deleteSaved(name) {
-  localStorage.removeItem(KEY_PREFIX + name);
 }
 
 // Grouping for display

@@ -962,6 +962,7 @@ function renderLobby() {
     const tiles = deckTiles();
     const chosen = chosenDeck();
     const pick = deckChoice(chosen);
+    const pickOk = pick && S.deckInfo[pick.id]?.size !== 0;
     const u = account.user();
     el.innerHTML = `<div class="lobby">
       <aside class="lob-side"><a class="brandmark" href="/">Ink</a>${accountSide()}</aside>
@@ -978,7 +979,7 @@ function renderLobby() {
         <div class="lob-grid">
           <div class="panel lob-panel">
             <span class="lbl">Start a match</span>
-            <button class="btn btn-gold btn-lg" id="botBtn" ${pick ? '' : 'disabled'}>${pick ? `Play ${esc(pick.name)} vs bot` : 'Pick a deck'}</button>
+            <button class="btn btn-gold btn-lg" id="botBtn" ${pickOk ? '' : 'disabled'}>${pickOk ? `Play ${esc(pick.name)} vs bot` : pick ? `${esc(pick.name)} is empty` : 'Pick a deck'}</button>
             <div class="lob-row2"><button class="btn" id="createBtn">Create room</button>
               <span class="joinbox"><input id="joinCode" class="field-in" maxlength="5" placeholder="CODE" aria-label="Room code" value="${esc(new URL(location.href).searchParams.get('room') || '')}"><button class="btn btn-quiet" id="joinBtn">Join</button></span></div>
             <label class="check"><input type="checkbox" id="publicChk"> List my room publicly</label>
