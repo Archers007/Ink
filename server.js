@@ -24,6 +24,7 @@ import { rolesForIndex } from './game/procs/roles.js';
 import { attachLobby } from './game/lobby.js';
 import { attachAccounts } from './lib/accounts.js';
 import { attachSim } from './lib/sim.js';
+import { attachReplays } from './lib/replays.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -600,10 +601,17 @@ app.get('/api/play/demo-decks', (req, res) => {
   res.json(cardIndex.demoDecks);
 });
 
+// saved games, replays and bot training (lib/replays.js)
+const replays = attachReplays(app, { db: statsDb, dbFile: path.join(DATA_DIR, 'ink.db'), cardsDb: path.join(CACHE_DIR, 'sanitized.db'), getIndex: () => cardIndex, accounts });
+
 // deck simulations (lib/sim.js)
 attachSim(app, { db: statsDb, getIndex: () => cardIndex, accounts });
 
 const server = app.listen(PORT, () => {
   console.log(`\n  Ink ▸ http://localhost:${PORT}\n`);
 });
-attachLobby(server, { getIndex: () => cardIndex });
+attachLobby(server, {
+  getIndex: () => cardIndex,
+  userFromReq: accounts.userFromReq,
+  onGameOver: (rec) => replays.save(rec),
+});

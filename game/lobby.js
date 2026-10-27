@@ -61,7 +61,10 @@ function askSearchBot(state, seat, seen) {
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24) || 'Player';
 
-export function attachLobby(server, { getIndex, path = '/ws/play' }) {
+// userFromReq(req): the signed-in account for a connection (lib/accounts.js), stored on the seat
+// onGameOver(record): a finished game — { seed, seats:[{name, userId, bot, level, deckName, cards}], actions:[[seat, action]], winner, … };
+//   returns the replay id (lib/replays.js), sent to the room so players can watch it back
+export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq = null, onGameOver = null }) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MSG_BYTES });
   const rooms = new Map();    // code -> room
   const clients = new Map();  // token -> { token, ws:Set, name, room }
@@ -98,6 +101,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       host: room.host,
       public: room.public,
       status: room.game ? (room.game.status === 'over' ? 'over' : 'playing') : 'lobby',
+      replay: room.game?.status === 'over' ? room.rec?.id || null : null,
       seats: room.seats.map((s) => s && {
         name: s.name,
         bot: !!s.bot,
@@ -139,6 +143,22 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
     }
   }
   function touch(room) { room.lastActive = Date.now(); }
+  // every action goes through here: accepted ones join the replay, and a finished game is saved once
+  function play(room, seat, a) {
+    const g = room.game;
+    const r = applyAction(g, seat, a);
+    if (r.ok && room.rec) {
+      room.rec.actions.push([seat, a]);
+      if (g.status === 'over' && !room.rec.saved) {
+        room.rec.saved = true;
+        try {
+          room.rec.id = onGameOver?.({ ...room.rec, winner: g.winner, turns: g.turn, reason: g.endReason || '', finishedAt: Date.now() }) || null;
+        } catch (e) { console.warn('[lobby] replay save failed:', e.message); }
+        queueMicrotask(() => broadcastRoom(room));          // the room summary now carries the replay id
+      }
+    }
+    return r;
+  }
 
   function leaveRoom(cl) {
     const room = cl.room && rooms.get(cl.room);
@@ -149,7 +169,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
     if (seat >= 0) {
       if (room.game && room.game.status !== 'over') {
         // leaving mid-game = concede, but keep the seat so the result is visible
-        const r = applyAction(room.game, seat, { type: 'concede' });
+        const r = play(room, seat, { type: 'concede' });
         if (r.ok) sendGame(room, r.events);
       } else {
         room.seats[seat] = null;
@@ -187,11 +207,11 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       if (hard && wait > 0) await new Promise((r) => setTimeout(r, wait));
       room.botTimer = null;
       if (room.game !== g || g.seq !== seq) { scheduleBot(room); return; }
-      let r = applyAction(g, botSeat, act);
-      if (!r.ok && g.active === botSeat) r = applyAction(g, botSeat, { type: 'endTurn', force: true });
+      let r = play(room, botSeat, act);
+      if (!r.ok && g.active === botSeat) r = play(room, botSeat, { type: 'endTurn', force: true });
       if (!r.ok && g.pending?.seat === botSeat) {
-        r = applyAction(g, botSeat, g.pending.type === 'support' ? { type: 'support' } : { type: 'choose', skip: true });
-        if (!r.ok && g.pending?.valid?.length) r = applyAction(g, botSeat, { type: 'choose', target: g.pending.valid[0] });
+        r = play(room, botSeat, g.pending.type === 'support' ? { type: 'support' } : { type: 'choose', skip: true });
+        if (!r.ok && g.pending?.valid?.length) r = play(room, botSeat, { type: 'choose', target: g.pending.valid[0] });
       }
       if (r.ok) sendGame(room, r.events);
       touch(room);
@@ -217,7 +237,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
         code: newCode(),
         host: cl.token,
         public: !!m.public,
-        seats: [{ token: cl.token, name: cl.name, ready: false, deck: null }, null],
+        seats: [{ token: cl.token, name: cl.name, userId: cl.userId ?? null, ready: false, deck: null }, null],
         spectators: new Set(),
         game: null,
         chat: [],
@@ -246,7 +266,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       cl.room = code;
       if (seatOf(room, cl.token) < 0) {
         const free = room.seats.findIndex((s) => !s);
-        if (free >= 0 && !room.game) room.seats[free] = { token: cl.token, name: cl.name, ready: false, deck: null };
+        if (free >= 0 && !room.game) room.seats[free] = { token: cl.token, name: cl.name, userId: cl.userId ?? null, ready: false, deck: null };
         else room.spectators.add(cl.token);
       }
       touch(room);
@@ -286,7 +306,11 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       if (room.game && room.game.status !== 'over') throw new Error('A game is already running.');
       if (room.seats.some((s) => !s)) throw new Error('Waiting for an opponent — send them the invite link.');
       if (room.seats.some((s) => !s.ready || !s.deck)) throw new Error('Both players need to pick a deck and hit Ready.');
-      room.game = newGame({ players: room.seats.map((s) => ({ name: s.name, deck: s.deck.defs })) });
+      const seed = crypto.randomInt(2 ** 31);
+      room.game = newGame({ seed, players: room.seats.map((s) => ({ name: s.name, deck: s.deck.defs })) });
+      // the replay: the engine is deterministic, so the seed, both lists and every accepted action replay the game
+      room.rec = { seed, startedAt: Date.now(), actions: [], id: null,
+        seats: room.seats.map((s) => ({ name: s.name, userId: s.userId ?? null, bot: !!s.bot, level: s.level || null, deckName: s.deck.name, cards: s.deck.counts })) };
       room.botSeen = null;                                  // what the bot has seen is per game
       room.sentDefs = new Map();
       touch(room);
@@ -311,7 +335,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
       if (!room?.game) throw new Error('No game running.');
       const seat = seatOf(room, cl.token);
       if (seat < 0) throw new Error('Spectators can\'t act.');
-      const r = applyAction(room.game, seat, m.a || {});
+      const r = play(room, seat, m.a || {});
       if (!r.ok) { send(ws, { t: 'err', msg: r.error, rid: m.rid ?? null }); return; }
       touch(room);
       sendGame(room, r.events, cl.token, m.rid ?? null);
@@ -332,8 +356,10 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
   };
 
   // ---------- connections ----------
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
     let cl = null;
+    let userId = null;
+    try { userId = userFromReq?.(req)?.id ?? null; } catch { /* no account */ }
     const hits = [];
     ws.on('message', (buf) => {
       const now = Date.now();
@@ -350,6 +376,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play' }) {
           clients.set(cl.token, cl);
           cl.ws.add(ws);
           if (m.name) cl.name = cleanName(m.name);
+          if (userId != null) cl.userId = userId;
           send(ws, { t: 'welcome', token: cl.token, name: cl.name, demoDecks: getIndex()?.demoDecks || [] });
           const room = cl.room && rooms.get(cl.room);
           if (room) {

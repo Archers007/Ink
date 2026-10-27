@@ -19,6 +19,12 @@ for names and Figtree for everything else (`public/css/ink.css`).
   server (worker threads, `lib/sim.js`), optionally showing one game live, and reports matchups, the game plan,
   weaknesses (inkability, card draw, curve, removal, dead cards), strengths, combos, mulligan and per-card numbers
   (`game/analysis/`). Card and combo claims need ~99% confidence; everything carries its sample size.
+- **Replays + training** — every finished lobby game (people vs bots or each other) is saved in `data/ink.db` as
+  seed + decklists + actions (the engine is deterministic) and can be watched back from either seat (*Your games*
+  in the lobby, or *Watch replay* after a game). Every 10 new games a worker replays them all (`game/learn/`):
+  it tallies what people do with each card (ink or play, keep or ship), which the quick bot follows, and fits a
+  win-probability model that the Hard bot only uses after it beats the Hard bot without it head to head.
+  `node scripts/train-bot.mjs [--selfplay N]` trains by hand (self-play games give it data before people play).
 - **Play** — `/play`: pick a deck tile and hit *Play … vs bot*, or create a room and send the invite link.
 - **Dreamborn collection (optional)** — link a dreamborn.ink account to filter the pool to cards you own.
 - **Import / export** — paste a decklist like `4 Mickey Mouse - Brave Little Tailor`, or copy yours back out.
