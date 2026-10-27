@@ -64,7 +64,7 @@ function determinize(src, seat, memory) {
 // ---------- the moves to consider ----------
 const uniqBy = (list, key) => { const seen = new Set(); return list.filter((x) => { const k = key(x); if (seen.has(k)) return false; seen.add(k); return true; }); };
 
-function mainMoves(s, seat) {
+function mainMoves(s, seat) {   // (concede is never a candidate)
   const p = s.players[seat];
   const out = [];
   const hand = p.hand.map((iid) => s.cards[iid]);
@@ -174,6 +174,95 @@ export function handEvaluate(s, seat) {
   return score;
 }
 
+// ---------- moves in words, and as keys (copies of a card are the same move) ----------
+const nm = (s, iid) => { const c = s.cards[iid]; return c ? D(s, c).full : '?'; };
+const cid = (s, iid) => s.cards[iid]?.cardId ?? iid;
+export function moveKey(s, a) {
+  if (!a) return '';
+  switch (a.type) {
+    case 'ink': case 'quest': case 'boost': return `${a.type}:${cid(s, a.iid)}`;
+    case 'play': return `play:${cid(s, a.iid)}:${a.mode || 'ink'}:${(a.singers || a.targets || []).map((x) => cid(s, x)).join('+')}`;
+    case 'challenge': return `challenge:${cid(s, a.attacker)}>${cid(s, a.target)}`;
+    case 'move': return `move:${cid(s, a.iid)}>${cid(s, a.location)}`;
+    case 'useAbility': return `ability:${cid(s, a.iid)}:${a.index}`;
+    case 'choose': return `choose:${a.target != null ? cid(s, a.target) : a.option != null ? `o${a.option}` : a.confirm ? 'yes' : 'skip'}`;
+    case 'support': return `support:${a.target != null ? cid(s, a.target) : '-'}`;
+    default: return a.type;
+  }
+}
+export function describeMove(s, a) {
+  switch (a?.type) {
+    case 'ink': return `Ink ${nm(s, a.iid)}`;
+    case 'quest': return `Quest with ${nm(s, a.iid)}`;
+    case 'boost': return `Boost ${nm(s, a.iid)}`;
+    case 'play':
+      if (a.mode === 'sing' || a.mode === 'singTogether') return `Sing ${nm(s, a.iid)} with ${(a.singers || []).map((x) => nm(s, x)).join(' + ')}`;
+      if (a.mode === 'shift') return `Shift ${nm(s, a.iid)} onto ${(a.targets || []).map((x) => nm(s, x)).join(' + ')}`;
+      return `Play ${nm(s, a.iid)}`;
+    case 'challenge': return `Challenge ${nm(s, a.target)} with ${nm(s, a.attacker)}`;
+    case 'move': return `Move ${nm(s, a.iid)} to ${nm(s, a.location)}`;
+    case 'useAbility': return `Use ${nm(s, a.iid)}'s ability`;
+    case 'choose': return a.target != null ? `Choose ${nm(s, a.target)}` : a.option != null ? `Option ${a.option + 1}` : a.confirm ? 'Yes' : 'Skip / no';
+    case 'support': return a.target != null ? `Support ${nm(s, a.target)}` : 'No support';
+    case 'endTurn': return 'End turn';
+    case 'mulligan': return 'Mulligan';
+    case 'concede': return 'Concede';
+    default: return a?.type || '?';
+  }
+}
+
+// ---------- the search ----------
+// Scores every legal move for `seat`: re-deal the hidden cards, play the move, roll forward to the start of our next
+// turn, score; UCB1 spreads samples toward the promising moves until the budget runs out.
+// extra: a move to make sure is among the candidates (analysis of a move someone actually played).
+export function search(s, seat, memory = {}, { budgetMs = 400, minSamples = 3, maxSamples = 400, evaluator = evaluate, extra = null } = {}) {
+  observe(s, seat, memory);
+  const moves = legalMoves(s, seat);
+  if (extra && !moves.some((m) => moveKey(s, m) === moveKey(s, extra))) {
+    const t = structuredClone(s);
+    if (applyAction(t, seat, extra, SCRATCH).ok) moves.push(extra);
+  }
+  const stats = moves.map(() => ({ n: 0, sum: 0, sq: 0 }));
+  if (moves.length < 2) return { moves, stats, samples: 0, ms: 0 };
+  const stopTurn = s.turn + (s.active === seat ? 2 : 1);   // horizon: through the opponent's next turn
+  const t0 = performance.now();
+  let total = 0;
+  const sample = (k) => {
+    const g = determinize(s, seat, memory);
+    let v;
+    if (!applyAction(g, seat, moves[k], SCRATCH).ok) v = -50;
+    else if (!rollout(g, seat, stopTurn)) return;           // a rollout the heuristics couldn't finish: no data
+    else v = evaluator(g, seat);
+    stats[k].n++; stats[k].sum += v; stats[k].sq += v * v; total++;
+  };
+  for (let r = 0; r < minSamples; r++) for (let k = 0; k < moves.length; k++) sample(k);
+  while (performance.now() - t0 < budgetMs && total < maxSamples * moves.length) {
+    let best = 0, bestU = -Infinity;
+    for (let k = 0; k < moves.length; k++) {
+      const st = stats[k];
+      const u = st.n ? st.sum / st.n + 12 * Math.sqrt(Math.log(total + 1) / st.n) : Infinity;
+      if (u > bestU) { bestU = u; best = k; }
+    }
+    sample(best);
+  }
+  return { moves, stats, samples: total, ms: Math.round(performance.now() - t0) };
+}
+
+// The engine's view of a position, Stockfish-style: every candidate move ranked, each with its score in lore (the
+// expected lore lead at the start of our next turn, counting board, hand and ink as their lore worth; a win or
+// loss is ±250) and how sure it is. eval = the best move's score.
+export const LORE_UNIT = 4;                          // handEvaluate scores a lore point as 4
+export function analyze(s, seat, memory = {}, opts = {}) {
+  const r = search(s, seat, memory, opts);
+  const ranked = r.moves.map((a, k) => {
+    const st = r.stats[k];
+    const mean = st.n ? st.sum / st.n : -Infinity;
+    const sd = st.n > 1 ? Math.sqrt(Math.max(0, st.sq / st.n - mean * mean)) : 0;
+    return { action: a, key: moveKey(s, a), label: describeMove(s, a), score: Math.round((mean / LORE_UNIT) * 10) / 10, pm: Math.round(((1.96 * sd) / Math.sqrt(Math.max(1, st.n)) / LORE_UNIT) * 10) / 10, samples: st.n };
+  }).sort((a, b) => b.score - a.score);
+  return { eval: ranked[0]?.score ?? 0, moves: ranked, samples: r.samples, ms: r.ms };
+}
+
 // ---------- the bot ----------
 // evaluator: (state, seat) → score; the default is evaluate() (training compares variants with it)
 export function createSearchBot({ budgetMs = 400, minSamples = 3, maxSamples = 400, evaluator = evaluate } = {}) {
@@ -182,36 +271,13 @@ export function createSearchBot({ budgetMs = 400, minSamples = 3, maxSamples = 4
     const p = s.players[seat];
     if (s.status === 'mulligan') return p.mulligan.done ? null : { type: 'mulligan', iids: chooseMulligan(s, seat) };
     if (s.pending ? s.pending.seat !== seat : s.active !== seat) return null;
-    observe(s, seat, memory);
-    const moves = legalMoves(s, seat);
-    if (!moves.length) return botDecide(s, seat);
-    if (moves.length === 1) return moves[0];
-    // horizon: through the opponent's next turn, to the start of ours
-    const stopTurn = s.turn + (s.active === seat ? 2 : 1);
-    const stats = moves.map(() => ({ n: 0, sum: 0 }));
-    const t0 = performance.now();
-    let total = 0;
-    const sample = (k) => {
-      const g = determinize(s, seat, memory);
-      if (!applyAction(g, seat, moves[k], SCRATCH).ok) { stats[k].n++; stats[k].sum -= 50; total++; return; }
-      if (!rollout(g, seat, stopTurn)) return;             // a rollout the heuristics couldn't finish: no data
-      stats[k].n++; stats[k].sum += evaluator(g, seat); total++;
-    };
-    for (let r = 0; r < minSamples; r++) for (let k = 0; k < moves.length; k++) sample(k);
-    while (performance.now() - t0 < budgetMs && total < maxSamples * moves.length) {
-      // UCB1 over mean scores (scaled: a few lore points ≈ one unit)
-      let best = 0, bestU = -Infinity;
-      for (let k = 0; k < moves.length; k++) {
-        const st = stats[k];
-        const u = st.n ? st.sum / st.n + 12 * Math.sqrt(Math.log(total + 1) / st.n) : Infinity;
-        if (u > bestU) { bestU = u; best = k; }
-      }
-      sample(best);
-    }
-    let pick = moves.length - 1, pickMean = -Infinity;
-    stats.forEach((st, k) => { const m = st.n ? st.sum / st.n : -Infinity; if (m > pickMean) { pickMean = m; pick = k; } });
-    decide.last = { moves: moves.length, samples: total, ms: Math.round(performance.now() - t0), mean: Math.round(pickMean) };
-    return moves[pick];
+    const r = search(s, seat, memory, { budgetMs, minSamples, maxSamples, evaluator });
+    if (!r.moves.length) return botDecide(s, seat);
+    if (r.moves.length === 1) return r.moves[0];
+    let pick = r.moves.length - 1, pickMean = -Infinity;
+    r.stats.forEach((st, k) => { const m = st.n ? st.sum / st.n : -Infinity; if (m > pickMean) { pickMean = m; pick = k; } });
+    decide.last = { moves: r.moves.length, samples: r.samples, ms: r.ms, mean: Math.round(pickMean) };
+    return r.moves[pick];
   }
   return { decide };
 }

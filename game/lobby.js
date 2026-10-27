@@ -51,13 +51,14 @@ function searchWorker() {
   worker.unref();
   return worker;
 }
-function askSearchBot(state, seat, seen) {
+function askSearchBot(state, seat, seen, { analyze = false, budgetMs = HARD_BUDGET_MS } = {}) {
   return new Promise((resolve) => {
     const id = ++workerSeq;
     waiting.set(id, resolve);
-    searchWorker().postMessage({ id, state, seat, seen, budgetMs: HARD_BUDGET_MS });
+    searchWorker().postMessage({ id, state, seat, seen, budgetMs, analyze });
   });
 }
+const HINT_BUDGET_MS = 1200;
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24) || 'Player';
 
@@ -341,6 +342,24 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
       sendGame(room, r.events, cl.token, m.rid ?? null);
       if (room.game.status === 'over') broadcastRoom(room);
       scheduleBot(room);
+    },
+
+    // the engine's take on your position (games against a bot only): eval and its top moves
+    hint(cl, ws) {
+      const room = rooms.get(cl.room);
+      const g = room?.game;
+      const seat = room ? seatOf(room, cl.token) : -1;
+      if (!g || seat < 0) throw new Error('No game running.');
+      if (!room.seats.some((s) => s?.bot)) throw new Error('Hints are for games against a bot.');
+      if (g.status !== 'playing' || (g.pending ? g.pending.seat !== seat : g.active !== seat)) throw new Error('Hints are for your own turn or choice.');
+      if (room.hintBusy) return;
+      room.hintBusy = true;
+      const seq = g.seq;
+      askSearchBot(g, seat, [], { analyze: true, budgetMs: HINT_BUDGET_MS }).then((m) => {
+        room.hintBusy = false;
+        if (m.error) { send(ws, { t: 'err', msg: `The engine couldn't analyze this: ${m.error}` }); return; }
+        send(ws, { t: 'hint', seq, current: room.game === g && g.seq === seq, ...m.analysis });
+      });
     },
 
     chat(cl, ws, m) {
