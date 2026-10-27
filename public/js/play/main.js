@@ -30,6 +30,9 @@ const S = {
   conn: 'connecting',
   myDecks: [],          // the builder's decks: the account's when signed in, else this browser's
   deckInfo: {},         // tile id → { size, inks, legal, problems, cover } (/api/play/deck-check)
+  replay: null,         // watching a saved game: { id, data, i, timer, speed }
+  myGames: [],          // this player's saved games (/api/replays)
+  training: null,       // what the bot has learned from (/api/bot/training)
   quickBot: false,      // "Play … vs bot": seat the deck, ready up and start as soon as the room exists
   botLevel: localStorage.getItem('ink.play.bot') || 'hard',   // 'hard' = the search bot (game/searchbot.js), 'easy' = the quick heuristic one
 };
@@ -53,7 +56,7 @@ const net = new Net({
           if (u.searchParams.get('room') !== m.room.code) { u.searchParams.set('room', m.room.code); history.replaceState(null, '', u); }
         } else {
           const u = new URL(location.href); u.searchParams.delete('room'); history.replaceState(null, '', u);
-          S.view = null; board.render(null, {});
+          if (!S.replay) { S.view = null; board.render(null, {}); }
         }
         if (S.quickBot && m.room?.you >= 0 && !m.room.game) {
           S.quickBot = false;
@@ -64,6 +67,7 @@ const net = new Net({
         break;
       case 'game':
         Object.assign(S.defs, m.defs || {});
+        if (S.replay) break;                                  // watching a replay: the live table waits
         if (!m.view) { S.view = null; board.render(null, {}); clearTargeting(); S.selected = null; renderAll(); renderLobby(); break; }
         S.view = m.view;
         board.render(S.view, S.defs, m.events || []);
@@ -101,6 +105,7 @@ function maybeAutoJoin() {
 }
 
 async function act(a, { quiet = false } = {}) {
+  if (S.replay) return { ok: false, error: 'This is a replay.' };
   const r = await net.act(a);
   if (!r.ok && !quiet) {
     if (/^Reckless/.test(r.error) && a.type === 'endTurn') {
@@ -128,7 +133,7 @@ const you = () => V()?.you ?? -1;
 const me = () => V()?.players[you()] || null;
 const opp = () => V()?.players.find((p) => p.seat !== you()) || null;
 const D = (cardId) => S.defs[cardId];
-const myTurn = () => V()?.status === 'playing' && V().active === you() && !V().pending;
+const myTurn = () => !S.replay && V()?.status === 'playing' && V().active === you() && !V().pending;
 const readyInk = () => me()?.inkReady ?? 0;
 
 function findCard(iid) {
@@ -644,7 +649,7 @@ function renderHud() {
   const endBtn = $('#endTurn');
   endBtn.disabled = !myTurn();
   endBtn.textContent = v.status === 'over' ? 'Game over' : myTurn() ? 'End turn ⏎' : v.status === 'mulligan' ? 'Mulligan…' : v.pending ? 'Waiting…' : `${v.players[v.active].name}'s turn`;
-  $('#toolsBtn').disabled = v.status !== 'playing' || you() < 0;
+  $('#toolsBtn').disabled = v.status !== 'playing' || you() < 0 || !!S.replay;
   renderTopbar();
   renderBanner();
 }
@@ -664,7 +669,7 @@ function renderTopbar() {
     ${r?.spectators?.length ? `<span class="spec">👁 ${r.spectators.length}</span>` : ''}
     <a class="ghost" href="https://files.disneylorcana.com/CRUpdate_EN_Oct-2026.pdf" target="_blank" rel="noopener">📖 Rules</a>
     <button class="ghost" id="helpBtn">?</button>
-    ${v && v.status !== 'over' && you() >= 0 ? '<button class="ghost danger" id="concedeBtn">Concede</button>' : ''}`;
+    ${v && v.status !== 'over' && you() >= 0 && !S.replay ? '<button class="ghost danger" id="concedeBtn">Concede</button>' : ''}`;
   $('#copyInvite')?.addEventListener('click', copyInvite);
   $('#helpBtn')?.addEventListener('click', openHelp);
   $('#concedeBtn')?.addEventListener('click', () => { if (confirm('Concede this game?')) act({ type: 'concede' }); });
@@ -762,6 +767,7 @@ function closeModal() { $('#modal').hidden = true; modalFor = null; }
 
 let mullSel = new Set();
 function renderPhaseModals() {
+  if (S.replay) { if (modalFor && modalFor !== 'replayEnd') closeModal(); return; }   // a replay just shows the board
   const v = V();
   if (!v) { if (modalFor) closeModal(); return; }
   const m = me();
@@ -807,8 +813,10 @@ function renderPhaseModals() {
       openModal(`<h2 class="${won ? 'win' : 'lose'}">${you() < 0 ? `${esc(v.players[v.winner].name)} wins!` : won ? 'You win! 🏆' : 'Defeat'}</h2>
         <p>${esc(v.endReason)}.</p>
         <p class="muted">Final lore: ${v.players.map((p) => `${esc(p.name)} ${p.lore}`).join(' · ')} — ${v.turn} turns</p>
-        <div class="modal-actions"><button data-close class="ghost">Look at the board</button><button class="hot" id="rematch">Back to room</button></div>`, (el) => {
+        <p class="muted small">Games are saved as replays and help train the bot.</p>
+        <div class="modal-actions"><button data-close class="ghost">Look at the board</button>${S.room?.replay ? '<button id="watchReplay">Watch replay</button>' : ''}<button class="hot" id="rematch">Back to room</button></div>`, (el) => {
         $('#rematch', el).onclick = () => { net.send({ t: 'rematch' }); closeModal(); };
+        $('#watchReplay', el)?.addEventListener('click', () => { closeModal(); loadReplay(S.room.replay); });
       }, 'over');
     }
     return;
@@ -908,6 +916,13 @@ function chosenDeck() {
   if (want === 'paste' || tiles.some((t) => t.id === want)) return want;
   return tiles.find((t) => t.mine && S.deckInfo[t.id]?.legal)?.id || tiles.find((t) => t.demo)?.id || tiles[0]?.id || '';
 }
+async function refreshExtras() {
+  const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const [g, t] = await Promise.all([get('/api/replays'), get('/api/bot/training')]);
+  S.myGames = g?.games || [];
+  S.training = t;
+  if (!S.view) renderLobby();
+}
 async function refreshDecks() {
   try { S.myDecks = await account.listDecks(); } catch (e) { S.myDecks = []; toast(`Couldn't load your decks: ${e.message}`, 'err'); }
   const tiles = deckTiles().filter((t) => !S.deckInfo[t.id]);
@@ -989,12 +1004,17 @@ function renderLobby() {
             <div class="lob-row2 botlvl"><span class="note">Bot</span>
               <label class="check"><input type="radio" name="botLevel" value="hard" ${S.botLevel !== 'easy' ? 'checked' : ''}> Hard <span class="note">(plans ahead)</span></label>
               <label class="check"><input type="radio" name="botLevel" value="easy" ${S.botLevel === 'easy' ? 'checked' : ''}> Easy</label></div>
+            ${S.training?.model ? `<p class="note">The bots have learned from ${S.training.model.games.toLocaleString()} saved games${S.training.model.humanGames ? `, ${S.training.model.humanGames.toLocaleString()} played by people` : ''}.</p>` : ''}
             <label class="check"><input type="checkbox" id="publicChk"> List my room publicly</label>
           </div>
           <div class="panel lob-panel">
             <div class="sec-head"><span class="lbl">Open rooms</span><button class="btn btn-quiet btn-sm" id="refreshRooms" aria-label="Refresh">↻</button></div>
             ${S.publicRooms.length ? S.publicRooms.map((x) => `<button class="room-row" data-code="${x.code}"><span class="avatar">${esc((x.host || '?').slice(0, 1).toUpperCase())}</span><span class="rr-name">${esc(x.host)}'s room<small>${x.code}</small></span><span class="rr-join">Join</span></button>`).join('') : '<div class="note">No open rooms right now. Create one and tick “List my room publicly”.</div>'}
           </div>
+          ${S.myGames.length ? `<div class="panel lob-panel games-panel">
+            <div class="sec-head"><span class="lbl">Your games</span><span class="note">replays</span></div>
+            ${S.myGames.slice(0, 8).map((g) => `<button class="room-row" data-replay="${esc(g.id)}"><span class="res ${g.won ? 'w' : 'l'}">${g.won ? 'Won' : 'Lost'}</span><span class="rr-name">${esc(g.deck || 'Deck')} vs ${esc(g.oppBot ? `${g.opponent} (bot)` : g.opponent)}<small>${new Date(g.finished).toLocaleString()} · ${g.turns} turns</small></span><span class="rr-join">Watch</span></button>`).join('')}
+          </div>` : ''}
         </div>
         <p class="note foot">${S.welcome ? '' : 'Connecting to the server… '}Card data and images from dreamborn.ink. Unofficial fan project, not affiliated with Disney or Ravensburger.</p>
       </main>
@@ -1017,7 +1037,8 @@ function renderLobby() {
     $('#installBtn')?.addEventListener('click', install);
     account.bindSignInForm(el, () => location.reload());
     $('#signOutBtn')?.addEventListener('click', async () => { await account.signOut(); S.deckInfo = {}; refreshDecks(); });
-    el.querySelectorAll('.room-row').forEach((b) => b.onclick = () => nameOk() && net.send({ t: 'join', code: b.dataset.code, name: S.name }));
+    el.querySelectorAll('.room-row[data-code]').forEach((b) => b.onclick = () => nameOk() && net.send({ t: 'join', code: b.dataset.code, name: S.name }));
+    el.querySelectorAll('[data-replay]').forEach((b) => b.onclick = () => loadReplay(b.dataset.replay));
     return;
   }
 
@@ -1091,6 +1112,90 @@ async function copyInvite() {
   catch { prompt('Copy this invite link:', inviteUrl()); }
 }
 
+// ---------- replays ----------
+// A saved game played back on the table, from one seat's side (the hand that seat held; the other stays hidden).
+async function loadReplay(id, seat = null) {
+  try {
+    const r = await fetch(`/api/replays/${encodeURIComponent(id)}${seat != null ? `?seat=${seat}` : ''}`);
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Could not load that replay.');
+    stopReplay();
+    if (S.room) net.send({ t: 'leave' });
+    S.replay = { id, data: j, i: 0, timer: null, speed: 1 };
+    Object.assign(S.defs, j.defs || {});
+    const u = new URL(location.href); u.searchParams.set('replay', id); u.searchParams.delete('room'); history.replaceState(null, '', u);
+    clearTargeting(); S.selected = null; closeModal();
+    showFrame(0);
+    if (j.error) toast(j.error, 'err');
+  } catch (e) { toast(e.message, 'err'); }
+}
+function showFrame(i, step = false) {
+  const R = S.replay;
+  if (!R) return;
+  R.i = Math.max(0, Math.min(R.data.frames.length - 1, i));
+  const f = R.data.frames[R.i];
+  S.view = f.view;
+  board.render(S.view, S.defs, step ? f.events : []);
+  renderAll();
+  renderReplayBar();
+}
+function stopReplay() { if (S.replay?.timer) { clearInterval(S.replay.timer); S.replay.timer = null; } }
+function playReplay() {
+  const R = S.replay;
+  if (!R) return;
+  if (R.timer) { stopReplay(); renderReplayBar(); return; }
+  if (R.i >= R.data.frames.length - 1) R.i = 0;
+  R.timer = setInterval(() => { if (R.i >= R.data.frames.length - 1) { stopReplay(); renderReplayBar(); return; } showFrame(R.i + 1, true); }, 700 / R.speed);
+  renderReplayBar();
+}
+// jump to the first frame of the previous / next turn
+function turnJump(dir) {
+  const R = S.replay, fr = R.data.frames, t = fr[R.i].view.turn;
+  let k = R.i;
+  if (dir > 0) { while (k < fr.length - 1 && fr[k].view.turn === t) k++; }
+  else { while (k > 0 && fr[k].view.turn === t) k--; const t2 = fr[k].view.turn; while (k > 0 && fr[k - 1].view.turn === t2) k--; }
+  showFrame(k);
+}
+function exitReplay() {
+  stopReplay();
+  S.replay = null; S.view = null;
+  board.render(null, {});
+  const u = new URL(location.href); u.searchParams.delete('replay'); history.replaceState(null, '', u);
+  $('#replayBar').hidden = true;
+  renderAll(); renderLobby(); refreshExtras();
+}
+function renderReplayBar() {
+  const R = S.replay, el = $('#replayBar');
+  if (!R) { el.hidden = true; return; }
+  const fr = R.data.frames, f = fr[R.i];
+  const seats = R.data.seats;
+  el.hidden = false;
+  el.innerHTML = `<span class="rp-title">Replay · ${esc(seats[0].name)} vs ${esc(seats[1].name)}</span>
+    <button class="sm" data-rp="first" aria-label="Start">⏮</button><button class="sm" data-rp="pturn" title="Previous turn">« Turn</button><button class="sm" data-rp="prev" aria-label="Back one move">◀</button>
+    <button class="sm hot" data-rp="play">${R.timer ? '❚❚ Pause' : '▶ Play'}</button>
+    <button class="sm" data-rp="next" aria-label="Forward one move">▶</button><button class="sm" data-rp="nturn" title="Next turn">Turn »</button><button class="sm" data-rp="last" aria-label="End">⏭</button>
+    <input type="range" min="0" max="${fr.length - 1}" value="${R.i}" aria-label="Move">
+    <span class="rp-pos">Move ${R.i} of ${fr.length - 1} · turn ${f.view.turn}</span>
+    <select aria-label="Speed"><option value="0.5">½×</option><option value="1" ${R.speed === 1 ? 'selected' : ''}>1×</option><option value="2" ${R.speed === 2 ? 'selected' : ''}>2×</option><option value="4" ${R.speed === 4 ? 'selected' : ''}>4×</option></select>
+    <button class="sm" data-rp="seat" title="Watch from the other player's side">View as ${esc(seats[1 - R.data.seat].name)}</button>
+    <button class="sm ghost" data-rp="exit">Exit</button>`;
+  el.querySelectorAll('[data-rp]').forEach((b) => b.onclick = () => {
+    const k = b.dataset.rp;
+    if (k === 'play') return playReplay();
+    stopReplay();
+    if (k === 'first') showFrame(0);
+    if (k === 'last') showFrame(fr.length - 1);
+    if (k === 'prev') showFrame(R.i - 1);
+    if (k === 'next') showFrame(R.i + 1, true);
+    if (k === 'pturn') turnJump(-1);
+    if (k === 'nturn') turnJump(1);
+    if (k === 'seat') loadReplay(R.id, 1 - R.data.seat).then(() => showFrame(Math.min(R.i, S.replay.data.frames.length - 1)));
+    if (k === 'exit') exitReplay();
+  });
+  el.querySelector('input[type=range]').oninput = (e) => { stopReplay(); showFrame(+e.target.value); };
+  el.querySelector('select').onchange = (e) => { R.speed = +e.target.value; if (R.timer) { stopReplay(); playReplay(); } };
+}
+
 // ---------- toasts ----------
 function toast(msg, kind = '') {
   const el = document.createElement('div');
@@ -1122,6 +1227,13 @@ window.addEventListener('ink:installable', () => { if (!S.view) renderLobby(); }
 bindChat($('#gameChat'));
 window.addEventListener('keydown', (e) => {
   if (e.target.matches('input, textarea, select')) return;
+  if (S.replay) {
+    if (e.key === 'ArrowRight') showFrame(S.replay.i + 1, true);
+    else if (e.key === 'ArrowLeft') showFrame(S.replay.i - 1);
+    else if (e.key === ' ') { e.preventDefault(); playReplay(); }
+    else if (e.key === 'Escape') exitReplay();
+    return;
+  }
   if (e.key === 'Escape') {
     if (S.targeting) cancelTargeting();
     else if (!$('#modal').hidden && modalFor !== 'mulligan' && modalFor !== 'peek') closeModal();
@@ -1190,6 +1302,9 @@ account.load().then(({ user, migrated, signin }) => {
   if (signin === 'failed') toast("Sign-in didn't go through. Try again, or play as a guest.", 'err');
   else if (migrated) toast(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} saved in this browser to ${account.signedIn() ? 'your account' : 'your guest account on the Ink server'}.`);
   refreshDecks();
+  refreshExtras();
+  const rp = new URL(location.href).searchParams.get('replay');
+  if (rp) loadReplay(rp);
 });
 // debug handle for automated tests
 window.__ink = { S, board, net, act };

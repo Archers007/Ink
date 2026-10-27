@@ -3,6 +3,7 @@
 // hit (songs sung for free by a character when one can) → profitable challenges → quest → end turn.
 
 import { D, readyInk, playBlocked, shiftCondOk } from './engine.js';
+import { cardHabit } from './learn/model.js';
 import {
   LORE_TO_WIN, questBlocker, singerBlocker, attackerBlocker, defenderBlocker, challengeDamage,
   effWp, effLore, hasKw, shiftOptions, shiftOntoOk, shiftDiscardOk,
@@ -27,11 +28,20 @@ function spellUseful(s, seat, d) {
   return true;
 }
 
+// what people do with a card once enough games show it (learn/model.js): share of times they inked it / shipped it
+const MIN_HABIT = 15;
+function habitShare(d, a, b) {
+  const h = cardHabit(d.full);
+  return h && h[a] + h[b] >= MIN_HABIT ? h[a] / (h[a] + h[b]) : null;
+}
+
 export function chooseMulligan(s, seat) {
   const hand = cardsIn(s, s.players[seat].hand);
   const cheap = hand.filter((c) => D(s, c).cost <= 3).length;
   return hand.filter((c) => {
     const d = D(s, c);
+    const ship = habitShare(d, 'shipped', 'kept');
+    if (ship != null && (ship >= 0.65 || ship <= 0.2)) return ship >= 0.65;   // people agree on this card
     return d.cost >= 6 || (cheap < 3 && d.cost >= 5) || isSpell(d) && d.cost >= 4;
   }).map((c) => c.iid);
 }
@@ -54,6 +64,8 @@ function chooseInk(s, seat) {
     if (d.cost <= inkNext) score -= 20;                 // castable soon — keep it
     if ((dupes.get(c.cardId) || 0) > 1) score += 8;
     score += d.cost * 0.5;
+    const inks = habitShare(d, 'ink', 'play');                  // people mostly ink it, or mostly play it
+    if (inks != null) score += (inks - 0.5) * 30;
     if (score > bestScore) { bestScore = score; best = c; }
   }
   return best?.iid ?? null;

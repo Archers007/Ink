@@ -14,6 +14,7 @@
 
 import { applyAction, D, readyInk } from './engine.js';
 import { botDecide, shiftPlan, chooseMulligan } from './bot.js';
+import { learnedValue } from './learn/model.js';
 import { questBlocker, attackerBlocker, singerBlocker, effLore, effStr, effWp, shiftOptions } from '../public/js/play/rules.js';
 
 const SCRATCH = { scratch: true };
@@ -159,7 +160,13 @@ function sideValue(s, p) {
   return v;
 }
 const loreValue = (n) => n * 4 + Math.max(0, n - 14) * 3;
+// the score: hand-tuned, plus a share of the learned win-probability model once a head-to-head test showed it
+// helps (learn/train.js)
 export function evaluate(s, seat) {
+  if (s.status === 'over') return s.winner === seat ? 1000 : s.winner == null ? 0 : -1000;
+  return handEvaluate(s, seat) + (learnedValue(s, seat) ?? 0);
+}
+export function handEvaluate(s, seat) {
   if (s.status === 'over') return s.winner === seat ? 1000 : s.winner == null ? 0 : -1000;
   const me = s.players[seat];
   let score = loreValue(me.lore) + sideValue(s, me);
@@ -168,7 +175,8 @@ export function evaluate(s, seat) {
 }
 
 // ---------- the bot ----------
-export function createSearchBot({ budgetMs = 400, minSamples = 3, maxSamples = 400 } = {}) {
+// evaluator: (state, seat) → score; the default is evaluate() (training compares variants with it)
+export function createSearchBot({ budgetMs = 400, minSamples = 3, maxSamples = 400, evaluator = evaluate } = {}) {
   function decide(s, seat, memory = {}) {
     if (s.status === 'over') return null;
     const p = s.players[seat];
@@ -187,7 +195,7 @@ export function createSearchBot({ budgetMs = 400, minSamples = 3, maxSamples = 4
       const g = determinize(s, seat, memory);
       if (!applyAction(g, seat, moves[k], SCRATCH).ok) { stats[k].n++; stats[k].sum -= 50; total++; return; }
       if (!rollout(g, seat, stopTurn)) return;             // a rollout the heuristics couldn't finish: no data
-      stats[k].n++; stats[k].sum += evaluate(g, seat); total++;
+      stats[k].n++; stats[k].sum += evaluator(g, seat); total++;
     };
     for (let r = 0; r < minSamples; r++) for (let k = 0; k < moves.length; k++) sample(k);
     while (performance.now() - t0 < budgetMs && total < maxSamples * moves.length) {
