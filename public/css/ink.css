@@ -81,5 +81,5 @@
 /* the reduced-experience / info strip (portrait warning, sign-in notices) */
 .strip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(74, 58, 20, .55); border: 1px solid rgba(217, 180, 90, .35); font: 600 12.5px/1.35 var(--font-ui); color: var(--vellum-2); }
 .strip.bad { background: rgba(90, 30, 34, .55); border-color: rgba(255, 143, 134, .4); color: #ffd6d2; }
-.strip > span { flex: 1; }
+.strip > .txt { flex: 1; }
 .strip button { background: none; border: 0; color: var(--muted); font-size: 15px; cursor: pointer; padding: 2px 4px; }

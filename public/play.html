@@ -34,6 +34,8 @@
     <div class="plate opp" id="plateOpp"></div>
     <div class="plate me" id="plateMe"></div>
     <div id="banner" hidden></div>
+    <div id="pstrip" class="strip"><span aria-hidden="true">⟳</span><span class="txt">Portrait view: fewer details on the board. Rotate for the full table.</span><button id="pstripX" aria-label="Dismiss">✕</button></div>
+    <div id="midline"></div>
     <div id="quick" hidden></div>
     <aside id="inspector" hidden></aside>
     <div id="preview" hidden></div>
@@ -55,7 +57,32 @@
     </div>
   </div>
 
-  <div id="rotate"><div><span class="ph">📱</span><b>Turn your phone sideways</b><p class="muted">Ink plays in landscape, like a table.</p></div></div>
+  <div id="rotate" role="dialog" aria-labelledby="rotTitle">
+    <svg class="rot-ico" width="150" height="130" viewBox="0 0 150 130" aria-hidden="true">
+      <rect x="52" y="14" width="46" height="82" rx="8" fill="none" stroke="#a9b0d6" stroke-width="2.5" stroke-dasharray="4 4" opacity=".6"/>
+      <g class="rot-phone"><rect x="52" y="29" width="46" height="82" rx="8" fill="#141a44" stroke="#d9b45a" stroke-width="2.5"/><rect x="58" y="38" width="34" height="64" rx="3" fill="#1d2766"/></g>
+      <path d="M108 26 a40 40 0 0 1 16 30" fill="none" stroke="#d9b45a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M118 52 l6 6 l5 -8" fill="none" stroke="#d9b45a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="rot-copy">
+      <span class="lbl">Best played sideways</span>
+      <h1 id="rotTitle" class="display">Turn your phone</h1>
+      <p>The table is built for landscape. It switches on its own as soon as you rotate.</p>
+    </div>
+    <div class="rot-warn">
+      <span class="lbl">In portrait you'll get</span>
+      <ul>
+        <li><b>−</b>Smaller cards: hold one to read it</li>
+        <li><b>−</b>No game log or discard piles on the table (they're in ☰ and the banners)</li>
+        <li><b>−</b>3 cards per row at a time; swipe a row for more</li>
+        <li><b>−</b>Drag-to-challenge is off; tap a target instead</li>
+      </ul>
+    </div>
+    <div class="rot-actions">
+      <button class="btn btn-quiet btn-lg" id="portraitOk">Play in portrait anyway</button>
+      <label class="check"><input type="checkbox" id="portraitAlways"> Don't ask again on this device</label>
+    </div>
+  </div>
   <div id="modal" hidden></div>
   <div id="toasts"></div>
 

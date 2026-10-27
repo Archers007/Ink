@@ -250,6 +250,7 @@ function clickZone(z) {
 }
 
 function canDrag(info) {
+  if (document.body.classList.contains('pmode')) return false;   // portrait: tap a target instead (rotate prompt says so)
   if (!myTurn() || S.targeting || info.seat !== you() || !info.iid) return false;
   if (info.zone === 'hand') return true;
   return info.zone === 'play' && D(info.cardId)?.type === 'character';
@@ -613,7 +614,7 @@ function plate(p, isMe) {
   return `
     <div class="pl-head">
       <span class="dial ${isMe ? 'mine' : ''} ${p.lore >= 15 ? 'close' : ''}" style="--p:${pct}" title="Lore — first to ${LORE_TO_WIN} wins"><b>${p.lore}</b></span>
-      <div class="pl-who"><span class="pl-name">${esc(p.name)}</span><span class="pl-sub">${p.lore} / ${LORE_TO_WIN} lore${V().starting === p.seat ? ' · <span class="first" title="Went first">1st</span>' : ''}</span></div>
+      <div class="pl-who"><span class="pl-name">${esc(p.name)}</span><span class="pl-sub">${p.lore} / ${LORE_TO_WIN} lore${V().starting === p.seat ? '<span class="first" title="Went first"> · 1st</span>' : ''}</span></div>
       ${active ? '<span class="turn-tag">Turn</span>' : ''}
     </div>
     <div class="inkbar" title="Ink ready / total">${inks}<span class="ink-n">Ink <b>${p.inkReady}</b>/${p.inkTotal}${p.inkDrops ? ` <em title="Ink drops — each pays 1 ink">+${p.inkDrops}</em>` : ''}</span></div>
@@ -652,6 +653,8 @@ function renderTopbar() {
   const v = V();
   const r = S.room;
   const turn = v ? (v.status === 'mulligan' ? 'Mulligan' : v.status === 'over' ? 'Game over' : `Turn ${v.turn} · ${v.active === you() ? '<b class="mine">Your turn</b>' : esc(v.players[v.active].name) + "'s turn"}`) : '';
+  const mid = $('#midline');
+  if (mid) mid.textContent = v ? (v.status === 'mulligan' ? 'Mulligan' : v.status === 'over' ? 'Game over' : `${v.active === you() ? 'Your turn' : `${v.players[v.active].name}'s turn`} · ${v.turn}`) : '';
   el.innerHTML = `
     <a href="/" class="brand" title="Back to the deck builder">Ink ▸ Play</a>
     ${r ? `<span class="code" title="Room code">Room <b>${r.code}</b></span><button class="ghost" id="copyInvite">🔗 Copy invite</button>` : ''}
@@ -1123,20 +1126,53 @@ window.addEventListener('keydown', (e) => {
 });
 function updateInsets() {
   const hud = !$('#hud').hidden;
+  document.body.classList.toggle('ingame', hud);
+  if (isPortraitPlay()) {
+    const top = ($('#plateOpp').getBoundingClientRect().bottom || 120) + 6;
+    document.body.style.setProperty('--ptop', `${top}px`);
+    board.setInsets(hud ? { top, bottom: 0 } : {});
+    placeMidline();
+    return;
+  }
   if (isMobile()) { board.setInsets(hud ? { left: 124, right: 112 } : { left: 0, right: 0 }); return; }   // the two rails (play.css)
   const narrow = innerWidth < 1100;
   board.setInsets(hud ? { left: narrow ? 216 : 262, right: narrow ? 248 : 318 } : { left: 0, right: 0 });
 }
-// phones (a coarse pointer, or a short window): the MTG Arena-style layout in play.css (body.mobile); portrait asks to rotate
+// phones (a coarse pointer, or a short window): the MTG Arena-style layout in play.css (body.mobile).
+// Portrait asks to rotate; "Play in portrait anyway" switches to the reduced lane layout (body.pmode, board.setPortrait).
 const mobileMq = matchMedia('(pointer: coarse) and (max-width: 1100px), (max-height: 520px)');
 const portraitMq = matchMedia('(orientation: portrait)');
+const PORTRAIT_ALWAYS = 'ink.portrait.always';
+const PORTRAIT_SESSION = 'ink.portrait.ok';
+const STRIP_SESSION = 'ink.portrait.strip';
+const portraitAccepted = () => { try { return localStorage.getItem(PORTRAIT_ALWAYS) === '1' || sessionStorage.getItem(PORTRAIT_SESSION) === '1'; } catch { return false; } };
 function isMobile() { return document.body.classList.contains('mobile'); }
+function isPortraitPlay() { return document.body.classList.contains('pmode'); }
 function applyDevice() {
-  document.body.classList.toggle('mobile', mobileMq.matches);
-  document.body.classList.toggle('portrait', portraitMq.matches);
-  board.setMobile(mobileMq.matches);
+  const mob = mobileMq.matches, por = portraitMq.matches;
+  document.body.classList.toggle('mobile', mob);
+  document.body.classList.toggle('portrait', por);
+  const pm = mob && por && portraitAccepted();
+  document.body.classList.toggle('pmode', pm);
+  let strip = false;
+  try { strip = pm && sessionStorage.getItem(STRIP_SESSION) !== '1'; } catch { strip = pm; }
+  document.body.classList.toggle('pstrip', strip);
+  if (strip) requestAnimationFrame(() => document.body.style.setProperty('--strip-h', `${$('#pstrip').offsetHeight}px`));
+  board.setMobile(mob);
+  board.setPortrait(pm);
   updateInsets();
 }
+// the midline pill ("Your turn · 7") sits on the table's centre line
+function placeMidline() {
+  const el = $('#midline');
+  if (!el || !isPortraitPlay()) return;
+  el.style.top = `${board.toScreen({ x: 0, y: 0, z: 0 }).y}px`;
+}
+$('#portraitOk').onclick = () => {
+  try { sessionStorage.setItem(PORTRAIT_SESSION, '1'); if ($('#portraitAlways').checked) localStorage.setItem(PORTRAIT_ALWAYS, '1'); } catch { /* private mode: this page only */ }
+  applyDevice();
+};
+$('#pstripX').onclick = () => { try { sessionStorage.setItem(STRIP_SESSION, '1'); } catch { /* fine */ } document.body.classList.remove('pstrip'); updateInsets(); };
 window.addEventListener('resize', () => { applyDevice(); if (S.selected) positionQuick(S.selected); });
 mobileMq.addEventListener('change', applyDevice);
 portraitMq.addEventListener('change', applyDevice);

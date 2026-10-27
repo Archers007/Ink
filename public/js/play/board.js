@@ -18,13 +18,22 @@ const W = CARD_W, H = CARD_H;
 const GAP = 1.1;
 
 // Table layout (z mirrored for the far player).
-export const L = {
+const DESK = {
   charZ: 6.4, rowZ: 16.6, handZ: 35, oppHandZ: 26.5,
   deckX: 31, discardX: 39.5, inkX: -40.5, inkStep: 1.15, inkW: 13,
   loreX: -42, loreZ: 6.8,
   rowMinX: -20, rowMaxX: 25, charMinX: -35, charMaxX: 36,
   tableW: 104, tableD: 78,
 };
+// Portrait (PvZ Heroes-style lanes): narrow rows that swipe sideways past 3 cards; the deck, discard and inkwell
+// leave the table (the HUD banners carry their counts), so cards fly off the edges to reach them.
+const PORT = {
+  ...DESK,
+  charZ: 5.6, rowZ: 15.4, handZ: 28.5,
+  deckX: 26, discardX: 26, inkX: -32,
+  rowMinX: -13.8, rowMaxX: 13.8, charMinX: -13.8, charMaxX: 13.8,
+};
+export let L = DESK;
 
 // ---------- geometry ----------
 function roundedRectShape(w, h, r) {
@@ -229,6 +238,8 @@ export class Board {
     this.scene.add(this.zoneOutlines);
     this.floaters = [];
     this.ui = { selected: null, targets: new Set(), multi: new Set(), targetColor: 0x6fa8ff };
+    this.rowScroll = {};      // portrait lanes: how far each row is swiped (world units)
+    this.rowMax = {};
     this.view = null;
     this.defs = {};
     this.hover = null;
@@ -248,6 +259,25 @@ export class Board {
   setInsets(insets) { this.insets = insets; this.resize(); }
   // phones: frame the table closer (less depth to fit, the hand hugging the bottom edge), lift a tapped hand card
   setMobile(on) { if (this.mobile === !!on) return; this.mobile = !!on; this.resize(); if (this.view) this.render(this.view, this.defs, []); }
+  rowKey(seat, z) { return `${seat}:${Math.abs(z) < (L.charZ + L.rowZ) / 2 ? 0 : 1}`; }
+  // which lane a screen point is over (portrait swipes), or null
+  laneAt(ev) {
+    const p = this.planePoint(ev, 0);
+    if (!p || Math.abs(p.z) > L.rowZ + H / 2 + 1) return null;
+    const me = this.view?.you >= 0 ? this.view.you : 0;
+    const seat = p.z > 0 ? me : 1 - me;
+    return { key: this.rowKey(seat, p.z), x: p.x };
+  }
+  setPortrait(on) {
+    if (this.portrait === !!on) return;
+    this.portrait = !!on;
+    L = this.portrait ? PORT : DESK;
+    this.rowScroll = {};
+    for (const s of this.sides) if (s) this.scene.remove(s.group);
+    this.sides = [];
+    this.resize();
+    if (this.view) this.render(this.view, this.defs, []);
+  }
   resize() {
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
@@ -255,9 +285,23 @@ export class Board {
     this.camera.aspect = w / h;
     // Fit the play surface into the gap between the HUD panels (left plates,
     // right log) and shift the view so the table is centred in that gap.
-    const { left = 0, right = 0 } = this.insets || {};
-    const free = Math.max(320, w - left - right);
+    const { left = 0, right = 0, top = 0, bottom = 0 } = this.insets || {};
     const fovV = THREE.MathUtils.degToRad(this.camera.fov);
+    if (this.portrait) {
+      // fit the lane width (≈ 3 cards) across, and the rows from the far row to the hand down the free height
+      const freeH = Math.max(240, h - top - bottom);
+      const tanW = Math.tan(fovV / 2) * this.camera.aspect;
+      const tanV = Math.tan(fovV / 2) * (freeH / h);
+      const dist = Math.max(31 / (2 * tanW), 50 / (2 * tanV));
+      const elev = THREE.MathUtils.degToRad(70);
+      const focusZ = 4.5;
+      this.camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist + focusZ);
+      this.camera.lookAt(0, 0, focusZ);
+      this.camera.setViewOffset(w, h, 0, (bottom - top) / 2, w, h);
+      this.camera.updateProjectionMatrix();
+      return;
+    }
+    const free = Math.max(320, w - left - right);
     const tanH = Math.tan(fovV / 2) * this.camera.aspect * (free / w);
     const needW = 92 / (2 * tanH);
     const needH = (this.mobile ? 62 : 74) / (2 * Math.tan(fovV / 2));
@@ -342,6 +386,8 @@ export class Board {
 
   updateSide(seat, sign, pl, isActive) {
     const p = this.sideProps(seat, sign);
+    p.group.visible = !this.portrait;
+    if (this.portrait) return;
     const n = pl.deckCount;
     p.deck.visible = n > 0;
     p.deck.scale.y = Math.max(0.05, n * 0.06);
@@ -426,8 +472,8 @@ export class Board {
       this.layoutRow(chars.map((c) => ({ c })), sign * L.charZ, L.charMinX, L.charMaxX, seat, sign, get, put, spawnHint, anchor);
       this.layoutRow(row2, sign * L.rowZ, L.rowMinX, L.rowMaxX, seat, sign, get, put, spawnHint, anchor);
 
-      // ---- discard (all cards, stacked) ----
-      pl.discard.forEach((c, i) => {
+      // ---- discard (all cards, stacked; off the table in portrait) ----
+      if (!this.portrait) pl.discard.forEach((c, i) => {
         const o = get(c.iid, spawnHint.has(c.iid) ? anchor(spawnHint.get(c.iid).seat, spawnHint.get(c.iid).zone) : anchor(seat, 'hand'));
         o.setFace(c.cardId);
         o.info = { iid: c.iid, zone: 'discard', seat, cardId: c.cardId };
@@ -437,7 +483,7 @@ export class Board {
       });
 
       // ---- inkwell (facedown slots; ready ones first) ----
-      for (let i = 0; i < pl.inkTotal; i++) {
+      for (let i = 0; i < (this.portrait ? 0 : pl.inkTotal); i++) {
         const key = `ink:${seat}:${i}`;
         const o = get(key, anchor(seat, 'hand'));
         o.setFace(null);
@@ -451,8 +497,9 @@ export class Board {
       // ---- hand ----
       if (mine && pl.hand) {
         const n = pl.hand.length;
-        const step = Math.min(W * 1.22 + 0.4, 70 / Math.max(1, n));
-        const handZ = this.mobile ? L.handZ - 3.5 : L.handZ;                       // phones: the hand sits higher, fully on screen
+        const P = this.portrait;
+        const step = Math.min(W * 1.22 + 0.4, (P ? 21 : 70) / Math.max(1, n));      // portrait: a tight fan along the bottom edge
+        const handZ = P ? L.handZ : this.mobile ? L.handZ - 3.5 : L.handZ;          // phones: the hand sits higher, fully on screen
         pl.hand.forEach((c, i) => {
           const o = get(c.iid, anchor(seat, 'deck'));
           o.setFace(c.cardId);
@@ -465,11 +512,11 @@ export class Board {
           o.setProxy({ x, y: 8 + i * 0.05, z: handZ + arc, tilt: 0.55, scale: 1.22 });
           if (this.drag?.obj === o) return;
           put(o, {
-            x, y: 8 + i * 0.05 + (lifted ? 4 : 0), z: handZ + arc + (lifted ? -8.5 : 0),
-            yaw: 0, tilt: 0.55, flip: 0, scale: hovered || this.ui.selected === c.iid ? 1.55 : 1.22,
+            x, y: 8 + i * 0.05 + (lifted ? 4 : 0), z: handZ + arc + (lifted ? (P ? -7 : -8.5) : 0),
+            yaw: 0, tilt: 0.55, flip: 0, scale: hovered || this.ui.selected === c.iid ? (P ? 1.4 : 1.55) : (P ? 1.08 : 1.22),
           });
         });
-      } else {
+      } else if (!this.portrait) {
         const n = pl.handCount;
         const step = Math.min(3.2, 36 / Math.max(1, n));
         for (let i = 0; i < n; i++) {
@@ -503,9 +550,19 @@ export class Board {
     const fw = ({ c }) => (side(c) ? H : W) + GAP + (c.under?.length ? 0.8 : 0);
     const total = entries.reduce((a, e) => a + fw(e), 0) - GAP;
     const span = maxX - minX;
-    const squeeze = total > span ? span / total : 1;
     const center = (minX + maxX) / 2;
+    let squeeze = total > span ? span / total : 1;
     let x = center - (Math.min(total, span)) / 2;
+    if (this.portrait) {
+      // no squeezing: past 3 cards the row scrolls (swipe it), clamped so the row never leaves the lane
+      const key = this.rowKey(seat, z);
+      const max = Math.max(0, total - span);
+      const sc = Math.min(max, Math.max(0, this.rowScroll[key] || 0));
+      this.rowScroll[key] = sc;
+      this.rowMax[key] = max;
+      squeeze = 1;
+      x = total > span ? minX - sc : center - total / 2;
+    }
     for (const e of entries) {
       const c = e.c;
       const w = fw(e) * squeeze;
@@ -651,7 +708,7 @@ export class Board {
       objs.push(c.front, c.back);
       if (c.proxy?.visible && c.info?.zone === 'hand') objs.push(c.proxy);
     }
-    for (const s of this.sides) if (s) objs.push(s.deck, s.discardZone, s.inkZone, ...s.lore.children);
+    if (!this.portrait) for (const s of this.sides) if (s) objs.push(s.deck, s.discardZone, s.inkZone, ...s.lore.children);
     const hits = this.raycaster.intersectObjects(objs, false);
     for (const h of hits) {
       if (h.object.userData.card) return { card: h.object.userData.card };
@@ -671,6 +728,17 @@ export class Board {
   bindPointer() {
     const el = this.canvas;
     el.addEventListener('pointermove', (ev) => {
+      const sw = this.swipe;
+      if (sw) {
+        const dx = ev.clientX - sw.sx, dy = ev.clientY - sw.sy;
+        if (!sw.active && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) && (this.rowMax[sw.key] || 0) > 0) { sw.active = true; clearTimeout(this.pressTimer); }
+        if (sw.active) {
+          const p = this.planePoint(ev, 0);
+          if (p) this.rowScroll[sw.key] = sw.start - (p.x - sw.x0);
+          if (!this.swipeRaf) this.swipeRaf = requestAnimationFrame(() => { this.swipeRaf = 0; if (this.view) this.render(this.view, this.defs, []); });
+          return;
+        }
+      }
       if (this.drag) {
         const d = this.drag;
         if (!d.active && Math.hypot(ev.clientX - d.sx, ev.clientY - d.sy) > 7) {
@@ -699,6 +767,12 @@ export class Board {
         el.setPointerCapture(ev.pointerId);
       }
       this.downHit = hit;
+      // portrait: a sideways swipe on a lane scrolls it (a tap still selects)
+      this.swipe = null;
+      if (this.portrait && (!hit?.card || hit.card.info?.zone === 'play')) {
+        const lane = this.laneAt(ev);
+        if (lane) { this.swipe = { key: lane.key, sx: ev.clientX, sy: ev.clientY, x0: lane.x, start: this.rowScroll[lane.key] || 0, active: false }; el.setPointerCapture(ev.pointerId); }
+      }
       // hold a card (no drag) → its full breakdown; a tap → its quick options
       clearTimeout(this.pressTimer);
       this.pressFired = false;
@@ -707,6 +781,9 @@ export class Board {
     });
     el.addEventListener('pointerup', (ev) => {
       clearTimeout(this.pressTimer);
+      const swiped = this.swipe?.active;
+      this.swipe = null;
+      if (swiped) { this.drag = null; return; }
       if (this.pressFired) { this.pressFired = false; this.drag = null; return; }   // the hold already did its thing
       const d = this.drag;
       if (d?.active) {
