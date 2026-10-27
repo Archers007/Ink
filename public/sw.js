@@ -1,13 +1,13 @@
 // Ink service worker. The game runs on the server over a WebSocket, so there is no offline play — this makes the app
 // installable and quick to open: the shell (HTML, CSS, JS, three.js) is precached and refreshed in the background,
 // card images and fonts are cached as they're seen. /api and /ws are never touched.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL_CACHE = `ink-shell-${VERSION}`;
 const CARDS_CACHE = 'ink-cards-v1';
 const FONTS_CACHE = 'ink-fonts-v1';
 const KEEP = new Set([SHELL_CACHE, CARDS_CACHE, FONTS_CACHE]);
 const SHELL = [
-  '/play', '/css/play.css', '/js/pwa.js', '/js/play/main.js', '/js/play/board.js', '/js/play/net.js', '/js/play/rules.js', '/js/play/textures.js',
+  '/play', '/css/ink.css', '/css/play.css', '/js/pwa.js', '/js/account.js', '/js/play/main.js', '/js/play/board.js', '/js/play/net.js', '/js/play/rules.js', '/js/play/textures.js',
   '/vendor/three/build/three.module.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png',
 ];
 const CARDS_MAX = 600;                                     // card images kept (oldest dropped first)

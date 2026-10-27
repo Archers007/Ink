@@ -1,12 +1,11 @@
 // Glue: boot DB, render catalog, render deck, wire UI, talk to auth.
 
-import './themes.js';                 // applies persisted theme before render
 import { DB, loadDB, INK_ORDER, inkSymbol, canonicalPrintings } from './db.js';
 import * as Deck from './deck.js';
 import * as Auth from './auth.js';
 import { compileQuery, HELP_HTML } from './search.js';
-import { THEMES, currentTheme, applyTheme } from './themes.js';
 import * as Decks from './decks.js';
+import * as account from './account.js';
 
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -26,57 +25,114 @@ boot().catch((err) => {
 });
 
 async function boot() {
-  setStatus('DB: loading SQLite…');
-  await loadDB((stage, msg) => setStatus('DB: ' + msg));
+  setStatus('Loading cards…');
+  const acct = account.load();
+  await loadDB((stage, msg) => setStatus(msg));
 
   state.catalog = canonicalPrintings(DB.allCards);
   applyFilters();
 
-  setStatus('DB: ready');
-  $('#cardCount').textContent = 'Cards: ' + DB.allCards.length.toLocaleString();
-  $('#setCount').textContent  = 'Sets: '  + new Set(DB.allCards.map((c) => c.setId)).size;
+  setStatus(`${state.catalog.length.toLocaleString()} cards · ${new Set(DB.allCards.map((c) => c.setId)).size} sets`);
 
   wireUI();
   renderDeck();
-
-  // restore last deck if present
-  if (localStorage.getItem('ink.lastDeck')) {
-    const n = localStorage.getItem('ink.lastDeck');
-    if (Deck.load(n)) { $('#deckTitle').textContent = n; renderDeck(); }
-  }
-
-  // initial render of the chips strip
   renderChips();
 
-  // auth
-  const m = await Auth.me();
-  if (m.ok) {
-    onSignedIn(m.displayName);
-  }
+  const { migrated, signin } = await acct;
+  if (signin === 'failed') showNotice("Sign-in didn't go through. Try again, or keep building as a guest.", true);
+  else if (migrated) showNotice(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} from this browser into your account.`);
+  renderAccount();
+  account.onChange(() => { renderAccount(); refreshDeckPicker(); });
 
-  // hit counter — real, server-tracked visit total (persisted in SQLite). The
-  // visit itself is recorded server-side when this page is served; here we just
-  // read the running total. Fall back to a local count if the API is offline.
-  refreshHitCounter();
+  // reopen the last deck
+  const last = localStorage.getItem('ink.lastDeck');
+  if (last) {
+    const d = await account.getDeck(last).catch(() => null);
+    if (d) openDeck(d);
+  }
+  await refreshDeckPicker();
+
+  // Dreamborn collection link (separate from the Ink account)
+  const m = await Auth.me().catch(() => ({}));
+  if (m.ok) onSignedIn(m.displayName);
 }
 
-async function refreshHitCounter() {
-  const el = $('#hitCounter');
-  try {
-    const r = await fetch('/api/stats', { headers: { accept: 'application/json' } });
-    const j = await r.json();
-    if (j && j.ok && Number.isFinite(j.total)) {
-      el.textContent = String(j.total).padStart(6, '0');
-      el.title = `${j.total.toLocaleString()} total visits · ${Number(j.today || 0).toLocaleString()} today`;
-      return;
-    }
-  } catch { /* offline / older server — fall through */ }
-  const hits = Number(localStorage.getItem('ink.hits') || 0) + 1;
-  localStorage.setItem('ink.hits', hits);
-  el.textContent = String(hits).padStart(6, '0');
+function showNotice(text, bad = false) {
+  const el = $('#notice');
+  el.className = `notice strip ${bad ? 'bad' : ''}`;
+  el.innerHTML = `<span>${escapeHtml(text)}</span><button aria-label="Dismiss">✕</button>`;
+  el.hidden = false;
+  el.querySelector('button').onclick = () => { el.hidden = true; };
 }
 
 function setStatus(s) { $('#dbStatus').textContent = s; }
+
+// ---------- account + saved decks ----------
+function avatarHtml(u, cls = 'avatar') {
+  return u.avatar ? `<img class="${cls}" src="${escapeHtml(u.avatar)}" alt="">` : `<span class="${cls}">${escapeHtml(u.name.slice(0, 1).toUpperCase())}</span>`;
+}
+function renderAccount() {
+  const u = account.user();
+  const box = $('#accountBox');
+  box.innerHTML = u
+    ? `<button class="who" id="accountBtn" title="Your account">${avatarHtml(u)}<span>${escapeHtml(u.name)}</span></button>`
+    : `<button class="btn btn-sm" id="accountBtn">Sign in</button>`;
+  $('#accountBtn').onclick = () => { renderAccountModal(); openModal('#accountModal'); };
+  $('#saveNote').textContent = '';
+}
+function renderAccountModal() {
+  const u = account.user();
+  const body = $('#accountBody');
+  const signin = account.signInButtons('/');
+  const db = Auth.Session.displayName;
+  const owned = Auth.Session.collection ? Object.keys(Auth.Session.collection).length : 0;
+  body.innerHTML = `
+    ${u ? `<div class="acct-row">${avatarHtml(u, 'avatar lg')}<div><b>${escapeHtml(u.name)}</b><span class="note">Signed in with ${u.providers.map((p) => p[0].toUpperCase() + p.slice(1)).join(' + ')}. Your decks are saved to this account.</span></div><button class="btn btn-quiet btn-sm" id="acctSignOut">Sign out</button></div>`
+      : signin ? `<p class="note">Sign in so your decks follow you between phone and desktop. We only read your name and avatar. Decks you've saved in this browser move into your account.</p><div class="acct-signin">${signin}</div>`
+      : `<p class="note">Sign-in isn't set up on this server, so decks are saved in this browser.</p>`}
+    <div class="acct-row"><div><b>Dreamborn collection</b><span class="note">${db ? `Linked as ${escapeHtml(db)}${owned ? ` · ${owned.toLocaleString()} owned printings synced` : ' · not synced yet'}` : 'Link your dreamborn.ink account to filter the pool to cards you own.'}</span></div>
+      ${db ? `<button class="btn btn-sm" id="acctSync">Sync</button><button class="btn btn-quiet btn-sm" id="acctUnlink">Unlink</button>` : `<button class="btn btn-sm" id="acctLink">Link</button>`}</div>`;
+  $('#acctSignOut')?.addEventListener('click', async () => { await account.signOut(); closeModal('#accountModal'); newDeck(); });
+  $('#acctLink')?.addEventListener('click', () => { closeModal('#accountModal'); openModal('#signInModal'); });
+  $('#acctSync')?.addEventListener('click', () => $('#syncCollectionBtn').click());
+  $('#acctUnlink')?.addEventListener('click', () => $('#signOutBtn').click());
+}
+
+async function refreshDeckPicker() {
+  const sel = $('#deckPicker');
+  let decks = [];
+  try { decks = await account.listDecks(); } catch (e) { showNotice(`Couldn't load your decks: ${e.message}`, true); }
+  const where = account.signedIn() ? 'My decks' : 'Saved in this browser';
+  sel.innerHTML = `<option value="">${decks.length ? `Open a deck… (${decks.length})` : 'No saved decks yet'}</option>`
+    + (decks.length ? `<optgroup label="${where}">${decks.map((d) => `<option value="${escapeHtml(d.id)}" ${d.id === Deck.Deck.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}</optgroup>` : '');
+  $('#deleteDeckBtn').hidden = !Deck.Deck.id;
+}
+function setDeckName(n) { Deck.Deck.name = n; $('#deckTitle').value = n; }
+function openDeck(d) {
+  Deck.clear();
+  for (const [id, q] of d.cards) Deck.setQty(String(id), q);
+  Deck.Deck.id = d.id;
+  setDeckName(d.name);
+  localStorage.setItem('ink.lastDeck', d.id);
+  renderGrid(); renderDeck(); refreshDeckPicker();
+}
+function newDeck() {
+  Deck.clear(); Deck.Deck.id = null;
+  setDeckName('Untitled deck');
+  localStorage.removeItem('ink.lastDeck');
+  renderGrid(); renderDeck(); refreshDeckPicker();
+}
+async function saveCurrent() {
+  if (!Deck.Deck.cards.size) throw new Error('add some cards first');
+  const name = ($('#deckTitle').value || '').trim() || 'Untitled deck';
+  setDeckName(name);
+  const d = await account.saveDeck({ id: Deck.Deck.id, name, cards: [...Deck.Deck.cards.entries()] });
+  Deck.Deck.id = d.id;
+  localStorage.setItem('ink.lastDeck', d.id);
+  $('#saveNote').textContent = account.signedIn() ? '' : account.anyProvider() ? 'Saved in this browser. Sign in to keep it on every device.' : '';
+  await refreshDeckPicker();
+  return d;
+}
 
 // ---------- filter UI (Scryfall-style query bar) ----------
 function applyFilters() {
@@ -422,25 +478,24 @@ function renderGrid() {
   const frag = document.createDocumentFragment();
   for (const c of slice) {
     const t = document.createElement('div');
-    t.className = 'card-tile';
-    t.dataset.id = c.id;
     const qty = Deck.Deck.cards.get(c.id) || 0;
+    t.className = 'card-tile' + (qty ? ' in-deck' : '');
+    t.dataset.id = c.id;
     const owned = Auth.Session.collection ? Auth.ownedQty(c.id) : null;
-    const inkChips = c.inks.map(ink => `<span class="ink ink-${ink}" style="width:8px;height:8px;display:inline-block;outline:1px solid #000;"></span>`).join('');
+    const inkChips = c.inks.map((ink) => `<span class="ink ink-${ink}" title="${ink}"></span>`).join('');
+    const tags = roleTagsFor ? roleTagsFor(c) : '';
     t.innerHTML = `
-      <img loading="lazy" src="${c.image}" alt="${escapeHtml(c.name)}" onerror="this.style.background='#222'">
+      <img loading="lazy" src="${c.image}" alt="${escapeHtml(c.name + (c.title ? ' - ' + c.title : ''))}">
       ${qty ? `<div class="qty-badge">×${qty}</div>` : ''}
       <div class="label">
         <div class="name" title="${escapeHtml(c.name + (c.title ? ' — ' + c.title : ''))}">${escapeHtml(c.name)}</div>
         ${c.title ? `<div class="title">${escapeHtml(c.title)}</div>` : ''}
         <div class="stats">
-          <span class="cost">${c.cost}</span>
+          <span class="cost ${Deck.inkable(c) ? '' : 'uninkable'}" title="${Deck.inkable(c) ? 'Inkable' : 'Uninkable'}">${c.cost}</span>
           ${inkChips}
-          ${typeof c.strength === 'number' && c.type === 'character' ? `<span title="strength">${c.strength}⚔</span>` : ''}
-          ${typeof c.willpower === 'number' && (c.type === 'character' || c.type === 'location') ? `<span title="willpower">${c.willpower}❈</span>` : ''}
-          ${typeof c.lore === 'number' && c.lore ? `<span title="lore">${c.lore}◇</span>` : ''}
-          ${owned ? `<span class="owned" title="owned">×${owned}</span>` : ''}
+          ${owned ? `<span class="owned" title="Owned">own ${owned}</span>` : ''}
         </div>
+        ${tags}
       </div>
     `;
     frag.appendChild(t);
@@ -449,58 +504,58 @@ function renderGrid() {
 }
 
 // ---------- deck list ----------
+let roleTagsFor = null;        // set by the role filters (card → tag html)
+let renderRoleMeters = () => {};
+
 function renderDeck() {
   const list = $('#deckList');
   list.innerHTML = '';
   const groups = Deck.grouped();
   const ORDER = ['character', 'action', 'song', 'item', 'location'];
+  const LABEL = { character: 'Characters', action: 'Actions', song: 'Songs', item: 'Items', location: 'Locations' };
   for (const type of ORDER) {
     const ents = groups[type] || [];
     if (!ents.length) continue;
     const section = document.createElement('div');
     section.className = 'deck-section';
     const total = ents.reduce((s, e) => s + e.qty, 0);
-    section.innerHTML = `<h4>${type.toUpperCase()} (${total})</h4>`;
+    section.innerHTML = `<h4>${LABEL[type]} · ${total}</h4>`;
     for (const { card, qty } of ents) {
       const row = document.createElement('div');
       row.className = 'deck-row';
       row.dataset.id = card.id;
-      const inkChips = card.inks.map(ink => `<span class="ink ink-${ink}"></span>`).join('');
       row.innerHTML = `
-        <span class="ctrl">
-          <button data-act="dec" title="−1">−</button>
-        </span>
-        <span class="name" title="${escapeHtml(card.name + (card.title ? ' - ' + card.title : ''))}">
-          ${inkChips} ${escapeHtml(card.name)}${card.title ? ' <span class="muted">— ' + escapeHtml(card.title) + '</span>' : ''}
-          <span class="muted small"> (${card.cost}◇)</span>
-        </span>
-        <span class="qty">×${qty} <button data-act="inc" title="+1">+</button></span>
+        <span class="cost ${Deck.inkable(card) ? '' : 'uninkable'}">${card.cost}</span>
+        <span class="name" title="${escapeHtml(card.name + (card.title ? ' - ' + card.title : ''))}">${escapeHtml(card.name)}${card.title ? ' <span class="muted">· ' + escapeHtml(card.title) + '</span>' : ''}</span>
+        <span class="qty"><button data-act="dec" aria-label="One fewer">−</button><span>${qty}</span><button data-act="inc" aria-label="One more">+</button></span>
       `;
-      list.appendChild(row);
+      section.appendChild(row);
     }
+    list.appendChild(section);
   }
   if (Deck.Deck.cards.size === 0) {
-    list.innerHTML = `<div class="muted small center" style="padding:20px; font-family:var(--font-ui)">Empty deck. Click a card on the left to start building.</div>`;
+    list.innerHTML = `<div class="deck-empty">Empty deck. Click cards in the pool to add them.</div>`;
   }
 
-  // summary
   const s = Deck.summary();
   $('#statCount').textContent = s.total;
   $('#statInkable').textContent = s.inkable;
-  $('#statAvgCost').textContent = s.avgCost.toFixed(2);
-  $('#deckInks').innerHTML = s.inks.length
-    ? s.inks.map((i) => `<span class="ink ink-${i}" title="${i}"></span>`).join('')
-    : '—';
+  $('#statAvgCost').textContent = s.avgCost.toFixed(1);
+  $('#mtabCount').textContent = s.total;
+  $('#deckInks').innerHTML = s.inks.length ? s.inks.map((i) => `<span class="ink ink-${i}" title="${i}"></span>`).join('') : '';
+
+  // ink curve: 1…7+ (0-cost folds into 1)
+  const buckets = new Array(8).fill(0);
+  for (const { card, qty } of Deck.entries()) buckets[Math.min(7, Math.max(1, card.cost || 0))] += qty;
+  const peak = Math.max(1, ...buckets);
+  $('#curve').innerHTML = buckets.slice(1).map((n, i) => `<div class="bar" title="${n} card${n === 1 ? '' : 's'} costing ${i + 1}${i === 6 ? '+' : ''}"><b>${n || ''}</b><i style="height:${(n / peak) * 50}px"></i>${i + 1}${i === 6 ? '+' : ''}</div>`).join('');
 
   const errs = Deck.legality();
   const lab = $('#deckLegality');
-  if (errs.length === 0 && s.total === 60) {
-    lab.textContent = '✅ legal'; lab.style.color = 'var(--good)';
-  } else {
-    lab.textContent = '⚠ ' + errs[0];
-    lab.style.color = 'var(--accent)';
-    lab.title = errs.join('\n');
-  }
+  if (errs.length === 0 && s.total >= 60) { lab.textContent = '✓ Legal'; lab.className = 'legal'; lab.title = ''; }
+  else if (s.total === 0) { lab.textContent = ''; lab.className = 'legal'; }
+  else { lab.textContent = errs[0][0].toUpperCase() + errs[0].slice(1); lab.className = 'legal bad'; lab.title = errs.join('\n'); }
+  renderRoleMeters();
 }
 
 // ---------- UI wiring ----------
@@ -598,8 +653,8 @@ function wireUI() {
   $('#openDecksBtn').addEventListener('click', () => {
     Decks.open({
       onImport: ({ deck, errs }) => {
-        Deck.Deck.name = deck.name || 'Imported deck';
-        $('#deckTitle').textContent = Deck.Deck.name;
+        Deck.Deck.id = null;
+        setDeckName(deck.name || 'Imported deck');
         renderGrid(); renderDeck();
         if (errs && errs.length) {
           alert(`Imported "${deck.name}" but ${errs.length} cards couldn't be matched in our DB:\n\n${errs.slice(0, 10).join('\n')}`);
@@ -608,11 +663,6 @@ function wireUI() {
     });
   });
 
-  // profile / theme
-  $('#openProfileBtn').addEventListener('click', () => {
-    renderProfileModal();
-    openModal('#profileModal');
-  });
 
   // dreamborn sniffer modal
   $('#openSnifferBtn').addEventListener('click', async () => {
@@ -641,6 +691,14 @@ function wireUI() {
     Deck.bump(tile.dataset.id, -1);
     renderGrid(); renderDeck();
   });
+  let pressT = 0, pressed = false;
+  grid.addEventListener('touchstart', (e) => {
+    const tile = e.target.closest('.card-tile'); if (!tile) return;
+    pressed = false;
+    pressT = setTimeout(() => { pressed = true; Deck.bump(tile.dataset.id, -1); navigator.vibrate?.(15); renderGrid(); renderDeck(); }, 450);
+  }, { passive: true });
+  grid.addEventListener('touchend', (e) => { clearTimeout(pressT); if (pressed) e.preventDefault(); }, { passive: false });
+  grid.addEventListener('touchmove', () => clearTimeout(pressT), { passive: true });
   grid.addEventListener('mousemove', (e) => {
     const tile = e.target.closest('.card-tile'); if (!tile) return previewHide();
     const id = tile.dataset.id;
@@ -665,29 +723,38 @@ function wireUI() {
 
   // deck toolbar
   $('#newDeckBtn').addEventListener('click', () => {
-    if (!confirm('Discard current deck?')) return;
-    Deck.clear(); Deck.Deck.name = 'Untitled Deck';
-    $('#deckTitle').textContent = Deck.Deck.name;
-    renderGrid(); renderDeck();
+    if (Deck.Deck.cards.size && !confirm('Start a new deck? Unsaved changes to this one are lost.')) return;
+    newDeck();
   });
-  $('#saveDeckBtn').addEventListener('click', () => {
-    const name = prompt('Save deck as:', Deck.Deck.name) || Deck.Deck.name;
-    Deck.save(name);
-    localStorage.setItem('ink.lastDeck', name);
-    $('#deckTitle').textContent = name;
-    flash($('#saveDeckBtn'), 'Saved!');
+  $('#deckTitle').addEventListener('change', (e) => { Deck.Deck.name = e.target.value.trim() || 'Untitled deck'; });
+  $('#deckTitle').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+  $('#deckPicker').addEventListener('change', async (e) => {
+    const id = e.target.value; if (!id) return;
+    const d = await account.getDeck(id);
+    if (d) openDeck(d);
   });
-  $('#loadDeckBtn').addEventListener('click', () => {
-    const names = Deck.listSaved();
-    if (!names.length) return alert('No saved decks.');
-    const picked = prompt('Load which deck?\n\n' + names.map((n, i) => `${i+1}. ${n}`).join('\n'), names[0]);
-    if (!picked) return;
-    const name = /^\d+$/.test(picked) ? names[Number(picked) - 1] : picked;
-    if (Deck.load(name)) {
-      $('#deckTitle').textContent = name;
-      renderGrid(); renderDeck();
-    } else alert('Not found.');
+  $('#saveDeckBtn').addEventListener('click', async () => {
+    try { await saveCurrent(); flash($('#saveDeckBtn'), 'Saved'); }
+    catch (e) { alert("Can't save: " + e.message); }
   });
+  $('#playDeckBtn').addEventListener('click', async () => {
+    try {
+      const d = await saveCurrent();
+      localStorage.setItem('ink.play.deck', 'saved:' + d.id);
+      location.href = '/play';
+    } catch (e) { alert("Can't save: " + e.message); }
+  });
+  $('#deleteDeckBtn').addEventListener('click', async () => {
+    if (!Deck.Deck.id || !confirm(`Delete "${Deck.Deck.name}"? This can't be undone.`)) return;
+    try { await account.deleteDeck(Deck.Deck.id); newDeck(); }
+    catch (e) { alert('Delete failed: ' + e.message); }
+  });
+  // phones: pool and deck are two tabs
+  $$('.mtabs button').forEach((b) => b.addEventListener('click', () => {
+    $$('.mtabs button').forEach((x) => x.classList.toggle('on', x === b));
+    $('#layout').dataset.pane = b.dataset.pane;
+    window.scrollTo({ top: 0 });
+  }));
   // Export: ask the user how they'd like the decklist (clipboard or .txt file).
   $('#exportDeckBtn').addEventListener('click', () => {
     if (Deck.Deck.cards.size === 0) return alert('Your deck is empty — nothing to export.');
@@ -745,14 +812,15 @@ function wireUI() {
   $('#signOutBtn').addEventListener('click', async () => {
     await Auth.logout();
     onSignedOut();
+    if ($('#accountModal').classList.contains('show')) renderAccountModal();
   });
   $('#syncCollectionBtn').addEventListener('click', async () => {
     flash($('#syncCollectionBtn'), 'Syncing…');
     try {
       const owned = await Auth.syncCollection();
-      const n = Object.keys(owned).length;
-      flash($('#syncCollectionBtn'), `${n} owned`);
+      showNotice(`Synced your Dreamborn collection: ${Object.keys(owned).length.toLocaleString()} owned printings. Tick “Owned only” to filter the pool.`);
       renderGrid();
+      if ($('#accountModal').classList.contains('show')) renderAccountModal();
     } catch (e) {
       alert('Sync failed: ' + e.message);
     }
@@ -765,6 +833,7 @@ function wireUI() {
       const r = await Auth.login(email, password);
       onSignedIn(r.displayName);
       closeModal('#signInModal');
+      $('#syncCollectionBtn').click();
     } catch (e) {
       $('#signInError').textContent = e.message;
     }
@@ -772,11 +841,13 @@ function wireUI() {
 
   // modals
   document.body.addEventListener('click', (e) => {
-    if (e.target.matches('[data-close-modal]')) {
+    if (e.target.closest('[data-close-modal]') || e.target.classList.contains('modal-backdrop')) {
       const m = e.target.closest('.modal-backdrop');
       if (m) m.classList.remove('show');
     }
   });
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $$('.modal-backdrop.show').forEach((m) => m.classList.remove('show')); });
 
   // about link
   $('#aboutLink').addEventListener('click', (e) => {
@@ -794,13 +865,16 @@ function wireUI() {
 }
 
 function onSignedIn(displayName) {
-  $('#userCell').textContent = '👤 ' + displayName;
+  $('#userCell').textContent = displayName;
+  $('#ownedOnlyWrap').hidden = false;
   $('#signInBtn').classList.add('hidden');
   $('#signOutBtn').classList.remove('hidden');
   $('#syncCollectionBtn').classList.remove('hidden');
 }
 function onSignedOut() {
-  $('#userCell').textContent = 'Guest';
+  $('#userCell').textContent = '';
+  $('#ownedOnlyWrap').hidden = true;
+  if (state.ownedOnly) { state.ownedOnly = false; $('#ownedOnly').checked = false; applyFilters(); }
   $('#signInBtn').classList.remove('hidden');
   $('#signOutBtn').classList.add('hidden');
   $('#syncCollectionBtn').classList.add('hidden');
@@ -837,71 +911,6 @@ function previewHide() { $('#preview').classList.remove('show'); }
 // ---------- misc ----------
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-// ---------- profile / theme modal ----------
-function renderProfileModal() {
-  // Account block
-  const acc = $('#profileAccount');
-  if (Auth.Session && Auth.Session.displayName) {
-    const ownedCount = Auth.Session.collection ? Object.keys(Auth.Session.collection).length : 0;
-    acc.innerHTML = `
-      Signed in as <b>${escapeHtml(Auth.Session.displayName)}</b>
-      ${ownedCount ? `· ${ownedCount} owned printings synced` : '· collection not yet synced'}
-      · <a href="#" id="profileSignOut">Sign out</a>
-    `;
-    const so = $('#profileSignOut');
-    so?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await Auth.logout();
-      onSignedOut();
-      renderProfileModal();
-    });
-  } else {
-    acc.innerHTML = `Not signed in. <a href="#" id="profileSignIn">Sign in</a> to sync your dreamborn.ink collection.`;
-    $('#profileSignIn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      closeModal('#profileModal');
-      openModal('#signInModal');
-    });
-  }
-
-  // Theme picker
-  const picker = $('#themePicker');
-  const active = currentTheme();
-  picker.innerHTML = '';
-  for (const t of THEMES) {
-    const el = document.createElement('div');
-    el.className = 'theme-swatch' + (t.id === active ? ' active' : '');
-    el.dataset.theme = t.id;
-    el.innerHTML = `
-      <div class="swatch-preview" style="background:${t.swatch.surface};">
-        <div class="tb" style="background:${t.swatch.titlebar};"></div>
-        <div class="body">
-          <div class="pill" style="background:${t.swatch.primary};"></div>
-          <div class="pill short" style="background:${t.swatch.accent};"></div>
-        </div>
-      </div>
-      <div class="name">${escapeHtml(t.name)}</div>
-      <div class="blurb">${escapeHtml(t.blurb)}</div>
-    `;
-    el.addEventListener('click', () => {
-      applyTheme(t.id);
-      renderProfileModal();
-    });
-    picker.appendChild(el);
-  }
-
-  // Statistics
-  const savedDecks = Deck.listSaved();
-  const totalCards = DB.allCards.length;
-  const hits = Number(localStorage.getItem('ink.hits') || 0);
-  $('#profileStats').innerHTML = `
-    Saved decks: <b>${savedDecks.length}</b>${savedDecks.length ? ' (' + escapeHtml(savedDecks.slice(0, 4).join(', ')) + (savedDecks.length > 4 ? '…' : '') + ')' : ''}
-    · Cards in DB: <b>${totalCards.toLocaleString()}</b>
-    · Sessions: <b>${hits}</b>
-    · Current theme: <b>${escapeHtml(THEMES.find((x) => x.id === currentTheme())?.name || '?')}</b>
-  `;
 }
 
 function flash(el, msg) {

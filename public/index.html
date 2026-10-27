@@ -2,83 +2,54 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Ink :: Lorcana Deck Builder of the Future (1996)</title>
+<title>Ink · Lorcana deck builder</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#070814">
+<meta name="theme-color" content="#080b1f">
+<meta name="description" content="Build Disney Lorcana decks, then play them in your browser.">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;600;800&family=Major+Mono+Display&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ink.css">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/themes.css">
-<!-- Apply the persisted theme before render to avoid a flash of default theme. -->
-<script>(function(){try{var t=localStorage.getItem('ink.theme')||'1996';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23c0c0c0'/><text x='8' y='12' text-anchor='middle' font-family='Times New Roman' font-size='12' fill='%23000080'>I</text></svg>">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5' fill='%23d9b45a'/></svg>">
 </head>
 <body>
 
-<div class="page">
+<header class="topbar">
+  <a class="brandmark" href="/">Ink</a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="/play">Play</a>
+    <a href="/" aria-current="page">Decks</a>
+    <a href="/procs">Cards</a>
+  </nav>
+  <span class="grow"></span>
+  <button id="openDecksBtn" class="btn btn-quiet btn-sm" title="Browse public decks from dreamborn.ink">Browse decks</button>
+  <div id="accountBox" class="account"></div>
+</header>
 
-  <!-- ============== HEADER WINDOW ============== -->
-  <div class="window bevel-out header">
-    <div class="titlebar">
-      <span class="titlebar-title">📜 Ink — Disney Lorcana Deck Builder</span>
-      <span class="titlebar-actions">
-        <a class="tb-action btn" href="/play" title="Play Lorcana online with a friend (or a bot)" style="text-decoration:none;">▶ Play</a>
-        <a class="tb-action btn" href="/procs" title="Look up how the game engine runs each card's abilities" style="text-decoration:none;">⚡ Procs</a>
-        <button id="openDecksBtn" class="tb-action" title="Browse public decks from dreamborn.ink">🃄 Decks</button>
-        <button id="openProfileBtn" class="tb-action" title="Profile &amp; theme">👤 Profile</button>
-        <button id="openSnifferBtn" class="tb-action tb-action-icon" title="Get the dreamborn.ink API sniffer">🕵</button>
-        <a class="tb-action btn" href="https://github.com/Archers007/Ink/issues" target="_blank" rel="noopener" title="Report a bug or request a feature on GitHub" style="text-decoration:none;">🐛 Issues</a>
-      </span>
-      <span class="ctrls">
-        <button title="Minimize">_</button>
-        <button title="Maximize">▢</button>
-        <button title="Close">✕</button>
-      </span>
+<div id="notice" class="notice" hidden></div>
+
+<nav class="mtabs" aria-label="View">
+  <button data-pane="pool" class="on">Card pool</button>
+  <button data-pane="deck">Deck <b id="mtabCount">0</b></button>
+</nav>
+
+<main class="layout" id="layout">
+
+  <!-- LEFT: card pool -->
+  <section class="pool" aria-label="Card pool">
+    <div class="pool-head">
+      <h1 class="display">Card pool</h1>
+      <span id="dbStatus" class="note">Loading cards…</span>
+      <span id="cardCount" class="note" hidden></span><span id="setCount" hidden></span>
     </div>
-    <div class="menubar">
-      <span><u>F</u>ile</span>
-      <span><u>E</u>dit</span>
-      <span><u>V</u>iew</span>
-      <span><u>D</u>eck</span>
-      <span><u>H</u>elp</span>
-    </div>
-    <div class="title">Ink <span class="blink">▌</span> <span class="muted small" style="font-family:var(--font-ui)">Best viewed in Netscape Navigator 3.0+</span></div>
-    <div class="subtitle">A Lorcana deck builder &amp; collection browser. Free to use. No popups. <a href="#" id="aboutLink">About this site</a>.</div>
-    <div class="marquee"><span>★ Welcome to Ink! ★ Build legal 60-card Lorcana decks ✦ Sign in with your Dreamborn account to sync your collection ✦ Best viewed at 800×600 ★ Updated daily ★ Hits since 1996: <b id="hitCounter">000001</b> ★</span></div>
-  </div>
 
-  <!-- ============== STATUS / SIGN-IN STRIP ============== -->
-  <div class="window bevel-out" style="margin-top: 8px;">
-    <div class="statusbar">
-      <div class="cell" id="dbStatus">DB: loading…</div>
-      <div class="cell" id="cardCount">Cards: —</div>
-      <div class="cell" id="setCount">Sets: —</div>
-      <div class="spacer" style="flex:1"></div>
-      <div class="cell" id="userCell">Guest</div>
-      <button id="signInBtn">Sign In</button>
-      <button id="signOutBtn" class="hidden">Sign Out</button>
-      <button id="syncCollectionBtn" class="hidden" title="Pull your Dreamborn collection">Sync Collection</button>
-    </div>
-  </div>
-
-  <!-- ============== MAIN LAYOUT ============== -->
-  <div class="layout">
-
-    <!-- LEFT: card browser -->
-    <div class="window bevel-out">
-      <div class="titlebar">
-        <span>🔎 Card Catalog</span>
-        <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
-      </div>
-
-      <!-- Visual filter builder. Clicking these widgets writes syntax
-           into the search bar, so users learn the query language by example. -->
-      <div id="builder" class="builder builder-collapsed">
+    <div id="builder" class="builder builder-collapsed">
         <div class="builder-row">
 
           <fieldset class="builder-group">
@@ -216,166 +187,144 @@
         </div>
       </div>
 
-      <!-- Power-user search bar.  Anything typed here works too. -->
-      <div class="toolbar" style="flex-direction: column; align-items: stretch; gap: 4px;">
-        <div class="row" style="gap:4px;">
-          <input id="search" type="search"
-                 placeholder='Click filters above or type:  c:amber t:character cost>=3 kw:singer'
-                 style="flex:1; font-family: var(--font-ui); font-size: 12px;"
-                 spellcheck="false" autocapitalize="off" autocomplete="off">
-          <button id="searchHelpBtn" title="Query syntax help">?</button>
-          <button id="searchClearBtn" title="Clear all filters">✕</button>
-        </div>
-        <div class="row" style="font-size: 11px;">
-          <label class="small" title="Filter to cards you own (after Sync Collection)">
-            <input type="checkbox" id="ownedOnly"> Owned only
-          </label>
-          <span class="spacer"></span>
-          <span id="searchError" class="warn small"></span>
-          <span id="resultCount" class="small muted">—</span>
-        </div>
-      </div>
-
-      <!-- Active-filter chip strip, parsed back from the bar.  Click X to remove. -->
-      <div id="activeChips" class="active-chips">
-        <span class="empty">No filters — click a color, type, or filter above to start.</span>
-      </div>
-
-      <div id="cardGrid" class="card-grid bevel-in">
-        <div class="muted small" style="padding:20px; font-family:var(--font-ui)">Loading database… please wait.</div>
-      </div>
-      <div class="statusbar" style="font-size:11px; padding:2px 6px;">
-        <span class="muted">Tip:</span>
-        <span>Left-click a card to add, right-click to remove. Hover for full art. Combine multiple colors/types/keywords — they all OR within a group.</span>
-      </div>
+    <div class="searchrow">
+      <input id="search" class="field-in" type="search"
+             placeholder='Search, or type filters: c:amber t:character cost>=3 kw:singer'
+             spellcheck="false" autocapitalize="off" autocomplete="off">
+      <button id="searchHelpBtn" class="btn btn-quiet" title="Search syntax">?</button>
+      <button id="searchClearBtn" class="btn btn-quiet" title="Clear all filters" aria-label="Clear all filters">✕</button>
     </div>
-
-    <!-- RIGHT: deck panel -->
-    <div>
-      <div class="window bevel-out">
-        <div class="titlebar">
-          <span>🃏 <span id="deckTitle">Untitled Deck</span></span>
-          <span class="ctrls"><button>_</button><button>▢</button><button>✕</button></span>
-        </div>
-        <div class="toolbar">
-          <button id="newDeckBtn" title="New deck">📄 New</button>
-          <button id="saveDeckBtn" title="Save to browser">💾 Save</button>
-          <button id="loadDeckBtn" title="Load from browser">📂 Load</button>
-          <button id="exportDeckBtn" title="Export decklist">📤 Export</button>
-          <button id="importDeckBtn" title="Import decklist">📥 Import</button>
-        </div>
-        <div class="summary">
-          <div class="stat bevel-in"><b id="statCount">0</b>Cards</div>
-          <div class="stat bevel-in"><b id="statInkable">0</b>Inkable</div>
-          <div class="stat bevel-in"><b id="statAvgCost">0.0</b>Avg cost</div>
-        </div>
-        <div class="row" style="padding: 0 8px 8px; font-family: var(--font-ui); font-size: 12px;">
-          <span class="muted">Inks:</span><span id="deckInks">—</span>
-          <span class="spacer"></span>
-          <span id="deckLegality" class="small">—</span>
-        </div>
-        <div id="deckList" class="deck-list bevel-in"></div>
-      </div>
+    <div id="roleChips" class="roles" aria-label="What cards do"></div>
+    <div class="resultrow">
+      <label class="check" id="ownedOnlyWrap" hidden title="Only cards in your synced Dreamborn collection"><input type="checkbox" id="ownedOnly"> Owned only</label>
+      <span id="searchError" class="warn small"></span>
+      <span class="grow"></span>
+      <span id="resultCount" class="note">—</span>
     </div>
+    <div id="activeChips" class="active-chips"></div>
+    <div id="suggest" class="suggest" hidden></div>
+
+    <div id="cardGrid" class="card-grid">
+      <div class="note" style="padding:20px">Loading the card database…</div>
+    </div>
+    <p class="note tip">Click a card to add it, right-click (or long-press) to take one out. Hover for the full card.</p>
+  </section>
+
+  <!-- RIGHT: deck panel -->
+  <aside class="deckpanel" aria-label="Deck">
+    <div class="dp-head">
+      <input id="deckTitle" class="deck-name" value="Untitled deck" maxlength="60" aria-label="Deck name" spellcheck="false">
+      <select id="deckPicker" class="field-in" aria-label="Open a saved deck"></select>
+    </div>
+    <div class="dp-meta">
+      <span id="deckInks" class="inks">—</span>
+      <span id="deckLegality" class="legal">—</span>
+    </div>
+    <div class="curve" id="curve" aria-label="Ink curve"></div>
+    <div class="summary">
+      <div class="stat"><b id="statCount">0</b><span>Cards</span></div>
+      <div class="stat"><b id="statInkable">0</b><span>Inkable</span></div>
+      <div class="stat"><b id="statAvgCost">0.0</b><span>Avg cost</span></div>
+    </div>
+    <div id="roleMeters" class="meters"></div>
+    <div id="deckList" class="deck-list"></div>
+    <div class="dp-actions">
+      <button id="newDeckBtn" class="btn btn-quiet btn-sm">New</button>
+      <button id="importDeckBtn" class="btn btn-quiet btn-sm">Import</button>
+      <button id="exportDeckBtn" class="btn btn-quiet btn-sm">Export</button>
+      <button id="deleteDeckBtn" class="btn btn-quiet btn-sm btn-danger" hidden>Delete</button>
+    </div>
+    <div class="dp-save">
+      <button id="saveDeckBtn" class="btn">Save</button>
+      <button id="playDeckBtn" class="btn btn-gold">Save &amp; play</button>
+    </div>
+    <p id="saveNote" class="note"></p>
+  </aside>
+</main>
+
+<footer class="foot">
+  <span>Card data: Ravensburger and dreamborn.ink. Unofficial fan project, not affiliated with Disney, Ravensburger or Dreamborn.</span>
+  <span class="grow"></span>
+  <a href="#" id="aboutLink">About</a>
+  <button id="openSnifferBtn" class="linkish" title="Developer tool: record dreamborn.ink's API calls">API sniffer</button>
+  <a href="https://github.com/Archers007/Ink" target="_blank" rel="noopener">Source</a>
+  <a href="https://github.com/Archers007/Ink/issues" target="_blank" rel="noopener">Report an issue</a>
+</footer>
+
+<!-- ============== Account menu: sign-in + Dreamborn collection ============== -->
+<div id="accountModal" class="modal-backdrop">
+  <div class="modal" role="dialog" aria-labelledby="accountTitle">
+    <div class="modal-head"><h2 id="accountTitle" class="display">Your account</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+    <div class="body" id="accountBody"></div>
   </div>
-
-  <!-- ============== FOOTER STATUS BAR ============== -->
-  <div class="window bevel-out" style="margin-top: 8px;">
-    <div class="statusbar">
-      <div class="cell">Ready.</div>
-      <div class="cell"><a href="https://github.com/Archers007/Ink" target="_blank" rel="noopener">📁 Source</a></div>
-      <div class="cell"><a href="https://github.com/Archers007/Ink/issues" target="_blank" rel="noopener">🐛 Report an issue</a></div>
-      <div class="spacer" style="flex:1"></div>
-      <div class="cell">© 1996–2026 Ink. Disney Lorcana © Disney/Ravensburger. Not affiliated with Dreamborn.</div>
-    </div>
-  </div>
-
 </div>
 
-<!-- ============== Sign-In Modal ============== -->
+<!-- ============== Dreamborn collection sign-in ============== -->
 <div id="signInModal" class="modal-backdrop">
-  <div class="modal window bevel-out">
-    <div class="titlebar">
-      <span>🔐 Sign in with your Dreamborn account</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
+  <div class="modal" role="dialog" aria-labelledby="dbTitle">
+    <div class="modal-head"><h2 id="dbTitle" class="display">Link your Dreamborn collection</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
     <div class="body">
-      <div class="muted small" style="margin-bottom:8px;">Credentials are forwarded to <b>identitytoolkit.googleapis.com</b> and <b>dreamborn.ink</b> only. We keep a session cookie server-side so the browser doesn't fight CORS.</div>
-      <div style="display:grid; grid-template-columns:80px 1fr; gap:6px; align-items:center;">
-        <label>E-mail:</label>   <input id="signInEmail" type="email" autocomplete="username">
-        <label>Password:</label> <input id="signInPassword" type="password" autocomplete="current-password">
-      </div>
-      <div id="signInError" class="warn small" style="margin-top:6px; min-height: 14px;"></div>
+      <p class="note">Used only to read which cards you own. Your email and password go to <b>identitytoolkit.googleapis.com</b> and <b>dreamborn.ink</b>; we keep the session cookie on the server so the browser doesn't fight CORS.</p>
+      <label class="field">Email <input id="signInEmail" class="field-in" type="email" autocomplete="username"></label>
+      <label class="field">Password <input id="signInPassword" class="field-in" type="password" autocomplete="current-password"></label>
+      <div id="signInError" class="warn small"></div>
     </div>
     <div class="actions">
-      <button id="signInSubmit">OK</button>
-      <button data-close-modal>Cancel</button>
+      <button class="btn btn-quiet" data-close-modal>Cancel</button>
+      <button id="signInSubmit" class="btn btn-gold">Link collection</button>
     </div>
   </div>
 </div>
+<span hidden><button id="signInBtn"></button><button id="signOutBtn"></button><button id="syncCollectionBtn"></button><span id="userCell"></span></span>
 
-<!-- ============== Import Modal ============== -->
+<!-- ============== Import ============== -->
 <div id="importModal" class="modal-backdrop">
-  <div class="modal window bevel-out">
-    <div class="titlebar">
-      <span>📥 Import Decklist</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
+  <div class="modal" role="dialog" aria-labelledby="importTitle">
+    <div class="modal-head"><h2 id="importTitle" class="display">Import a decklist</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
     <div class="body">
-      <div class="small muted" style="margin-bottom: 6px;">Paste a decklist. One card per line: <code>4 Mickey Mouse - Brave Little Tailor</code></div>
-      <textarea id="importText" rows="12" style="width: 480px;"></textarea>
-      <div id="importError" class="warn small" style="margin-top:4px; min-height:14px;"></div>
+      <p class="note">Paste a list, one card per line: <code>4 Mickey Mouse - Brave Little Tailor</code></p>
+      <textarea id="importText" class="field-in" rows="12"></textarea>
+      <div id="importError" class="warn small"></div>
     </div>
     <div class="actions">
-      <button id="importSubmit">Import</button>
-      <button data-close-modal>Cancel</button>
+      <button class="btn btn-quiet" data-close-modal>Cancel</button>
+      <button id="importSubmit" class="btn btn-gold">Import</button>
     </div>
   </div>
 </div>
 
-<!-- ============== Export Decklist Modal ============== -->
+<!-- ============== Export ============== -->
 <div id="exportModal" class="modal-backdrop">
-  <div class="modal window bevel-out">
-    <div class="titlebar">
-      <span>📤 Export Decklist</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
+  <div class="modal" role="dialog" aria-labelledby="exportTitle">
+    <div class="modal-head"><h2 id="exportTitle" class="display">Export <span id="exportDeckName">your deck</span></h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
     <div class="body">
-      <div class="small muted" style="margin-bottom: 6px;">How would you like to export <b id="exportDeckName">your deck</b>? Copy the list to your clipboard, or download it as a <code>.txt</code> file.</div>
-      <textarea id="exportText" rows="12" readonly style="width: 480px;"></textarea>
-      <div id="exportStatus" class="small" style="margin-top:4px; min-height:14px; color: var(--good);"></div>
+      <textarea id="exportText" class="field-in" rows="12" readonly></textarea>
+      <div id="exportStatus" class="ok small"></div>
     </div>
     <div class="actions">
-      <button id="exportCopyBtn">📋 Copy to clipboard</button>
-      <button id="exportDownloadBtn">💾 Download .txt</button>
-      <button data-close-modal>Cancel</button>
+      <button id="exportDownloadBtn" class="btn btn-quiet">Download .txt</button>
+      <button id="exportCopyBtn" class="btn btn-gold">Copy to clipboard</button>
     </div>
   </div>
 </div>
 
-<!-- ============== Search Help Modal ============== -->
+<!-- ============== Search help ============== -->
 <div id="helpModal" class="modal-backdrop">
-  <div class="modal window bevel-out" style="max-width: 720px;">
-    <div class="titlebar">
-      <span>📖 Search Syntax</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
-    <div class="body" id="helpBody" style="max-height: 70vh; overflow:auto;"></div>
+  <div class="modal wide" role="dialog" aria-labelledby="helpTitle">
+    <div class="modal-head"><h2 id="helpTitle" class="display">Search syntax</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+    <div class="body help" id="helpBody"></div>
     <div class="actions">
-      <button id="helpExampleBtn">Insert example</button>
-      <button data-close-modal>Close</button>
+      <button class="btn btn-quiet" data-close-modal>Close</button>
+      <button id="helpExampleBtn" class="btn">Try an example</button>
     </div>
   </div>
 </div>
 
-<!-- ============== Deck Browser Modal ============== -->
+<!-- ============== Public deck browser ============== -->
 <div id="decksModal" class="modal-backdrop">
-  <div class="modal window bevel-out" style="max-width: 920px; width: 95vw;">
-    <div class="titlebar">
-      <span>🃄 Browse public decks (dreamborn.ink)</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
-    <div class="body" style="padding: 8px 10px 4px;">
+  <div class="modal xwide" role="dialog" aria-labelledby="decksTitle">
+    <div class="modal-head"><h2 id="decksTitle" class="display">Public decks <span class="note">from dreamborn.ink</span></h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+    <div class="body">
       <div class="deck-filters">
         <div class="row" style="gap:4px; flex-wrap: wrap;">
           <span id="deckSortBtns" class="row" style="gap:2px;">
@@ -395,7 +344,7 @@
           <input id="deckSearch" type="search" placeholder="Search names, creators…" style="min-width: 200px;">
         </div>
         <div class="row" style="margin-top:4px;">
-          <span class="small muted" style="font-family:var(--font-ui); margin-right:4px;">Colors (AND):</span>
+          <span class="small muted" style=" margin-right:4px;">Colors (AND):</span>
           <span id="deckColorBtns" class="row" style="gap:2px;">
             <button class="ink-btn" data-color="amber"    title="Amber"></button>
             <button class="ink-btn" data-color="amethyst" title="Amethyst"></button>
@@ -406,73 +355,36 @@
           </span>
           <span class="spacer" style="flex:1"></span>
           <button id="deckPagePrevBtn" class="chip">◀ Prev</button>
-          <span id="deckPageInfo" class="small muted" style="font-family:var(--font-ui); min-width: 70px; text-align:center;">Page 1</span>
+          <span id="deckPageInfo" class="small muted" style=" min-width: 70px; text-align:center;">Page 1</span>
           <button id="deckPageNextBtn" class="chip">Next ▶</button>
         </div>
       </div>
-      <div id="deckResults" class="deck-results bevel-in"></div>
-      <div class="small muted" style="font-family:var(--font-ui); padding: 4px 2px 0;">
+      <div id="deckResults" class="deck-results"></div>
+      <div class="small muted" style=" padding: 4px 2px 0;">
         Tip: page 2+ requires a Dreamborn sign-in (uses your session cookie). Clicking <b>Import</b> replaces your current deck.
       </div>
     </div>
-    <div class="actions">
-      <button data-close-modal>Close</button>
     </div>
   </div>
 </div>
 
-<!-- ============== Profile / Theme Modal ============== -->
-<div id="profileModal" class="modal-backdrop">
-  <div class="modal window bevel-out" style="max-width: 760px;">
-    <div class="titlebar">
-      <span>👤 Profile &amp; Theme</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
-    <div class="body" style="min-width: 520px;">
-      <fieldset>
-        <legend>Account</legend>
-        <div id="profileAccount" class="small" style="font-family:var(--font-ui);">—</div>
-      </fieldset>
-      <fieldset style="margin-top:8px;">
-        <legend>Theme</legend>
-        <div class="small muted" style="font-family:var(--font-ui); margin-bottom:6px;">Pick how Ink looks. Stored in this browser.</div>
-        <div id="themePicker" class="theme-picker"></div>
-      </fieldset>
-      <fieldset style="margin-top:8px;">
-        <legend>Statistics</legend>
-        <div id="profileStats" class="small" style="font-family:var(--font-ui);">—</div>
-      </fieldset>
-    </div>
-    <div class="actions">
-      <button data-close-modal>Done</button>
-    </div>
-  </div>
-</div>
-
-<!-- ============== Dreamborn Sniffer Modal ============== -->
+<!-- ============== Dreamborn sniffer ============== -->
 <div id="snifferModal" class="modal-backdrop">
-  <div class="modal window bevel-out" style="max-width: 720px;">
-    <div class="titlebar">
-      <span>🕵 dreamborn.ink API sniffer</span>
-      <span class="ctrls"><button data-close-modal>✕</button></span>
-    </div>
-    <div class="body" style="font-family: var(--font-ui); font-size: 12px;">
-      <p>Paste this script into the DevTools console on <a href="https://dreamborn.ink" target="_blank" rel="noopener">dreamborn.ink</a>, then click around the site. The script records every fetch/XHR/WebSocket call.</p>
-      <p>Then run <code>_ink.show()</code>, <code>_ink.curls()</code>, or <code>_ink.download()</code> in the console.</p>
-      <textarea id="snifferText" rows="10" style="width:100%; font-family:Menlo,monospace; font-size:11px;" spellcheck="false" readonly></textarea>
+  <div class="modal wide" role="dialog" aria-labelledby="sniffTitle">
+    <div class="modal-head"><h2 id="sniffTitle" class="display">dreamborn.ink API sniffer</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+    <div class="body">
+      <p class="note">Paste this into the DevTools console on <a href="https://dreamborn.ink" target="_blank" rel="noopener">dreamborn.ink</a>, then click around. It records every fetch, XHR and WebSocket call. Run <code>_ink.show()</code>, <code>_ink.curls()</code> or <code>_ink.download()</code> afterwards.</p>
+      <textarea id="snifferText" class="field-in mono" rows="10" spellcheck="false" readonly></textarea>
     </div>
     <div class="actions">
-      <button id="snifferCopyBtn">Copy to clipboard</button>
-      <a class="btn" id="snifferDownloadBtn" href="/dreamborn-sniffer.js" download="dreamborn-sniffer.js" style="text-decoration:none;">Download .js</a>
-      <button data-close-modal>Close</button>
+      <a class="btn btn-quiet" id="snifferDownloadBtn" href="/dreamborn-sniffer.js" download="dreamborn-sniffer.js">Download .js</a>
+      <button id="snifferCopyBtn" class="btn">Copy to clipboard</button>
     </div>
   </div>
 </div>
 
-<!-- card preview tooltip -->
 <div id="preview" class="preview"><img alt=""></div>
 
-<!-- sql.js for in-browser SQLite -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script type="module" src="/js/pwa.js"></script>
 <script type="module" src="/js/app.js"></script>

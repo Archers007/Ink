@@ -1,7 +1,7 @@
 {
   "name": "ink",
   "version": "0.1.0",
-  "description": "Lorcana deck builder with AI, themed like the web in 1996.",
+  "description": "Disney Lorcana deck builder and online table with a full rules engine.",
   "type": "module",
   "private": true,
   "scripts": {
