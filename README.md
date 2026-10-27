@@ -15,6 +15,10 @@ for names and Figtree for everything else (`public/css/ink.css`).
   keeps it (decks and all), and signing in from a browser that had guest decks moves them into the account.
 - **Shared decks** — tick “Share with other players” and the deck shows under Browse decks → *Ink players*
   (`/api/community/decks`); `/api/community/stats` counts players, guests, decks and shared decks.
+- **Test deck** — in the builder: the engine plays the deck against starter, your own or shared decks on the
+  server (worker threads, `lib/sim.js`), optionally showing one game live, and reports matchups, the game plan,
+  weaknesses (inkability, card draw, curve, removal, dead cards), strengths, combos, mulligan and per-card numbers
+  (`game/analysis/`). Card and combo claims need ~99% confidence; everything carries its sample size.
 - **Play** — `/play`: pick a deck tile and hit *Play … vs bot*, or create a room and send the invite link.
 - **Dreamborn collection (optional)** — link a dreamborn.ink account to filter the pool to cards you own.
 - **Import / export** — paste a decklist like `4 Mickey Mouse - Brave Little Tailor`, or copy yours back out.

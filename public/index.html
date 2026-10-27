@@ -232,6 +232,7 @@
       <button id="newDeckBtn" class="btn btn-quiet btn-sm">New</button>
       <button id="importDeckBtn" class="btn btn-quiet btn-sm">Import</button>
       <button id="exportDeckBtn" class="btn btn-quiet btn-sm">Export</button>
+      <button id="testDeckBtn" class="btn btn-sm" title="The engine plays this deck against other decks and reports how it does">Test deck</button>
       <button id="deleteDeckBtn" class="btn btn-quiet btn-sm btn-danger" hidden>Delete</button>
     </div>
     <div class="dp-save">
@@ -380,6 +381,14 @@
       </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ============== Deck test (simulations, js/simui.js) ============== -->
+<div id="simModal" class="modal-backdrop">
+  <div class="modal xwide" role="dialog" aria-labelledby="simTitle">
+    <div class="modal-head"><h2 id="simTitle" class="display">Test <span id="simDeckName">this deck</span></h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+    <div class="body" id="simBody"></div>
   </div>
 </div>
 
