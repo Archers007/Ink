@@ -10,8 +10,11 @@ for names and Figtree for everything else (`public/css/ink.css`).
   (cards.disneylorcana.com) merged onto `dreamborn.ink`'s public `sanitized.db`, queried locally via `sql.js`.
 - **Deck builder** — click to add, right-click (or long-press) to remove, hover for the full card.
   Live legality (60 cards, ≤ 2 inks, ≤ 4 copies, and cards that change those rules), ink curve.
-- **Accounts** — sign in with an email and password and your decks are saved on the server, so they follow you
-  between phone and desktop. Guests keep decks in the browser; they move into the account on first sign-in.
+- **Accounts and decks** — every deck is stored in Ink's own database (`data/ink.db`), not on dreamborn.ink.
+  A guest's first save creates a guest account for that browser; creating an account with an email and password
+  keeps it (decks and all), and signing in from a browser that had guest decks moves them into the account.
+- **Shared decks** — tick “Share with other players” and the deck shows under Browse decks → *Ink players*
+  (`/api/community/decks`); `/api/community/stats` counts players, guests, decks and shared decks.
 - **Play** — `/play`: pick a deck tile and hit *Play … vs bot*, or create a room and send the invite link.
 - **Dreamborn collection (optional)** — link a dreamborn.ink account to filter the pool to cards you own.
 - **Import / export** — paste a decklist like `4 Mickey Mouse - Brave Little Tailor`, or copy yours back out.

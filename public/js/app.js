@@ -43,7 +43,7 @@ async function boot() {
 
   const { migrated, signin } = await acct;
   if (signin === 'failed') showNotice("Sign-in didn't go through. Try again, or keep building as a guest.", true);
-  else if (migrated) showNotice(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} from this browser into your account.`);
+  else if (migrated) showNotice(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} saved in this browser to ${account.signedIn() ? 'your account' : 'your guest account on the Ink server'}.`);
   renderAccount();
   account.onChange(() => { renderAccount(); refreshDeckPicker(); });
 
@@ -104,22 +104,27 @@ async function refreshDeckPicker() {
   const sel = $('#deckPicker');
   let decks = [];
   try { decks = await account.listDecks(); } catch (e) { showNotice(`Couldn't load your decks: ${e.message}`, true); }
-  const where = account.signedIn() ? 'My decks' : 'Saved in this browser';
+  const where = account.signedIn() ? 'My decks' : 'My decks (guest, this device)';
   sel.innerHTML = `<option value="">${decks.length ? `Open a deck… (${decks.length})` : 'No saved decks yet'}</option>`
     + (decks.length ? `<optgroup label="${where}">${decks.map((d) => `<option value="${escapeHtml(d.id)}" ${d.id === Deck.Deck.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}</optgroup>` : '');
   $('#deleteDeckBtn').hidden = !Deck.Deck.id;
+  const share = $('#shareDeck');
+  share.disabled = !account.signedIn();
+  share.checked = !!Deck.Deck.shared && account.signedIn();
+  $('#shareWrap').title = account.signedIn() ? 'List this deck under Browse decks → Ink players' : 'Create an account to share decks';
 }
 function setDeckName(n) { Deck.Deck.name = n; $('#deckTitle').value = n; }
 function openDeck(d) {
   Deck.clear();
   for (const [id, q] of d.cards) Deck.setQty(String(id), q);
   Deck.Deck.id = d.id;
+  Deck.Deck.shared = !!d.shared;
   setDeckName(d.name);
   localStorage.setItem('ink.lastDeck', d.id);
   renderGrid(); renderDeck(); refreshDeckPicker();
 }
 function newDeck() {
-  Deck.clear(); Deck.Deck.id = null;
+  Deck.clear(); Deck.Deck.id = null; Deck.Deck.shared = false;
   setDeckName('Untitled deck');
   localStorage.removeItem('ink.lastDeck');
   renderGrid(); renderDeck(); refreshDeckPicker();
@@ -128,10 +133,11 @@ async function saveCurrent() {
   if (!Deck.Deck.cards.size) throw new Error('add some cards first');
   const name = ($('#deckTitle').value || '').trim() || 'Untitled deck';
   setDeckName(name);
-  const d = await account.saveDeck({ id: Deck.Deck.id, name, cards: [...Deck.Deck.cards.entries()] });
+  const d = await account.saveDeck({ id: Deck.Deck.id, name, cards: [...Deck.Deck.cards.entries()], shared: account.signedIn() ? $('#shareDeck').checked : undefined });
   Deck.Deck.id = d.id;
+  Deck.Deck.shared = d.shared;
   localStorage.setItem('ink.lastDeck', d.id);
-  $('#saveNote').textContent = account.signedIn() ? '' : account.anyProvider() ? 'Saved in this browser. Sign in to keep it on every device.' : '';
+  $('#saveNote').textContent = account.signedIn() ? '' : 'Saved as a guest on this device. Create an account to keep it on every device and share it.';
   await refreshDeckPicker();
   return d;
 }
@@ -731,7 +737,7 @@ function wireUI() {
   $('#openDecksBtn').addEventListener('click', () => {
     Decks.open({
       onImport: ({ deck, errs }) => {
-        Deck.Deck.id = null;
+        Deck.Deck.id = null; Deck.Deck.shared = false;
         setDeckName(deck.name || 'Imported deck');
         renderGrid(); renderDeck();
         if (errs && errs.length) {
@@ -821,6 +827,11 @@ function wireUI() {
       localStorage.setItem('ink.play.deck', 'saved:' + d.id);
       location.href = '/play';
     } catch (e) { alert("Can't save: " + e.message); }
+  });
+  $('#shareDeck').addEventListener('change', async () => {
+    if (!Deck.Deck.id || !Deck.Deck.cards.size) return;          // takes effect on the next save
+    try { await saveCurrent(); flash($('#saveDeckBtn'), $('#shareDeck').checked ? 'Shared' : 'Unshared'); }
+    catch (e) { alert("Can't save: " + e.message); }
   });
   $('#deleteDeckBtn').addEventListener('click', async () => {
     if (!Deck.Deck.id || !confirm(`Delete "${Deck.Deck.name}"? This can't be undone.`)) return;

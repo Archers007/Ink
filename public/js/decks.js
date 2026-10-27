@@ -1,8 +1,9 @@
-// Deck browser: lists popular/trending decks from dreamborn.ink via our
-// /api/decks proxy, opens detail, imports the decklist into the active deck.
+// Deck browser, two sources: decks Ink players shared (our database, /api/community/decks — the default), and
+// popular/trending decks from dreamborn.ink via our /api/decks proxy. Import puts the list into the active deck.
 
 import { DB, INK_ORDER } from './db.js';
 import * as Deck from './deck.js';
+import * as account from './account.js';
 
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -18,6 +19,8 @@ const state = {
   lastError: null,
 };
 
+const comm = { q: '', color: [], loading: false, decks: [], error: null, seq: 0 };
+let src = 'ink';
 let onImportCb = null;
 let onCloseCb = null;
 
@@ -29,7 +32,53 @@ export function open({ onImport, onClose } = {}) {
   onImportCb = onImport || null;
   onCloseCb = onClose || null;
   show();
-  fetchAndRender();
+  setSource(src);
+}
+
+function setSource(next) {
+  src = next;
+  $$('.src-tabs [data-src]').forEach((b) => b.classList.toggle('on', b.dataset.src === src));
+  $('#commPane').hidden = src !== 'ink';
+  $('#dbPane').hidden = src !== 'dreamborn';
+  if (src === 'ink') fetchCommunity(); else fetchAndRender();
+}
+
+// ---------- Ink players' shared decks ----------
+async function fetchCommunity() {
+  const seq = ++comm.seq;
+  comm.loading = true; comm.error = null;
+  renderCommunity();
+  try {
+    const j = await account.communityDecks({ q: comm.q, ink: comm.color });
+    if (seq !== comm.seq) return;
+    comm.decks = j.decks || [];
+  } catch (e) { if (seq === comm.seq) { comm.error = e.message; comm.decks = []; } }
+  if (seq !== comm.seq) return;
+  comm.loading = false;
+  renderCommunity();
+}
+function renderCommunity() {
+  $$('#commColorBtns .ink-btn').forEach((b) => b.classList.toggle('active', comm.color.includes(b.dataset.color)));
+  const grid = $('#commResults');
+  if (comm.loading && !comm.decks.length) { grid.innerHTML = '<div class="muted" style="padding:20px">Loading decks…</div>'; return; }
+  if (comm.error) { grid.innerHTML = `<div class="warn" style="padding:20px">${escapeHtml(comm.error)}</div>`; return; }
+  if (!comm.decks.length) { grid.innerHTML = `<div class="muted" style="padding:20px">${comm.q || comm.color.length ? 'No shared decks match.' : 'No one has shared a deck yet. Be the first: tick “Share with other players” on yours.'}</div>`; return; }
+  grid.innerHTML = comm.decks.map((d) => `<div class="deck-card">
+      <div class="deck-card-head"><span class="inks">${(d.inks || []).map((c) => `<span class="ink ink-${escapeAttr(c)}" title="${escapeAttr(c)}"></span>`).join('')}</span><span class="deck-name">${escapeHtml(d.name)}</span></div>
+      <div class="deck-card-meta"><span class="creator">by <b>${escapeHtml(d.author || '?')}</b></span><span>${new Date(d.updated).toLocaleDateString()}</span></div>
+      <div class="deck-card-stats"><span>${d.size ?? '?'} cards${d.legal ? ' · legal' : ''}</span><span class="spacer"></span><button class="deck-import-btn" data-comm="${escapeAttr(d.id)}">Import</button></div>
+    </div>`).join('');
+}
+function importCommunity(id) {
+  const d = comm.decks.find((x) => x.id === id);
+  if (!d) return;
+  if (Deck.totalCount() > 0 && !confirm(`Replace your current deck (${Deck.totalCount()} cards) with "${d.name}" by ${d.author}?`)) return;
+  Deck.clear();
+  const known = new Set(DB.allCards.map((c) => c.id));
+  const errs = [];
+  for (const [cid, qty] of d.cards) { if (known.has(String(cid))) Deck.setQty(String(cid), qty); else errs.push(`unknown card ${cid}`); }
+  onImportCb?.({ deck: { name: d.name }, errs });
+  hide();
 }
 
 // ---------- fetching ----------
@@ -175,6 +224,15 @@ async function doImport(id) {
 
 // ---------- wiring ----------
 export function wire() {
+  $$('.src-tabs [data-src]').forEach((b) => b.addEventListener('click', () => setSource(b.dataset.src)));
+  let ct = null;
+  $('#commSearch')?.addEventListener('input', (e) => { clearTimeout(ct); ct = setTimeout(() => { comm.q = e.target.value; fetchCommunity(); }, 250); });
+  $$('#commColorBtns .ink-btn').forEach((b) => b.addEventListener('click', () => {
+    const c = b.dataset.color;
+    comm.color = comm.color.includes(c) ? comm.color.filter((x) => x !== c) : [...comm.color, c];
+    fetchCommunity();
+  }));
+  $('#commResults')?.addEventListener('click', (e) => { const b = e.target.closest('[data-comm]'); if (b) importCommunity(b.dataset.comm); });
   // Sort buttons
   $$('#deckSortBtns button').forEach((b) => {
     b.addEventListener('click', () => { state.sort = b.dataset.sort; state.page = 1; fetchAndRender(); });

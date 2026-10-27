@@ -952,7 +952,7 @@ function accountSide() {
     ${account.signInForm({ next: '/play', name: S.name })}
     <div class="or"><span>or</span></div>
     <label class="field">Play as a guest — your name <input id="nameInput" class="field-in" maxlength="24" placeholder="e.g. Mickey" value="${esc(S.name)}"></label>
-    <p class="note">Guest decks live in this browser only. Sign in later and they move to your account.</p>
+    <p class="note">Guest decks are saved on Ink for this device. Create an account and they come with you.</p>
     <div class="side-actions">${install}</div>${ios}`;
 }
 
@@ -1036,7 +1036,7 @@ function renderLobby() {
       ${meSeat ? `<div class="deckpick">
         <label class="field">Your deck
           <select id="deckSel" class="field-in">
-            ${S.myDecks.length ? `<optgroup label="${account.user() ? 'My decks' : 'My decks (this browser)'}">${tiles.filter((t) => t.mine).map((d) => `<option value="${esc(d.id)}" ${chosen === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</optgroup>` : ''}
+            ${S.myDecks.length ? `<optgroup label="${account.user() ? 'My decks' : 'My decks (guest, this device)'}">${tiles.filter((t) => t.mine).map((d) => `<option value="${esc(d.id)}" ${chosen === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</optgroup>` : ''}
             <optgroup label="Starter decks">${tiles.filter((t) => t.demo).map((d) => `<option value="${esc(d.id)}" ${chosen === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</optgroup>
             <option value="paste" ${chosen === 'paste' ? 'selected' : ''}>Paste a decklist…</option>
           </select>
@@ -1183,7 +1183,7 @@ renderTopbar();
 account.load().then(({ user, migrated, signin }) => {
   if (user) { S.name = user.name; net.name = user.name; }
   if (signin === 'failed') toast("Sign-in didn't go through. Try again, or play as a guest.", 'err');
-  else if (migrated) toast(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} from this browser into your account.`);
+  else if (migrated) toast(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} saved in this browser to ${account.signedIn() ? 'your account' : 'your guest account on the Ink server'}.`);
   refreshDecks();
 });
 // debug handle for automated tests
