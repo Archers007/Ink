@@ -19,6 +19,7 @@ export class PayInk extends Effect {
 }
 export class CostMod extends Effect {
   static fn = 'costMod';
+  static role(st) { return st.who === 'each' || (typeof st.n === 'number' && st.n < 0) ? null : 'ramp'; }
   static rules = [
     // "for the next card you play with that name" (Merlin's Wand)
     [/^(?:you )?pay (\d+) \{ink\} less for the next (.+?) you play (with .+)$/i, (m, P) => ({ fn: 'costMod', n: +m[1], filter: P.filter(`${m[2]} ${m[3]}`), next: true, ...(P.dur ? { dur: P.dur } : {}) })],
@@ -43,6 +44,7 @@ export class CostMod extends Effect {
 // static-only: "you pay 2 {ink} less to play this character [for each X]"
 export class SelfCost extends Effect {
   static fn = 'selfCost';
+  static role() { return 'ramp'; }
   static staticOnly = true;
   static say(st) { return `${st.free ? 'you may play this for free' : `you pay ${Amount.say(st.n)} {ink} less to play this${st.per ? ` for each ${Amount.sayPer(st.per)}` : ''}`}${st.shift ? ' (when shifting it)' : ''}`; }
 }
@@ -56,6 +58,7 @@ export class Enters extends Effect {
 // "get 1 ink drop" — an ink drop counter (CR 1.13.1.2): spend it to pay 1 {ink} toward any cost
 export class InkDrop extends Effect {
   static fn = 'inkDrop';
+  static role() { return 'ramp'; }
   static rules = [
     [/^(?:you )?gets? (\d+|an?|one) ink drops?$/i, (m) => ({ fn: 'inkDrop', n: /^\d+$/.test(m[1]) ? +m[1] : 1 })],
     [/^you and another chosen player each get (\d+|an?) ink drops?$/i, (m) => ({ fn: 'inkDrop', n: /^\d+$/.test(m[1]) ? +m[1] : 1, who: 'youAndOne' })],
@@ -104,6 +107,7 @@ export class InkDrop extends Effect {
 // "you may ink an additional card this turn" — one more card into the inkwell this turn
 export class ExtraInk extends Effect {
   static fn = 'extraInk';
+  static role() { return 'ramp'; }
   static rules = [[/^(?:you may )?(?:ink|put) an additional card(?: into your inkwell)?(?: this turn)?$/i, () => ({ fn: 'extraInk' })]];
   static run(rt, s, job) {
     rt.E.P(s, job.seat).extraInk = (rt.E.P(s, job.seat).extraInk || 0) + 1;

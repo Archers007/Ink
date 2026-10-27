@@ -1,9 +1,10 @@
-import { Effect } from './Effect.js';
+import { Effect, aims, atThem } from './Effect.js';
 import { Amount } from '../phrases/amount.js';
 import { Selector } from '../phrases/selector.js';
 
 export class Damage extends Effect {
   static fn = 'damage';
+  static role(st) { return atThem(st) ? 'removal' : null; }
   static harmful = true;
   static rules = [
     [/^deal (\d+) damage to (.+?) for each (.+)$/i, (m, P) => ({ fn: 'damage', n: { n: +m[1], per: P.forEach(m[3]) }, sel: P.sel(m[2]) })],
@@ -35,6 +36,7 @@ export class Damage extends Effect {
 }
 export class Heal extends Effect {
   static fn = 'heal';
+  static role() { return 'protection'; }
   static rules = [
     // "remove up to 4 damage total from any number of your characters" — one pool, spent in the order picked
     [/^remove up to (\d+) damage total from any number of (.+)$/i, (m, P) => ({ fn: 'heal', n: +m[1], total: true, sel: { chosen: P.filter(m[2].replace(/^your /i, 'your ')), upTo: 99 } })],

@@ -1,6 +1,6 @@
 // "<who> gets +2 {strength} this turn" · "gains Evasive" · "can't quest" · "can challenge ready characters"
 // Stat changes, keyword grants and restrictions are all mods on the card: { stat, delta, until } / { stat:'kw', kw }.
-import { Effect } from './Effect.js';
+import { Effect, aims } from './Effect.js';
 import { STAT, STAT_WORD } from '../phrases/text.js';
 import { Selector } from '../phrases/selector.js';
 import { Amount } from '../phrases/amount.js';
@@ -31,8 +31,16 @@ const CANT = { quest: 'cantQuest', challenge: 'cantChallenge', ready: 'cantReady
 const VERBS = Object.keys(CANT).sort((a, b) => b.length - a.length).join('|');
 const mods2 = (m, i) => [{ stat: STAT[m[i + 1]], n: +m[i] }];
 
+const SHIELDS = new Set(['ward', 'resist', 'cantBeChallenged', 'cantBeChallengedBy']);
 export class Mod extends Effect {
   static fn = 'mod';
+  // your own characters questing for more, or kept out of harm's way
+  static role(st) {
+    if (['opp'].includes(aims(st.sel))) return null;
+    if (st.mods?.some((m) => m.stat === 'lore' && Number(m.n) > 0)) return 'lore';
+    if (st.kws?.some((k) => SHIELDS.has(k.kw) && !k.lose)) return 'protection';
+    return null;
+  }
   static rules = [
     [/^give (.+?) ([+-]\d+) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: mods2(m, 2) })],
     [/^give (.+?) ([+-]\d+) \{(strength|willpower|lore)\} and ([+-]\d+) \{(strength|willpower|lore)\}$/i, (m, P) => P.D({ fn: 'mod', sel: P.sel(m[1]), mods: [...mods2(m, 2), ...mods2(m, 4)] })],

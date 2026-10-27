@@ -3,6 +3,7 @@ import { Amount } from '../phrases/amount.js';
 
 export class GainLore extends Effect {
   static fn = 'gainLore';
+  static role() { return 'lore'; }
   static rules = [
     [/^(?:you )?gain (\d+) lore$/i, (m) => ({ fn: 'gainLore', n: +m[1] })],
     [/^gain lore equal to (?:the|that|their|his|her|its) (?:character's |chosen character's )?\{lore\}$/i, () => ({ fn: 'gainLore', n: { stat: 'lore', of: 'ref' } })],
@@ -33,6 +34,7 @@ export class GainLore extends Effect {
 }
 export class LoseLore extends Effect {
   static fn = 'loseLore';
+  static role() { return 'lore'; }
   static rules = [
     [/^(?:each|chosen|all) opponents? loses? (\d+) lore$/i, (m) => ({ fn: 'loseLore', n: +m[1], who: 'opp' })],
     [/^(?:you )?lose (\d+) lore$/i, (m) => ({ fn: 'loseLore', n: +m[1], who: 'you' })],             // as the player an eachPlayer runs

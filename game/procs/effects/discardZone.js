@@ -5,6 +5,7 @@ import { freeShifts } from './extra.js';
 
 export class FromDiscard extends Effect {
   static fn = 'fromDiscard';
+  static role() { return 'recursion'; }
   static chooses() { return true; }
   static rules = [[/^return (a|an|up to \d+) (.+?) from your discard (?:to|into) your hand$/i, (m, P) => {
     const F = P.filter(m[2]); F.zone = 'discard'; F.owner = 'you';
@@ -24,6 +25,7 @@ export class FromDiscard extends Effect {
 }
 export class PlayFree extends Effect {
   static fn = 'playFree';
+  static role(st) { return st.filter?.zone === 'discard' ? 'recursion' : null; }
   static chooses(st) { return !st?.each; }                // "play those characters" plays them all: a yes/no first
   static rules = [
     // "play or shift a Robot character … for free" — a free play may use Shift anyway (run below), so it's the same play

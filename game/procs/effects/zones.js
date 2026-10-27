@@ -1,5 +1,5 @@
 // Moving cards between zones: banish · return to hand · bottom of deck · shuffle in · into the inkwell
-import { Effect } from './Effect.js';
+import { Effect, aims, atThem } from './Effect.js';
 import { Selector } from '../phrases/selector.js';
 import { HAND, DECK, INKWELL } from '../phrases/text.js';
 
@@ -21,6 +21,7 @@ class Move extends Effect {
 export class Banish extends Effect {
   static fn = 'banish';
   static harmful = true;
+  static role(st) { return atThem(st) ? 'removal' : null; }
   static rules = [[/^banish (.+)$/i, (m, P) => ({ fn: 'banish', sel: P.sel(m[1]) })]];
   static run(rt, s, job, st, ev) {
     const ids = rt.targets(s, job, st, st.sel);
@@ -37,6 +38,7 @@ export class Banish extends Effect {
 }
 export class ToHand extends Move {
   static fn = 'toHand';
+  static role(st) { return atThem(st) ? 'removal' : null; }               // bounce
   static past = 'Returned $ to their hand';
   static rules = [[new RegExp(String.raw`^return (.+?) to ${HAND}$`, 'i'), (m, P) => ({ fn: 'toHand', sel: P.sel(m[1]) })]];
   static move(rt, s, iid, ev) { rt.E.moveTo(s, iid, 'hand', ev, { reveal: true }); }
@@ -45,6 +47,7 @@ export class ToHand extends Move {
 }
 export class ToDeckBottom extends Move {
   static fn = 'toDeckBottom';
+  static role(st) { return atThem(st) ? 'removal' : null; }
   static past = 'Put $ on the bottom of their deck';
   static rules = [[new RegExp(String.raw`^put (.+?) on the bottom of ${DECK}$`, 'i'), (m, P) => ({ fn: 'toDeckBottom', sel: P.sel(m[1]) })]];
   static move(rt, s, iid, ev) { rt.E.moveTo(s, iid, 'deckBottom', ev); }
@@ -53,6 +56,7 @@ export class ToDeckBottom extends Move {
 }
 export class ShuffleIn extends Move {
   static fn = 'shuffleIn';
+  static role(st) { return atThem(st) ? 'removal' : null; }
   static past = 'Shuffled $ into their deck';
   static rules = [[new RegExp(String.raw`^shuffle (?!the rest\b)(.+?) into ${DECK}$`, 'i'), (m, P) => ({ fn: 'shuffleIn', sel: P.sel(m[1]) })]];
   static move(rt, s, iid, ev) {
@@ -64,6 +68,7 @@ export class ShuffleIn extends Move {
 }
 export class ToInkwell extends Move {
   static fn = 'toInkwell';
+  static role(st) { return atThem(st) ? 'removal' : ['self', 'you'].includes(aims(st.sel)) ? 'ramp' : null; }
   static past = 'Put $ into their inkwell';
   static rules = [[new RegExp(String.raw`^put (.+?) into ${INKWELL} facedown( and exerted)?$`, 'i'), (m, P) => ({ fn: 'toInkwell', sel: P.sel(m[1]), exerted: !!m[2] })]];
   static move(rt, s, iid, ev, st) { rt.E.moveTo(s, iid, 'inkwell', ev, { exerted: !!st.exerted, fromUnder: s.cards[iid].zone === 'under' }); }
