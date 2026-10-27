@@ -291,3 +291,10 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; background
 .key { display: inline-block; width: 12px; height: 3px; vertical-align: middle; }
 .key.me { background: var(--gilt-hi); } .key.opp { background: var(--glimmer); }
 @media (max-width: 760px) { .sim-grid, .sim-cols, .plan { grid-template-columns: 1fr; } .sim-summary .big b { font-size: 36px; } }
+
+/* auto-fix */
+.fix-panel { border: 1px solid var(--line-2); border-radius: 14px; padding: 12px 16px; margin-bottom: 16px; background: rgba(20,26,68,.7); }
+.fix-panel h3 { margin: 0 0 6px; font-size: 20px; }
+.fix-locks { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; max-height: 180px; overflow: auto; }
+.lock { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-cool); background: transparent; color: var(--mist); font-size: 12px; cursor: pointer; }
+.lock.on { border-color: var(--gilt); background: rgba(217,180,90,.16); color: var(--vellum); }

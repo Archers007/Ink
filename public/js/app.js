@@ -843,6 +843,13 @@ function wireUI() {
   Sim.init({
     getDeck: () => ({ name: ($('#deckTitle').value || '').trim() || 'Untitled deck', cards: [...Deck.Deck.cards.entries()] }),
     onRole: (role) => showRoleInInks(role),
+    // auto-fix's list replaces the deck in the builder (saved only when the player saves)
+    applyCards: (cards) => {
+      Deck.clear();
+      for (const [id, q] of cards) Deck.setQty(String(id), q);
+      renderGrid(); renderDeck();
+      showNotice('Auto-fix changes applied. Save the deck to keep them.');
+    },
   });
   $('#testDeckBtn').addEventListener('click', () => Sim.open());
   // phones: pool and deck are two tabs
