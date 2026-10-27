@@ -28,6 +28,7 @@ RUN pnpm install --frozen-lockfile --prod
 # visit stats at runtime; see .dockerignore).
 COPY server.js ./
 COPY game ./game
+COPY lib ./lib
 COPY public ./public
 # the card import the server runs on boot (ensureCards): tools/import-cards.mjs → cache/sanitized.db, tools/compile-procs.mjs → cache/proc.db
 COPY tools ./tools

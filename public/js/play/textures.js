@@ -71,7 +71,7 @@ export function backTexture() {
   const g = c.getContext('2d');
   const W = c.width, H = c.height;
   const grd = g.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, H * 0.7);
-  grd.addColorStop(0, '#2c3a7a'); grd.addColorStop(0.6, '#161c45'); grd.addColorStop(1, '#0b0d24');
+  grd.addColorStop(0, '#26317a'); grd.addColorStop(0.6, '#141a44'); grd.addColorStop(1, '#080b1f');
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
   // swirl lines
   g.strokeStyle = 'rgba(160,180,255,0.08)'; g.lineWidth = 3;
@@ -86,14 +86,14 @@ export function backTexture() {
     g.stroke();
   }
   // gold frame
-  g.strokeStyle = '#d4b25c'; g.lineWidth = 14; roundRect(g, 18, 18, W - 36, H - 36, 26); g.stroke();
-  g.strokeStyle = 'rgba(212,178,92,0.5)'; g.lineWidth = 4; roundRect(g, 40, 40, W - 80, H - 80, 18); g.stroke();
+  g.strokeStyle = '#d9b45a'; g.lineWidth = 14; roundRect(g, 18, 18, W - 36, H - 36, 26); g.stroke();
+  g.strokeStyle = 'rgba(217,180,90,0.5)'; g.lineWidth = 4; roundRect(g, 40, 40, W - 80, H - 80, 18); g.stroke();
   // central hexagon "ink drop"
   g.save(); g.translate(W / 2, H / 2);
-  g.fillStyle = 'rgba(212,178,92,0.15)'; g.strokeStyle = '#d4b25c'; g.lineWidth = 8;
+  g.fillStyle = 'rgba(217,180,90,0.15)'; g.strokeStyle = '#d9b45a'; g.lineWidth = 8;
   hex(g, 120); g.fill(); g.stroke();
   g.lineWidth = 3; hex(g, 96); g.stroke();
-  g.fillStyle = '#f2dc9b'; g.font = '700 84px "Space Grotesk", system-ui, sans-serif';
+  g.fillStyle = '#f6ecd0'; g.font = '700 84px Figtree, system-ui, sans-serif';
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('INK', 0, 6);
   g.restore();
   backTex = finish(new THREE.CanvasTexture(c));
@@ -117,7 +117,7 @@ export function roundRect(g, x, y, w, h, r) {
 // ---------- badges (counters) ----------
 // Each badge is drawn once per unique content and cached.
 const badgeCache = new Map();
-const FONT = '"Space Grotesk", "Inter", system-ui, sans-serif';
+const FONT = 'Figtree, system-ui, sans-serif';
 
 function canvasTex(key, w, h, draw) {
   let t = badgeCache.get(key);
@@ -153,7 +153,7 @@ export function statsTex(items) {
   const cellW = 112;
   return canvasTex(key, cellW * items.length, 72, (g, w, h) => {
     g.fillStyle = 'rgba(10,12,28,0.88)'; roundRect(g, 2, 2, w - 4, h - 4, 18); g.fill();
-    g.strokeStyle = 'rgba(212,178,92,0.9)'; g.lineWidth = 3; g.stroke();
+    g.strokeStyle = 'rgba(217,180,90,0.9)'; g.lineWidth = 3; g.stroke();
     items.forEach((it, i) => {
       const x = i * cellW + cellW / 2;
       const col = it.value > it.base ? '#6dff9a' : it.value < it.base ? '#ff7d7d' : '#ffffff';
@@ -201,7 +201,7 @@ export function tableTex() {
   c.width = 2048; c.height = 1576;
   const g = c.getContext('2d');
   const grd = g.createRadialGradient(c.width / 2, c.height / 2, 100, c.width / 2, c.height / 2, c.width * 0.65);
-  grd.addColorStop(0, '#24305f'); grd.addColorStop(0.7, '#151b3c'); grd.addColorStop(1, '#0b0e22');
+  grd.addColorStop(0, '#1d2766'); grd.addColorStop(0.7, '#141a44'); grd.addColorStop(1, '#080b1f');
   g.fillStyle = grd; g.fillRect(0, 0, c.width, c.height);
   // subtle noise
   const img = g.getImageData(0, 0, c.width, c.height);
@@ -210,9 +210,10 @@ export function tableTex() {
     img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n;
   }
   g.putImageData(img, 0, 0);
-  // center line
-  g.strokeStyle = 'rgba(212,178,92,0.35)'; g.lineWidth = 4; g.setLineDash([24, 18]);
+  // centre line: a thin gilt rule that fades out at both ends
+  const rule = g.createLinearGradient(80, 0, c.width - 80, 0);
+  rule.addColorStop(0, 'rgba(217,180,90,0)'); rule.addColorStop(0.5, 'rgba(217,180,90,0.55)'); rule.addColorStop(1, 'rgba(217,180,90,0)');
+  g.strokeStyle = rule; g.lineWidth = 3;
   g.beginPath(); g.moveTo(80, c.height / 2); g.lineTo(c.width - 80, c.height / 2); g.stroke();
-  g.setLineDash([]);
   return finish(new THREE.CanvasTexture(c));
 }

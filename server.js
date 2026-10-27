@@ -1,4 +1,4 @@
-// Ink — Lorcana deck builder, themed like the web in 1996.
+// Ink — Lorcana deck builder and online table.
 //
 // Responsibilities:
 //   1. Static-serve the frontend (public/).
@@ -7,8 +7,8 @@
 //      them in-place via sql.js.
 //   3. Proxy dreamborn's auth flow (Firebase identitytoolkit -> dreamborn session
 //      cookie -> user collection) so the browser doesn't fight CORS / cookies.
-//   4. Keep a small persistent SQLite DB (data/ink.db) that survives restarts and
-//      records site visits — exposed read-only at /api/stats.
+//   4. Keep a small persistent SQLite DB (data/ink.db) that survives restarts: site visits
+//      (read-only at /api/stats) plus accounts and their decks (lib/accounts.js).
 
 import express from 'express';
 import fs from 'node:fs/promises';
@@ -18,9 +18,10 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
-import { loadCardIndex } from './game/cards.js';
+import { loadCardIndex, resolveDeck } from './game/cards.js';
 import * as procLookup from './game/procs/lookup.js';
 import { attachLobby } from './game/lobby.js';
+import { attachAccounts } from './lib/accounts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -184,6 +185,10 @@ setInterval(refreshCardIndex, 60 * 60 * 1000).unref();
 // ---------- app ----------
 const app = express();
 app.use(express.json({ limit: '512kb' }));
+app.set('trust proxy', 'loopback, linklocal, uniquelocal');   // cloudflared / a reverse proxy on the LAN sets X-Forwarded-Proto
+
+// Discord / Google sign-in + server-side decks (lib/accounts.js)
+const accounts = attachAccounts(app, { db: statsDb });
 
 // Count one visit per top-level HTML page load (real navigations only — not API
 // calls, the .db downloads, or static assets like /css, /js, the favicon).
@@ -562,6 +567,19 @@ app.get('/api/procs/card', (req, res) => {
 app.get('/api/procs/stats', (req, res) => {
   if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
   res.json(procLookup.stats(cardIndex));
+});
+
+// Size / inks / legality / cover card for the lobby's deck tiles: { decks: [{ id, cards }] } → { [id]: summary }
+app.post('/api/play/deck-check', (req, res) => {
+  if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
+  const out = {};
+  for (const d of (Array.isArray(req.body?.decks) ? req.body.decks : []).slice(0, 300)) {
+    const r = resolveDeck(cardIndex, { name: d?.name, cards: Array.isArray(d?.cards) ? d.cards : [] });
+    const cover = [...r.counts].map(([id, q]) => ({ id, q, def: cardIndex.byId.get(String(id)) }))
+      .sort((a, b) => (b.def?.type === 'character') - (a.def?.type === 'character') || b.q - a.q || (b.def?.cost || 0) - (a.def?.cost || 0))[0];
+    out[String(d?.id)] = { size: r.size, inks: r.inks, legal: r.legal, problems: [...r.errors, ...r.problems].slice(0, 6), cover: cover?.def?.id ?? null };
+  }
+  res.json(out);
 });
 
 app.get('/api/play/demo-decks', (req, res) => {

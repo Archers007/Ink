@@ -10,6 +10,12 @@ services:
       - "${INK_PORT:-8080}:5060"
     environment:
       PORT: "5060"
+      # Sign-in: set these in your .env (see .env.example); unset providers are hidden
+      PUBLIC_URL: "${PUBLIC_URL:-}"
+      DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
+      DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
     # Persist the downloaded cards.db / prices.db (cache) and the visit-stats DB
     # (data) between restarts.
     volumes:

@@ -1,0 +1,85 @@
+/* Ink — "Inkwell & Gold": the one theme, shared by the builder (/), the table (/play) and /procs.
+   Deep ink blues, gilt for what you can act on, vellum for card names. One gold button per screen:
+   the action that moves things forward. Display type: Marcellus. UI type: Figtree. */
+:root {
+  --ink-deep: #080b1f;
+  --ink-table: #141a44;
+  --ink-panel: #1b2350;
+  --ink-panel-2: #232c62;
+  --ink-raise: #2a336f;
+  --gilt: #d9b45a;
+  --gilt-hi: #f1d68a;
+  --gilt-lo: #c99a35;
+  --vellum: #f6ecd0;
+  --vellum-2: #f1dca0;
+  --fg: #eef0ff;
+  --mist: #c3c8e8;
+  --muted: #a9b0d6;
+  --glimmer: #6fa8ff;
+  --ember: #ff8f86;
+  --ok: #6fdc9a;
+  --line: rgba(241, 220, 160, .16);
+  --line-2: rgba(241, 220, 160, .32);
+  --line-cool: rgba(169, 176, 214, .3);
+
+  --amber: #f4b223; --amethyst: #9b55a3; --emerald: #2a8934; --ruby: #d3082f; --sapphire: #0189c4; --steel: #9fa8b4;
+
+  --font-display: Marcellus, Georgia, "Times New Roman", serif;
+  --font-ui: Figtree, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-sm: 8px; --r: 12px; --r-lg: 16px;
+  --shadow: 0 18px 50px rgba(0, 0, 0, .5);
+  --page-bg: radial-gradient(1100px 700px at 25% -10%, #1d2766 0%, #0d1230 55%, var(--ink-deep) 100%);
+  color-scheme: dark;
+}
+
+.btn, button.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 700 14px/1 var(--font-ui); color: var(--fg); text-decoration: none; white-space: nowrap;
+  background: var(--ink-panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 16px;
+  cursor: pointer; transition: background .12s, border-color .12s, transform .06s, filter .12s;
+}
+.btn:hover:not(:disabled) { border-color: var(--gilt); background: var(--ink-panel-2); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.btn-gold, button.btn-gold {
+  background: linear-gradient(180deg, var(--gilt-hi), var(--gilt-lo)); color: #241a05; border-color: #f6e6b4;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 8px 20px rgba(201, 154, 53, .28);
+}
+.btn-gold:hover:not(:disabled) { background: linear-gradient(180deg, #f6df9c, #d4a540); border-color: #fff1c8; }
+.btn-quiet, button.btn-quiet { background: transparent; border-color: var(--line-cool); color: #e6e9ff; }
+.btn-quiet:hover:not(:disabled) { background: rgba(255, 255, 255, .05); border-color: var(--muted); }
+.btn-danger { color: #ffc2bd; border-color: rgba(255, 143, 134, .4); background: transparent; }
+.btn-sm { padding: 6px 10px; font-size: 12.5px; border-radius: 8px; }
+.btn-lg { padding: 16px 20px; font-size: 16px; }
+.btn-discord { background: #5865f2; color: #fff; border-color: #7983f5; }
+.btn-discord:hover:not(:disabled) { background: #6872f5; border-color: #9aa2f8; }
+.btn-google { background: #fff; color: #1f1f1f; border-color: #dadce0; }
+.btn-google:hover:not(:disabled) { background: #f4f5f7; border-color: #c4c7cc; }
+
+.lbl { font: 700 11px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.display { font-family: var(--font-display); font-weight: 400; color: var(--vellum); }
+.panel { background: rgba(27, 35, 80, .6); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.hexi { display: inline-block; width: 12px; height: 14px; vertical-align: -2px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: var(--glimmer); }
+.hexi.amber { background: var(--amber); } .hexi.amethyst { background: var(--amethyst); } .hexi.emerald { background: var(--emerald); }
+.hexi.ruby { background: var(--ruby); } .hexi.sapphire { background: var(--sapphire); } .hexi.steel { background: var(--steel); }
+.hexi.off { background: var(--ink-raise); }
+.brandmark { display: inline-flex; align-items: center; gap: 9px; font: 400 24px/1 var(--font-display); color: var(--vellum); text-decoration: none; }
+.brandmark::before { content: ''; width: 22px; height: 25px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(180deg, var(--gilt-hi), var(--gilt-lo)); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; background: linear-gradient(160deg, #5865f2, #2a336f); display: inline-grid; place-items: center; font: 700 13px var(--font-ui); color: #fff; }
+
+.tabs { display: flex; gap: 26px; font: 600 15px var(--font-ui); }
+.tabs a, .tabs button { color: var(--muted); text-decoration: none; padding: 0 0 8px; background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; cursor: pointer; font: inherit; }
+.tabs a:hover, .tabs button:hover { color: var(--fg); }
+.tabs .on, .tabs [aria-current="page"] { color: var(--vellum); border-bottom-color: var(--gilt); }
+
+.field-in, input.field-in, select.field-in, textarea.field-in {
+  font: 500 14px var(--font-ui); color: var(--fg); background: #10153a; border: 1px solid var(--line-cool); border-radius: 10px; padding: 10px 12px; outline: none;
+}
+.field-in:focus { border-color: var(--gilt); box-shadow: 0 0 0 3px rgba(217, 180, 90, .18); }
+:focus-visible { outline: 2px solid var(--gilt-hi); outline-offset: 2px; }
+
+/* the reduced-experience / info strip (portrait warning, sign-in notices) */
+.strip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(74, 58, 20, .55); border: 1px solid rgba(217, 180, 90, .35); font: 600 12.5px/1.35 var(--font-ui); color: var(--vellum-2); }
+.strip.bad { background: rgba(90, 30, 34, .55); border-color: rgba(255, 143, 134, .4); color: #ffd6d2; }
+.strip > span { flex: 1; }
+.strip button { background: none; border: 0; color: var(--muted); font-size: 15px; cursor: pointer; padding: 2px 4px; }

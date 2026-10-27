@@ -194,8 +194,8 @@ export class Board {
     initTextures(this.renderer);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x070814);
-    this.scene.fog = new THREE.Fog(0x070814, 140, 260);
+    this.scene.background = new THREE.Color(0x080b1f);
+    this.scene.fog = new THREE.Fog(0x080b1f, 140, 260);
     this.camera = new THREE.PerspectiveCamera(40, 1, 1, 600);
 
     this.scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x1a1530, 1.35));
@@ -214,7 +214,7 @@ export class Board {
     table.position.y = -0.05;
     this.scene.add(table);
     this.table = table;
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(L.tableW + 4, 2, L.tableD + 4), new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.7 }));
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(L.tableW + 4, 2, L.tableD + 4), new THREE.MeshStandardMaterial({ color: 0x1a1636, roughness: 0.7 }));
     rim.position.y = -1.1;
     this.scene.add(rim);
 
@@ -228,7 +228,7 @@ export class Board {
     this.zoneOutlines = new THREE.Group();
     this.scene.add(this.zoneOutlines);
     this.floaters = [];
-    this.ui = { selected: null, targets: new Set(), multi: new Set(), targetColor: 0x58ff8a };
+    this.ui = { selected: null, targets: new Set(), multi: new Set(), targetColor: 0x6fa8ff };
     this.view = null;
     this.defs = {};
     this.hover = null;
@@ -287,7 +287,7 @@ export class Board {
     group.add(p.deckLabel);
     // zone outlines
     const outline = (x, z, w, h, label) => {
-      const m = new THREE.Mesh(rectGeo(w, h, 0.8), new THREE.MeshBasicMaterial({ color: 0xd4b25c, transparent: true, opacity: 0.08, depthWrite: false }));
+      const m = new THREE.Mesh(rectGeo(w, h, 0.8), new THREE.MeshBasicMaterial({ color: 0xd9b45a, transparent: true, opacity: 0.08, depthWrite: false }));
       m.rotation.x = -Math.PI / 2; m.position.set(x, 0.0, z);
       group.add(m);
       if (label) {
@@ -365,7 +365,7 @@ export class Board {
       p.shownLore = pl.lore;
       p.loreNum.material.map = numberTex(String(pl.lore), pl.lore >= 15 ? '#ffd34d' : '#f2dc9b', `/ ${LORE_TO_WIN}`);
       p.loreNum.material.needsUpdate = true;
-      p.segs.forEach((m, i) => m.material.color.set(i < pl.lore ? (i >= 15 ? 0xffc93a : 0xd4b25c) : 0x2b2f52));
+      p.segs.forEach((m, i) => m.material.color.set(i < pl.lore ? (i >= 15 ? 0xffc93a : 0xd9b45a) : 0x2b2f52));
       if (up) p.lorePulse = 1;
     }
     if (p.lorePulse > 0) {
@@ -632,9 +632,9 @@ export class Board {
     for (const o of this.cards.values()) {
       const iid = o.info?.iid;
       let col = null;
-      if (iid && multi?.has(iid)) col = 0x4dc3ff;
+      if (iid && multi?.has(iid)) col = 0xf1d68a;
       else if (iid && targets?.has(iid)) col = this.hover === o ? 0xffffff : targetColor;
-      else if (iid && iid === selected) col = 0xffd34d;
+      else if (iid && iid === selected) col = 0xf1d68a;
       o.glowColor = col;
       o.dimmed = targeting && o.info?.zone === 'play' && !targets.has(iid) && iid !== selected && !multi?.has(iid);
     }
