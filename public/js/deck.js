@@ -8,7 +8,7 @@ import { DECK, parseDeckRule } from '/rulebook/deck.js';
 function abilityTexts(card) {
   let a = card.abilities;
   try { a = typeof a === 'string' ? JSON.parse(a) : a; } catch { /* plain text */ }
-  const list = Array.isArray(a) ? a.map((x) => (typeof x === 'string' ? x : x?.text || x?.effect || '')) : [String(a || '')];
+  const list = Array.isArray(a) ? a.map((x) => (typeof x === 'string' ? x : x?.text || x?.description || x?.effect || '')) : [String(a || '')];   // sanitized.db: [{ name, description }]
   return list.flatMap((t) => String(t).split(/\n|(?<=\.)\s+/));
 }
 export function maxCopies(card) {
