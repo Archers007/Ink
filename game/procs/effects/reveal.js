@@ -23,10 +23,12 @@ export class Reveal extends Effect {
       for (const iid of shown) ev.push({ k: 'reveal', seat: job.seat, iid, cardId: s.cards[iid].cardId });
       rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} revealed ${shown.map((iid) => rt.E.cardLabel(rt.E.D(s, s.cards[iid]))).join(', ') || 'nothing'}${k < 0 ? ' — no match' : ''}.`, { seat: job.seat, kind: 'effect' });
       job.ctx.it = k < 0 ? [] : [p.deck[k]];
+      (job.ctx.shown ||= []).push(...shown);                 // revealed to everyone: a later "you may …" prompt can show them to both players
       return k >= 0;
     }
     const top = p.deck.slice(0, Amount.value(rt, s, job, st.n));
     job.ctx.it = top;
+    (job.ctx.shown ||= []).push(...top);
     if (job.ctx.tally) (job.ctx.tally.revealed ||= []).push(...top);   // "each player reveals …" — "revealed this way" is all of them
     for (const iid of top) ev.push({ k: 'reveal', seat: job.seat, iid, cardId: s.cards[iid].cardId });
     rt.log(s, `↳ ${rt.E.nameOf(s, job.seat)} revealed ${top.map((iid) => rt.E.cardLabel(rt.E.D(s, s.cards[iid]))).join(', ') || 'nothing'} from the top of their deck.`, { seat: job.seat, kind: 'effect' });

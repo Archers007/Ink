@@ -12,6 +12,8 @@ export class Prompter {
       src: job.src, op: spec.op, prompt: `${job.label}: ${spec.prompt}`, harmful: !!spec.harmful,
       ...(spec.confirm ? { confirm: true } : {}),
       ...(spec.cards ? { cards: spec.cards } : {}),
+      ...(spec.public ? { public: true } : {}),              // the cards were revealed: the other player's view keeps them too
+
       ...(spec.choices ? { choices: spec.choices } : {}),
     };
     return null;

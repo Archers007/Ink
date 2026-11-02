@@ -1221,7 +1221,7 @@ export function viewFor(s, seat) {
     starting: s.starting,
     winner: s.winner,
     endReason: s.endReason,
-    pending: s.pending ? { ...s.pending, valid: s.pending.seat === seat ? s.pending.valid : undefined, cards: s.pending.seat === seat ? s.pending.cards : undefined } : null,
+    pending: s.pending ? { ...s.pending, valid: s.pending.seat === seat ? s.pending.valid : undefined, cards: s.pending.seat === seat || s.pending.public ? s.pending.cards : undefined } : null,
     players: s.players.map((p, i) => ({
       seat: i,
       name: p.name,

@@ -214,7 +214,13 @@ export class Runtime {
           job.tmp.mayOk = true;
         } else {
           job.waitKey = 'may';
-          this.ask(s, job, { confirm: true, optional: true, op: st.fn, prompt: `${E.verb(this, s, job, st)}?` });
+          // the card(s) the step acts on, when they aren't on the table to look at ("reveal the top card … you may play it")
+          const it = (job.ctx.it || []).filter((iid) => s.cards[iid] && s.cards[iid].zone !== 'play');
+          const shown = job.ctx.shown || [];
+          this.ask(s, job, {
+            confirm: true, optional: true, op: st.fn, prompt: `${E.verb(this, s, job, st)}?`,
+            ...(it.length ? { cards: it.map((iid) => ({ iid, cardId: s.cards[iid].cardId })), public: it.every((iid) => shown.includes(iid)) } : {}),
+          });
           return;
         }
       }

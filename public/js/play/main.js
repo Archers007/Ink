@@ -720,14 +720,19 @@ function renderBanner() {
     return;
   }
   if (pd?.type === 'choose' && pd.confirm && pd.seat === you()) {
-    el.innerHTML = `<span>${esc(pd.prompt)}</span>${pd.cards ? `<div class="pick">${pd.cards.map((c) => `<img src="${IMG(c.cardId)}" alt="">`).join('')}</div>` : ''}<button id="pYes">Yes</button><button id="pNo" class="ghost">No</button>`;
+    el.innerHTML = `<span>${esc(pd.prompt)}</span>${shownCards(pd)}<button id="pYes">Yes</button><button id="pNo" class="ghost">No</button>`;
     el.hidden = false;
     $('#pYes').onclick = () => act({ type: 'choose', confirm: true });
     $('#pNo').onclick = () => act({ type: 'choose', skip: true });
     return;
   }
-  if (v?.pending && v.pending.seat !== you()) { el.innerHTML = `<span>Waiting for ${esc(v.players[v.pending.seat].name)} to choose…${v.pending.prompt ? ` <span class="muted">(${esc(v.pending.prompt)})</span>` : ''}</span>`; el.hidden = false; return; }
+  if (v?.pending && v.pending.seat !== you()) { el.innerHTML = `<span>Waiting for ${esc(v.players[v.pending.seat].name)} to choose…${v.pending.prompt ? ` <span class="muted">(${esc(v.pending.prompt)})</span>` : ''}</span>${shownCards(v.pending)}`; el.hidden = false; return; }
   el.hidden = true;
+}
+// the card(s) a prompt is about, e.g. the one Prophetic Vision just revealed (the server only sends them when you may see them)
+function shownCards(pd) {
+  if (!pd.cards?.length) return '';
+  return `<div class="pick">${pd.cards.map((c) => `<img src="${IMG(c.cardId)}" alt="${esc(cardLabel(D(c.cardId)))}" title="${esc(cardLabel(D(c.cardId)))}">`).join('')}</div>`;
 }
 function cancelTargeting() {
   const t = S.targeting;
