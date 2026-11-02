@@ -8,7 +8,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
 const STATUS_LABEL = { queued: 'Queued for the worker', creating: 'Filing on GitHub…', issue: 'Issue filed', agent: 'Claude is on it', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
 
-const S = { user: null, data: null, tab: 'issues', users: null, open: new Set(), image: null, timer: null };
+const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, open: new Set(), image: null, timer: null };
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
@@ -104,21 +104,51 @@ function reportsHtml() {
 
 function usersHtml() {
   const admin = S.user.role === 'admin';
-  return `<table class="users"><thead><tr><th>Name</th>${admin ? '<th>Email</th>' : ''}<th>Role</th><th>Decks</th><th>Joined</th></tr></thead><tbody>
+  return `${admin ? invitesHtml() : ''}<h2 style="margin-top:18px">Accounts</h2><table class="users"><thead><tr><th>Name</th>${admin ? '<th>Email</th>' : ''}<th>Role</th><th>Decks</th><th>Joined</th></tr></thead><tbody>
     ${S.users.map((u) => `<tr><td>${esc(u.name)}</td>${admin ? `<td class="note">${esc(u.email || '')}</td>` : ''}<td>${admin && u.id !== S.user.id
       ? `<select data-role="${u.id}">${['user', 'moderator', 'admin'].map((r) => `<option ${u.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select>` : esc(u.role)}</td><td>${u.decks}</td><td class="note">${new Date(u.created).toLocaleDateString()}</td></tr>`).join('')}
   </tbody></table>`;
 }
 
+// invite links: make one for a role, send it; whoever opens it signs in or creates an account and claims the role
+function invitesHtml() {
+  const list = S.invites || [];
+  const when = (t) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const STATE = { ok: 'Waiting to be claimed', used: 'Claimed', expired: 'Expired', revoked: 'Withdrawn' };
+  return `<h2>Invite someone to a role</h2>
+    <div class="invite"><select id="invRole"><option value="moderator">Moderator</option><option value="admin">Admin</option></select>
+      <input type="text" id="invLabel" maxlength="60" placeholder="Who it's for (optional, e.g. Adam)"><button class="btn btn-gold" id="invMake">Create link</button>
+      <span class="note">Links work once and expire in 7 days.</span></div>
+    ${S.newLink ? `<div class="linkout"><span>Send this to them:</span><code id="invUrl">${esc(S.newLink)}</code><button class="btn btn-sm" id="invCopy">Copy</button></div>` : ''}
+    ${list.length ? `<table class="users"><thead><tr><th>Role</th><th>For</th><th>Status</th><th>Made</th><th>Expires</th><th></th></tr></thead><tbody>
+      ${list.map((i) => `<tr><td>${esc(i.role)}</td><td>${esc(i.label || '—')}</td><td>${i.state === 'used' ? `Claimed by <b>${esc(i.claimant || '?')}</b> ${when(i.usedAt)}` : STATE[i.state]}</td><td class="note">${when(i.created)}${i.creator ? ` by ${esc(i.creator)}` : ''}</td><td class="note">${when(i.expires)}</td><td>${i.state === 'ok' ? `<button class="btn btn-quiet btn-sm" data-revoke="${i.id}">Withdraw</button>` : ''}</td></tr>`).join('')}
+    </tbody></table>` : '<p class="note">No invite links yet.</p>'}`;
+}
+async function loadUsersTab() {
+  S.users = (await api('/api/admin/users')).users;
+  if (S.user.role === 'admin') S.invites = (await api('/api/admin/invites')).invites;
+}
+
 function bind() {
-  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = async () => { S.tab = b.dataset.tab; if (S.tab === 'users' && !S.users) { S.users = (await api('/api/admin/users')).users; } render(); });
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = async () => { S.tab = b.dataset.tab; if (S.tab === 'users' && !S.users) await loadUsersTab(); render(); });
+  const mk = $('#invMake');
+  if (mk) mk.onclick = async () => {
+    mk.disabled = true;
+    try { const j = await api('/api/admin/invites', { method: 'POST', body: JSON.stringify({ role: $('#invRole').value, label: $('#invLabel').value }) }); S.newLink = j.invite.url; await loadUsersTab(); render(); }
+    catch (e) { alert(e.message); mk.disabled = false; }
+  };
+  const cp = $('#invCopy');
+  if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(S.newLink); cp.textContent = 'Copied'; } catch { window.prompt('Copy the link:', S.newLink); } };
+  document.querySelectorAll('[data-revoke]').forEach((b) => b.onclick = async () => {
+    try { await api(`/api/admin/invites/${b.dataset.revoke}/revoke`, { method: 'POST' }); await loadUsersTab(); render(); } catch (e) { alert(e.message); }
+  });
   document.querySelectorAll('.iss[data-open]').forEach((el) => el.onclick = (e) => { if (e.target.closest('a,button,select')) return; const k = el.dataset.open; S.open.has(k) ? S.open.delete(k) : S.open.add(k); render(); });
   document.querySelectorAll('[data-rs]').forEach((b) => b.onclick = async () => {
     try { await api(`/api/admin/reports/${b.dataset.rs}/status`, { method: 'POST', body: JSON.stringify({ status: b.dataset.to }) }); await refresh(); } catch (e) { alert(e.message); }
   });
   document.querySelectorAll('[data-role]').forEach((sel) => sel.onchange = async () => {
-    try { await api(`/api/admin/users/${sel.dataset.role}/role`, { method: 'POST', body: JSON.stringify({ role: sel.value }) }); S.users = (await api('/api/admin/users')).users; render(); }
-    catch (e) { alert(e.message); S.users = (await api('/api/admin/users')).users; render(); }
+    try { await api(`/api/admin/users/${sel.dataset.role}/role`, { method: 'POST', body: JSON.stringify({ role: sel.value }) }); await loadUsersTab(); render(); }
+    catch (e) { alert(e.message); await loadUsersTab(); render(); }
   });
   document.querySelectorAll('[data-sw]').forEach((c) => c.onchange = async () => {
     try { S.data.switches = (await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ key: c.dataset.sw, value: c.checked }) })).switches; render(); } catch (e) { alert(e.message); refresh(); }

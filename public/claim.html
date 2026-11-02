@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ink · Claim a role</title>
+<link rel="icon" href="/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ink.css">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .claim { max-width: 460px; margin: 60px auto; padding: 0 20px 60px; }
+  .claim .box { background: var(--ink-panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; }
+  .claim h1 { margin: 0 0 6px; font-size: 26px; }
+  .claim .role { display: inline-block; padding: 2px 10px; border-radius: 10px; background: rgba(217,180,90,.14); border: 1px solid var(--gilt); color: var(--gilt-hi); font-weight: 700; text-transform: capitalize; }
+  .claim p { color: var(--mist); line-height: 1.5; }
+  .claim .signin-form { margin-top: 14px; }
+  .claim .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  .claim .err { color: var(--ember); font-size: 13px; }
+  .claim .brand { color: var(--gilt-hi); text-decoration: none; font-weight: 800; letter-spacing: .5px; display: inline-block; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<main class="claim" id="app"><a class="brand" href="/">⬡ Ink</a><div class="box"><p>Loading…</p></div></main>
+<script type="module" src="/js/claim.js"></script>
+</body>
+</html>

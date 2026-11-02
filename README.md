@@ -57,7 +57,9 @@ For local testing without a provider, `INK_DEV_LOGIN=1` (never in production) ad
 Every account has a role: `user` (everyone), `moderator` or `admin`. Accounts whose email is listed in
 `INK_ADMINS` become admins the first time they're seen; after that, admins hand out roles on the **Users** tab of
 `/admin` (also linked from the account menu). Moderators and admins see the page; only admins change roles and
-switches.
+switches. To bring someone in, make an **invite link** for a role on that tab and send it: opening it asks them to
+sign in or create an account, then to claim the role. Each link works once and expires after seven days; admins can
+withdraw one that has not been used.
 
 `/admin` is an issue board: the repository's open GitHub issues (`INK_GITHUB_REPO`) next to the reports filed from
 the page itself, each with its status. **Report a problem** takes a title, a description and a screenshot. Filing one
