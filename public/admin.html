@@ -40,6 +40,10 @@
   .lbl { font-size: 11px; padding: 1px 7px; border-radius: 8px; border: 1px solid; }
   .st { font-size: 11.5px; padding: 2px 8px; border-radius: 8px; background: #263066; white-space: nowrap; }
   .st.queued, .st.creating { background: #4a3a14; } .st.agent { background: #1d4f3a; } .st.issue { background: #2d3f80; } .st.done { background: #1d4f3a; } .st.failed, .st.cancelled { background: #7a1d1d; }
+  .st.pr { background: #2d3f80; } a.st { text-decoration: none; color: var(--fg); } a.st:hover { filter: brightness(1.2); }
+  .iss.closed { opacity: .8; } .iss.closed .t a { text-decoration: line-through; text-decoration-color: rgba(255,255,255,.35); }
+  .box h2.toggle { cursor: pointer; user-select: none; margin-bottom: 0; } .box h2.toggle + .issues { margin-top: 10px; }
+  table.hist td:nth-child(3) { line-height: 1.5; }
   .iss .acts { display: flex; gap: 6px; flex-direction: column; align-items: flex-end; }
   .iss .acts button, .iss .acts a { font-size: 12px; padding: 4px 9px; }
   .iss .body { font-size: 12.5px; color: var(--mist); margin-top: 6px; white-space: pre-wrap; max-height: 5.4em; overflow: hidden; }

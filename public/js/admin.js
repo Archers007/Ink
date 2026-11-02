@@ -6,9 +6,10 @@
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
-const STATUS_LABEL = { queued: 'Queued for the worker', creating: 'Filing on GitHub…', issue: 'Issue filed', agent: 'Claude is on it', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
+const STATUS_LABEL = { queued: 'Queued for the worker', creating: 'Filing on GitHub…', issue: 'Issue filed', agent: 'Claude is on it', pr: 'PR open', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
+const KIND_LABEL = { filed: 'Filed', issue: 'Issue', agent: 'Claude', pr: 'Pull request', done: 'Done', failed: 'Failed', cancelled: 'Cancelled', queued: 'Queued', switch: 'Switch' };
 
-const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, open: new Set(), image: null, timer: null };
+const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, activity: null, showClosed: false, open: new Set(), image: null, timer: null };
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
@@ -27,11 +28,12 @@ async function boot() {
     return;
   }
   await refresh();
-  S.timer = setInterval(() => { if (S.tab === 'issues' && document.visibilityState === 'visible') refresh(); }, 15000);
+  S.timer = setInterval(() => { if ((S.tab === 'issues' || S.tab === 'history') && document.visibilityState === 'visible') refresh(); }, 15000);
 }
 
 async function refresh() {
-  try { S.data = await api('/api/admin/issues'); } catch (e) { S.data = { ...(S.data || { issues: [], reports: [], switches: {} }), githubError: e.message }; }
+  try { S.data = await api('/api/admin/issues'); } catch (e) { S.data = { ...(S.data || { issues: [], closed: [], prsByIssue: {}, reports: [], switches: {} }), githubError: e.message }; }
+  if (S.tab === 'history' || S.activity) { try { S.activity = (await api('/api/admin/activity')).activity; } catch { /* keep what we had */ } }
   render();
 }
 
@@ -41,12 +43,13 @@ function render() {
   $('#app').innerHTML = `
     <div class="adm-top"><h1>Admin</h1><span class="note">${esc(S.user.name)} · ${esc(S.user.role)}</span><span class="sp"></span>
       <a class="btn btn-quiet btn-sm" href="https://github.com/${esc(d.repo)}/issues" target="_blank" rel="noopener">GitHub ↗</a><a class="btn btn-quiet btn-sm" href="/">Builder</a><a class="btn btn-quiet btn-sm" href="/play">Play</a></div>
-    <div class="tabs"><button data-tab="issues" class="${S.tab === 'issues' ? 'on' : ''}">Issues</button><button data-tab="users" class="${S.tab === 'users' ? 'on' : ''}">Users</button><button data-tab="settings" class="${S.tab === 'settings' ? 'on' : ''}">Settings</button></div>
+    <div class="tabs"><button data-tab="issues" class="${S.tab === 'issues' ? 'on' : ''}">Issues</button><button data-tab="history" class="${S.tab === 'history' ? 'on' : ''}">History</button><button data-tab="users" class="${S.tab === 'users' ? 'on' : ''}">Users</button><button data-tab="settings" class="${S.tab === 'settings' ? 'on' : ''}">Settings</button></div>
     <section class="pane" id="paneIssues" ${S.tab === 'issues' ? '' : 'hidden'}>
       ${d.workerConfigured ? '' : '<div class="warn">INK_WORKER_TOKEN isn\'t set on the server, so reports will queue but nothing picks them up. Set it in .env (server and worker) and restart.</div>'}
       ${d.githubError ? `<div class="warn">Couldn't refresh GitHub: ${esc(d.githubError)}. Showing the last list.</div>` : ''}
       <div class="grid">
-        <div class="box"><h2>Open issues · ${esc(d.repo)} <span class="note">(${d.issues.length})</span></h2><div class="issues" id="issues">${issuesHtml()}</div></div>
+        <div><div class="box"><h2>Open issues · ${esc(d.repo)} <span class="note">(${d.issues.length})</span></h2><div class="issues" id="issues">${issuesHtml()}</div></div>
+          <div class="box" style="margin-top:14px"><h2 class="toggle" id="closedToggle">${S.showClosed ? '▾' : '▸'} Recently closed <span class="note">(${(d.closed || []).length})</span></h2>${S.showClosed ? `<div class="issues">${closedHtml()}</div>` : ''}</div></div>
         <div>
           <div class="box form" id="reportForm">
             <h2>Report a problem</h2>
@@ -60,6 +63,7 @@ function render() {
         </div>
       </div>
     </section>
+    <section class="pane" id="paneHistory" ${S.tab === 'history' ? '' : 'hidden'}><div class="box"><h2>History <span class="note">every report, what was done with it, and how it turned out</span></h2>${S.activity ? historyHtml() : '<p class="note">Loading…</p>'}</div></section>
     <section class="pane" id="paneUsers" ${S.tab === 'users' ? '' : 'hidden'}><div class="box"><h2>Accounts</h2><div id="users">${S.users ? usersHtml() : '<p class="note">Loading…</p>'}</div></div></section>
     <section class="pane" id="paneSettings" ${S.tab === 'settings' ? '' : 'hidden'}><div class="box"><h2>Switches</h2>
       <div class="switch"><div><b>Accept reports</b><span class="note">The form on the Issues tab. Off: nothing new can be filed from Ink.</span></div><span class="sp"></span><input type="checkbox" data-sw="issues_on" ${d.switches.issues_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
@@ -69,20 +73,40 @@ function render() {
   bind();
 }
 
+// a pull request that names the issue: the fix is on its way (open), landed (merged — the issue closes when it reaches
+// the default branch), or was dropped (closed)
+function prChips(number) {
+  return ((S.data.prsByIssue || {})[number] || []).map((p) => `<a class="st ${p.state === 'merged' ? 'done' : p.state === 'open' ? 'pr' : 'failed'}" href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(p.title)}">${p.state === 'merged' ? 'Fix merged' : p.state === 'open' ? 'PR open' : 'PR closed'} · #${p.number}</a>`).join('');
+}
+function issueRow(i, r, extra = '') {
+  const key = `i${i.number}`;
+  const open = S.open.has(key);
+  return `<div class="iss ${open ? 'open' : ''} ${i.closed ? 'closed' : ''}" data-open="${key}">
+    <div class="num">#${i.number}</div>
+    <div><div class="t"><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></div>
+      <div class="meta"><span>${esc(i.author)}</span><span>${i.closed ? `closed ${ago(i.closed)}${i.stateReason === 'not_planned' ? ' as not planned' : ''}` : ago(i.created)}</span>${i.comments ? `<span>${i.comments} comment${i.comments > 1 ? 's' : ''}</span>` : ''}${i.labels.map((l) => `<span class="lbl" style="border-color:#${esc(l.color)};color:#${esc(l.color)}">${esc(l.name)}</span>`).join('')}${prChips(i.number)}${r ? `<span class="st ${r.status}" title="${esc(r.note || '')}">${STATUS_LABEL[r.status] || r.status}</span>` : ''}${extra}</div>
+      ${i.body ? `<div class="body">${esc(i.body)}</div>` : ''}</div>
+    <div class="acts"><a class="btn btn-quiet" href="${esc(i.url)}" target="_blank" rel="noopener">Open</a></div></div>`;
+}
 function issuesHtml() {
   const d = S.data;
   if (!d.issues.length) return '<p class="note">No open issues.</p>';
   const byNumber = new Map(d.reports.filter((r) => r.issueNumber).map((r) => [r.issueNumber, r]));
-  return d.issues.map((i) => {
-    const r = byNumber.get(i.number);
-    const open = S.open.has(`i${i.number}`);
-    return `<div class="iss ${open ? 'open' : ''}" data-open="i${i.number}">
-      <div class="num">#${i.number}</div>
-      <div><div class="t"><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></div>
-        <div class="meta"><span>${esc(i.author)}</span><span>${ago(i.created)}</span>${i.comments ? `<span>${i.comments} comment${i.comments > 1 ? 's' : ''}</span>` : ''}${i.labels.map((l) => `<span class="lbl" style="border-color:#${esc(l.color)};color:#${esc(l.color)}">${esc(l.name)}</span>`).join('')}${r ? `<span class="st ${r.status}" title="${esc(r.note || '')}">${STATUS_LABEL[r.status] || r.status}</span>` : ''}</div>
-        ${i.body ? `<div class="body">${esc(i.body)}</div>` : ''}</div>
-      <div class="acts"><a class="btn btn-quiet" href="${esc(i.url)}" target="_blank" rel="noopener">Open</a></div></div>`;
-  }).join('');
+  return d.issues.map((i) => issueRow(i, byNumber.get(i.number))).join('');
+}
+function closedHtml() {
+  const d = S.data;
+  if (!(d.closed || []).length) return '<p class="note">Nothing closed recently.</p>';
+  const byNumber = new Map(d.reports.filter((r) => r.issueNumber).map((r) => [r.issueNumber, r]));
+  return d.closed.map((i) => issueRow(i, byNumber.get(i.number), `<span class="st ${i.stateReason === 'not_planned' ? 'cancelled' : 'done'}">${i.stateReason === 'not_planned' ? 'Not planned' : 'Fixed'}</span>`)).join('');
+}
+function historyHtml() {
+  const list = S.activity || [];
+  if (!list.length) return '<p class="note">Nothing yet. Filing a report, the worker\'s steps, GitHub\'s verdicts and the switches all land here.</p>';
+  const when = (t) => new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return `<table class="users hist"><thead><tr><th>When</th><th>Who</th><th>What</th><th></th></tr></thead><tbody>
+    ${list.map((a) => `<tr><td class="note">${when(a.at)}</td><td>${esc(a.actor)}</td><td><span class="st ${a.kind === 'switch' ? 'issue' : a.kind}">${KIND_LABEL[a.kind] || a.kind}</span> ${esc(a.detail || '')}</td><td>${a.url ? `<a class="btn btn-quiet btn-sm" href="${esc(a.url)}" target="_blank" rel="noopener">${a.issue_number ? `#${a.issue_number}` : 'Open'}</a>` : ''}</td></tr>`).join('')}
+  </tbody></table>`;
 }
 
 function reportsHtml() {
@@ -94,7 +118,7 @@ function reportsHtml() {
     return `<div class="iss ${open ? 'open' : ''}" data-open="r${r.id}">
       <div class="num">${r.issueNumber ? `#${r.issueNumber}` : `R${r.id}`}</div>
       <div><div class="t">${r.issueUrl ? `<a href="${esc(r.issueUrl)}" target="_blank" rel="noopener">${esc(r.title)}</a>` : esc(r.title)}</div>
-        <div class="meta"><span>${esc(r.author || '')}</span><span>${ago(r.created)}</span><span class="st ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.note ? `<span title="${esc(r.note)}">${esc(r.note.slice(0, 90))}${r.note.length > 90 ? '…' : ''}</span>` : ''}</div>
+        <div class="meta"><span>${esc(r.author || '')}</span><span>${ago(r.created)}</span><span class="st ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.prUrl ? `<a class="st pr" href="${esc(r.prUrl)}" target="_blank" rel="noopener">pull request</a>` : ''}${r.note ? `<span title="${esc(r.note)}">${esc(r.note.slice(0, 90))}${r.note.length > 90 ? '…' : ''}</span>` : ''}</div>
         <div class="body">${esc(r.body)}</div>${r.imageUrl && open ? `<img class="shot" src="${esc(r.imageUrl)}" alt="">` : ''}</div>
       <div class="acts">${retry ? `<button class="btn btn-quiet" data-rs="${r.id}" data-to="queued" title="Put it back in the queue (the worker files the issue if there isn't one, then starts Claude)">Retry</button>` : ''}
         ${!['done', 'cancelled'].includes(r.status) ? `<button class="btn btn-quiet" data-rs="${r.id}" data-to="done">Done</button>` : ''}
@@ -130,7 +154,14 @@ async function loadUsersTab() {
 }
 
 function bind() {
-  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = async () => { S.tab = b.dataset.tab; if (S.tab === 'users' && !S.users) await loadUsersTab(); render(); });
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = async () => {
+    S.tab = b.dataset.tab;
+    if (S.tab === 'users' && !S.users) await loadUsersTab();
+    if (S.tab === 'history') { try { S.activity = (await api('/api/admin/activity')).activity; } catch (e) { alert(e.message); } }
+    render();
+  });
+  const ct = $('#closedToggle');
+  if (ct) ct.onclick = () => { S.showClosed = !S.showClosed; render(); };
   const mk = $('#invMake');
   if (mk) mk.onclick = async () => {
     mk.disabled = true;
