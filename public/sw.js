@@ -1,9 +1,10 @@
 // Ink service worker. The game runs on the server over a WebSocket, so there is no offline play — this makes the app
-// installable and quick to open: the shell (HTML, CSS, JS, three.js) is precached and refreshed in the background,
-// card images and fonts are cached as they're seen. /api and /ws are never touched.
-const VERSION = 'v2';
+// installable and quick to open: the shell (HTML, CSS, JS, three.js) is precached and served from the network when it's
+// reachable (so a deploy shows up on the next load), card images and fonts are cached as they're seen. /api and /ws are
+// never touched.
+const VERSION = 'v3';
 const SHELL_CACHE = `ink-shell-${VERSION}`;
-const CARDS_CACHE = 'ink-cards-v1';
+const CARDS_CACHE = 'ink-cards-v2';                        // v2: every entry is a readable (cors) response, see cardImage()
 const FONTS_CACHE = 'ink-fonts-v1';
 const KEEP = new Set([SHELL_CACHE, CARDS_CACHE, FONTS_CACHE]);
 const SHELL = [
@@ -34,26 +35,29 @@ async function networkFirst(req) {
     if (res.ok) c.put(req, res.clone());
     return res;
   } catch {
-    return (await c.match(req, { ignoreSearch: true })) || (await c.match('/play')) || Response.error();
+    const hit = await c.match(req, { ignoreSearch: true });
+    return hit || (req.mode === 'navigate' && (await c.match('/play'))) || Response.error();
   }
+}
+// Card images are fetched with CORS whether an <img> or the Play board (fetch + createImageBitmap) asked, so the one
+// cached copy serves both. An opaque (no-cors) cache entry can't be handed to a cors request — the board would get
+// "Failed to fetch" for every card the deck builder had already shown.
+async function cardImage(req) {
+  const c = await caches.open(CARDS_CACHE);
+  const hit = await c.match(req.url);
+  if (hit) return hit;
+  let res = await fetch(new Request(req.url, { mode: 'cors' })).catch(() => null);
+  if (!res || !res.ok) return res || fetch(req);               // CDN without CORS → plain fetch, uncached
+  await c.put(req.url, res.clone());
+  const keys = await c.keys();
+  for (const k of keys.slice(0, Math.max(0, keys.length - CARDS_MAX))) await c.delete(k);
+  return res;
 }
 async function staleWhileRevalidate(req, name) {
   const c = await caches.open(name);
   const hit = await c.match(req);
   const net = fetch(req).then((res) => { if (cacheable(res)) c.put(req, res.clone()); return res; }).catch(() => null);
   return hit || (await net) || Response.error();
-}
-async function cacheFirst(req, name, max) {
-  const c = await caches.open(name);
-  const hit = await c.match(req);
-  if (hit) return hit;
-  const res = await fetch(req).catch(() => null);
-  if (cacheable(res)) {
-    await c.put(req, res.clone());
-    const keys = await c.keys();
-    for (const k of keys.slice(0, Math.max(0, keys.length - max))) await c.delete(k);
-  }
-  return res || Response.error();
 }
 
 self.addEventListener('fetch', (e) => {
@@ -63,9 +67,9 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === self.location.origin) {
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws/')) return;          // live data, always the network
     if (req.mode === 'navigate') { e.respondWith(networkFirst(req)); return; }
-    if (/^\/(?:css|js|vendor|icons|rulebook)\/|^\/manifest\.webmanifest$/.test(url.pathname)) e.respondWith(staleWhileRevalidate(req, SHELL_CACHE));
+    if (/^\/(?:css|js|vendor|icons|rulebook)\/|^\/manifest\.webmanifest$/.test(url.pathname)) e.respondWith(networkFirst(req));
     return;
   }
-  if (url.hostname === 'cdn.dreamborn.ink') { e.respondWith(cacheFirst(req, CARDS_CACHE, CARDS_MAX)); return; }
+  if (url.hostname === 'cdn.dreamborn.ink') { e.respondWith(cardImage(req)); return; }
   if (/(?:^|\.)fonts\.(?:googleapis|gstatic)\.com$/.test(url.hostname)) e.respondWith(staleWhileRevalidate(req, FONTS_CACHE));
 });
