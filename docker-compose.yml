@@ -17,6 +17,12 @@ services:
       DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      # /admin: who starts out as admin, which GitHub repo the issue board shows, and the token the issue worker
+      # on the maintainer's machine (tools/issue-worker.mjs) uses to pick up reports
+      INK_ADMINS: "${INK_ADMINS:-}"
+      INK_GITHUB_REPO: "${INK_GITHUB_REPO:-}"
+      INK_GITHUB_TOKEN: "${INK_GITHUB_TOKEN:-}"
+      INK_WORKER_TOKEN: "${INK_WORKER_TOKEN:-}"
     # Persist the downloaded cards.db / prices.db (cache) and the visit-stats DB
     # (data) between restarts.
     volumes:

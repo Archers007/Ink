@@ -25,6 +25,7 @@ import { attachLobby } from './game/lobby.js';
 import { attachAccounts } from './lib/accounts.js';
 import { attachSim } from './lib/sim.js';
 import { attachReplays } from './lib/replays.js';
+import { attachReports } from './lib/reports.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -195,6 +196,8 @@ const accounts = attachAccounts(app, {
   db: statsDb,
   summarize: (cards) => { if (!cardIndex) return {}; const r = resolveDeck(cardIndex, { cards }); return { size: r.size, inks: r.inks, legal: r.legal }; },
 });
+// the /admin issue board: reports that become GitHub issues, fixed by Claude on the maintainer's machine (lib/reports.js)
+attachReports(app, { db: statsDb, accounts, dataDir: DATA_DIR });
 
 // Count one visit per top-level HTML page load (real navigations only — not API
 // calls, the .db downloads, or static assets like /css, /js, the favicon).

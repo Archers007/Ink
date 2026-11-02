@@ -90,7 +90,7 @@ function renderAccountModal() {
   const db = Auth.Session.displayName;
   const owned = Auth.Session.collection ? Object.keys(Auth.Session.collection).length : 0;
   body.innerHTML = `
-    ${u ? `<div class="acct-row">${avatarHtml(u, 'avatar lg')}<div><b>${escapeHtml(u.name)}</b><span class="note">${u.email ? `Signed in as ${escapeHtml(u.email)}` : `Signed in with ${u.providers.map((p) => p[0].toUpperCase() + p.slice(1)).join(' + ')}`}. Your decks are saved to this account.</span></div><button class="btn btn-quiet btn-sm" id="acctSignOut">Sign out</button></div>`
+    ${u ? `<div class="acct-row">${avatarHtml(u, 'avatar lg')}<div><b>${escapeHtml(u.name)}</b><span class="note">${u.email ? `Signed in as ${escapeHtml(u.email)}` : `Signed in with ${u.providers.map((p) => p[0].toUpperCase() + p.slice(1)).join(' + ')}`}. Your decks are saved to this account.</span></div>${u.role === 'admin' || u.role === 'moderator' ? '<a class="btn btn-sm" href="/admin">Admin</a>' : ''}<button class="btn btn-quiet btn-sm" id="acctSignOut">Sign out</button></div>`
       : `<p class="note">Sign in so your decks follow you between phone and desktop. Decks you've saved in this browser move into your account.</p>${account.signInForm({ next: '/' })}`}
     <div class="acct-row"><div><b>Dreamborn collection</b><span class="note">${db ? `Linked as ${escapeHtml(db)}${owned ? ` · ${owned.toLocaleString()} owned printings synced` : ' · not synced yet'}` : 'Link your dreamborn.ink account to filter the pool to cards you own.'}</span></div>
       ${db ? `<button class="btn btn-sm" id="acctSync">Sync</button><button class="btn btn-quiet btn-sm" id="acctUnlink">Unlink</button>` : `<button class="btn btn-sm" id="acctLink">Link</button>`}</div>`;

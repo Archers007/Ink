@@ -52,6 +52,34 @@ one that isn't configured stays hidden.
 
 For local testing without a provider, `INK_DEV_LOGIN=1` (never in production) adds `/auth/dev?name=…`.
 
+### Roles and the admin page
+
+Every account has a role: `user` (everyone), `moderator` or `admin`. Accounts whose email is listed in
+`INK_ADMINS` become admins the first time they're seen; after that, admins hand out roles on the **Users** tab of
+`/admin` (also linked from the account menu). Moderators and admins see the page; only admins change roles and
+switches.
+
+`/admin` is an issue board: the repository's open GitHub issues (`INK_GITHUB_REPO`) next to the reports filed from
+the page itself, each with its status. **Report a problem** takes a title, a description and a screenshot. Filing one
+queues it on the server; the **issue worker** — which runs on the maintainer's own machine, next to a checkout, not
+on the server — picks it up:
+
+```
+pnpm issue-worker            # keep running; --once handles the queue and exits; --dry-run shows what it would do
+```
+
+For each report it files a GitHub issue with the same text and screenshot (`gh issue create`, label `from-ink`),
+then, if the **Fix with Claude** switch is on, checks out `fix/issue-N` in its own git worktree under `../Ink-fixes`
+and opens a terminal window there running Claude Code with a brief: confirm the bug, fix it with a regression test,
+run the engine tests, push, open a pull request that says `Fixes #N`, comment on the issue. Nothing is merged
+automatically. The board shows each report move from *queued* to *issue filed* to *Claude is on it*; the
+**Settings** tab turns reports or the Claude step off.
+
+The worker needs `gh` signed in, `claude` on PATH, and `INK_WORKER_TOKEN` in `.env` (the same value the server
+has; the server refuses the worker without it). Set `PUBLIC_URL` to the site's public origin so the screenshot link
+in the GitHub issue works. The report text reaches GitHub through a file, never a command line; the terminal
+command carries only the issue URL and the brief's path.
+
 ## How the Dreamborn collection link works
 
 Three calls, chained server-side, matching the curls in the issue:

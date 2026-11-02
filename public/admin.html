@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ink · Admin</title>
+<link rel="icon" href="/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ink.css">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .adm { max-width: 1180px; margin: 0 auto; padding: 18px 20px 60px; }
+  .adm-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .adm-top h1 { margin: 0; font-size: 26px; }
+  .adm-top .sp { flex: 1; }
+  .tabs { display: flex; gap: 6px; margin: 10px 0 16px; }
+  .tabs button { background: none; border: 1px solid var(--line); color: var(--fg); padding: 7px 14px; border-radius: 10px; cursor: pointer; font: inherit; }
+  .tabs button.on { border-color: var(--gilt); color: var(--gilt-hi); background: rgba(217,180,90,.08); }
+  .pane[hidden] { display: none; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .box { background: var(--ink-panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .box h2 { margin: 0 0 10px; font-size: 17px; }
+  .form label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  .form input[type=text], .form textarea { width: 100%; box-sizing: border-box; background: var(--ink-panel-2); border: 1px solid var(--line); color: var(--fg); border-radius: 10px; padding: 9px 11px; font: inherit; }
+  .form textarea { min-height: 130px; resize: vertical; }
+  .drop { border: 1px dashed var(--line); border-radius: 10px; padding: 10px; text-align: center; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .drop.has { border-style: solid; }
+  .drop img { max-width: 100%; max-height: 180px; border-radius: 8px; display: block; margin: 6px auto 0; }
+  .form .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .msg { font-size: 13px; color: var(--muted); }
+  .msg.err { color: var(--ember); }
+  .issues { display: flex; flex-direction: column; gap: 8px; }
+  .iss { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 10px; align-items: start; background: var(--ink-panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .iss .num { color: var(--muted); font-weight: 700; }
+  .iss .t { font-weight: 700; }
+  .iss .t a { color: var(--fg); text-decoration: none; }
+  .iss .t a:hover { color: var(--gilt-hi); }
+  .iss .meta { font-size: 12.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .lbl { font-size: 11px; padding: 1px 7px; border-radius: 8px; border: 1px solid; }
+  .st { font-size: 11.5px; padding: 2px 8px; border-radius: 8px; background: #263066; white-space: nowrap; }
+  .st.queued, .st.creating { background: #4a3a14; } .st.agent { background: #1d4f3a; } .st.issue { background: #2d3f80; } .st.done { background: #1d4f3a; } .st.failed, .st.cancelled { background: #7a1d1d; }
+  .iss .acts { display: flex; gap: 6px; flex-direction: column; align-items: flex-end; }
+  .iss .acts button, .iss .acts a { font-size: 12px; padding: 4px 9px; }
+  .iss .body { font-size: 12.5px; color: var(--mist); margin-top: 6px; white-space: pre-wrap; max-height: 5.4em; overflow: hidden; }
+  .iss.open .body { max-height: none; }
+  .iss .shot { max-width: 220px; border-radius: 8px; margin-top: 6px; display: block; }
+  table.users { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.users th, table.users td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  table.users th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  table.users select { background: var(--ink-panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font: inherit; }
+  .switch { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .switch:last-child { border-bottom: 0; }
+  .switch b { display: block; } .switch .note { display: block; }
+  .switch .sp { flex: 1; }
+  .switch input { width: 20px; height: 20px; }
+  .warn { background: rgba(217,120,60,.12); border: 1px solid rgba(217,120,60,.4); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }
+  .gate { max-width: 520px; margin: 80px auto; text-align: center; }
+</style>
+</head>
+<body>
+<main class="adm" id="app">
+  <div class="gate"><p class="note">Loading…</p></div>
+</main>
+<script type="module" src="/js/admin.js"></script>
+</body>
+</html>
