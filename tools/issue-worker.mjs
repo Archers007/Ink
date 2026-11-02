@@ -1,6 +1,6 @@
 // The issue worker — runs on the maintainer's own machine, next to the repository checkout, not on the server.
 //
-//   pnpm issue-worker              keep running: poll the server for reports filed on /admin
+//   pnpm issue-worker              keep running: ask the server once a minute (INK_POLL_SECONDS) for reports filed on /admin
 //   pnpm issue-worker --once       handle what's queued now, then exit
 //   pnpm issue-worker --dry-run    do everything except file the issue and start Claude (prints what it would do)
 //
@@ -33,7 +33,7 @@ const BASE = process.env.INK_FIX_BASE || 'master';
 const FIX_DIR = path.resolve(process.env.INK_FIX_DIR || path.join(ROOT, '..', 'Ink-fixes'));
 const ONCE = process.argv.includes('--once');
 const DRY = process.argv.includes('--dry-run');
-const POLL_MS = 5000;
+const POLL_MS = Math.max(10, Number(process.env.INK_POLL_SECONDS) || 60) * 1000;   // once a minute unless INK_POLL_SECONDS says otherwise
 
 const log = (...a) => console.log(new Date().toLocaleTimeString(), ...a);
 if (!TOKEN) { console.error('INK_WORKER_TOKEN is not set (put it in .env, the same value as the server).'); process.exit(1); }

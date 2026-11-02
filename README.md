@@ -65,7 +65,7 @@ queues it on the server; the **issue worker** — which runs on the maintainer's
 on the server — picks it up:
 
 ```
-pnpm issue-worker            # keep running; --once handles the queue and exits; --dry-run shows what it would do
+pnpm issue-worker            # keep running, asking once a minute (INK_POLL_SECONDS); --once handles the queue and exits; --dry-run shows what it would do
 ```
 
 For each report it files a GitHub issue with the same text and screenshot (`gh issue create`, label `from-ink`),
