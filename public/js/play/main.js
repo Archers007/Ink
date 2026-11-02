@@ -180,6 +180,7 @@ function startTargeting(t) {
   if (!S.targeting.valid.size) { toast('No valid targets.', 'err'); S.targeting = null; return; }
   board.setUi({ targets: S.targeting.valid, multi: S.targeting.picked, targetColor: S.targeting.color });
   $('#inspector').hidden = true;
+  $('#quick').hidden = true;                                          // the pills over the hand card would sit on the targets (#22)
   renderBanner();
 }
 function clearTargeting() {
@@ -657,8 +658,9 @@ function renderHud() {
   $('#plateOpp').classList.toggle('active', v.status === 'playing' && v.active === o?.seat);
   document.querySelectorAll('[data-discard]').forEach((b) => b.onclick = () => openDiscard(Number(b.dataset.discard)));
   const endBtn = $('#endTurn');
-  endBtn.disabled = !myTurn();
-  endBtn.textContent = v.status === 'over' ? 'Game over' : myTurn() ? 'End turn ⏎' : v.status === 'mulligan' ? 'Mulligan…' : v.pending ? 'Waiting…' : `${v.players[v.active].name}'s turn`;
+  endBtn.disabled = v.status === 'over' ? false : !myTurn();
+  endBtn.textContent = v.status === 'over' ? 'Game over · result' : myTurn() ? 'End turn ⏎' : v.status === 'mulligan' ? 'Mulligan…' : v.pending ? 'Waiting…' : `${v.players[v.active].name}'s turn`;
+  endBtn.title = v.status === 'over' ? 'Show the result again' : '';
   $('#toolsBtn').disabled = v.status !== 'playing' || you() < 0 || !!S.replay;
   const myChoice = !S.replay && v.status === 'playing' && (v.pending ? v.pending.seat === you() : v.active === you());
   $('#hintBtn').hidden = !(S.room?.seats?.some((x) => x?.bot) && you() >= 0 && !S.replay);
@@ -832,7 +834,7 @@ function openModal(html, bind, key = null) {
   el.onclick = (e) => { if (e.target === el && key !== 'mulligan' && key !== 'peek') closeModal(); };
   bind?.(el);
 }
-function closeModal() { $('#modal').hidden = true; modalFor = null; }
+function closeModal() { if (modalFor === 'over') S.overDismissed = true; $('#modal').hidden = true; modalFor = null; }   // "Look at the board": the result stays a click away (#23)
 
 let mullSel = new Set();
 function renderPhaseModals() {
@@ -875,9 +877,10 @@ function renderPhaseModals() {
     return;
   }
   if (modalFor === 'peek') closeModal();
-  // game over
+  // game over — dismissable to look at the board; the "Game over · result" button brings it back (#23)
+  if (v.status !== 'over') S.overDismissed = false;
   if (v.status === 'over') {
-    if (modalFor !== 'over') {
+    if (modalFor !== 'over' && !S.overDismissed) {
       const won = v.winner === you();
       openModal(`<h2 class="${won ? 'win' : 'lose'}">${you() < 0 ? `${esc(v.players[v.winner].name)} wins!` : won ? 'You win! 🏆' : 'Defeat'}</h2>
         <p>${esc(v.endReason)}.</p>
@@ -1355,7 +1358,7 @@ function renderAll() {
   renderPhaseModals();
   renderRevealed();
 }
-$('#endTurn').onclick = () => act({ type: 'endTurn' });
+$('#endTurn').onclick = () => { if (V()?.status === 'over') { S.overDismissed = false; renderPhaseModals(); } else act({ type: 'endTurn' }); };
 $('#toolsBtn').onclick = openTools;
 // phones: log / chat / tools live in a drawer behind ☰
 const drawer = (open) => document.body.classList.toggle('drawer', open);
