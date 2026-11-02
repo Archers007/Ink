@@ -146,22 +146,33 @@ export class Static extends Kind {
   static active(rt, s, proc, owner, src) { return proc.kind === 'static' && proc.exec && rt.duringOk(s, proc, owner) && rt.test(s, proc.cond, owner, src); }
 
   // runtime: re-apply every "mod" static on the board
+  // Statics can depend on one another: Li Shang's "your characters with 4 {S} or more get +1 {L}" has to see Gaston's
+  // "your Floodborn characters get +1 {S}" whichever entered play first. So each round first works out who gets what
+  // with the previous round's mods in place, then swaps them in, and stops once a round changes nothing (#17).
   static apply(rt, s) {
-    for (const p of s.players) for (const iid of p.play) {
-      const c = s.cards[iid];
-      if (c.mods.some((m) => m.until === 'static' || m.until === 'src')) c.mods = c.mods.filter((m) => m.until !== 'static' && !(m.until === 'src' && s.cards[m.srcIid]?.zone !== 'play'));
-    }
-    for (const which of ['own+temp', 'granted-static']) for (const p of s.players) for (const iid of p.play) {
-      const c = s.cards[iid];
-      for (const proc of rt.procsOf(s, c, which)) {
-        if (proc.kind !== 'static' || proc.effect.fn !== 'mod' || !Static.active(rt, s, proc, c.owner, c.iid)) continue;
-        const job = { seat: c.owner, src: c.iid, label: rt.labelOf(s, c, proc), ctx: { it: [] }, tmp: {} };
-        for (const st of [proc.effect, ...(proc.also || [])]) {          // "… can't exert to sing songs and your Pirate characters gain Resist +1"
-          const ids = st.sel.self ? [c.iid] : st.sel.all ? rt.candidates(s, st.sel.all, c.owner, c.iid) : [];
-          const mult = st.per ? Amount.count(rt, s, st.per, c.owner, c.iid) : 1;
-          for (const id of ids) rt.addMods(s, job, st, id, null, mult);
+    const inPlay = () => s.players.flatMap((p) => p.play.map((iid) => s.cards[iid]));
+    const picture = () => JSON.stringify(inPlay().map((c) => c.mods.filter((m) => m.until === 'static')));
+    let before = picture();
+    for (let round = 0; round < 4; round++) {
+      const plan = [];
+      for (const which of ['own+temp', 'granted-static']) for (const c of inPlay()) {
+        for (const proc of rt.procsOf(s, c, which)) {
+          if (proc.kind !== 'static' || proc.effect.fn !== 'mod' || !Static.active(rt, s, proc, c.owner, c.iid)) continue;
+          const job = { seat: c.owner, src: c.iid, label: rt.labelOf(s, c, proc), ctx: { it: [] }, tmp: {} };
+          for (const st of [proc.effect, ...(proc.also || [])]) {          // "… can't exert to sing songs and your Pirate characters gain Resist +1"
+            const ids = st.sel.self ? [c.iid] : st.sel.all ? rt.candidates(s, st.sel.all, c.owner, c.iid) : [];
+            const mult = st.per ? Amount.count(rt, s, st.per, c.owner, c.iid) : 1;
+            for (const id of ids) plan.push([job, st, id, mult]);
+          }
         }
       }
+      for (const c of inPlay()) {
+        if (c.mods.some((m) => m.until === 'static' || m.until === 'src')) c.mods = c.mods.filter((m) => m.until !== 'static' && !(m.until === 'src' && s.cards[m.srcIid]?.zone !== 'play'));
+      }
+      for (const [job, st, id, mult] of plan) rt.addMods(s, job, st, id, null, mult);
+      const after = picture();
+      if (after === before) break;
+      before = after;
     }
   }
 

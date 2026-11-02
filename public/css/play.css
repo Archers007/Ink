@@ -192,11 +192,13 @@ i.hx { display: inline-block; width: 11px; height: 12px; vertical-align: -1px; c
 .chat-msgs.mini { max-height: 70px; font-size: 12px; background: var(--panel); border-radius: 10px; padding: 4px 8px; }
 .chat-msgs.mini:empty { display: none; }
 
-#inspector { right: 14px; top: 54px; width: 320px; max-height: calc(100vh - 128px); z-index: 3; overflow: auto; background: #0e1128;
+/* the panel grows with the viewport so the whole card fits (it may cover part of the board for a moment); the image
+   itself never exceeds the panel, so a tall narrow window can't clip its right edge */
+#inspector { right: 14px; top: 54px; width: clamp(320px, calc(46vh * 0.717 + 26px), min(560px, 92vw)); max-height: calc(100vh - 128px); z-index: 3; overflow: auto; background: #0e1128;
   border: 1px solid var(--gold); border-radius: 16px; padding: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
 #inspector .x { position: absolute; right: 8px; top: 8px; padding: 2px 8px; z-index: 1; }
 .insp-img { width: 100%; border-radius: 12px; display: block; aspect-ratio: 734 / 1024; background: #111; }
-.insp-imgwrap:not(.land) .insp-img { max-height: 46vh; width: auto; margin: 0 auto; }
+.insp-imgwrap:not(.land) .insp-img { max-height: 46vh; width: auto; max-width: 100%; margin: 0 auto; }
 .insp-imgwrap.land { aspect-ratio: 1024 / 734; position: relative; overflow: hidden; border-radius: 12px; }
 .insp-imgwrap.land .insp-img { position: absolute; width: 71.7%; left: 14.15%; top: -19.7%; transform: rotate(90deg); }
 .insp-body { margin-top: 8px; }
@@ -277,7 +279,7 @@ body.mobile #quick .q.info { font-size: 19px; }
 
 @media (max-width: 1100px) {
   #side { width: 230px; }
-  #inspector { width: 260px; }
+  #inspector { width: clamp(260px, calc(46vh * 0.717 + 26px), min(480px, 60vw)); }   /* a tall narrow window still shows the whole card */
   .plate { width: 200px; }
 }
 
@@ -480,3 +482,25 @@ body.mobile #replayBar input[type=range], body.mobile #replayBar .rp-title { dis
 .rv-dot.on { outline: 2px solid var(--gilt-hi); outline-offset: 1px; }
 .rv-now { line-height: 1.5; }
 body.mobile #hud #reviewBox { top: calc(76px + var(--sat)); }
+
+/* revealed cards (#20): what a reveal turned up, for both players, with the card(s) the effect used marked */
+#revealed { top: 52px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--gold); border-radius: 14px;
+  padding: 8px 10px; box-shadow: 0 14px 40px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 6px; max-width: 70vw; z-index: 3; }
+#revealed .rv-head { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--mist); }
+#revealed .rv-head span { flex: 1; }
+#revealed .rv-head .x { padding: 0 6px; font-size: 13px; }
+#revealed .pick { display: flex; gap: 6px; flex-wrap: wrap; }
+#revealed .pick img { width: 72px; border-radius: 5px; display: block; border: 2px solid transparent; opacity: .72; }
+#revealed .pick img.picked { opacity: 1; border-color: var(--gold2); box-shadow: 0 0 0 1px rgba(255,201,58,.5), 0 0 16px rgba(255,201,58,.45); }
+body.mobile #revealed { top: calc(28px + var(--sat)); max-width: calc(100vw - 280px); padding: 4px 8px; gap: 4px; font-size: 12px; border-radius: 10px; }
+body.mobile #revealed .pick { flex-wrap: nowrap; overflow-x: auto; max-width: 56vw; }
+body.mobile #revealed .pick img { width: 52px; }
+/* looks: the cards turn over one after another; choosable ones glow, ones sent to the bottom dim; the other player sees backs */
+@keyframes rvFlip { from { opacity: 0; transform: translateY(-14px) rotateY(90deg); } 60% { opacity: 1; } to { transform: none; } }
+#revealed .pick.flip > * { animation: rvFlip .45s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 110ms); }
+#revealed .pick img.can { opacity: 1; border-color: var(--glimmer); box-shadow: 0 0 12px rgba(120,180,255,.45); }
+#revealed .pick img.down { opacity: .35; filter: grayscale(.6); }
+#revealed .pick .back { width: 72px; aspect-ratio: 734 / 1024; border-radius: 5px; display: block; border: 2px solid rgba(217,180,90,.5);
+  background: radial-gradient(circle at 50% 42%, rgba(217,180,90,.45) 0 14%, transparent 15%), repeating-linear-gradient(45deg, #1b2350 0 6px, #141b40 6px 12px); }
+body.mobile #revealed .pick .back { width: 52px; }
+@media (prefers-reduced-motion: reduce) { #revealed .pick.flip > * { animation: none; } }

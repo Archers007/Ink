@@ -72,6 +72,7 @@ const net = new Net({
         S.view = m.view;
         if (S.hint) { S.hint = null; renderHint(); }             // the position moved on
         board.render(S.view, S.defs, m.events || []);
+        noteReveals(m.events || []);
         validateUi();
         renderAll();
         renderLobby();
@@ -351,13 +352,15 @@ function actionsFor(found) {
 
   if (zone === 'hand' && mine) {
     const ink = readyInk();
+    const now = c.cost ?? def.cost;                                   // what it costs right now, board discounts included (#19)
+    const price = now === def.cost ? `${def.cost} ⬡` : `${now} ⬡ (was ${def.cost})`;
     const lacking = (n) => (ink < n ? `Needs ${n} ink — you have ${ink} ready.` : null);
     if (def.type === 'song' || def.type === 'action' || def.type === 'item' || def.type === 'location' || def.type === 'character') {
-      P(`Play  ·  ${def.cost} ⬡`, () => act({ type: 'play', iid: c.iid, mode: 'ink' }), lacking(def.cost), { hot: true });
+      P(`Play  ·  ${price}`, () => act({ type: 'play', iid: c.iid, mode: 'ink' }), lacking(now), { hot: true });
     }
     const exertOpt = def.procs?.some((p) => p.kind === 'static' && p.effect?.fn === 'enterExertedOpt');   // "may enter play exerted [to …]"
     if (def.type === 'character' && (def.kw?.bodyguard || exertOpt)) {
-      P(`Play exerted${def.kw?.bodyguard ? ' (Bodyguard)' : ''}  ·  ${def.cost} ⬡`, () => act({ type: 'play', iid: c.iid, mode: 'ink', enterExerted: true }), lacking(def.cost));
+      P(`Play exerted${def.kw?.bodyguard ? ' (Bodyguard)' : ''}  ·  ${price}`, () => act({ type: 'play', iid: c.iid, mode: 'ink', enterExerted: true }), lacking(now));
     }
     for (const opt of shiftOptions(def)) {
       const valid = me().play.filter((t) => shiftTargetOk(opt, def, D(t.cardId)));
@@ -580,7 +583,7 @@ function renderInspector() {
     <div class="insp-body">
       <div class="insp-name">${esc(def.name)}${def.title ? `<small>${esc(def.title)}</small>` : ''}</div>
       <div class="insp-meta">
-        <span class="cost ${def.inkable ? 'inkable' : ''}" title="${def.inkable ? 'Inkable' : 'Not inkable'}">${def.cost}</span>
+        <span class="cost ${def.inkable ? 'inkable' : ''} ${c.cost != null && c.cost !== def.cost ? 'disc' : ''}" title="${def.inkable ? 'Inkable' : 'Not inkable'}${c.cost != null && c.cost !== def.cost ? ` · costs ${c.cost} right now (printed ${def.cost})` : ''}">${c.cost ?? def.cost}</span>
         <span>${esc(def.type)}${def.classes?.length ? ' · ' + esc(def.classes.join(' · ')) : ''}</span>
         <span class="inks">${def.inks.map((i) => `<i class="ink ${i}" title="${i}"></i>`).join('')}</span>
       </div>
@@ -733,6 +736,56 @@ function renderBanner() {
 function shownCards(pd) {
   if (!pd.cards?.length) return '';
   return `<div class="pick">${pd.cards.map((c) => `<img src="${IMG(c.cardId)}" alt="${esc(cardLabel(D(c.cardId)))}" title="${esc(cardLabel(D(c.cardId)))}">`).join('')}</div>`;
+}
+
+// ---------- DOM: revealed / looked-at cards (#20) ----------
+// Both players see what a reveal turned up ("reveal the top 3 cards …"), with the card(s) the effect then used
+// marked: one that went to a hand or into play, or an action it played. A look ("look at the top 4 cards") shows
+// the looker their cards turning over whether or not any is choosable — it's a card game — while the other player
+// sees that many card backs. Stays up until the next turn or a click. The flips can be turned off (Tools / lobby).
+const FLIPS_KEY = 'ink.play.flips';
+const flipsOn = () => localStorage.getItem(FLIPS_KEY) !== 'off';
+function noteReveals(events) {
+  const rv = events.filter((e) => e.k === 'reveal' && e.cardId && e.iid);
+  const lk = events.find((e) => e.k === 'look');
+  const cur = S.revealed;
+  if (rv.length && !(cur && rv.every((e) => cur.cards.some((c) => c.iid === e.iid)))) {
+    const seen = new Set();
+    S.revealed = { kind: 'reveal', seat: rv[0].seat, cards: rv.filter((e) => !seen.has(e.iid) && seen.add(e.iid)).map((e) => ({ iid: e.iid, cardId: e.cardId, picked: false })) };
+  } else if (rv.length && cur) {
+    for (const e of rv) { const c = cur.cards.find((x) => x.iid === e.iid); if (c) c.picked = true; }   // played from the reveal: shown again as it's cast
+  } else if (lk && flipsOn()) {
+    // the looker gets the cards; the other player only a count (face-down backs)
+    S.revealed = { kind: 'look', seat: lk.seat, of: lk.of, n: lk.n, cards: (lk.cards || Array.from({ length: lk.n }, () => ({}))).map((c) => ({ ...c, picked: false })) };
+  } else if (cur && events.some((e) => e.k === 'turn')) S.revealed = null;
+  const r = S.revealed;
+  if (r) for (const e of events) {
+    if (e.k === 'move' && e.iid && (e.to === 'hand' || e.to === 'play')) { const c = r.cards.find((x) => x.iid === e.iid); if (c) c.picked = true; }
+    if (e.k === 'move' && e.iid && e.from === 'deck' && e.to === 'deck') { const c = r.cards.find((x) => x.iid === e.iid); if (c) c.down = true; }   // sent to the bottom
+  }
+  renderRevealed(true);
+}
+function renderRevealed(fresh = false) {
+  const el = $('#revealed');
+  const r = S.revealed;
+  const v = V();
+  if (!el) return;
+  if (!r || !v || v.status !== 'playing') { el.hidden = true; return; }
+  const label = (id) => { const d = D(id); return d ? cardLabel(d) : ''; };
+  const me = r.seat === you();
+  const who = me ? 'You' : v.players[r.seat]?.name || 'They';
+  const whose = r.kind === 'look' ? (r.of === r.seat ? (me ? 'your' : 'their') : `${esc(v.players[r.of]?.name || '')}'s`) : '';
+  const title = r.kind === 'look' ? `${esc(who)} ${me ? 'look' : 'looks'} at the top ${r.n === 1 ? 'card' : `${r.n} cards`} of ${whose} deck` : `${esc(who)} revealed`;
+  const choosable = new Set(v.pending?.seat === you() ? v.pending.valid || [] : []);
+  const anim = fresh && flipsOn() && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.innerHTML = `<div class="rv-head"><span>${title}</span><button class="x" data-close-rv title="Dismiss">✕</button></div>
+    <div class="pick ${anim ? 'flip' : ''}">${r.cards.map((c, i) => c.cardId
+      ? `<img class="${c.picked ? 'picked' : ''} ${c.down ? 'down' : ''} ${choosable.has(c.iid) ? 'can' : ''}" style="--i:${i}" src="${IMG(c.cardId)}" alt="${esc(label(c.cardId))}" title="${esc(label(c.cardId))}${c.picked ? ' — chosen' : c.down ? ' — to the bottom' : ''}">`
+      : `<span class="back" style="--i:${i}" title="A card ${esc(who)} is looking at"></span>`).join('')}</div>`;
+  el.hidden = false;
+  const banner = $('#banner');                                        // sit under the prompt banner when one is up
+  el.style.top = banner && !banner.hidden ? `${banner.offsetTop + banner.offsetHeight + 8}px` : '';
+  el.querySelector('[data-close-rv]').onclick = () => { S.revealed = null; renderRevealed(); };
 }
 function cancelTargeting() {
   const t = S.targeting;
@@ -895,10 +948,14 @@ function openTools() {
       <fieldset><legend>Hand</legend>
         <button data-a='{"type":"revealHand"}'>Reveal my hand</button>
       </fieldset>
+      <fieldset><legend>Table</legend>
+        <label class="check"><input type="checkbox" id="flipsChk" ${flipsOn() ? 'checked' : ''}> Show cards being looked at or revealed turning over <span class="note">(off: only what you must choose from)</span></label>
+      </fieldset>
     </div>
     <div class="modal-actions"><button data-close>Close</button></div>`, (el) => {
     el.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => act(JSON.parse(b.dataset.a)));
     $('#peekBtn', el).onclick = () => { act({ type: 'peek', n: Number($('#peekN', el).value) || 1 }); closeModal(); };
+    $('#flipsChk', el).onchange = (e) => { localStorage.setItem(FLIPS_KEY, e.target.checked ? 'on' : 'off'); if (!e.target.checked && S.revealed?.kind === 'look') { S.revealed = null; renderRevealed(); } };
   }, 'tools');
 }
 
@@ -1020,6 +1077,8 @@ function renderLobby() {
             <div class="lob-row2 botlvl"><span class="note">Bot</span>
               <label class="check"><input type="radio" name="botLevel" value="hard" ${S.botLevel !== 'easy' ? 'checked' : ''}> Hard <span class="note">(plans ahead)</span></label>
               <label class="check"><input type="radio" name="botLevel" value="easy" ${S.botLevel === 'easy' ? 'checked' : ''}> Easy</label></div>
+            <div class="lob-row2 botlvl"><span class="note">Table</span>
+              <label class="check"><input type="checkbox" id="flipsLobby" ${flipsOn() ? 'checked' : ''}> Show cards being looked at or revealed turning over</label></div>
             ${S.training?.model ? `<p class="note">The bots have learned from ${S.training.model.games.toLocaleString()} saved games${S.training.model.humanGames ? `, ${S.training.model.humanGames.toLocaleString()} played by people` : ''}.</p>` : ''}
             <label class="check"><input type="checkbox" id="publicChk"> List my room publicly</label>
           </div>
@@ -1045,6 +1104,7 @@ function renderLobby() {
     $('#nameInput')?.addEventListener('input', (e) => { S.name = e.target.value.trim(); localStorage.setItem(NAME_KEY, S.name); net.name = S.name; });
     el.querySelectorAll('[data-deck]').forEach((b) => b.onclick = () => { localStorage.setItem(DECK_KEY, b.dataset.deck); renderLobby(); });
     el.querySelectorAll('[name=botLevel]').forEach((r) => r.onchange = () => { S.botLevel = r.value; localStorage.setItem('ink.play.bot', r.value); });
+    $('#flipsLobby')?.addEventListener('change', (e) => localStorage.setItem(FLIPS_KEY, e.target.checked ? 'on' : 'off'));
     $('#botBtn').onclick = () => { if (!nameOk()) return; S.quickBot = true; net.send({ t: 'create', name: S.name, vsBot: true, botLevel: S.botLevel === 'easy' ? 'easy' : 'hard' }); };
     $('#createBtn').onclick = () => nameOk() && net.send({ t: 'create', name: S.name, public: $('#publicChk').checked });
     $('#joinBtn').onclick = () => nameOk() && net.send({ t: 'join', code: $('#joinCode').value.trim(), name: S.name });
@@ -1293,6 +1353,7 @@ function renderAll() {
   renderInspector();
   renderLog();
   renderPhaseModals();
+  renderRevealed();
 }
 $('#endTurn').onclick = () => act({ type: 'endTurn' });
 $('#toolsBtn').onclick = openTools;

@@ -90,6 +90,11 @@ function log(s, text, opt = {}) {
 
 // Can this card be played at all right now? (a reason, or null) — the bot asks before trying
 export function playBlocked(s, seat, iid) { return R.playBlocked(s, seat, s.cards[iid]); }
+// the ink `seat` would pay to play hand card `c` right now, discounts included (no side effects)
+export function playCostNow(s, seat, c) {
+  const d = D(s, c);
+  try { return Math.max(0, d.cost + R.costDelta(s, seat, c, false)); } catch { return d.cost; }
+}
 export function readyInk(s, seat) {
   return P(s, seat).inkwell.reduce((n, iid) => n + (s.cards[iid].exerted ? 0 : 1), 0) + (P(s, seat).inkDrops || 0);
 }
@@ -1229,7 +1234,9 @@ export function viewFor(s, seat) {
       deckCount: p.deck.length,
       deckTop: p.deck.length && R.rule(s, 'topFaceUp', p.seat) ? { iid: p.deck[0], cardId: s.cards[p.deck[0]].cardId } : null,   // "plays with the top card of their deck face up"
       handCount: p.hand.length,
-      hand: i === seat ? p.hand.map((iid) => ({ iid, cardId: s.cards[iid].cardId })) : null,
+      // cost: what it costs to play right now when a discount applies ("you pay 1 {ink} less …"), so the hand can show and
+      // allow the real price instead of the printed one (#19)
+      hand: i === seat ? p.hand.map((iid) => { const c = s.cards[iid]; const now = playCostNow(s, seat, c); return { iid, cardId: c.cardId, ...(now !== s.defs[c.cardId].cost ? { cost: now } : {}) }; }) : null,
       inkTotal: p.inkwell.length,
       inkReady: readyInk(s, p.seat),
       inkDrops: p.inkDrops || 0,

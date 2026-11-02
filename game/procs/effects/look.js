@@ -189,6 +189,9 @@ export class Look extends Effect {
     if (!T.logged) {
       T.logged = true;
       if (st.reveal) for (const iid of T.cards) ev.push({ k: 'reveal', seat, iid, cardId: s.cards[iid].cardId });
+      // a private look: the looker's client gets the cards (to show them turning over, choosable or not); the other
+      // player's only gets how many, so their table can show that many card backs being looked at
+      else if (T.cards.length) ev.push({ k: 'look', seat: job.seat, of: seat, n: T.cards.length, cards: T.cards.map((iid) => ({ iid, cardId: s.cards[iid].cardId })), privateTo: job.seat, redacted: { k: 'look', seat: job.seat, of: seat, n: T.cards.length } });
       rt.log(s, `↳ ${E.nameOf(s, job.seat)} ${st.reveal ? `revealed ${T.cards.map(lbl).join(', ') || 'nothing'} from` : `looked at`} the top ${plural(T.cards.length, 'card')} of ${whose} deck.`, { seat: job.seat, kind: 'effect', ...(st.reveal ? {} : { priv: { seat: job.seat, text: `↳ Top of ${seat === job.seat ? 'your' : whose} deck: ${T.cards.map(lbl).join(', ')}.` } }) });
     }
     if (st.slots) return Look.runSlots(rt, s, job, st, ev, T, p, whose);

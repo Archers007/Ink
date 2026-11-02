@@ -1,8 +1,9 @@
 // Scenario tests for automated card abilities (compiled procs + engine effect queue).
 //   node scripts/test-effects.mjs
 import assert from 'node:assert/strict';
-import { applyAction, checkInvariants, viewFor } from '../game/engine.js';
+import { applyAction, checkInvariants, viewFor, eventsFor } from '../game/engine.js';
 import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
+import { effStr, effLore } from '../public/js/play/rules.js';
 
 
 const DMG3 = byName('Vincenzo Santorini - The Explosives Expert');        // you may deal 3 damage to chosen character
@@ -95,6 +96,58 @@ test('a rejected choice rolls back atomically', () => {
   const before = JSON.stringify(s);
   assert.equal(applyAction(s, 0, { type: 'choose', target: 'c99999' }).ok, false);
   assert.equal(JSON.stringify(s), before);
+});
+
+// #17: one static changes a stat another static's selector reads; the result can't depend on who entered play first
+test('statics see each other: Gaston\'s +1 {S} qualifies Li Shang for his own "4 {S} or more get +1 {L}", in either order', () => {
+  const li = byName('Li Shang - Valorous General'), gaston = byName('Gaston - Created by the Vine');
+  for (const order of [[li, gaston], [gaston, li]]) {
+    const { s, ids } = setup({ play0: order });
+    ok(applyAction(s, 0, { type: 'endTurn' }));                       // a state check re-applies the board's statics
+    const shang = s.cards[ids.play0[order.indexOf(li)]];
+    const tag = order.map((d) => d.name).join(' then ');
+    assert.equal(effStr(shang, li), li.str + 1, `Gaston gives Li Shang +1 strength (${tag})`);
+    assert.equal(effLore(shang, li), li.lore + 1, `Li Shang at ${li.str + 1} strength gets his own +1 lore (${tag})`);
+    checkInvariants(s);
+  }
+  // and it comes off again once Gaston is gone
+  const { s, ids } = setup({ play0: [li, gaston] });
+  ok(applyAction(s, 0, { type: 'endTurn' }));
+  const g = ids.play0[1];
+  s.cards[g].zone = 'discard'; s.players[0].play.splice(s.players[0].play.indexOf(g), 1); s.players[0].discard.push(g);
+  ok(applyAction(s, 1, { type: 'endTurn' }));
+  assert.equal(effStr(s.cards[ids.play0[0]], li), li.str, 'without Gaston: printed strength');
+  assert.equal(effLore(s.cards[ids.play0[0]], li), li.lore, 'without Gaston: printed lore');
+});
+
+// #19: a hand card the board discounts carries its current cost in the owner's view
+test('view: Seeking the Half Crown costs 2 less with two Sorcerers in play, and the hand says so', () => {
+  const half = byName('Seeking the Half Crown');
+  const sorc = all.find((d) => d.type === 'character' && d.classes?.some((x) => /^sorcerer$/i.test(x)) && d.procs.every((p) => p.kind !== 'static'));
+  assert.ok(sorc, 'a Sorcerer without statics of its own');
+  const { s, ids } = setup({ hand0: [half, FILLER], play0: [sorc, sorc] });
+  const hand = viewFor(s, 0).players[0].hand;
+  assert.equal(hand.find((c) => c.iid === ids.hand0[0]).cost, half.cost - 2, 'two Sorcerers: pay 2 less');
+  assert.equal(hand.find((c) => c.iid === ids.hand0[1]).cost, undefined, 'an undiscounted card carries no cost field');
+  assert.equal(viewFor(s, 1).players[0].hand, null, 'the opponent still sees no hand');
+  // the engine agrees when it's played
+  const inkBefore = s.players[0].inkwell.filter((iid) => !s.cards[iid].exerted).length;
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'ink' }));
+  assert.equal(inkBefore - s.players[0].inkwell.filter((iid) => !s.cards[iid].exerted).length, half.cost - 2, 'paid the discounted price');
+});
+
+// a private "look at the top N cards" tells the looker's table which cards (to show them turning over, choosable or
+// not) and the other player's table only how many
+test('look at the top N: a look event with the cards for the looker, just the count for the opponent', () => {
+  const looker = all.find((d) => d.type === 'action' && d.procs.some((p) => p.exec && p.kind === 'action' && JSON.stringify(p).includes('"fn":"look"') && !JSON.stringify(p).includes('"reveal"')));
+  assert.ok(looker, 'an action that looks at the top of the deck without revealing');
+  const { s, ids } = setup({ hand0: [looker] });
+  const r = ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'ink' }));
+  const mine = eventsFor(r.events, 0).find((e) => e.k === 'look');
+  const theirs = eventsFor(r.events, 1).find((e) => e.k === 'look');
+  assert.ok(mine && mine.n >= 1 && mine.cards?.length === mine.n && mine.cards.every((c) => c.iid && c.cardId), `${looker.full}: the looker gets the cards`);
+  assert.ok(theirs && theirs.n === mine.n && theirs.cards === undefined, `${looker.full}: the opponent gets only the count`);
+  assert.equal(mine.seat, 0);
 });
 
 done();

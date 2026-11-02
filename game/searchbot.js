@@ -155,7 +155,13 @@ function sideValue(s, p) {
     else v += 1 + d.cost * 0.6;
   }
   v += p.hand.length * 1.4;
-  v += Math.min(p.inkwell.length, 8) * 0.9;
+  // Ink is worth clearly more than the card it came from while the inkwell is still growing: the horizon ends before
+  // the next turn's plays, so this is the only way the search sees that inking now pays off later. At 0.9 an ink was
+  // worth less than a hand card (1.4): "End turn" and "Ink …" scored the same, and the bot sat on expensive hands
+  // without inking (#21). The margin has to beat the sampling noise of a 450ms search (about a quarter lore), so
+  // an ink up to the sixth is worth a lore (4); past the eighth a card in hand is worth more than another ink.
+  const ink = p.inkwell.length;
+  v += Math.min(ink, 6) * 4 + Math.max(0, Math.min(ink, 8) - 6) * 2 + Math.max(0, ink - 8) * 0.3;
   if (p.deck.length < 4) v -= (4 - p.deck.length) * 3;
   return v;
 }
