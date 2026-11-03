@@ -50,3 +50,23 @@ export class EnterExertedOpt extends Effect {
   static staticOnly = true;
   static say() { return 'this card may enter play exerted'; }
 }
+// the same choice when an effect plays the character ("play a character for free", "play it", Madam Mim): Bodyguard
+// works "while the character is being played" however it's played (CR 8.3.2). The engine queues this right after the
+// card enters, ahead of its triggers, so "may enter play exerted to …" triggers see the answer.
+export class EnterExertedAsk extends Effect {
+  static fn = 'enterExertedAsk';
+  static run(rt, s, job, st) {
+    const c = s.cards[st.iid];
+    if (!c || c.zone !== 'play' || c.exerted) return false;
+    if (job.answer?.key === 'enterExerted') {
+      const a = job.answer; job.answer = null;
+      if (a.skip) return false;
+      c.exerted = true;
+      rt.log(s, `↳ ${rt.E.cardLabel(rt.E.D(s, c))} entered play exerted.`, { seat: job.seat, kind: 'effect' });
+      return true;
+    }
+    job.waitKey = 'enterExerted';
+    return rt.ask(s, job, { confirm: true, optional: true, op: 'enterExerted', prompt: 'have it enter play exerted?' });
+  }
+  static say() { return 'it may enter play exerted'; }
+}

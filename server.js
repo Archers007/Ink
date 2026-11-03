@@ -592,7 +592,9 @@ app.post('/api/play/deck-check', (req, res) => {
   const out = {};
   for (const d of (Array.isArray(req.body?.decks) ? req.body.decks : []).slice(0, 300)) {
     const r = resolveDeck(cardIndex, { name: d?.name, cards: Array.isArray(d?.cards) ? d.cards : [] });
-    const cover = [...r.counts].map(([id, q]) => ({ id, q, def: cardIndex.byId.get(String(id)) }))
+    // the tile's card: the one the player chose (#26), else the character with the most copies, then the costliest
+    const chosen = d?.cover != null && [...r.counts].some(([id]) => String(id) === String(d.cover)) ? cardIndex.byId.get(String(d.cover)) : null;
+    const cover = chosen ? { def: chosen } : [...r.counts].map(([id, q]) => ({ id, q, def: cardIndex.byId.get(String(id)) }))
       .sort((a, b) => (b.def?.type === 'character') - (a.def?.type === 'character') || b.q - a.q || (b.def?.cost || 0) - (a.def?.cost || 0))[0];
     out[String(d?.id)] = { size: r.size, inks: r.inks, legal: r.legal, problems: [...r.errors, ...r.problems].slice(0, 6), cover: cover?.def?.id ?? null };
   }

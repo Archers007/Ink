@@ -19,6 +19,7 @@ export function maxCopies(card) {
 export const Deck = {
   id: null,           // saved deck id (account.js), null until first saved
   shared: false,      // listed for other players (Browse decks → Ink players)
+  cover: null,        // the card shown on the deck's tile; null = picked automatically
   name: 'Untitled deck',
   cards: new Map(),   // cardId -> qty
 };
