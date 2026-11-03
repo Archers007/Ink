@@ -56,6 +56,8 @@
   .iss .body { font-size: 12.5px; line-height: 1.45; color: var(--mist); margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
   .iss:not(.open) .body { white-space: normal; }   /* the preview runs paragraphs together instead of spending a line on a gap */
   .iss.open .body { display: block; -webkit-line-clamp: none; line-clamp: none; }
+  .src { font-size: 11.5px; padding: 2px 8px; border-radius: 8px; white-space: nowrap; border: 1px solid; }
+  .src.bug { color: #f0a0a0; border-color: rgba(215,58,74,.55); } .src.feature { color: #9fe3ee; border-color: rgba(120,210,230,.5); }
   .imgchip { display: inline-block; font-size: 11px; line-height: 1.5; padding: 0 7px; border-radius: 7px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
   .shots { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .iss:not(.open) .shots { display: none; }

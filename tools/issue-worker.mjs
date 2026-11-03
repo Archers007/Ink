@@ -4,8 +4,8 @@
 //   pnpm issue-worker --once       handle what's queued now, then exit
 //   pnpm issue-worker --dry-run    do everything except file the issue and start Claude (prints what it would do)
 //
-// For each report it: 1) files a GitHub issue with the same title, text and screenshot (`gh issue create`), 2) if the
-// "Fix with Claude" switch is on, checks out a fresh branch in its own git worktree and opens a terminal window there
+// For each report it: 1) files a GitHub issue with the same title, text and images (`gh issue create`), 2) if the
+// "Fix with Claude" switch is on and the report came from /admin (never one from the public /report page), checks out a fresh branch in its own git worktree and opens a terminal window there
 // running Claude on the issue, 3) posts the issue link and progress back to the server, so the board shows them.
 //
 // Needs: `gh` signed in to the repository's account, `claude` (Claude Code) on PATH, and in .env (or the environment):
@@ -50,33 +50,43 @@ function haveTool(name) {
   const r = spawnSync(name, ['--version'], { shell: process.platform === 'win32', stdio: 'ignore' });
   return r.status === 0;
 }
-const gh = (args, opts = {}) => execFileSync('gh', args, { encoding: 'utf8', shell: process.platform === 'win32', ...opts }).trim();
+// never through a shell: the title and labels come from reports (on Windows, cmd.exe would split the title at spaces
+// and run anything after a & in it). gh is a real .exe there, so no shell is needed to find it.
+const gh = (args, opts = {}) => execFileSync('gh', args, { encoding: 'utf8', ...opts }).trim();
 const git = (args, cwd = ROOT) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
 // the issue text: the report as written, its context, the screenshot (from the server's public URL), and where it came from
 function issueBody(r) {
-  const ctx = r.context ? Object.entries(r.context).filter(([, v]) => v != null && v !== '').map(([k, v]) => `- **${k}:** ${String(v).replace(/\r?\n/g, ' ')}`).join('\n') : '';
+  const ctx = r.context ? Object.entries(r.context).filter(([k, v]) => k !== 'kind' && v != null && v !== '').map(([k, v]) => `- **${k}:** ${String(v).replace(/\r?\n/g, ' ')}`).join('\n') : '';
+  const imgs = r.imageUrls || (r.imageUrl ? [r.imageUrl] : []);
+  const from = r.source === 'public'
+    ? `_${r.kind === 'feature' ? 'Feature request' : 'Bug report'} sent from Ink's public report page by ${r.author || 'someone without an account'} (report ${r.id})._`
+    : `_Reported through Ink's admin page by ${r.author || 'a moderator'} (report ${r.id})._`;
   return [
     r.body.trim(),
-    r.imageUrl ? `\n![screenshot](${r.imageUrl})` : '',
+    imgs.length ? `\n${imgs.map((u, i) => `![${imgs.length > 1 ? `image ${i + 1}` : 'screenshot'}](${u})`).join('\n')}` : '',
     ctx ? `\n<details><summary>Context</summary>\n\n${ctx}\n</details>` : '',
-    `\n_Reported through Ink's admin page by ${r.author || 'a moderator'} (report ${r.id})._`,
+    `\n${from}`,
   ].filter(Boolean).join('\n');
 }
 
-let labelReady = false;
-function ensureLabel(repo) {
-  if (labelReady || DRY) return;
-  try { gh(['label', 'create', 'from-ink', '--repo', repo, '--color', '5A3FA0', '--description', "Filed from Ink's admin page", '--force'], { stdio: ['ignore', 'pipe', 'ignore'] }); } catch { /* the issue is still filed, just unlabelled */ }
-  labelReady = true;
+// from-ink on everything filed from Ink; bug / enhancement (GitHub's usual names) on reports from the public page
+const LABELS = { 'from-ink': ['5A3FA0', 'Filed from Ink'], bug: ['d73a4a', "Something isn't working"], enhancement: ['a2eeef', 'New feature or request'] };
+const labelsReady = new Set();
+function ensureLabel(repo, name) {
+  if (labelsReady.has(name) || DRY) return;
+  // never --force: that would recolour the repository's own bug/enhancement labels; an existing label just errors here
+  try { gh(['label', 'create', name, '--repo', repo, '--color', LABELS[name][0], '--description', LABELS[name][1]], { stdio: ['ignore', 'pipe', 'ignore'] }); } catch { /* already there */ }
+  labelsReady.add(name);
 }
 function fileIssue(repo, r) {
   const bodyFile = path.join(os.tmpdir(), `ink-report-${r.id}.md`);
   fs.writeFileSync(bodyFile, issueBody(r), 'utf8');
+  const labels = ['from-ink', ...(r.kind === 'bug' ? ['bug'] : r.kind === 'feature' ? ['enhancement'] : [])];
   try {
-    if (DRY) { log(`  [dry-run] gh issue create --repo ${repo} --title ${JSON.stringify(r.title)} --body-file ${bodyFile}`); return { url: `https://github.com/${repo}/issues/0`, number: 0 }; }
-    ensureLabel(repo);
-    const url = gh(['issue', 'create', '--repo', repo, '--title', r.title, '--body-file', bodyFile, '--label', 'from-ink']);
+    if (DRY) { log(`  [dry-run] gh issue create --repo ${repo} --title ${JSON.stringify(r.title)} --body-file ${bodyFile} --label ${labels.join(',')}`); return { url: `https://github.com/${repo}/issues/0`, number: 0 }; }
+    labels.forEach((l) => ensureLabel(repo, l));
+    const url = gh(['issue', 'create', '--repo', repo, '--title', r.title, '--body-file', bodyFile, ...labels.flatMap((l) => ['--label', l])]);
     const number = Number(url.match(/\/issues\/(\d+)/)?.[1]);
     return { url, number };
   } finally { if (!DRY) fs.rmSync(bodyFile, { force: true }); }
@@ -144,6 +154,7 @@ async function handle(repo, fixOn, r) {
     try { issue = fileIssue(repo, r); log(`  filed ${issue.url}`); }
     catch (e) { log('  gh issue create failed:', e.message.split('\n')[0]); await report(r.id, 'failed', { note: `gh issue create failed: ${e.message.split('\n')[0].slice(0, 200)}` }); return; }
   }
+  if (r.autofix === false) { await report(r.id, 'issue', { issue_url: issue.url, issue_number: issue.number, note: 'from the public page: filed for a person to look at' }); return; }
   if (!fixOn) { await report(r.id, 'issue', { issue_url: issue.url, issue_number: issue.number, note: 'Fix with Claude is switched off' }); return; }
   try {
     const { dir, branch } = makeWorktree(issue.number);
@@ -161,7 +172,7 @@ async function main() {
   log(`issue worker → ${URL_} · fixes from ${BASE} into ${FIX_DIR}${DRY ? ' · DRY RUN' : ''}`);
   for (;;) {
     try {
-      const q = await api('/api/worker/queue');
+      const q = await api('/api/worker/queue?public=1');           // this worker files public reports without starting Claude
       const repo = process.env.INK_GITHUB_REPO || q.repo;
       if (!q.switches.issues_on && q.reports.length) log('reports are switched off on the server; leaving the queue alone');
       else for (const r of q.reports) await handle(repo, q.switches.fix_on, r);

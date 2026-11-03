@@ -1,8 +1,10 @@
 // Card → proc lookup (backs GET /api/procs/* and public/procs.html).
 //
-//   search(index, q)   name/title/text/proc-fn search → compact rows
-//   card(index, full)  one card: verified text, compiled procs, plain-English read-back, printings
-//   stats(index)       coverage + the biggest "why not runnable" buckets (what to build next)
+//   search(index, q, limit, { engine })  name/title/text search → compact rows; engine (admins) adds the proc filters
+//                                        and each row's automation status
+//   card(index, full)        one card: verified text, compiled procs, plain-English read-back, printings (admins)
+//   publicCard(index, full)  the same card as players see it on /rules: text, keywords, which abilities Ink runs
+//   stats(index)             coverage + the biggest "why not runnable" buckets (what to build next; admins)
 
 import { explain } from './explain.js';
 import { Query } from './query.js';
@@ -30,13 +32,19 @@ const row = (d) => ({
   runnable: (d.procs || []).filter((p) => p.exec).length, abilities: (d.procs || []).length,
 });
 
-// q: free text. Prefix filters: fn:draw  kind:static  ev:quest  status:manual  type:item  why:"reveal"  with:singTogether
-export function search(index, q = '', limit = 40) {
+// what an ability's keyword is called in a filter: kw:singtogether, kw:sing-together and kw:"sing together" all work
+const kwKey = (k) => String(k).toLowerCase().replace(/[^a-z]/g, '');
+const PUBLIC_FILTERS = new Set(['type', 'ink', 'kw', 'cost']);
+
+// q: free text. Prefix filters: type:item  ink:amber  kw:evasive  cost:3 — and for the engine view also
+// fn:draw  kind:static  ev:quest  status:manual  why:"reveal"  with:singTogether  source:disney
+export function search(index, q = '', limit = 40, { engine = true } = {}) {
   const defs = canonicalDefs(index);
   const terms = [];
   const filters = [];
   for (const m of String(q).matchAll(/(\w+):("[^"]*"|\S+)|("[^"]*"|\S+)/g)) {
-    if (m[1]) filters.push([m[1].toLowerCase(), m[2].replace(/^"|"$/g, '').toLowerCase()]);
+    if (m[1] && (engine || PUBLIC_FILTERS.has(m[1].toLowerCase()))) filters.push([m[1].toLowerCase(), m[2].replace(/^"|"$/g, '').toLowerCase()]);
+    else if (m[1]) continue;                                       // an engine filter on the public page: ignored
     else terms.push(norm(m[3].replace(/^"|"$/g, '')));
   }
   const fnsOf = (d) => JSON.stringify(d.procs || []).toLowerCase();
@@ -48,6 +56,9 @@ export function search(index, q = '', limit = 40) {
       case 'ev': case 'trigger': return ps.some((p) => (p.on || []).some((o) => o.ev.toLowerCase() === v));
       case 'status': return status(d) === v;
       case 'type': return d.type === v;
+      case 'ink': return (d.inks || []).includes(v);
+      case 'kw': return Object.keys(d.kw || {}).some((k) => kwKey(k) === kwKey(v));
+      case 'cost': return String(d.cost) === v || (v.endsWith('+') && d.cost >= Number(v.slice(0, -1)));
       case 'why': return ps.some((p) => !p.exec && String(p.why || '').toLowerCase().includes(v));
       case 'with': return Query.classifiersIn(ps).some((x) => sayClassifier(x).toLowerCase().replace(/\s+/g, '').includes(v.replace(/\s+/g, '')) || Object.values(x).some((y) => JSON.stringify(y).toLowerCase().includes(v)));
       case 'source': return String(d.rulesSource || '').toLowerCase() === v;
@@ -72,7 +83,8 @@ export function search(index, q = '', limit = 40) {
     if (ok) scored.push([score, d]);
   }
   scored.sort((a, b) => b[0] - a[0] || a[1].full.localeCompare(b[1].full));
-  return { total: scored.length, results: scored.slice(0, limit).map(([, d]) => row(d)) };
+  const out = engine ? row : publicRow;
+  return { total: scored.length, results: scored.slice(0, limit).map(([, d]) => out(d)) };
 }
 
 export function card(index, full) {
@@ -84,6 +96,23 @@ export function card(index, full) {
     classes: d.classes, kw: d.kw, rulesSource: d.rulesSource, printings,
     base: d.base || null, baseExplain: d.base ? explain(d.base) : [],
     abilities: d.abilities.map((a, i) => ({ name: a.name, text: a.text, proc: d.procs?.[i] || null, explain: d.procs?.[i] ? explain(d.procs[i]) : [] })),
+  };
+}
+
+const publicRow = (d) => ({ full: d.full, id: d.id, type: d.type, cost: d.cost, inks: d.inks });
+
+// what /rules shows everyone: the card as printed, its keywords, and for each ability whether Ink runs it or the
+// players resolve it by hand — no procs. faq/printed/flavor come from the caller (sanitized.db's rules table).
+export function publicCard(index, full) {
+  const d = index.byFull.get(full) || canonicalDefs(index).find((x) => x.full.toLowerCase() === String(full).toLowerCase());
+  if (!d) return null;
+  const printings = [...index.byId.values()].filter((x) => x.full === d.full).map((x) => ({ id: x.id, set: x.set, num: x.num, rarity: x.rarity }));
+  return {
+    ...publicRow(d), name: d.name, title: d.title, str: d.str, wp: d.wp, lore: d.lore, move: d.move, inkable: d.inkable,
+    classes: d.classes, kw: d.kw || {}, flavor: d.flavor || '', franchise: d.franchise || '', printings,
+    // keywords and reminder text (singing a song) are rules the engine enforces; d.auto only counts abilities that do
+    // something on their own
+    abilities: d.abilities.map((a, i) => { const p = d.procs?.[i]; const keyword = p?.kind === 'keyword' || p?.kind === 'reminder'; return { name: a.name, text: a.text, keyword, auto: keyword ? !!p.exec : !!d.auto?.[i] }; }),
   };
 }
 

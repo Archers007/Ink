@@ -77,10 +77,20 @@ run the engine tests, push, open a pull request that says `Fixes #N`, comment on
 automatically. The board shows each report move from *queued* to *issue filed* to *Claude is on it*; the
 **Settings** tab turns reports or the Claude step off.
 
+Anyone, signed in or not, can send a **bug report** or a **feature request** from `/report` (linked from the
+builder's footer and the table's ☰ menu), with as many images as they like. These land on the same board marked
+*public*, and the worker files them as issues labelled `bug` or `enhancement`, but never starts Claude on them:
+a person reads them first. The page is rate limited per address, and the **Public report page** switch on the
+Settings tab closes it.
+
+`/rules` (the **Card rules** tab) shows every card's text, what its keywords mean, Ravensburger's FAQ for it, and
+whether Ink runs each ability for you. Admins get an **Engine view** switch there with the compiled procs, the proc
+search filters and the coverage numbers; the server sends those to admins only.
+
 The worker needs `gh` signed in, `claude` on PATH, and `INK_WORKER_TOKEN` in `.env` (the same value the server
 has; the server refuses the worker without it). Set `PUBLIC_URL` to the site's public origin so the screenshot link
-in the GitHub issue works. The report text reaches GitHub through a file, never a command line; the terminal
-command carries only the issue URL and the brief's path.
+in the GitHub issue works. The report text reaches GitHub through a file, and `gh` runs without a shell, so a title is
+always one argument; the terminal command carries only the issue URL and the brief's path.
 
 ## How the Dreamborn collection link works
 
