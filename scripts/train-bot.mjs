@@ -22,7 +22,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, source TEXT NOT 
 const add = db.prepare('INSERT INTO games (id, source, created, finished, seed, seats, actions, winner, turns, reason, human) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)');
 
 if (SELF) {
-  const decks = index.demoDecks.map((d) => ({ name: d.name, r: resolveDeck(index, d) }));
+  const decks = index.simDecks.map((d) => ({ name: d.name, r: resolveDeck(index, d) }));
   let saved = 0;
   for (let g = 0; g < SELF; g++) {
     const a = decks[g % decks.length], b = decks[(g + 1 + Math.floor(g / decks.length)) % decks.length];

@@ -46,7 +46,9 @@ export function chooseMulligan(s, seat) {
   }).map((c) => c.iid);
 }
 
-function chooseInk(s, seat) {
+// keep: don't ink a card the scoring says to keep when the hand is thin or the inkwell is already deep (a lone bomb
+// with 6 ink used to get inked — and this is the rollout policy inside every search sample)
+function chooseInk(s, seat, { keep = true } = {}) {
   const p = s.players[seat];
   if (p.inkwell.length >= 9) return null;
   const inkNext = p.inkwell.length + 1;
@@ -68,6 +70,7 @@ function chooseInk(s, seat) {
     if (inks != null) score += (inks - 0.5) * 30;
     if (score > bestScore) { bestScore = score; best = c; }
   }
+  if (keep && bestScore < 0 && (hand.length <= 2 || p.inkwell.length >= 7)) return null;
   return best?.iid ?? null;
 }
 
@@ -192,7 +195,8 @@ function chooseEffect(s, seat) {
   return { type: 'choose', target: pool[0].iid };
 }
 
-export function botDecide(s, seat) {
+// opts.keep: see chooseInk (the search bot passes its tuning through)
+export function botDecide(s, seat, opts = {}) {
   if (s.status === 'over') return null;
   const p = s.players[seat];
   if (s.status === 'mulligan') return p.mulligan.done ? null : { type: 'mulligan', iids: chooseMulligan(s, seat) };
@@ -203,11 +207,18 @@ export function botDecide(s, seat) {
   if (s.active !== seat) return null;
 
   if (p.inkedThisTurn < 1 + p.extraInk) {
-    const iid = chooseInk(s, seat);
+    const iid = chooseInk(s, seat, opts);
     if (iid) return { type: 'ink', iid };
   }
   const play = choosePlay(s, seat);
   if (play) return play;
+  // nothing left to play: spend what's left on Boost (the engine's review of people's games found the bot never did,
+  // and so neither did the search's rollouts — 50 of its 187 rated mistakes were "should have boosted")
+  if (p.deck.length > 4) {
+    const ink = readyInk(s, seat);
+    const b = cardsIn(s, p.play).find((c) => { const n = D(s, c).kw?.boost; return typeof n === 'number' && n <= ink && c.boostedTurn !== s.turn; });
+    if (b) return { type: 'boost', iid: b.iid };
+  }
 
   // If questing wins the game this turn, just do it.
   const qs = questers(s, seat);

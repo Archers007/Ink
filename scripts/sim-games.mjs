@@ -19,8 +19,8 @@ const SEED = Number(process.argv[3] || 1);
 const CHAOS = process.argv.includes('--chaos');
 
 const index = await loadCardIndex(path.join(__dirname, '..', 'cache', 'sanitized.db'));
-console.log(`cards: ${index.size}, demo decks: ${index.demoDecks.map((d) => d.name).join(' | ')}`);
-for (const d of index.demoDecks) {
+console.log(`cards: ${index.size}, sim decks: ${index.simDecks.map((d) => d.name).join(' | ')}`);
+for (const d of index.simDecks) {
   const r = resolveDeck(index, d);
   if (!r.legal) throw new Error(`demo deck ${d.name} illegal: ${[...r.problems, ...r.errors].join('; ')}`);
 }
@@ -39,8 +39,8 @@ if (CHAOS) console.log(`chaos mode: ${RUNNABLE.length} cards with runnable procs
 const fx = { auto: 0, manual: 0, skipped: 0, ops: {} };
 const stats = { games: 0, wins: [0, 0], reasons: {}, turns: [], actions: 0, rejected: 0 };
 for (let g = 0; g < GAMES; g++) {
-  const da = index.demoDecks[g % index.demoDecks.length];
-  const db = index.demoDecks[(g + 1) % index.demoDecks.length];
+  const da = index.simDecks[g % index.simDecks.length];
+  const db = index.simDecks[(g + 1) % index.simDecks.length];
   const s = newGame({
     seed: SEED * 1000 + g,
     players: [

@@ -20,6 +20,15 @@ import { questBlocker, attackerBlocker, singerBlocker, effLore, effStr, effWp, s
 const SCRATCH = { scratch: true };
 const MAX_ROLLOUT_STEPS = 400;
 
+// The knobs an A/B run flips (scripts/bot-arena.mjs --ab). Each one came out of the 2026-11 audit of the bot:
+//   lethal   an exact "20 lore on board" term at the horizon, instead of hoping a rollout stumbles into the win
+//   keep     the rollout policy keeps a lone bomb instead of inking it (bot.js chooseInk)
+//   ucb      'tuned': the exploration bonus follows each move's measured variance; 'fixed': the old constant 12
+//   clock    the first samples of every move respect the budget too, and the search stops once the leader is clear
+//   order    near-ties go to the move that comes first in a sound turn: ink → play → quest/challenge → end turn
+export const TUNING = { lethal: true, keep: true, ucb: 'tuned', clock: true, order: true };
+export const BASELINE = { lethal: false, keep: false, ucb: 'fixed', clock: false, order: false };
+
 // ---------- what this seat has seen ----------
 // Opponent cards it has watched in public zones keep their identity if they go back to a hidden zone
 // ("return chosen character to their player's hand": that card is known to be in the hand).
@@ -122,12 +131,13 @@ function legalMoves(s, seat) {
 }
 
 // ---------- playing forward ----------
-function rollout(s, seat, stopTurn) {
+function rollout(s, seat, stopTurn, tuning = TUNING) {
+  const policy = { keep: tuning.keep };
   for (let step = 0; step < MAX_ROLLOUT_STEPS; step++) {
     if (s.status === 'over') return true;
     if (!s.pending && s.turn >= stopTurn) return true;
     const who = s.pending ? s.pending.seat : s.active;
-    const a = botDecide(s, who);
+    const a = botDecide(s, who, policy);
     let r = a ? applyAction(s, who, a, SCRATCH) : { ok: false };
     if (r.broken) return false;
     if (!r.ok) {
@@ -168,16 +178,36 @@ function sideValue(s, p) {
 const loreValue = (n) => n * 4 + Math.max(0, n - 14) * 3;
 // the score: hand-tuned, plus a share of the learned win-probability model once a head-to-head test showed it
 // helps (learn/train.js)
-export function evaluate(s, seat) {
+export function evaluate(s, seat, tuning = TUNING) {
   if (s.status === 'over') return s.winner === seat ? 1000 : s.winner == null ? 0 : -1000;
-  return handEvaluate(s, seat) + (learnedValue(s, seat) ?? 0);
+  return handEvaluate(s, seat, tuning) + (learnedValue(s, seat) ?? 0);
 }
-export function handEvaluate(s, seat) {
+export function handEvaluate(s, seat, tuning = TUNING) {
   if (s.status === 'over') return s.winner === seat ? 1000 : s.winner == null ? 0 : -1000;
   const me = s.players[seat];
   let score = loreValue(me.lore) + sideValue(s, me);
   for (const p of s.players) if (p.seat !== seat) score -= loreValue(p.lore) + sideValue(s, p);
+  if (tuning.lethal) score += lethalValue(s, seat);
   return score;
+}
+// The race, exactly, at the horizon (the start of the scorer's turn): if the lore its ready characters quest for
+// reaches 20 it has won, whatever else is on the board; if the opponent's board quests for 20 on their coming turn,
+// the scorer is losing unless this turn answers it. Lore per quester is what the hand score already counts, so
+// these are on top of it.
+const WIN_SOON = 500, LOSE_SOON = -200;
+function lethalValue(s, seat) {
+  const me = s.players[seat];
+  let mine = 0;
+  for (const iid of me.play) { const c = s.cards[iid], d = D(s, c); if (d.type === 'character' && !questBlocker(c, d)) mine += Math.max(0, effLore(c, d)); }
+  if (me.lore + mine >= 20) return WIN_SOON;
+  let v = 0;
+  for (const p of s.players) {
+    if (p.seat === seat) continue;
+    let theirs = 0;                                            // their turn readies everything and dries the fresh ones
+    for (const iid of p.play) { const c = s.cards[iid], d = D(s, c); if (d.type === 'character' && !questBlocker({ ...c, exerted: false, drying: false }, d)) theirs += Math.max(0, effLore(c, d)); }
+    if (p.lore + theirs >= 20) v += LOSE_SOON;
+  }
+  return v;
 }
 
 // ---------- moves in words, and as keys (copies of a card are the same move) ----------
@@ -221,7 +251,7 @@ export function describeMove(s, a) {
 // Scores every legal move for `seat`: re-deal the hidden cards, play the move, roll forward to the start of our next
 // turn, score; UCB1 spreads samples toward the promising moves until the budget runs out.
 // extra: a move to make sure is among the candidates (analysis of a move someone actually played).
-export function search(s, seat, memory = {}, { budgetMs = 400, minSamples = 3, maxSamples = 400, evaluator = evaluate, extra = null } = {}) {
+export function search(s, seat, memory = {}, { budgetMs = 400, minSamples = 3, maxSamples = 400, evaluator = evaluate, extra = null, tuning = TUNING } = {}) {
   observe(s, seat, memory);
   const moves = legalMoves(s, seat);
   if (extra && !moves.some((m) => moveKey(s, m) === moveKey(s, extra))) {
@@ -237,21 +267,53 @@ export function search(s, seat, memory = {}, { budgetMs = 400, minSamples = 3, m
     const g = determinize(s, seat, memory);
     let v;
     if (!applyAction(g, seat, moves[k], SCRATCH).ok) v = -50;
-    else if (!rollout(g, seat, stopTurn)) return;           // a rollout the heuristics couldn't finish: no data
-    else v = evaluator(g, seat);
+    else if (!rollout(g, seat, stopTurn, tuning)) return;   // a rollout the heuristics couldn't finish: no data
+    else v = evaluator(g, seat, tuning);
     stats[k].n++; stats[k].sum += v; stats[k].sq += v * v; total++;
   };
-  for (let r = 0; r < minSamples; r++) for (let k = 0; k < moves.length; k++) sample(k);
+  const mean = (st) => (st.n ? st.sum / st.n : -Infinity);
+  const variance = (st) => (st.n > 1 ? Math.max(0, st.sq / st.n - mean(st) ** 2) : 0);
+  // every move gets its first samples; a proc-heavy position where one sample costs 30 ms still gets at least one
+  // sample per move, but not three times the budget (tuning.clock)
+  for (let r = 0; r < minSamples; r++) for (let k = 0; k < moves.length; k++) { if (tuning.clock && r > 0 && performance.now() - t0 >= budgetMs) break; sample(k); }
+  // UCB1-tuned: the bonus scales with the move's own spread (a floor of sd 2 keeps a flat move from being forgotten),
+  // so a position where every rollout agrees stops burning samples on it
+  const bonus = (st) => (tuning.ucb === 'tuned' ? Math.sqrt((2 * Math.log(total + 1) / st.n) * Math.max(4, variance(st))) : 12 * Math.sqrt(Math.log(total + 1) / st.n));
   while (performance.now() - t0 < budgetMs && total < maxSamples * moves.length) {
     let best = 0, bestU = -Infinity;
     for (let k = 0; k < moves.length; k++) {
       const st = stats[k];
-      const u = st.n ? st.sum / st.n + 12 * Math.sqrt(Math.log(total + 1) / st.n) : Infinity;
+      const u = st.n ? mean(st) + bonus(st) : Infinity;
       if (u > bestU) { bestU = u; best = k; }
     }
     sample(best);
+    // the leader is clear of the runner-up by three standard errors: more samples won't change the pick
+    if (tuning.clock && total % 16 === 0 && stats.every((st) => st.n >= minSamples)) {
+      const order = stats.map((st, k) => k).sort((a, b) => mean(stats[b]) - mean(stats[a]));
+      const l = stats[order[0]], r = stats[order[1]];
+      if (mean(l) - mean(r) > 3 * (Math.sqrt(variance(l) / l.n) + Math.sqrt(variance(r) / r.n))) break;
+    }
   }
   return { moves, stats, samples: total, ms: Math.round(performance.now() - t0) };
+}
+
+// A sound turn inks first (nothing learned later changes what to ink), develops next, and quests, challenges and ends
+// last. The samples can't tell those orders apart, so a tie goes to the earlier move — only a tie, though: a move
+// counts as tied with the leader when their means are within the two standard errors of each other. (An additive
+// bonus of a point or so was tried first and lost 22-38 in the arena: it overrode real differences 40 times a game.)
+const ORDER = { ink: 4, play: 3, move: 2, useAbility: 2, boost: 2, quest: 1, challenge: 1, endTurn: 0 };
+function pickMove(moves, stats, tuning) {
+  const mean = (st) => (st.n ? st.sum / st.n : -Infinity);
+  const se = (st) => (st.n > 1 ? Math.sqrt(Math.max(0, st.sq / st.n - mean(st) ** 2) / st.n) : 0);
+  let lead = 0;
+  stats.forEach((st, k) => { if (mean(st) > mean(stats[lead])) lead = k; });
+  if (!tuning.order) return lead;
+  let pick = lead;
+  stats.forEach((st, k) => {
+    if (k === lead || mean(st) < mean(stats[lead]) - (se(st) + se(stats[lead]))) return;
+    if ((ORDER[moves[k]?.type] ?? 0) > (ORDER[moves[pick]?.type] ?? 0)) pick = k;
+  });
+  return pick;
 }
 
 // The engine's view of a position, Stockfish-style: every candidate move ranked, each with its score in lore (the
@@ -271,17 +333,17 @@ export function analyze(s, seat, memory = {}, opts = {}) {
 
 // ---------- the bot ----------
 // evaluator: (state, seat) → score; the default is evaluate() (training compares variants with it)
-export function createSearchBot({ budgetMs = 400, minSamples = 3, maxSamples = 400, evaluator = evaluate } = {}) {
+export function createSearchBot({ budgetMs = 400, minSamples = 3, maxSamples = 400, evaluator = evaluate, tuning = TUNING } = {}) {
   function decide(s, seat, memory = {}) {
     if (s.status === 'over') return null;
     const p = s.players[seat];
     if (s.status === 'mulligan') return p.mulligan.done ? null : { type: 'mulligan', iids: chooseMulligan(s, seat) };
     if (s.pending ? s.pending.seat !== seat : s.active !== seat) return null;
-    const r = search(s, seat, memory, { budgetMs, minSamples, maxSamples, evaluator });
-    if (!r.moves.length) return botDecide(s, seat);
+    const r = search(s, seat, memory, { budgetMs, minSamples, maxSamples, evaluator, tuning });
+    if (!r.moves.length) return botDecide(s, seat, { keep: tuning.keep });
     if (r.moves.length === 1) return r.moves[0];
-    let pick = r.moves.length - 1, pickMean = -Infinity;
-    r.stats.forEach((st, k) => { const m = st.n ? st.sum / st.n : -Infinity; if (m > pickMean) { pickMean = m; pick = k; } });
+    const pick = pickMove(r.moves, r.stats, tuning);
+    const pickMean = r.stats[pick].n ? r.stats[pick].sum / r.stats[pick].n : -Infinity;
     decide.last = { moves: r.moves.length, samples: r.samples, ms: r.ms, mean: Math.round(pickMean) };
     return r.moves[pick];
   }

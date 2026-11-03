@@ -10,7 +10,7 @@
 //     classes: ['storyborn','hero'], abilities: [{ name, text }], flavor,
 //     rarity, set, num, franchise, img }
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { compileCard, KINDS } from './procs/index.js';
 import { DECK, deckProblems } from './rulebook/deck.js';
@@ -252,7 +252,20 @@ export async function loadCardIndex(dbFile) {
   index.procs = built;
   for (const d of byId.values()) attachProcs(d, built);
   index.demoDecks = buildDemoDecks(index);
+  index.metaDecks = loadMetaDecks(index);
+  // what the bots play in simulations, the arena and training: the top dreamborn decks when we have them, else the starters
+  index.simDecks = index.metaDecks.length ? index.metaDecks : index.demoDecks;
   return index;
+}
+
+// the top decks on dreamborn.ink (tools/fetch-meta-decks.mjs → game/decks/meta.json), the legal ones
+function loadMetaDecks(index) {
+  try {
+    const file = new URL('./decks/meta.json', import.meta.url);
+    if (!existsSync(file)) return [];
+    const { decks } = JSON.parse(readFileSync(file, 'utf8'));
+    return decks.filter((d) => resolveDeck(index, d).legal);
+  } catch { return []; }
 }
 
 // ---------- decks ----------

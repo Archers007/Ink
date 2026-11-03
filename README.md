@@ -25,6 +25,11 @@ for names and Figtree for everything else (`public/css/ink.css`).
   it tallies what people do with each card (ink or play, keep or ship), which the quick bot follows, and fits a
   win-probability model that the Hard bot only uses after it beats the Hard bot without it head to head.
   `node scripts/train-bot.mjs [--selfplay N]` trains by hand (self-play games give it data before people play).
+- **Sim decks** — the bots play the top decks on dreamborn.ink in simulations, the arena and training:
+  `node tools/fetch-meta-decks.mjs` refreshes `game/decks/meta.json` (legal 60-card decks whose every card the
+  engine runs by itself); without it they play the built-in starters. A change to the hard bot's search or weights is
+  proved in the arena first: `node scripts/bot-arena.mjs --ab 60 150` plays the current tuning against the baseline
+  (`TUNING` / `BASELINE` in `game/searchbot.js`) from both seats and reports the win rate with its interval.
 - **Play** — `/play`: pick a deck tile and hit *Play … vs bot*, or create a room and send the invite link.
 - **Dreamborn collection (optional)** — link a dreamborn.ink account to filter the pool to cards you own.
 - **Import / export** — paste a decklist like `4 Mickey Mouse - Brave Little Tailor`, or copy yours back out.
