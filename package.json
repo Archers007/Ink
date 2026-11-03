@@ -19,7 +19,9 @@
     "build:cards": "node scripts/build-cards.mjs",
     "build:import": "node tools/import-cards.mjs",
     "build:procs": "node tools/compile-procs.mjs",
-    "gaps": "node scripts/gaps.mjs"
+    "gaps": "node scripts/gaps.mjs",
+    "meta-decks": "node tools/fetch-meta-decks.mjs",
+    "arena": "node scripts/bot-arena.mjs --ab"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

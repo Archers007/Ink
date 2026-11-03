@@ -14,17 +14,19 @@ import { resolveDeck } from '../cards.js';
 
 const HUMAN_WEIGHT = 3;
 const MIN_POSITIONS = 2000;
-const GATE_GAMES = 24, GATE_BUDGET_MS = 40, GATE_WIN = 0.55;
+// 80 games at 150 ms, pass at 60%: a coin-flip model passes about 5% of the time (24 games at 40 ms and 55% let one
+// through 27% of the time, with both bots too starved of samples to play at all well)
+const GATE_GAMES = 80, GATE_BUDGET_MS = 150, GATE_WIN = 0.6;
 
-// the search bot with the candidate model (seat-alternating) against the search bot without it, on the starter decks
+// the search bot with the candidate model (seat-alternating) against the search bot without it, on the sim decks
 function headToHead(index, value, games = GATE_GAMES) {
-  const withModel = createSearchBot({ budgetMs: GATE_BUDGET_MS, evaluator: (s, seat) => (s.status === 'over' ? (s.winner === seat ? 1000 : -1000) : handScore(s, seat) + BLEND * valueWith(value, s, seat)) });
+  const withModel = createSearchBot({ budgetMs: GATE_BUDGET_MS, evaluator: (s, seat, tuning) => (s.status === 'over' ? (s.winner === seat ? 1000 : -1000) : handScore(s, seat, tuning) + BLEND * valueWith(value, s, seat)) });
   const without = createSearchBot({ budgetMs: GATE_BUDGET_MS, evaluator: handScore });
-  const decks = index.demoDecks.map((d) => resolveDeck(index, d).defs);
+  const decks = index.simDecks.map((d) => resolveDeck(index, d).defs);
   let wins = 0, played = 0;
   for (let g = 0; g < games; g++) {
     const mine = g % 2, pair = Math.floor(g / 2) % decks.length;
-    const s = newGame({ seed: 90000 + Math.floor(g / 2), players: [{ name: 'A', deck: decks[pair] }, { name: 'B', deck: decks[(pair + 1) % decks.length] }] });
+    const s = newGame({ seed: 90000 + g, players: [{ name: 'A', deck: decks[pair] }, { name: 'B', deck: decks[(pair + 1) % decks.length] }] });
     const mem = [{}, {}];
     for (let step = 0; step < 3000 && s.status !== 'over'; step++) {
       let done = false;

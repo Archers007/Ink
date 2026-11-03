@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { applyAction, checkInvariants, viewFor, eventsFor } from '../game/engine.js';
 import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
 import { effStr, effLore } from '../public/js/play/rules.js';
+import { handEvaluate, BASELINE } from '../game/searchbot.js';
+import { botDecide } from '../game/bot.js';
 
 
 const DMG3 = byName('Vincenzo Santorini - The Explosives Expert');        // you may deal 3 damage to chosen character
@@ -189,6 +191,36 @@ test('Bodyguard played by an effect: the player is asked whether it enters exert
   ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'ink', enterExerted: true }));
   assert.equal(s.cards[ids.hand0[0]].exerted, true);
   assert.equal(s.pending, null, 'no prompt for a normal play');
+});
+
+// ---------- the search bot's score and rollout policy (searchbot.js, bot.js; the 2026-11 audit) ----------
+const quester = (lore) => all.find((d) => d.type === 'character' && d.abilities.length === 0 && d.lore === lore && d.cost <= 5);
+test('bot score: lethal on board at the horizon outweighs everything; the opponent about to quest for 20 is a big minus', () => {
+  const q4 = quester(4) || quester(3), q2 = quester(2);
+  // my turn is starting with 16 lore and a ready, dry 4-lore quester: that is a won game, whatever they have
+  const { s, ids } = setup({ play0: [q4], play1: [q2, q2, q2, q2] });
+  for (const id of ids.play0) s.cards[id].drying = false;
+  s.players[0].lore = 20 - effLore(s.cards[ids.play0[0]], q4);
+  assert.ok(handEvaluate(s, 0) > 400, `lethal next quest scores high: ${handEvaluate(s, 0)}`);
+  assert.ok(handEvaluate(s, 0, BASELINE) < 100, 'the baseline score has no idea');
+  // the mirror: they have 18 lore and a board that quests for 2 next turn — I am losing unless this turn answers it
+  const { s: t, ids: ti } = setup({ play0: [q2, q2], play1: [q2] });
+  t.players[1].lore = 18;
+  assert.ok(handEvaluate(t, 0) < handEvaluate(t, 0, BASELINE) - 150, 'their lethal next turn costs about 200 points');
+  // an exerted quester of theirs still counts: their turn readies it
+  t.cards[ti.play1[0]].exerted = true;
+  assert.ok(handEvaluate(t, 0) < handEvaluate(t, 0, BASELINE) - 150, 'exerted now, ready on their turn');
+});
+test('rollout policy: a lone bomb is kept, not inked, once the inkwell is deep', () => {
+  const bomb = all.find((d) => d.type === 'character' && d.cost === 7 && d.inkable && d.abilities.length === 0) || all.find((d) => d.type === 'character' && d.cost >= 7 && d.inkable);
+  const { s, ids } = setup({ hand0: [bomb], ink0: 6 });
+  s.players[0].hand = s.players[0].hand.filter((id) => id === ids.hand0[0]);          // the bomb alone in hand
+  for (const id of Object.keys(s.cards)) if (s.cards[id].owner === 0 && s.cards[id].zone === 'hand' && id !== ids.hand0[0]) { s.cards[id].zone = 'deck'; s.players[0].deck.push(id); }
+  const a = botDecide(s, 0, { keep: true });
+  assert.notEqual(a?.type === 'ink' && a.iid === ids.hand0[0], true, `keeps the bomb: ${JSON.stringify(a)}`);
+  const b = botDecide(s, 0, { keep: false });
+  assert.equal(b?.type, 'ink', 'the old policy inked it');
+  checkInvariants(s);
 });
 
 done();
