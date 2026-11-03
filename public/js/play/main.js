@@ -641,7 +641,7 @@ function renderInspector() {
       ${Object.keys(kws || {}).length ? `<div class="insp-kw">${Object.entries(kws).map(([k, v]) => `<span class="kw" title="${esc(KEYWORD_HELP[k] || '')}">${KEYWORD_LABEL[k] || k}${typeof v === 'number' && !['evasive', 'rush', 'ward', 'support', 'bodyguard', 'reckless', 'alert', 'vanish'].includes(k) ? ` ${['challenger', 'resist'].includes(k) ? '+' : ''}${v}` : ''}</span>`).join('')}</div>` : ''}
       ${def.abilities.length ? `<details class="insp-text" ${textOpen ? 'open' : ''}><summary>Card text${autos.length ? ` <i class="auto-tag" title="Resolved automatically by the game">⚡ auto</i><span class="auto-names">${esc(autos.join(' · '))}</span>` : ''}</summary>
         ${def.abilities.map((a, i) => `<p${def.auto?.[i] ? ' class="auto" title="Resolved automatically by the game"' : ''}>${def.auto?.[i] ? '<i class="auto-tag">⚡ auto</i> ' : ''}${a.name ? `<b>${esc(a.name)}</b> ` : ''}${rich(prettyText(a.text))}</p>`).join('')}</details>` : ''}
-      <div class="insp-foot"><span class="insp-owner">${esc(zone)} · ${esc(owner)}</span>${def.abilities.length ? `<a class="insp-proc" href="/procs?card=${encodeURIComponent(def.full)}" target="_blank" rel="noopener" title="How the engine runs this card">⚡ proc</a>` : ''}</div>
+      <div class="insp-foot"><span class="insp-owner">${esc(zone)} · ${esc(owner)}</span>${def.abilities.length ? `<a class="insp-proc" href="/rules?card=${encodeURIComponent(def.full)}" target="_blank" rel="noopener" title="This card's rules, keywords and official FAQ">📖 Rules</a>` : ''}</div>
       ${manual.length && V().status === 'playing' && you() >= 0 ? `<details class="manual" ${S.manualOpen ? 'open' : ''}><summary>Effects &amp; manual tools</summary><div class="mgrid">${manual.map((a, i) => `<button class="${a.small ? 'sm' : ''}" data-m="${i}" ${a.disabled ? 'disabled' : ''}>${rich(a.label)}</button>`).join('')}</div></details>` : ''}
     </div>`;
   el.hidden = false;
@@ -1380,7 +1380,7 @@ function drawLobby(el) {
     <aside class="lob-side"><a class="brandmark" href="/">Ink</a>${accountSide()}${startPanel(pick, pickOk)}${accountFoot()}</aside>
     <main class="lob-main">
       <div class="lob-top">
-        <nav class="tabs"><a class="on" href="/play">Play</a><a href="/">Decks</a><a href="/procs" title="How the rules engine reads each card: its abilities and the effects they run">Card rules</a></nav>
+        <nav class="tabs"><a class="on" href="/play">Play</a><a href="/">Decks</a><a href="/rules" title="Every card's rules text, keywords and official FAQ">Card rules</a></nav>
         ${u ? `<span class="chip-user">${u.avatar ? `<img class="avatar" src="${esc(u.avatar)}" alt="">` : `<span class="avatar">${esc(u.name.slice(0, 1).toUpperCase())}</span>`}${esc(u.name)}</span>` : ''}
       </div>
       <section class="deck-sec">
@@ -1774,6 +1774,7 @@ $('#menuBtn').onclick = () => drawer(!document.body.classList.contains('drawer')
 $('#drawerClose').onclick = () => drawer(false);
 $('#drawerTools').onclick = () => { drawer(false); openTools(); };
 $('#drawerHelp').onclick = () => { drawer(false); openHelp(); };
+$('#drawerReport').onclick = () => { drawer(false); window.open(`/report?from=${encodeURIComponent(location.href)}`, '_blank', 'noopener'); };
 $('#drawerLeave').onclick = () => { drawer(false); net.send({ t: 'leave' }); };
 $('#drawerConcede').onclick = () => { drawer(false); if (confirm('Concede this game?')) act({ type: 'concede' }); };
 window.addEventListener('ink:installable', () => { if (!S.view) renderLobby(); });

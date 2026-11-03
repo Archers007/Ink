@@ -562,16 +562,34 @@ app.use('/rulebook', express.static(path.join(__dirname, 'game', 'rulebook'), { 
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), { maxAge: '7d' }));
 
 // Demo decks for Play mode (also sent over the socket; handy for curl/debugging)
-// Card → compiled proc lookup (public/procs.html)
+// The card rules page (/rules, public/procs.html). Everyone sees each card's text, keywords, official FAQ and which
+// abilities Ink runs for you; how the engine compiles them (procs, read-backs, coverage) is for admins only.
+const isAdmin = (req) => { const u = accounts.userFromReq(req); return !!u && !u.guest && u.role === 'admin'; };
+app.get('/rules', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'procs.html')));
+let rulesDb = null;
+function officialRules(full) {
+  try {
+    rulesDb ||= new statsDb.constructor(path.join(CACHE_DIR, 'sanitized.db'), { readOnly: true });   // node:sqlite's DatabaseSync, loaded above
+    const r = rulesDb.prepare('SELECT faq, printed FROM rules WHERE card_key = ?').get(full);
+    const faq = (JSON.parse(r?.faq || '[]') || []).map((f) => String(f.body || '')).join('\n\n');
+    // Ravensburger's FAQ is one text blob of "Q: … A: …" pairs
+    const qa = [...faq.replace(/\r/g, '').matchAll(/Q:\s*([\s\S]*?)\n\s*A:\s*([\s\S]*?)(?=\n\s*Q:|$)/g)].map((m) => ({ q: m[1].trim(), a: m[2].trim() }));
+    return { faq: qa.length || !faq.trim() ? qa : [{ q: '', a: faq.trim() }], printed: r?.printed || null };
+  } catch { return { faq: [], printed: null }; }
+}
 app.get('/api/procs/search', (req, res) => {
   if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
-  res.json(procLookup.search(cardIndex, String(req.query.q || '').slice(0, 200), Math.min(100, Number(req.query.limit) || 40)));
+  const engine = isAdmin(req) && req.query.engine === '1';
+  res.set('Cache-Control', 'private, no-store');
+  res.json(procLookup.search(cardIndex, String(req.query.q || '').slice(0, 200), Math.min(400, Number(req.query.limit) || 40), { engine }));
 });
 app.get('/api/procs/card', (req, res) => {
   if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
-  const c = procLookup.card(cardIndex, String(req.query.full || ''));
-  if (!c) return res.status(404).json({ error: 'no such card' });
-  res.json(c);
+  const full = String(req.query.full || '');
+  const pub = procLookup.publicCard(cardIndex, full);
+  if (!pub) return res.status(404).json({ error: 'no such card' });
+  res.set('Cache-Control', 'private, no-store');
+  res.json({ ...pub, ...officialRules(pub.full), ...(isAdmin(req) ? { engine: procLookup.card(cardIndex, pub.full) } : {}) });
 });
 // Deck-builder role tags (removal, card draw, ramp…) and class payoffs, read off each card's compiled procs
 let rolesCache = null;
@@ -582,6 +600,7 @@ app.get('/api/cards/roles', (req, res) => {
   res.json(rolesCache.body);
 });
 app.get('/api/procs/stats', (req, res) => {
+  if (!accounts.requireRole(req, res, 'admin')) return;
   if (!cardIndex) return res.status(503).json({ error: 'card index loading' });
   res.json(procLookup.stats(cardIndex));
 });

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ink · Report a bug or request a feature</title>
+<meta name="description" content="Tell the Ink team about a bug or an idea. Screenshots welcome.">
+<link rel="icon" href="/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ink.css">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .rep { max-width: 640px; margin: 0 auto; padding: 22px 18px 70px; }
+  .rep-top { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .rep-top .sp { flex: 1; }
+  .rep h1 { margin: 0 0 6px; font: 400 30px/1.2 var(--font-display); color: var(--vellum); }
+  .rep .lede { color: var(--mist); line-height: 1.5; margin: 0 0 18px; }
+  .rep .box { background: var(--ink-panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+  @media (max-width: 520px) { .rep .box { padding: 16px 14px; } .rep h1 { font-size: 25px; } }
+  .kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+  .kind { display: flex; gap: 10px; align-items: flex-start; text-align: left; background: var(--ink-panel-2); border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; color: var(--fg); font: inherit; cursor: pointer; }
+  .kind:hover { border-color: rgba(217,180,90,.45); }
+  .kind[aria-checked="true"] { border-color: var(--gilt); background: rgba(217,180,90,.09); }
+  .kind .ico { font-size: 20px; line-height: 1.2; }
+  .kind b { display: block; font-size: 15px; }
+  .kind span.d { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  @media (max-width: 420px) { .kinds { grid-template-columns: 1fr; } }
+  .rep label { display: block; font-size: 13.5px; font-weight: 600; color: var(--mist); margin: 16px 0 6px; }
+  .rep label .note { font-weight: 400; }
+  .rep input[type=text], .rep textarea { width: 100%; box-sizing: border-box; background: var(--ink-panel-2); border: 1px solid var(--line); color: var(--fg); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 15px; }
+  .rep input[type=text]:focus, .rep textarea:focus { outline: none; border-color: var(--gilt); box-shadow: 0 0 0 3px rgba(217,180,90,.18); }
+  .rep textarea { min-height: 170px; resize: vertical; line-height: 1.5; }
+  .drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 18px 12px; text-align: center; color: var(--muted); font-size: 14px; cursor: pointer; }
+  .drop:hover, .drop:focus-visible, .drop.over { border-color: var(--gilt); color: var(--fg); outline: none; }
+  .drop b { color: var(--gilt-hi); }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; margin-top: 10px; }
+  .thumbs:empty { display: none; }
+  .th { position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--ink-panel-2); }
+  .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .th .x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(8,11,31,.82); color: #fff; font-size: 14px; line-height: 26px; cursor: pointer; padding: 0; }
+  .th .x:hover { background: #7a1d1d; }
+  .th .state { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11.5px; padding: 3px 6px; background: rgba(8,11,31,.8); color: var(--mist); }
+  .th.err { border-color: var(--ember); } .th.err .state { color: var(--ember); }
+  .th.up img { opacity: .55; }
+  .warnline { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.45; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 20px; }
+  .msg { font-size: 13.5px; color: var(--muted); }
+  .msg.err { color: var(--ember); }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .done { text-align: center; padding: 18px 6px; }
+  .done .big { font-size: 40px; }
+  .done h2 { font: 400 26px/1.2 var(--font-display); color: var(--vellum); margin: 8px 0; }
+  .done p { color: var(--mist); line-height: 1.5; }
+  .done .row { justify-content: center; }
+</style>
+</head>
+<body>
+<main class="rep" id="app">
+  <div class="rep-top"><a class="brandmark" href="/">Ink</a><span class="sp"></span><a class="btn btn-quiet btn-sm" href="/play">Play</a><a class="btn btn-quiet btn-sm" href="/">Decks</a></div>
+  <div class="box"><p class="note">Loading…</p></div>
+</main>
+<script type="module" src="/js/report.js"></script>
+</body>
+</html>

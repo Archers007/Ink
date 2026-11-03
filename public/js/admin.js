@@ -112,7 +112,7 @@ function fillIssues() {
     ${d.githubError ? `<div class="warn">Couldn't refresh GitHub: ${esc(d.githubError)}. Showing the last list.</div>` : ''}`;
   $('#openBox').innerHTML = `<h2>Open issues · ${esc(d.repo)} <span class="note">(${d.issues.length})</span></h2><div class="issues" id="issues">${issuesHtml()}</div>`;
   $('#closedBox').innerHTML = `<h2 class="toggle" id="closedToggle" role="button" tabindex="0" aria-expanded="${S.showClosed}">${S.showClosed ? '▾' : '▸'} Recently closed <span class="note">(${(d.closed || []).length})</span></h2>${S.showClosed ? `<div class="issues">${closedHtml()}</div>` : ''}`;
-  $('#reportsBox').innerHTML = `<h2>Reports from here <span class="note">(${d.reports.length})</span></h2><div class="issues">${reportsHtml()}</div>`;
+  $('#reportsBox').innerHTML = `<h2>Reports <span class="note">(${d.reports.length}) · from here and from <a href="/report" target="_blank" rel="noopener">/report</a></span></h2><div class="issues">${reportsHtml()}</div>`;
 }
 function fillHistory() {
   $('#histBox').innerHTML = `<h2>History <span class="note">every report, what was done with it, and how it turned out</span></h2>${S.activity ? historyHtml() : '<p class="note">Loading…</p>'}`;
@@ -120,7 +120,8 @@ function fillHistory() {
 function fillSettings() {
   const d = S.data, admin = S.user.role === 'admin';
   $('#settingsBox').innerHTML = `<h2>Switches</h2>
-    <div class="switch"><div><b>Accept reports</b><span class="note">The form on the Issues tab. Off: nothing new can be filed from Ink.</span></div><span class="sp"></span><input type="checkbox" data-sw="issues_on" ${d.switches.issues_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
+    <div class="switch"><div><b>Accept reports</b><span class="note">The form on the Issues tab and the public /report page. Off: nothing new can be filed from Ink.</span></div><span class="sp"></span><input type="checkbox" data-sw="issues_on" ${d.switches.issues_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
+    <div class="switch"><div><b>Public report page</b><span class="note">Anyone can send a bug report or feature request from <a href="/report" target="_blank" rel="noopener">/report</a>, signed in or not. They're filed as GitHub issues (labelled bug or enhancement) and never handed to Claude. Off: the page says reports are closed.</span></div><span class="sp"></span><input type="checkbox" data-sw="public_on" ${d.switches.public_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
     <div class="switch"><div><b>Fix with Claude</b><span class="note">After filing the issue, the worker opens a terminal on the maintainer's machine running Claude on it. Off: the issue is still filed, nobody starts on it.</span></div><span class="sp"></span><input type="checkbox" data-sw="fix_on" ${d.switches.fix_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
     ${admin ? '' : '<p class="note">Only admins change these.</p>'}
     <p class="note">Repository: ${esc(d.repo)} · worker ${d.workerConfigured ? 'configured' : 'not configured'}.</p>`;
@@ -196,13 +197,15 @@ function reportsHtml() {
     const key = `r${r.id}`;
     const open = S.open.has(key);
     const b = bodyParts(r.body);
-    const imgs = [...(r.imageUrl ? [r.imageUrl] : []), ...b.imgs];
+    const imgs = [...(r.imageUrls || (r.imageUrl ? [r.imageUrl] : [])), ...b.imgs];
     const more = !!(b.html || imgs.length);
-    const retry = ['failed', 'cancelled'].includes(r.status) || (r.status === 'issue' && d.switches.fix_on);
+    // public reports are filed and left for a person; Retry on one only files it again
+    const retry = ['failed', 'cancelled'].includes(r.status) || (r.status === 'issue' && d.switches.fix_on && r.autofix);
+    const from = r.source === 'public' ? `<span class="src ${r.kind}">${r.kind === 'feature' ? 'Feature request' : 'Bug report'} · public</span>` : '';
     return `<div class="iss ${open ? 'open' : ''}" ${more ? `data-open="${key}"` : ''}>
       <div class="num">${more ? chev(key, open) : ''}${r.issueNumber ? `#${r.issueNumber}` : `R${r.id}`}</div>
       <div><div class="t">${r.issueUrl ? `<a href="${esc(r.issueUrl)}" target="_blank" rel="noopener" title="Open on GitHub">${esc(r.title)}&nbsp;<span class="ext">↗</span></a>` : esc(r.title)}</div>
-        <div class="meta"><span>${esc(r.author || '')}</span><span>${ago(r.created)}</span><span class="st ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.prUrl ? `<a class="st pr" href="${esc(r.prUrl)}" target="_blank" rel="noopener">pull request</a>` : ''}${r.note ? `<span title="${esc(r.note)}">${esc(r.note.slice(0, 90))}${r.note.length > 90 ? '…' : ''}</span>` : ''}${r.imageUrl ? '<span class="imgchip">image</span>' : ''}</div>
+        <div class="meta">${from}<span>${esc(r.author || (r.source === 'public' ? 'no account' : ''))}</span><span>${ago(r.created)}</span><span class="st ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.prUrl ? `<a class="st pr" href="${esc(r.prUrl)}" target="_blank" rel="noopener">pull request</a>` : ''}${r.note ? `<span title="${esc(r.note)}">${esc(r.note.slice(0, 90))}${r.note.length > 90 ? '…' : ''}</span>` : ''}${imgs.length ? `<span class="imgchip">${imgs.length > 1 ? `${imgs.length} images` : 'image'}</span>` : ''}</div>
         ${b.html ? `<div class="body">${b.html}</div>` : ''}${shotsHtml(imgs)}</div>
       <div class="acts">${retry ? `<button class="btn btn-quiet" data-rs="${r.id}" data-to="queued" title="Put it back in the queue (the worker files the issue if there isn't one, then starts Claude)">Retry</button>` : ''}
         ${!['done', 'cancelled'].includes(r.status) ? `<button class="btn btn-quiet" data-rs="${r.id}" data-to="done">Done</button>` : ''}
