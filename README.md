@@ -21,7 +21,10 @@ for names and Figtree for everything else (`public/css/ink.css`).
   (`game/analysis/`). Card and combo claims need ~99% confidence; everything carries its sample size.
 - **Replays + training** — every finished lobby game (people vs bots or each other) is saved in `data/ink.db` as
   seed + decklists + actions (the engine is deterministic) and can be watched back from either seat (*Your games*
-  in the lobby, or *Watch replay* after a game). Every 10 new games a worker replays them all (`game/learn/`):
+  in the lobby, or *Game review* after a game). Each game with a person in it is reviewed by the engine as it's
+  saved (`game/analysis/review.js`): both players' accuracy, every move rated great / best / good / inaccuracy /
+  mistake / blunder with the engine's best move, and an evaluation graph of the whole game to scrub through, beside
+  an eval bar on the table. Every 10 new games a worker replays them all (`game/learn/`):
   it tallies what people do with each card (ink or play, keep or ship), which the quick bot follows, and fits a
   win-probability model that the Hard bot only uses after it beats the Hard bot without it head to head.
   `node scripts/train-bot.mjs [--selfplay N]` trains by hand (self-play games give it data before people play).
