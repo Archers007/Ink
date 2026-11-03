@@ -432,7 +432,13 @@ export class Board {
     const me = view.you >= 0 ? view.you : 0;
     const seen = new Set();
     const spawnHint = new Map();   // iid -> {seat, zone}
-    for (const e of events) if (e.k === 'move' && e.iid) spawnHint.set(e.iid, e.from);
+    const leaveTo = new Map();     // iid -> {seat, zone}: where a card that's leaving view went
+    const slotMoves = [];          // every move, for face-down slots that aren't keyed by card (the opponent's hand)
+    for (const e of events) {
+      if (e.k !== 'move') continue;
+      if (e.iid) { spawnHint.set(e.iid, e.from); leaveTo.set(e.iid, e.to); }
+      if (e.from && e.to) slotMoves.push({ from: e.from, to: e.to });
+    }
 
     const anchor = (seat, zone) => {
       const sign = seat === me ? 1 : -1;
@@ -530,14 +536,21 @@ export class Board {
       }
     });
 
-    // cards that left visibility: fly to their owner's deck and fade
+    // cards that left visibility: fly to where they went and fade — the inkwell when inked, otherwise the deck (#24:
+    // every leaving card used to head for the deck, so an inked card looked like it went back into the deck too)
     for (const [key, c] of this.cards) {
       if (seen.has(key)) continue;
       if (!c.dying) {
         c.dying = performance.now();
         const seat = c.info?.seat ?? 0;
-        const a = anchor(seat, 'deck');
-        c.place({ x: a.x, y: 3, z: a.z, scale: 0.9, flip: Math.PI, yaw: 0, tilt: 0 });
+        let to = leaveTo.get(key);
+        if (!to && c.info?.zone) {                                    // a face-down slot (the opponent's hand): the move out of that zone
+          const k = slotMoves.findIndex((m) => m.from.seat === seat && m.from.zone === c.info.zone);
+          if (k >= 0) to = slotMoves.splice(k, 1)[0].to;
+        }
+        const dest = ['inkwell', 'play', 'discard', 'hand'].includes(to?.zone) ? to.zone : 'deck';
+        const a = anchor(to?.seat ?? seat, dest);
+        c.place({ x: a.x, y: dest === 'deck' ? 3 : 1, z: a.z, scale: 0.9, flip: Math.PI, yaw: 0, tilt: 0 });
       }
     }
 

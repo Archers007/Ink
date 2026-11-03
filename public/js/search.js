@@ -14,6 +14,7 @@
 //                         emerald|e|g|green, ruby|r|red,
 //                         sapphire|s|b|blue, steel|t|gray
 //                         (multi-color cards match any listed color)
+//    id, identity         colour identity: every ink of the card is listed (id:amber,ruby → what an Amber/Ruby deck can play)
 //    t, type              character | action | item | location | song
 //    n, name              substring of name
 //    tt, title, st        substring of title
@@ -303,6 +304,13 @@ function buildFieldPred(key, op, val) {
       if (!list.length) return null;
       return (c) => list.some((ink) => c.inks?.includes(ink));
     }
+    case 'id': case 'identity': {
+      // colour identity: every ink of the card is one of these — what a deck of these colours can play
+      // (id:amber,ruby → mono Amber, mono Ruby and Amber/Ruby cards; not Ruby/Sapphire)
+      const list = splitMulti(sval).map((s) => COLOR_ALIASES[s] || s);
+      if (!list.length) return null;
+      return (c) => !!c.inks?.length && c.inks.every((ink) => list.includes(ink));
+    }
     case 't': case 'type': {
       const list = splitMulti(sval);
       return (c) => list.includes(String(c.type || '').toLowerCase());
@@ -413,6 +421,7 @@ Prefix with <code>-</code> to negate. Use <code>"quoted phrases"</code> for mult
 
 <table style="border-collapse:collapse;">
   <tr><td><code>c:</code> <code>color:</code> <code>ink:</code></td><td>amber·amethyst·emerald·ruby·sapphire·steel (or 1-letter a/m/e/r/s/t). Multi-color: <code>c:multi</code></td></tr>
+  <tr><td><code>id:</code> <code>identity:</code></td><td>colour identity: cards whose inks are all listed — <code>id:amber,ruby</code> is mono Amber, mono Ruby and Amber/Ruby, never Ruby/Sapphire. The colour buttons use this when two or more are picked.</td></tr>
   <tr><td><code>t:</code> <code>type:</code></td><td>character · action · item · location · song</td></tr>
   <tr><td><i>(no prefix)</i></td><td><b>card name or subtitle</b> — plain text searches names by default; use <code>o:</code> for rules text</td></tr>
   <tr><td><code>n:</code> <code>name:</code></td><td>substring of card name</td></tr>

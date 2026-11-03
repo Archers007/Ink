@@ -150,4 +150,45 @@ test('look at the top N: a look event with the cards for the looker, just the co
   assert.equal(mine.seat, 0);
 });
 
+// #27: CR 8.10.5 — a shifted character "does keep any effects that apply to that character", lingering ones too
+const MIM = byName('Madam Mim - Rival of Merlin');
+const mimAbility = MIM.procs.findIndex((p) => p.kind === 'activated');
+test('Shift keeps a lingering effect: shifting onto a character Madam Mim played still banishes it at end of turn', () => {
+  const base = byName('Madam Mim - Bauble Chaser');
+  const { s, ids } = setup({ play0: [MIM], hand0: [base, MIM] });
+  s.cards[ids.play0[0]].drying = false;
+  ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: mimAbility }));
+  if (s.pending) ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[0] }));
+  assert.equal(s.cards[ids.hand0[0]].zone, 'play', 'Mim played the 4-or-less character');
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[1], mode: 'shift', target: ids.hand0[0] }));
+  ok(applyAction(s, 0, { type: 'endTurn' }));
+  while (s.pending) ok(applyAction(s, s.pending.seat, { type: 'choose', skip: true }));
+  assert.equal(s.cards[ids.hand0[1]].zone, 'discard', 'the shifted character is banished at the end of the turn');
+  assert.equal(s.cards[ids.play0[0]].zone, 'play', 'the Mim that used the ability is untouched');
+  checkInvariants(s);
+});
+
+// #29: Bodyguard's "may enter play exerted" works however the character is played (CR 8.3.2)
+test('Bodyguard played by an effect: the player is asked whether it enters exerted, and the answer sticks', () => {
+  const bg = all.find((d) => d.type === 'character' && d.kw?.bodyguard && d.cost <= 4 && d.abilities.length === 1);
+  assert.ok(bg, 'a vanilla Bodyguard character costing 4 or less');
+  for (const yes of [true, false]) {
+    const { s, ids } = setup({ play0: [MIM], hand0: [bg] });
+    s.cards[ids.play0[0]].drying = false;
+    ok(applyAction(s, 0, { type: 'useAbility', iid: ids.play0[0], index: mimAbility }));
+    if (s.pending?.valid?.includes(ids.hand0[0])) ok(applyAction(s, 0, { type: 'choose', target: ids.hand0[0] }));
+    assert.equal(s.pending?.confirm, true, `${bg.full}: asked whether it enters exerted`);
+    assert.equal(viewFor(s, 1).pending?.seat, 0, 'the opponent sees who is choosing');
+    ok(applyAction(s, 0, yes ? { type: 'choose', confirm: true } : { type: 'choose', skip: true }));
+    assert.equal(s.cards[ids.hand0[0]].exerted, yes, yes ? 'yes: exerted' : 'no: ready');
+    assert.equal(s.pending, null);
+    checkInvariants(s);
+  }
+  // played from the hand the normal way, the client asks up front and there is no second prompt
+  const { s, ids } = setup({ hand0: [bg] });
+  ok(applyAction(s, 0, { type: 'play', iid: ids.hand0[0], mode: 'ink', enterExerted: true }));
+  assert.equal(s.cards[ids.hand0[0]].exerted, true);
+  assert.equal(s.pending, null, 'no prompt for a normal play');
+});
+
 done();

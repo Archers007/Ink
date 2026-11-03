@@ -505,6 +505,12 @@ export const shiftCondOk = (s, seat, c, opt) => !opt.spec.cond || R.test(s, opt.
 export function mayEnterExerted(s, c, d) {
   return hasKw(c, d, 'bodyguard') || R.procsOf(s, c).some((p) => p.kind === 'static' && p.exec && p.effect?.fn === 'enterExertedOpt');
 }
+// a character an effect just played: the player still gets Bodyguard's "may enter play exerted" (CR 8.3.2 — while it's
+// being played, however it's played). From the hand the client asks up front (a.enterExerted); here it's a prompt.
+function offerEnterExerted(s, seat, c, d) {
+  if (s.status !== 'playing' || d.type !== 'character' || c.zone !== 'play' || c.exerted || !mayEnterExerted(s, c, d)) return;
+  R.queueFirst(s, seat, c.iid, `${cardLabel(d)} · ${hasKw(c, d, 'bodyguard') ? 'Bodyguard' : 'may enter exerted'}`, [{ fn: 'enterExertedAsk', iid: c.iid }]);
+}
 
 export function recklessBlockers(s, seat) {
   const out = [];
@@ -607,6 +613,7 @@ function playFree(s, seat, iid, ev, opt = {}) {
   moveTo(s, iid, 'play', ev, mv);
   R.onEnter(s, c);
   if (opt.exerted) c.exerted = true;
+  else offerEnterExerted(s, seat, c, d);
   log(s, `${nameOf(s, seat)} played ${cardLabel(d)} ${how}.`, { seat, kind: 'play' });
   R.fire(s, 'play', { iid });
   R.fire(s, 'entersPlay', { iid });
@@ -764,6 +771,17 @@ function playCard(s, seat, a, ev) {
     for (const u of c.under) s.cards[u].parent = c.iid;
     c.shifted = true;
     if (shiftOpt.spec.temp) c.tempShift = s.turn;                     // 8.10.8.5: back to hand at end of turn
+    // "it does keep any effects that apply to that character" (8.10.5) — a lingering one too: Madam Mim's "at the end
+    // of the turn, banish them" follows the character onto the card shifted on top of it (#27)
+    for (const dl of s.delayed || []) {
+      if (!dl.keep?.length) continue;
+      dl.keep = dl.keep.map((id, i) => {
+        const live = dl.keepSeq == null || (s.cards[id]?.seq || 0) === dl.keepSeq[i];
+        if (!live || !ts.some((t) => t.iid === id)) return id;
+        if (dl.keepSeq) dl.keepSeq[i] = c.seq || 0;
+        return c.iid;
+      });
+    }
     ev.push({ k: 'shift', iid: c.iid, onto: ts[0].iid, ...(ts.length > 1 ? { also: ts.slice(1).map((t) => t.iid) } : {}) });
   } else {
     c.exerted = d.type === 'character' && !!a.enterExerted && mayEnterExerted(s, c, d);  // 8.3.2
@@ -773,6 +791,7 @@ function playCard(s, seat, a, ev) {
   ev.push({ k: 'move', iid: c.iid, cardId: c.cardId, from: { seat, zone: from }, to: { seat, zone: 'play' } });
   if (!shiftTarget) R.onEnter(s, c);                                // "enters play exerted / with damage"
   if (perm?.exerted || a.exertedFx) c.exerted = true;               // "If you do, they enter play exerted"
+  else if (a.free && a.enterExerted === undefined) offerEnterExerted(s, seat, c, d);   // an effect played it: ask now (#29)
   if (perm?.sameNameBan) (p.nameBans ||= []).push({ name: d.name, turn: s.turn });
   c.enteredExerted = !!c.exerted;                                   // for "may enter play exerted to draw a card"
   p.playedThisTurn.push(c.iid);

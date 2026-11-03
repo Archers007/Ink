@@ -666,6 +666,9 @@ function renderHud() {
   $('#hintBtn').hidden = !(S.room?.seats?.some((x) => x?.bot) && you() >= 0 && !S.replay);
   $('#hintBtn').disabled = !myChoice || S.hintWait;
   $('#hintBtn').textContent = S.hintWait ? '💡 Thinking…' : '💡 Hint';
+  const questers = myTurn() ? questable().length : 0;
+  $('#questAllBtn').hidden = !S.questAll && questers < 2;
+  $('#questAllBtn').textContent = S.questAll ? '■ Stop questing' : `◆ Quest all (${questers})`;
   renderTopbar();
   renderBanner();
 }
@@ -979,7 +982,7 @@ function openHelp() {
 // ---------- lobby ----------
 function deckTiles() {
   return [
-    ...S.myDecks.map((d) => ({ id: 'saved:' + d.id, name: d.name, cards: d.cards, mine: true })),
+    ...S.myDecks.map((d) => ({ id: 'saved:' + d.id, name: d.name, cards: d.cards, cover: d.cover || null, mine: true })),
     ...S.demoDecks.map((d) => ({ id: 'demo:' + d.id, name: d.name.replace(/^Demo:\s*/, ''), cards: d.cards, demo: true })),
   ];
 }
@@ -1004,7 +1007,7 @@ async function refreshDecks() {
   const tiles = deckTiles().filter((t) => !S.deckInfo[t.id]);
   if (tiles.length) {
     try {
-      const r = await fetch('/api/play/deck-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decks: tiles.map(({ id, cards }) => ({ id, cards })) }) });
+      const r = await fetch('/api/play/deck-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decks: tiles.map(({ id, cards, cover }) => ({ id, cards, cover })) }) });
       if (r.ok) Object.assign(S.deckInfo, await r.json());
     } catch { /* tiles show without counts */ }
   }
@@ -1359,6 +1362,40 @@ function renderAll() {
   renderRevealed();
 }
 $('#endTurn').onclick = () => { if (V()?.status === 'over') { S.overDismissed = false; renderPhaseModals(); } else act({ type: 'endTurn' }); };
+$('#questAllBtn').onclick = () => { if (S.questAll) S.questAll.stop = true; else questAll(); };
+
+// ---------- quest all (#28) ----------
+// my characters that can quest now, rightmost first
+function questable(skip = new Set()) {
+  if (!me()) return [];
+  return [...myChars()].reverse().filter((c) => !skip.has(c.iid) && !questBlocker(c, D(c.cardId)));
+}
+// quest with each of them in turn; when an ability asks something (a "may", a target), wait for the player to answer
+// it on the board as usual, then carry on. Clicking the button again stops after the current one.
+async function questAll() {
+  const run = (S.questAll = { stop: false });
+  const skip = new Set();
+  let n = 0;
+  renderHud();
+  const settled = async () => {                                     // until nobody has a choice to make (or we're told to stop)
+    for (let t = 0; t < 2400 && !run.stop && V()?.status === 'playing' && V().pending; t++) await new Promise((r) => setTimeout(r, 250));
+  };
+  try {
+    for (let guard = 0; guard < 40 && !run.stop; guard++) {
+      await settled();
+      const v = V();
+      if (run.stop || !v || v.status !== 'playing' || v.active !== you() || v.pending) break;
+      const next = questable(skip)[0];
+      if (!next) break;
+      const r = await act({ type: 'quest', iid: next.iid }, { quiet: true });
+      if (r.ok) n++; else skip.add(next.iid);                      // one the server won't let quest: leave it, try the rest
+    }
+  } finally {
+    if (S.questAll === run) S.questAll = null;
+    renderHud();
+    if (n) toast(`Quested with ${n} character${n > 1 ? 's' : ''}.`);
+  }
+}
 $('#toolsBtn').onclick = openTools;
 // phones: log / chat / tools live in a drawer behind ☰
 const drawer = (open) => document.body.classList.toggle('drawer', open);

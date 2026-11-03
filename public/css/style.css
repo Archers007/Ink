@@ -142,6 +142,10 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; background
 .deck-row .name .muted { font-size: 12px; }
 .deck-row .qty { display: inline-flex; align-items: center; gap: 2px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .deck-row button { width: 24px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid var(--line-cool); background: transparent; cursor: pointer; color: var(--mist); line-height: 1; }
+.deck-row .cover-btn { border: 0; opacity: 0; color: var(--gilt-hi, #e9cf86); font-size: 13px; }
+.deck-row:hover .cover-btn, .deck-row .cover-btn:focus-visible { opacity: .45; }
+.deck-row .cover-btn.on { opacity: 1; }
+@media (hover: none) { .deck-row .cover-btn { opacity: .3; } .deck-row .cover-btn.on { opacity: 1; } }
 .deck-row button:hover { border-color: var(--gilt); color: var(--fg); }
 .deck-empty { padding: 26px 8px; text-align: center; color: var(--muted); font-size: 13px; }
 .dp-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }

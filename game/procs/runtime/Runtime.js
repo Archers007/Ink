@@ -132,6 +132,8 @@ export class Runtime {
   // ------------------------------------------------------------ the bag
   makeJob(seat, src, label, steps, ctx = {}, extra = {}) { return Job.make(seat, src, label, steps, ctx, extra); }
   queue(s, seat, src, label, steps, ctx = {}, extra = {}) { (s.fx ||= []).push(Job.make(seat, src, label, steps, ctx, extra)); }
+  // a step that has to happen before anything else waiting in the bag (a choice made while a card is being played)
+  queueFirst(s, seat, src, label, steps) { (s.fx ||= []).unshift(Job.make(seat, src, label, steps)); }
 
   // engine event → every listening trigger queues
   fire(s, ev, info = {}) {

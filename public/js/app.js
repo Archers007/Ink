@@ -120,12 +120,13 @@ function openDeck(d) {
   for (const [id, q] of d.cards) Deck.setQty(String(id), q);
   Deck.Deck.id = d.id;
   Deck.Deck.shared = !!d.shared;
+  Deck.Deck.cover = d.cover || null;
   setDeckName(d.name);
   localStorage.setItem('ink.lastDeck', d.id);
   renderGrid(); renderDeck(); refreshDeckPicker();
 }
 function newDeck() {
-  Deck.clear(); Deck.Deck.id = null; Deck.Deck.shared = false;
+  Deck.clear(); Deck.Deck.id = null; Deck.Deck.shared = false; Deck.Deck.cover = null;
   setDeckName('Untitled deck');
   localStorage.removeItem('ink.lastDeck');
   renderGrid(); renderDeck(); refreshDeckPicker();
@@ -134,9 +135,10 @@ async function saveCurrent() {
   if (!Deck.Deck.cards.size) throw new Error('add some cards first');
   const name = ($('#deckTitle').value || '').trim() || 'Untitled deck';
   setDeckName(name);
-  const d = await account.saveDeck({ id: Deck.Deck.id, name, cards: [...Deck.Deck.cards.entries()], shared: account.signedIn() ? $('#shareDeck').checked : undefined });
+  const d = await account.saveDeck({ id: Deck.Deck.id, name, cards: [...Deck.Deck.cards.entries()], shared: account.signedIn() ? $('#shareDeck').checked : undefined, cover: Deck.Deck.cover });
   Deck.Deck.id = d.id;
   Deck.Deck.shared = d.shared;
+  Deck.Deck.cover = d.cover || null;
   localStorage.setItem('ink.lastDeck', d.id);
   $('#saveNote').textContent = account.signedIn() ? '' : 'Saved as a guest on this device. Create an account to keep it on every device and share it.';
   await refreshDeckPicker();
@@ -314,7 +316,7 @@ function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '
 // passes through unchanged in the same place.
 
 const BUILDER_KEYS = new Set([
-  'c','color','ink','t','type','i','inkable','cost','r','rarity','kw','keyword',
+  'c','color','ink','id','identity','t','type','i','inkable','cost','r','rarity','kw','keyword',
   'set','s','str','a','attack','strength','wp','w','def','willpower','lore','l',
   'p','prop','char','characteristic','f','franchise','n','name','tt','title','o','oracle','text',
 ]);
@@ -360,7 +362,8 @@ function readBuilder() {
 function builderToTokens(b) {
   const out = [];
   const q = (s) => /\s/.test(s) ? '"' + s + '"' : s;
-  if (b.colors.length)    out.push('c:' + b.colors.join(','));
+  // one colour: any card with it; two or more: cards those colours can play (colour identity, #25)
+  if (b.colors.length)    out.push((b.colors.length > 1 ? 'id:' : 'c:') + b.colors.join(','));
   if (b.types.length)     out.push('t:' + b.types.join(','));
   if (b.rarities.length)  out.push('r:' + b.rarities.map(q).join(','));
   if (b.keywords.length)  out.push('kw:' + b.keywords.join(','));
@@ -402,7 +405,7 @@ function syncBuilderFromQuery() {
   for (const tok of tokens) {
     const p = parseSimpleToken(tok); if (!p) continue;
     switch (p.key) {
-      case 'c': case 'color': case 'ink':
+      case 'c': case 'color': case 'ink': case 'id': case 'identity':
         p.val.split(/[,/+]/).forEach((c) => owned.colors.add(c.trim()));
         break;
       case 't': case 'type':
@@ -587,7 +590,7 @@ function renderRoleMeters() {
 function showRoleInInks(role) {
   state.role = role;
   const inks = Deck.summary().inks;
-  setQuery(inks.length ? `c:${inks.join(',')}` : '');
+  setQuery(inks.length ? `${inks.length > 1 ? 'id' : 'c'}:${inks.join(',')}` : '');   // what the deck's colours can play
   renderRoleChips();
   $('.mtabs button[data-pane="pool"]')?.click();
 }
@@ -596,6 +599,7 @@ function renderDeck() {
   const list = $('#deckList');
   list.innerHTML = '';
   const groups = Deck.grouped();
+  if (Deck.Deck.cover && !Deck.Deck.cards.has(Deck.Deck.cover)) Deck.Deck.cover = null;   // the cover card left the deck
   const ORDER = ['character', 'action', 'song', 'item', 'location'];
   const LABEL = { character: 'Characters', action: 'Actions', song: 'Songs', item: 'Items', location: 'Locations' };
   for (const type of ORDER) {
@@ -612,6 +616,7 @@ function renderDeck() {
       row.innerHTML = `
         <span class="cost ${Deck.inkable(card) ? '' : 'uninkable'}">${card.cost}</span>
         <span class="name" title="${escapeHtml(card.name + (card.title ? ' - ' + card.title : ''))}">${escapeHtml(card.name)}${card.title ? ' <span class="muted">· ' + escapeHtml(card.title) + '</span>' : ''}</span>
+        <button class="cover-btn ${Deck.Deck.cover === card.id ? 'on' : ''}" data-act="cover" aria-pressed="${Deck.Deck.cover === card.id}" title="${Deck.Deck.cover === card.id ? 'This is the deck\'s cover card (click for automatic)' : 'Use as the deck\'s cover card'}">★</button>
         <span class="qty"><button data-act="dec" aria-label="One fewer">−</button><span>${qty}</span><button data-act="inc" aria-label="One more">+</button></span>
       `;
       section.appendChild(row);
@@ -796,6 +801,12 @@ function wireUI() {
   $('#deckList').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act]'); if (!btn) return;
     const row = e.target.closest('.deck-row'); if (!row) return;
+    if (btn.dataset.act === 'cover') {                             // the deck tile's card (#26); click again for automatic
+      Deck.Deck.cover = Deck.Deck.cover === row.dataset.id ? null : row.dataset.id;
+      $('#saveNote').textContent = Deck.Deck.cover ? 'Cover card set. Save the deck to keep it.' : 'Cover back to automatic. Save the deck to keep it.';
+      renderDeck();
+      return;
+    }
     Deck.bump(row.dataset.id, btn.dataset.act === 'inc' ? +1 : -1);
     renderGrid(); renderDeck();
   });

@@ -95,9 +95,9 @@ export async function getDeck(id) {
   return all.find((d) => d.id === id) || all.find((d) => d.name === name) || null;
 }
 
-export async function saveDeck({ id, name, cards, shared }) {
+export async function saveDeck({ id, name, cards, shared, cover }) {
   await load();
-  const j = await api('/api/my/decks', { method: 'POST', body: JSON.stringify({ id: id?.startsWith('local:') ? undefined : id, name, cards, shared, player: playerName() }) });
+  const j = await api('/api/my/decks', { method: 'POST', body: JSON.stringify({ id: id?.startsWith('local:') ? undefined : id, name, cards, shared, player: playerName(), ...(cover !== undefined ? { cover } : {}) }) });
   if (!state.user) state.user = j.user;             // the first save made a guest account
   state.decks = [...(state.decks || []).filter((d) => d.id !== j.deck.id && d.name !== j.deck.name), j.deck];
   return j.deck;
