@@ -27,10 +27,28 @@ export const Deck = {
 export function clear() {
   Deck.cards.clear();
 }
+// The copy limit counts every printing of a full name together (CR 1.10.1.1 — "copies of a full name"): two sets'
+// Improvise are the same card, while Mickey Mouse - Brave Little Tailor and Mickey Mouse - Wayward Sorcerer aren't (#31)
+const fullKey = (card) => `${card.name || ''} - ${card.title || ''}`.toLowerCase().replace(/\s+/g, ' ').trim();
+const cardById = (id) => DB.allCards.find((c) => c.id === id);
+// copies of other printings of the same full name already in the deck
+function otherPrintings(card, exceptId) {
+  const k = fullKey(card);
+  let n = 0;
+  for (const [id, q] of Deck.cards) if (id !== exceptId) { const c = cardById(id); if (c && fullKey(c) === k) n += q; }
+  return n;
+}
 export function setQty(cardId, qty) {
   qty = Math.max(0, Math.floor(qty));
+  const card = cardById(cardId) || {};
   if (qty <= 0) Deck.cards.delete(cardId);
-  else Deck.cards.set(cardId, Math.min(qty, maxCopies(DB.allCards.find((c) => c.id === cardId) || {})));
+  else Deck.cards.set(cardId, Math.min(qty, Math.max(0, maxCopies(card) - otherPrintings(card, cardId))));
+  if (Deck.cards.get(cardId) === 0) Deck.cards.delete(cardId);
+}
+// how many more copies of this card fit (across its printings) — for "Max 4" feedback
+export function roomFor(cardId) {
+  const card = cardById(cardId) || {};
+  return Math.max(0, maxCopies(card) - otherPrintings(card, null));
 }
 export function bump(cardId, delta) {
   const q = Deck.cards.get(cardId) || 0;
@@ -87,9 +105,12 @@ export function legality() {
   if (s.total !== 60) errs.push(`must be 60 cards (currently ${s.total})`);
   if (s.inks.length > 2) errs.push(`max 2 inks (got ${s.inks.length})`);
   if (s.inkable < 30) errs.push(`need ≥30 inkable (got ${s.inkable})`);
-  for (const { card, qty } of entries()) {
+  // per full name, all printings together (#31)
+  const perFull = new Map();
+  for (const { card, qty } of entries()) { const k = fullKey(card); const e = perFull.get(k) || perFull.set(k, { card, n: 0 }).get(k); e.n += qty; }
+  for (const { card, n } of perFull.values()) {
     const max = maxCopies(card);
-    if (qty > max) errs.push(`>${max} copies of ${card.name} - ${card.title || ''}`);
+    if (n > max) errs.push(`>${max} copies of ${card.name}${card.title ? ` - ${card.title}` : ''} (all printings)`);
   }
   return errs;
 }
@@ -104,10 +125,20 @@ export function toText() {
   return lines.join('\n');
 }
 
+// Replace the deck with a parsed list (used by Browse decks); returns the skipped lines.
 export function fromText(text) {
+  const { cards, errs } = parseText(text);
   clear();
+  for (const [id, q] of cards) setQty(id, q);
+  return errs;
+}
+
+// Parse a decklist without touching the deck, so Import can preview it first (#37).
+// → { cards: [[id, qty]], errs: [skipped lines], total, capped: [names cut down to their copy limit] }
+export function parseText(text) {
+  const counts = new Map();
   const errs = [];
-  for (const raw of text.split(/\r?\n/)) {
+  for (const raw of String(text || '').split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith('//') || line.startsWith('#')) continue;
     const m = line.match(/^(\d+)\s*[xX]?\s+(.+?)$/);
@@ -131,9 +162,17 @@ export function fromText(text) {
       if (hit) card = hit;
     }
     if (!card) { errs.push(`unknown card: ${rest}`); continue; }
-    setQty(card.id, (Deck.cards.get(card.id) || 0) + qty);
+    counts.set(card.id, (counts.get(card.id) || 0) + qty);
   }
-  return errs;
+  const cards = [];
+  const capped = [];
+  for (const [id, q] of counts) {
+    const card = DB.allCards.find((c) => c.id === id) || {};
+    const max = maxCopies(card);
+    if (q > max) capped.push(`${card.name}${card.title ? ' - ' + card.title : ''} (${q} → ${max})`);
+    if (Math.min(q, max) > 0) cards.push([id, Math.min(q, max)]);
+  }
+  return { cards, errs, capped, total: cards.reduce((n, [, q]) => n + q, 0) };
 }
 
 // Grouping for display

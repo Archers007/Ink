@@ -17,6 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/ink.css">
 <link rel="stylesheet" href="/css/play.css">
+<link rel="stylesheet" href="/css/coach.css">
 <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5' fill='%23d4b25c'/></svg>">
 <script type="importmap">
   { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
@@ -33,7 +34,7 @@
     <button id="menuBtn" class="ghost" title="Log, chat &amp; tools" aria-label="Menu">☰</button>
     <div class="plate opp" id="plateOpp"></div>
     <div class="plate me" id="plateMe"></div>
-    <div id="banner" hidden></div>
+    <div id="banner" hidden role="status" aria-live="polite"></div>
     <div id="revealed" hidden></div>
     <div id="replayBar" hidden></div>
     <div id="hintBox" hidden></div>
@@ -43,6 +44,7 @@
     <div id="quick" hidden></div>
     <aside id="inspector" hidden></aside>
     <div id="preview" hidden></div>
+    <div id="scrim"></div>
     <div id="side">
       <div id="sideHead">
         <button id="drawerTools" class="sm">🧰 Tools</button>
@@ -56,6 +58,7 @@
       <div class="chat-msgs mini"></div>
     </div>
     <div id="controls">
+      <button id="coachBtn" class="ghost" hidden aria-pressed="false" title="Admins: the hard bot suggests moves on your turns and choices. It never plays for you.">🧭 Coach</button>
       <button id="hintBtn" class="ghost" hidden title="Ask the engine for its best moves here (games against a bot)">💡 Hint</button>
       <button id="toolsBtn" class="ghost" title="Draw, look at top, shuffle, lore/ink adjustments">🧰 Tools</button>
       <button id="questAllBtn" class="ghost" hidden title="Quest with every character that can, right to left. Stops to let you answer any ability that asks.">◆ Quest all</button>
@@ -90,6 +93,7 @@
     </div>
   </div>
   <div id="modal" hidden></div>
+  <div id="zoom" hidden role="dialog" aria-label="Card, full size"></div>
   <div id="toasts"></div>
 
   <script type="module" src="/js/pwa.js"></script>

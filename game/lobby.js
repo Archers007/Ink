@@ -19,11 +19,12 @@
 //   start                              — host only, both seats ready
 //   act {a, rid}                       — a game action (see engine.js)
 //   chat {text}
+//   coach {on}                         — admins only: suggestions from the hard bot on each of your turns and choices
 //   rematch                            — back to the room after a game ends
 //   rooms                              — list public open rooms
 // Messages server → client:
 //   welcome {token, demoDecks}  room {room}  game {view, defs, events, rid?}  err {msg, rid?}
-//   chat {from, text, ts}  rooms {rooms}
+//   chat {from, text, ts}  rooms {rooms}  coach {seq, eval, moves:[{label, score, pm, action}]}  coachState {on}
 
 import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
@@ -59,6 +60,7 @@ function askSearchBot(state, seat, seen, { analyze = false, budgetMs = HARD_BUDG
   });
 }
 const HINT_BUDGET_MS = 1200;
+const COACH_BUDGET_MS = 900;          // the admin coach's thinking time per position (it runs on every turn and choice)
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24) || 'Player';
 
@@ -141,7 +143,29 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
       for (const e of evs) if (e.cardId && !known.has(e.cardId) && g.defs[e.cardId]) { defs[e.cardId] = g.defs[e.cardId]; known.add(e.cardId); }
       room.sentDefs.set(t, known);
       sendClient(cl, { t: 'game', view, defs, events: evs, rid: t === actor ? rid : null });
+      if (cl.coach) coachTick(room, cl);
     }
+  }
+
+  // ---------- coach (admins only) ----------
+  // The hard bot's analysis, run for an admin's own seat whenever it's their turn or their choice, and sent back as
+  // suggestions — never played. It sees only what that player could know (searchbot.js re-deals hidden cards), and
+  // runs on the same worker as the bot. One request per player at a time; a newer position replaces a queued one.
+  function coachTick(room, cl) {
+    const g = room.game;
+    const seat = seatOf(room, cl.token);
+    if (!g || seat < 0 || g.status !== 'playing' || (g.pending ? g.pending.seat !== seat : g.active !== seat)) return;
+    if (cl.coachBusy) { cl.coachAgain = true; return; }
+    cl.coachBusy = true;
+    const seq = g.seq;
+    askSearchBot(g, seat, [], { analyze: true, budgetMs: COACH_BUDGET_MS }).then((m) => {
+      cl.coachBusy = false;
+      const again = cl.coachAgain; cl.coachAgain = false;
+      if (!cl.coach) return;
+      if (m.error) sendClient(cl, { t: 'coach', seq, error: m.error });
+      else if (room.game === g && g.seq === seq) sendClient(cl, { t: 'coach', seq, ...m.analysis });
+      if (again || room.game !== g || g.seq !== seq) coachTick(room, cl);   // the position moved on while thinking
+    });
   }
   function touch(room) { room.lastActive = Date.now(); }
   // every action goes through here: accepted ones join the replay, and a finished game is saved once
@@ -362,6 +386,15 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
       });
     },
 
+    // { on } — admins only: turn the coach on or off for this player (see coachTick)
+    coach(cl, ws, m) {
+      if (cl.role !== 'admin') throw new Error('The coach is for admins.');
+      cl.coach = !!m.on;
+      sendClient(cl, { t: 'coachState', on: cl.coach });
+      const room = cl.coach && rooms.get(cl.room);
+      if (room) coachTick(room, cl);
+    },
+
     chat(cl, ws, m) {
       const room = rooms.get(cl.room);
       if (!room) throw new Error('Not in a room.');
@@ -377,8 +410,8 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
   // ---------- connections ----------
   wss.on('connection', (ws, req) => {
     let cl = null;
-    let userId = null;
-    try { userId = userFromReq?.(req)?.id ?? null; } catch { /* no account */ }
+    let userId = null, role = null;
+    try { const u = userFromReq?.(req); userId = u?.id ?? null; role = u && !u.guest ? u.role || 'user' : null; } catch { /* no account */ }
     const hits = [];
     ws.on('message', (buf) => {
       const now = Date.now();
@@ -395,7 +428,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
           clients.set(cl.token, cl);
           cl.ws.add(ws);
           if (m.name) cl.name = cleanName(m.name);
-          if (userId != null) cl.userId = userId;
+          if (userId != null) { cl.userId = userId; cl.role = role; }
           send(ws, { t: 'welcome', token: cl.token, name: cl.name, demoDecks: getIndex()?.demoDecks || [] });
           const room = cl.room && rooms.get(cl.room);
           if (room) {

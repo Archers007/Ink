@@ -29,8 +29,10 @@ async function render() {
   await account.load();
   const u = account.user();
   if (!u) {
-    box().innerHTML = `<h1>You've been invited</h1><p>This link makes your Ink account a ${role}${inv.label ? ` <span class="note">(for ${esc(inv.label)})</span>` : ''}. Sign in, or create an account, and the role is yours.</p>${account.signInForm({ next: location.pathname + location.search })}`;
+    box().innerHTML = `<h1>You've been invited</h1><p>This link makes your Ink account a ${role}${inv.label ? ` <span class="note">(for ${esc(inv.label)})</span>` : ''}. Create an account, or sign in if you already have one, and the role is yours.</p>${account.signInForm({ next: location.pathname + location.search })}`;
     account.bindSignInForm(box(), render);
+    // most people invited are new to Ink, so start on "Create account"; the "Sign in" tab is right beside it
+    box().querySelector('.sf-tabs [data-mode="up"]')?.click();
     return;
   }
   if (u.role === inv.role || (u.role === 'admin' && inv.role === 'moderator')) {

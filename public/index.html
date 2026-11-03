@@ -25,7 +25,7 @@
   <nav class="tabs" aria-label="Sections">
     <a href="/play">Play</a>
     <a href="/" aria-current="page">Decks</a>
-    <a href="/procs">Cards</a>
+    <a href="/procs" title="How the rules engine reads each card: its abilities and the effects they run">Card rules</a>
   </nav>
   <span class="grow"></span>
   <button id="openDecksBtn" class="btn btn-quiet btn-sm" title="Decks other Ink players shared, and public decks from dreamborn.ink">Browse decks</button>
@@ -35,96 +35,104 @@
 <div id="notice" class="notice" hidden></div>
 
 <nav class="mtabs" aria-label="View">
-  <button data-pane="pool" class="on">Card pool</button>
-  <button data-pane="deck">Deck <b id="mtabCount">0</b></button>
+  <button data-pane="pool" class="on" aria-pressed="true">Card pool</button>
+  <button data-pane="deck" aria-pressed="false">Deck <b id="mtabCount">0</b></button>
 </nav>
 
 <main class="layout" id="layout">
 
   <!-- LEFT: card pool -->
-  <section class="pool" aria-label="Card pool">
-    <div class="pool-head">
-      <h1 class="display">Card pool</h1>
-      <span id="dbStatus" class="note">Loading cards…</span>
-      <span id="cardCount" class="note" hidden></span><span id="setCount" hidden></span>
-    </div>
+  <section class="pool" aria-labelledby="poolTitle">
+    <h1 id="poolTitle" class="sr-only">Card pool</h1>
 
-    <div id="builder" class="builder builder-collapsed">
+    <div id="builder" class="builder">
         <div class="builder-row">
 
           <fieldset class="builder-group">
             <legend>Color</legend>
-            <button class="ink-btn" data-color="amber"    title="Amber"></button>
-            <button class="ink-btn" data-color="amethyst" title="Amethyst"></button>
-            <button class="ink-btn" data-color="emerald"  title="Emerald"></button>
-            <button class="ink-btn" data-color="ruby"     title="Ruby"></button>
-            <button class="ink-btn" data-color="sapphire" title="Sapphire"></button>
-            <button class="ink-btn" data-color="steel"    title="Steel"></button>
+            <button class="ink-btn" data-color="amber"    aria-pressed="false" aria-label="Amber"><span class="ink-name">Amber</span></button>
+            <button class="ink-btn" data-color="amethyst" aria-pressed="false" aria-label="Amethyst"><span class="ink-name">Amethyst</span></button>
+            <button class="ink-btn" data-color="emerald"  aria-pressed="false" aria-label="Emerald"><span class="ink-name">Emerald</span></button>
+            <button class="ink-btn" data-color="ruby"     aria-pressed="false" aria-label="Ruby"><span class="ink-name">Ruby</span></button>
+            <button class="ink-btn" data-color="sapphire" aria-pressed="false" aria-label="Sapphire"><span class="ink-name">Sapphire</span></button>
+            <button class="ink-btn" data-color="steel"    aria-pressed="false" aria-label="Steel"><span class="ink-name">Steel</span></button>
           </fieldset>
 
           <fieldset class="builder-group">
             <legend>Type</legend>
-            <button class="tog-btn" data-type="character">Character</button>
-            <button class="tog-btn" data-type="action">Action</button>
-            <button class="tog-btn" data-type="song">Song</button>
-            <button class="tog-btn" data-type="item">Item</button>
-            <button class="tog-btn" data-type="location">Location</button>
+            <button class="tog-btn" data-type="character" aria-pressed="false">Character</button>
+            <button class="tog-btn" data-type="action" aria-pressed="false">Action</button>
+            <button class="tog-btn" data-type="song" aria-pressed="false">Song</button>
+            <button class="tog-btn" data-type="item" aria-pressed="false">Item</button>
+            <button class="tog-btn" data-type="location" aria-pressed="false">Location</button>
           </fieldset>
 
           <fieldset class="builder-group">
             <legend>Cost</legend>
             <span class="num-pair">
-              <input type="number" min="0" max="20" id="bCostMin" placeholder="min">
+              <input type="number" min="0" max="20" id="bCostMin" placeholder="min" aria-label="Lowest cost">
               <span class="dash">–</span>
-              <input type="number" min="0" max="20" id="bCostMax" placeholder="max">
+              <input type="number" min="0" max="20" id="bCostMax" placeholder="max" aria-label="Highest cost">
             </span>
           </fieldset>
 
           <fieldset class="builder-group">
             <legend>Inkable</legend>
-            <button class="tog-btn" data-inkable="">Any</button>
-            <button class="tog-btn" data-inkable="yes">Yes</button>
-            <button class="tog-btn" data-inkable="no">No</button>
+            <button class="tog-btn" data-inkable="" aria-pressed="true">Any</button>
+            <button class="tog-btn" data-inkable="yes" aria-pressed="false">Yes</button>
+            <button class="tog-btn" data-inkable="no" aria-pressed="false">No</button>
           </fieldset>
-
-          <span class="spacer" style="flex:1"></span>
-          <button id="builderToggleBtn" class="builder-toggle">More filters ▾</button>
         </div>
 
-        <div class="builder-more">
+        <!-- the active filters sit in the search row (#38) -->
+        <div class="searchrow">
+          <input id="search" class="field-in" type="search"
+                 placeholder='Search, or type filters: c:amber t:character cost>=3 kw:singer'
+                 aria-label="Search cards" aria-describedby="poolHint"
+                 spellcheck="false" autocapitalize="off" autocomplete="off">
+          <span id="activeChips" class="active-chips" aria-label="Active filters"></span>
+          <span class="sr-tools">
+            <button id="builderToggleBtn" class="builder-toggle" aria-expanded="false" aria-controls="builderMore">More filters<span id="moreCount"></span> ▾</button>
+            <button id="searchHelpBtn" class="btn btn-quiet" title="Search syntax" aria-label="Search syntax">?</button>
+            <button id="searchClearBtn" class="btn btn-quiet" title="Clear all filters" aria-label="Clear all filters">✕</button>
+          </span>
+        </div>
+
+        <!-- a popover over the grid, so opening it doesn't push the cards off the screen (#38) -->
+        <div class="builder-more" id="builderMore" role="group" aria-label="More filters" hidden>
           <div class="builder-row">
 
             <fieldset class="builder-group">
               <legend>Rarity</legend>
               <span class="multi-select" data-multi="rarity">
-                <button class="tog-btn" data-rarity="common">common</button>
-                <button class="tog-btn" data-rarity="uncommon">uncommon</button>
-                <button class="tog-btn" data-rarity="rare">rare</button>
-                <button class="tog-btn" data-rarity="super rare">super</button>
-                <button class="tog-btn" data-rarity="legendary">legendary</button>
-                <button class="tog-btn" data-rarity="enchanted">enchanted</button>
-                <button class="tog-btn" data-rarity="epic">epic</button>
-                <button class="tog-btn" data-rarity="iconic">iconic</button>
-                <button class="tog-btn" data-rarity="promo">promo</button>
+                <button class="tog-btn" data-rarity="common" aria-pressed="false">common</button>
+                <button class="tog-btn" data-rarity="uncommon" aria-pressed="false">uncommon</button>
+                <button class="tog-btn" data-rarity="rare" aria-pressed="false">rare</button>
+                <button class="tog-btn" data-rarity="super rare" aria-pressed="false">super</button>
+                <button class="tog-btn" data-rarity="legendary" aria-pressed="false">legendary</button>
+                <button class="tog-btn" data-rarity="enchanted" aria-pressed="false">enchanted</button>
+                <button class="tog-btn" data-rarity="epic" aria-pressed="false">epic</button>
+                <button class="tog-btn" data-rarity="iconic" aria-pressed="false">iconic</button>
+                <button class="tog-btn" data-rarity="promo" aria-pressed="false">promo</button>
               </span>
             </fieldset>
 
             <fieldset class="builder-group">
               <legend>Keyword</legend>
               <span class="multi-select" data-multi="keyword">
-                <button class="tog-btn" data-kw="singer">singer</button>
-                <button class="tog-btn" data-kw="support">support</button>
-                <button class="tog-btn" data-kw="ward">ward</button>
-                <button class="tog-btn" data-kw="evasive">evasive</button>
-                <button class="tog-btn" data-kw="rush">rush</button>
-                <button class="tog-btn" data-kw="bodyguard">bodyguard</button>
-                <button class="tog-btn" data-kw="challenger">challenger</button>
-                <button class="tog-btn" data-kw="reckless">reckless</button>
-                <button class="tog-btn" data-kw="resist">resist</button>
-                <button class="tog-btn" data-kw="shift">shift</button>
-                <button class="tog-btn" data-kw="vanish">vanish</button>
-                <button class="tog-btn" data-kw="alert">alert</button>
-                <button class="tog-btn" data-kw="boost">boost</button>
+                <button class="tog-btn" data-kw="singer" aria-pressed="false">singer</button>
+                <button class="tog-btn" data-kw="support" aria-pressed="false">support</button>
+                <button class="tog-btn" data-kw="ward" aria-pressed="false">ward</button>
+                <button class="tog-btn" data-kw="evasive" aria-pressed="false">evasive</button>
+                <button class="tog-btn" data-kw="rush" aria-pressed="false">rush</button>
+                <button class="tog-btn" data-kw="bodyguard" aria-pressed="false">bodyguard</button>
+                <button class="tog-btn" data-kw="challenger" aria-pressed="false">challenger</button>
+                <button class="tog-btn" data-kw="reckless" aria-pressed="false">reckless</button>
+                <button class="tog-btn" data-kw="resist" aria-pressed="false">resist</button>
+                <button class="tog-btn" data-kw="shift" aria-pressed="false">shift</button>
+                <button class="tog-btn" data-kw="vanish" aria-pressed="false">vanish</button>
+                <button class="tog-btn" data-kw="alert" aria-pressed="false">alert</button>
+                <button class="tog-btn" data-kw="boost" aria-pressed="false">boost</button>
               </span>
             </fieldset>
 
@@ -139,25 +147,25 @@
             <fieldset class="builder-group">
               <legend>Strength</legend>
               <span class="num-pair">
-                <input type="number" min="0" id="bStrMin" placeholder="min">
+                <input type="number" min="0" id="bStrMin" placeholder="min" aria-label="Lowest strength">
                 <span class="dash">–</span>
-                <input type="number" min="0" id="bStrMax" placeholder="max">
+                <input type="number" min="0" id="bStrMax" placeholder="max" aria-label="Highest strength">
               </span>
             </fieldset>
             <fieldset class="builder-group">
               <legend>Willpower</legend>
               <span class="num-pair">
-                <input type="number" min="0" id="bWpMin" placeholder="min">
+                <input type="number" min="0" id="bWpMin" placeholder="min" aria-label="Lowest willpower">
                 <span class="dash">–</span>
-                <input type="number" min="0" id="bWpMax" placeholder="max">
+                <input type="number" min="0" id="bWpMax" placeholder="max" aria-label="Highest willpower">
               </span>
             </fieldset>
             <fieldset class="builder-group">
               <legend>Lore</legend>
               <span class="num-pair">
-                <input type="number" min="0" id="bLoreMin" placeholder="min">
+                <input type="number" min="0" id="bLoreMin" placeholder="min" aria-label="Lowest lore">
                 <span class="dash">–</span>
-                <input type="number" min="0" id="bLoreMax" placeholder="max">
+                <input type="number" min="0" id="bLoreMax" placeholder="max" aria-label="Highest lore">
               </span>
             </fieldset>
             <fieldset class="builder-group">
@@ -183,64 +191,71 @@
               <legend>Text contains</legend>
               <input type="text" id="bText" placeholder='e.g. "draw a card"' style="width:240px;">
             </fieldset>
+            <span class="spacer"></span>
+            <button class="btn btn-sm" id="builderDoneBtn">Done</button>
           </div>
         </div>
       </div>
 
-    <div class="searchrow">
-      <input id="search" class="field-in" type="search"
-             placeholder='Search, or type filters: c:amber t:character cost>=3 kw:singer'
-             spellcheck="false" autocapitalize="off" autocomplete="off">
-      <button id="searchHelpBtn" class="btn btn-quiet" title="Search syntax">?</button>
-      <button id="searchClearBtn" class="btn btn-quiet" title="Clear all filters" aria-label="Clear all filters">✕</button>
-    </div>
-    <div id="roleChips" class="roles" aria-label="What cards do"></div>
     <div class="resultrow">
-      <label class="check" id="ownedOnlyWrap" hidden title="Only cards in your synced Dreamborn collection"><input type="checkbox" id="ownedOnly"> Owned only</label>
-      <span id="searchError" class="warn small"></span>
-      <span class="grow"></span>
-      <span id="resultCount" class="note">—</span>
+      <span id="searchError" class="warn small" role="status"></span>
+      <span id="poolHint" class="note pool-hint">Click a card (or press Enter) to add it. Right-click, long-press, <b>−</b> or Delete takes one out.</span>
     </div>
-    <div id="activeChips" class="active-chips"></div>
+    <div class="does-row">
+      <div id="roleChips" class="roles" aria-label="What cards do"></div>
+      <span class="grow"></span>
+      <label class="check" id="ownedOnlyWrap" hidden title="Only cards in your synced Dreamborn collection"><input type="checkbox" id="ownedOnly"> Owned only</label>
+      <span id="dbStatus" class="note">Loading cards…</span>
+      <span id="resultCount" class="note" aria-live="polite"></span>
+    </div>
     <div id="suggest" class="suggest" hidden></div>
 
-    <div id="cardGrid" class="card-grid">
+    <div id="cardGrid" class="card-grid" aria-label="Cards">
       <div class="note" style="padding:20px">Loading the card database…</div>
     </div>
-    <p class="note tip">Click a card to add it, right-click (or long-press) to take one out. Hover for the full card.</p>
+    <div id="gridMore" class="grid-more" hidden><button class="btn btn-quiet btn-sm" id="gridMoreBtn">Show more</button></div>
+    <span id="poolLive" class="sr-only" aria-live="polite"></span>
   </section>
 
   <!-- RIGHT: deck panel -->
   <aside class="deckpanel" aria-label="Deck">
     <div class="dp-head">
+      <span id="coverThumb" class="cover-thumb" hidden><img alt=""></span>
       <input id="deckTitle" class="deck-name" value="Untitled deck" maxlength="60" aria-label="Deck name" spellcheck="false">
-      <select id="deckPicker" class="field-in" aria-label="Open a saved deck"></select>
+      <div class="menu-wrap">
+        <button id="deckMenuBtn" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="deckMenu" title="New, import, export, delete">⋯</button>
+        <div id="deckMenu" class="menu" role="menu" aria-label="Deck" hidden>
+          <button role="menuitem" id="newDeckBtn">New deck</button>
+          <button role="menuitem" id="importDeckBtn">Import a list…</button>
+          <button role="menuitem" id="exportDeckBtn">Export…</button>
+          <button role="menuitem" id="deleteDeckBtn" class="danger" hidden>Delete deck…</button>
+        </div>
+      </div>
     </div>
     <div class="dp-meta">
-      <span id="deckInks" class="inks">—</span>
-      <span id="deckLegality" class="legal">—</span>
+      <span id="deckInks" class="inks"></span>
+      <span id="deckLegality" class="legal"></span>
+      <span id="dirtyMark" class="dirty" hidden title="Changes since the last save">Unsaved</span>
+      <span class="grow"></span>
+      <button id="myDecksBtn" class="btn btn-quiet btn-sm" aria-haspopup="dialog">My decks</button>
     </div>
-    <div class="curve" id="curve" aria-label="Ink curve"></div>
+    <div class="curve" id="curve" role="img" aria-label="Ink curve"></div>
     <div class="summary">
-      <div class="stat"><b id="statCount">0</b><span>Cards</span></div>
-      <div class="stat"><b id="statInkable">0</b><span>Inkable</span></div>
-      <div class="stat"><b id="statAvgCost">0.0</b><span>Avg cost</span></div>
+      <span><b id="statCount">0</b> cards</span>
+      <span><b id="statInkable">0</b> inkable</span>
+      <span><b id="statAvgCost">0.0</b> avg cost</span>
+      <span class="grow"></span>
+      <button id="rolesToggle" class="roles-toggle" aria-expanded="true" aria-controls="roleMeters" hidden>Roles<span class="low-n" id="rolesLow"></span> <span class="chev" aria-hidden="true">▾</span></button>
     </div>
     <div id="roleMeters" class="meters"></div>
     <div id="deckList" class="deck-list"></div>
-    <div class="dp-actions">
-      <button id="newDeckBtn" class="btn btn-quiet btn-sm">New</button>
-      <button id="importDeckBtn" class="btn btn-quiet btn-sm">Import</button>
-      <button id="exportDeckBtn" class="btn btn-quiet btn-sm">Export</button>
-      <button id="testDeckBtn" class="btn btn-sm" title="The engine plays this deck against other decks and reports how it does">Test deck</button>
-      <button id="deleteDeckBtn" class="btn btn-quiet btn-sm btn-danger" hidden>Delete</button>
-    </div>
     <div class="dp-save">
+      <button id="testDeckBtn" class="btn btn-quiet" title="The engine plays this deck against other decks and reports how it does">Test deck</button>
       <button id="saveDeckBtn" class="btn">Save</button>
       <button id="playDeckBtn" class="btn btn-gold">Save &amp; play</button>
     </div>
     <label class="check" id="shareWrap" title="List this deck under Browse decks → Ink players"><input type="checkbox" id="shareDeck"> Share with other players</label>
-    <p id="saveNote" class="note"></p>
+    <p id="saveNote" class="note" role="status"></p>
   </aside>
 </main>
 
@@ -253,161 +268,180 @@
   <a href="https://github.com/Archers007/Ink/issues" target="_blank" rel="noopener">Report an issue</a>
 </footer>
 
+<!-- Dialogs are <dialog>s opened with showModal(): focus moves in, stays in, Escape closes, and focus goes back
+     to the button that opened them (#41, app.js wireDialogs). -->
+
 <!-- ============== Account menu: sign-in + Dreamborn collection ============== -->
-<div id="accountModal" class="modal-backdrop">
-  <div class="modal" role="dialog" aria-labelledby="accountTitle">
-    <div class="modal-head"><h2 id="accountTitle" class="display">Your account</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body" id="accountBody"></div>
-  </div>
-</div>
+<dialog id="accountModal" class="modal" aria-labelledby="accountTitle">
+  <div class="modal-head"><h2 id="accountTitle" class="display">Your account</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body" id="accountBody"></div>
+</dialog>
 
 <!-- ============== Dreamborn collection sign-in ============== -->
-<div id="signInModal" class="modal-backdrop">
-  <div class="modal" role="dialog" aria-labelledby="dbTitle">
-    <div class="modal-head"><h2 id="dbTitle" class="display">Link your Dreamborn collection</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body">
-      <p class="note">Used only to read which cards you own. Your email and password go to <b>identitytoolkit.googleapis.com</b> and <b>dreamborn.ink</b>; we keep the session cookie on the server so the browser doesn't fight CORS.</p>
-      <label class="field">Email <input id="signInEmail" class="field-in" type="email" autocomplete="username"></label>
-      <label class="field">Password <input id="signInPassword" class="field-in" type="password" autocomplete="current-password"></label>
-      <div id="signInError" class="warn small"></div>
-    </div>
-    <div class="actions">
-      <button class="btn btn-quiet" data-close-modal>Cancel</button>
-      <button id="signInSubmit" class="btn btn-gold">Link collection</button>
-    </div>
+<dialog id="signInModal" class="modal" aria-labelledby="dbTitle">
+  <div class="modal-head"><h2 id="dbTitle" class="display">Link your Dreamborn collection</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body">
+    <p class="note">Used only to read which cards you own. Your email and password go to <b>identitytoolkit.googleapis.com</b> and <b>dreamborn.ink</b>; we keep the session cookie on the server so the browser doesn't fight CORS.</p>
+    <label class="field">Email <input id="signInEmail" class="field-in" type="email" autocomplete="username" autofocus></label>
+    <label class="field">Password <input id="signInPassword" class="field-in" type="password" autocomplete="current-password"></label>
+    <div id="signInError" class="warn small" role="alert"></div>
   </div>
-</div>
+  <div class="actions">
+    <button class="btn btn-quiet" data-close-modal>Cancel</button>
+    <button id="signInSubmit" class="btn btn-gold">Link collection</button>
+  </div>
+</dialog>
 <span hidden><button id="signInBtn"></button><button id="signOutBtn"></button><button id="syncCollectionBtn"></button><span id="userCell"></span></span>
 
-<!-- ============== Import ============== -->
-<div id="importModal" class="modal-backdrop">
-  <div class="modal" role="dialog" aria-labelledby="importTitle">
-    <div class="modal-head"><h2 id="importTitle" class="display">Import a decklist</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body">
-      <p class="note">Paste a list, one card per line: <code>4 Mickey Mouse - Brave Little Tailor</code></p>
-      <textarea id="importText" class="field-in" rows="12"></textarea>
-      <div id="importError" class="warn small"></div>
+<!-- ============== My decks: the visual deck picker (#32) ============== -->
+<dialog id="pickerModal" class="modal xwide" aria-labelledby="pickerTitle">
+  <div class="modal-head"><h2 id="pickerTitle" class="display">My decks</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body">
+    <div class="picker-tools">
+      <input id="pickerSearch" class="field-in" type="search" placeholder="Search your decks…" aria-label="Search your decks" autofocus>
+      <span id="pickerWhere" class="note"></span>
     </div>
-    <div class="actions">
-      <button class="btn btn-quiet" data-close-modal>Cancel</button>
-      <button id="importSubmit" class="btn btn-gold">Import</button>
-    </div>
+    <div id="pickerGrid" class="dtiles"></div>
   </div>
-</div>
+</dialog>
+
+<!-- ============== Unsaved changes (#36) ============== -->
+<dialog id="leaveModal" class="modal" aria-labelledby="leaveTitle" aria-describedby="leaveText">
+  <form method="dialog">
+    <div class="modal-head"><h2 id="leaveTitle" class="display">Save your changes?</h2></div>
+    <div class="body"><p id="leaveText"></p></div>
+    <div class="actions">
+      <button class="btn btn-quiet" value="cancel">Cancel</button>
+      <span class="grow"></span>
+      <button class="btn btn-quiet btn-danger" value="discard">Discard changes</button>
+      <button class="btn btn-gold" value="save" autofocus>Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============== Import: preview first, then apply (#37) ============== -->
+<dialog id="importModal" class="modal wide" aria-labelledby="importTitle">
+  <div class="modal-head"><h2 id="importTitle" class="display">Import a decklist</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body">
+    <p class="note">Paste a list, one card per line: <code>4 Mickey Mouse - Brave Little Tailor</code></p>
+    <textarea id="importText" class="field-in" rows="10" aria-label="Decklist" autofocus></textarea>
+    <div id="importPreview" class="import-preview" role="status" hidden></div>
+    <fieldset id="importMode" class="import-mode" hidden>
+      <legend class="lbl">Put it in</legend>
+      <label class="check"><input type="radio" name="importMode" value="new" checked> A new deck, “Imported deck”</label>
+      <label class="check"><input type="radio" name="importMode" value="replace"> <span id="importReplaceLabel">This deck, replacing its cards</span></label>
+    </fieldset>
+  </div>
+  <div class="actions">
+    <button class="btn btn-quiet" data-close-modal>Cancel</button>
+    <button id="importPreviewBtn" class="btn">Preview</button>
+    <button id="importSubmit" class="btn btn-gold" hidden>Import</button>
+  </div>
+</dialog>
 
 <!-- ============== Export ============== -->
-<div id="exportModal" class="modal-backdrop">
-  <div class="modal" role="dialog" aria-labelledby="exportTitle">
-    <div class="modal-head"><h2 id="exportTitle" class="display">Export <span id="exportDeckName">your deck</span></h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body">
-      <textarea id="exportText" class="field-in" rows="12" readonly></textarea>
-      <div id="exportStatus" class="ok small"></div>
-    </div>
-    <div class="actions">
-      <button id="exportDownloadBtn" class="btn btn-quiet">Download .txt</button>
-      <button id="exportCopyBtn" class="btn btn-gold">Copy to clipboard</button>
-    </div>
+<dialog id="exportModal" class="modal" aria-labelledby="exportTitle">
+  <div class="modal-head"><h2 id="exportTitle" class="display">Export <span id="exportDeckName">your deck</span></h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body">
+    <textarea id="exportText" class="field-in" rows="12" readonly aria-label="Decklist"></textarea>
+    <div id="exportStatus" class="ok small" role="status"></div>
   </div>
-</div>
+  <div class="actions">
+    <button id="exportDownloadBtn" class="btn btn-quiet">Download .txt</button>
+    <button id="exportCopyBtn" class="btn btn-gold" autofocus>Copy to clipboard</button>
+  </div>
+</dialog>
 
 <!-- ============== Search help ============== -->
-<div id="helpModal" class="modal-backdrop">
-  <div class="modal wide" role="dialog" aria-labelledby="helpTitle">
-    <div class="modal-head"><h2 id="helpTitle" class="display">Search syntax</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body help" id="helpBody"></div>
-    <div class="actions">
-      <button class="btn btn-quiet" data-close-modal>Close</button>
-      <button id="helpExampleBtn" class="btn">Try an example</button>
-    </div>
+<dialog id="helpModal" class="modal wide" aria-labelledby="helpTitle">
+  <div class="modal-head"><h2 id="helpTitle" class="display">Search syntax</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body help" id="helpBody"></div>
+  <div class="actions">
+    <button class="btn btn-quiet" data-close-modal autofocus>Close</button>
+    <button id="helpExampleBtn" class="btn">Try an example</button>
   </div>
-</div>
+</dialog>
 
 <!-- ============== Public deck browser ============== -->
-<div id="decksModal" class="modal-backdrop">
-  <div class="modal xwide" role="dialog" aria-labelledby="decksTitle">
-    <div class="modal-head"><h2 id="decksTitle" class="display">Browse decks</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body">
-      <nav class="tabs src-tabs" aria-label="Deck source"><button data-src="ink" class="on">Ink players</button><button data-src="dreamborn">dreamborn.ink</button></nav>
-      <div id="commPane">
-        <div class="deck-filters"><div class="row">
-          <input id="commSearch" type="search" placeholder="Search deck names and players…" style="flex:1; min-width: 200px;">
-          <span id="commColorBtns" class="row" style="gap:2px;">
-            <button class="ink-btn" data-color="amber" title="Amber"></button><button class="ink-btn" data-color="amethyst" title="Amethyst"></button>
-            <button class="ink-btn" data-color="emerald" title="Emerald"></button><button class="ink-btn" data-color="ruby" title="Ruby"></button>
-            <button class="ink-btn" data-color="sapphire" title="Sapphire"></button><button class="ink-btn" data-color="steel" title="Steel"></button>
-          </span>
-        </div></div>
-        <div id="commResults" class="deck-results"></div>
-        <div class="note" style="padding-top:6px">Decks Ink players chose to share. Tick “Share with other players” on a deck to list yours here.</div>
+<dialog id="decksModal" class="modal xwide" aria-labelledby="decksTitle">
+  <div class="modal-head"><h2 id="decksTitle" class="display">Browse decks</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body">
+    <nav class="tabs src-tabs" aria-label="Deck source"><button data-src="ink" class="on" aria-pressed="true">Ink players</button><button data-src="dreamborn" aria-pressed="false">dreamborn.ink</button></nav>
+    <div id="commPane">
+      <div class="deck-filters"><div class="row">
+        <input id="commSearch" type="search" placeholder="Search deck names and players…" aria-label="Search shared decks" style="flex:1; min-width: 200px;" autofocus>
+        <span id="commColorBtns" class="row ink-row">
+          <button class="ink-btn" data-color="amber" aria-pressed="false" aria-label="Amber"><span class="ink-name">Amber</span></button><button class="ink-btn" data-color="amethyst" aria-pressed="false" aria-label="Amethyst"><span class="ink-name">Amethyst</span></button>
+          <button class="ink-btn" data-color="emerald" aria-pressed="false" aria-label="Emerald"><span class="ink-name">Emerald</span></button><button class="ink-btn" data-color="ruby" aria-pressed="false" aria-label="Ruby"><span class="ink-name">Ruby</span></button>
+          <button class="ink-btn" data-color="sapphire" aria-pressed="false" aria-label="Sapphire"><span class="ink-name">Sapphire</span></button><button class="ink-btn" data-color="steel" aria-pressed="false" aria-label="Steel"><span class="ink-name">Steel</span></button>
+        </span>
+      </div></div>
+      <div id="commResults" class="deck-results"></div>
+      <div class="note" style="padding-top:6px">Decks Ink players chose to share. Tick “Share with other players” on a deck to list yours here. Import opens a copy as a new deck.</div>
+    </div>
+    <div id="dbPane" hidden>
+    <div class="deck-filters">
+      <div class="row" style="gap:4px; flex-wrap: wrap;">
+        <span id="deckSortBtns" class="row" style="gap:2px;">
+          <button data-sort="popular" class="tog-btn" aria-pressed="false">Popular</button>
+          <button data-sort="trending" class="tog-btn" aria-pressed="false">Trending</button>
+          <button data-sort="video" class="tog-btn" aria-pressed="false">Video</button>
+          <button data-sort="latest" class="tog-btn" aria-pressed="false">Latest</button>
+        </span>
+        <span class="spacer" style="flex:1; min-width: 8px;"></span>
+        <label class="small" style="font-family:var(--font-ui)">Format:
+          <select id="deckFormatSel">
+            <option value="">Any</option>
+            <option value="1">Infinity</option>
+            <option value="2">Core</option>
+          </select>
+        </label>
+        <input id="deckSearch" type="search" placeholder="Search names, creators…" aria-label="Search dreamborn.ink decks" style="min-width: 200px;">
       </div>
-      <div id="dbPane" hidden>
-      <div class="deck-filters">
-        <div class="row" style="gap:4px; flex-wrap: wrap;">
-          <span id="deckSortBtns" class="row" style="gap:2px;">
-            <button data-sort="popular" class="tog-btn">Popular</button>
-            <button data-sort="trending" class="tog-btn">Trending</button>
-            <button data-sort="video" class="tog-btn">Video</button>
-            <button data-sort="latest" class="tog-btn">Latest</button>
-          </span>
-          <span class="spacer" style="flex:1; min-width: 8px;"></span>
-          <label class="small" style="font-family:var(--font-ui)">Format:
-            <select id="deckFormatSel">
-              <option value="">Any</option>
-              <option value="1">Infinity</option>
-              <option value="2">Core</option>
-            </select>
-          </label>
-          <input id="deckSearch" type="search" placeholder="Search names, creators…" style="min-width: 200px;">
-        </div>
-        <div class="row" style="margin-top:4px;">
-          <span class="small muted" style=" margin-right:4px;">Colors (AND):</span>
-          <span id="deckColorBtns" class="row" style="gap:2px;">
-            <button class="ink-btn" data-color="amber"    title="Amber"></button>
-            <button class="ink-btn" data-color="amethyst" title="Amethyst"></button>
-            <button class="ink-btn" data-color="emerald"  title="Emerald"></button>
-            <button class="ink-btn" data-color="ruby"     title="Ruby"></button>
-            <button class="ink-btn" data-color="sapphire" title="Sapphire"></button>
-            <button class="ink-btn" data-color="steel"    title="Steel"></button>
-          </span>
-          <span class="spacer" style="flex:1"></span>
-          <button id="deckPagePrevBtn" class="chip">◀ Prev</button>
-          <span id="deckPageInfo" class="small muted" style=" min-width: 70px; text-align:center;">Page 1</span>
-          <button id="deckPageNextBtn" class="chip">Next ▶</button>
-        </div>
-      </div>
-      <div id="deckResults" class="deck-results"></div>
-      <div class="small muted" style=" padding: 4px 2px 0;">
-        Tip: page 2+ requires a Dreamborn sign-in (uses your session cookie). Clicking <b>Import</b> replaces your current deck.
-      </div>
+      <div class="row" style="margin-top:4px;">
+        <span class="small muted" style=" margin-right:4px;">Colors (AND):</span>
+        <span id="deckColorBtns" class="row ink-row">
+          <button class="ink-btn" data-color="amber"    aria-pressed="false" aria-label="Amber"><span class="ink-name">Amber</span></button>
+          <button class="ink-btn" data-color="amethyst" aria-pressed="false" aria-label="Amethyst"><span class="ink-name">Amethyst</span></button>
+          <button class="ink-btn" data-color="emerald"  aria-pressed="false" aria-label="Emerald"><span class="ink-name">Emerald</span></button>
+          <button class="ink-btn" data-color="ruby"     aria-pressed="false" aria-label="Ruby"><span class="ink-name">Ruby</span></button>
+          <button class="ink-btn" data-color="sapphire" aria-pressed="false" aria-label="Sapphire"><span class="ink-name">Sapphire</span></button>
+          <button class="ink-btn" data-color="steel"    aria-pressed="false" aria-label="Steel"><span class="ink-name">Steel</span></button>
+        </span>
+        <span class="spacer" style="flex:1"></span>
+        <button id="deckPagePrevBtn" class="chip">◀ Prev</button>
+        <span id="deckPageInfo" class="small muted" style=" min-width: 70px; text-align:center;">Page 1</span>
+        <button id="deckPageNextBtn" class="chip">Next ▶</button>
       </div>
     </div>
+    <div id="deckResults" class="deck-results"></div>
+    <div class="small muted" style=" padding: 4px 2px 0;">
+      Tip: page 2+ requires a Dreamborn sign-in (uses your session cookie). <b>Import</b> opens a copy as a new deck.
+    </div>
+    </div>
   </div>
-</div>
+</dialog>
 
 <!-- ============== Deck test (simulations, js/simui.js) ============== -->
-<div id="simModal" class="modal-backdrop">
-  <div class="modal xwide" role="dialog" aria-labelledby="simTitle">
-    <div class="modal-head"><h2 id="simTitle" class="display">Test <span id="simDeckName">this deck</span></h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body" id="simBody"></div>
-  </div>
-</div>
+<dialog id="simModal" class="modal xwide" aria-labelledby="simTitle">
+  <div class="modal-head"><h2 id="simTitle" class="display">Test <span id="simDeckName">this deck</span></h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body" id="simBody"></div>
+</dialog>
 
 <!-- ============== Dreamborn sniffer ============== -->
-<div id="snifferModal" class="modal-backdrop">
-  <div class="modal wide" role="dialog" aria-labelledby="sniffTitle">
-    <div class="modal-head"><h2 id="sniffTitle" class="display">dreamborn.ink API sniffer</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
-    <div class="body">
-      <p class="note">Paste this into the DevTools console on <a href="https://dreamborn.ink" target="_blank" rel="noopener">dreamborn.ink</a>, then click around. It records every fetch, XHR and WebSocket call. Run <code>_ink.show()</code>, <code>_ink.curls()</code> or <code>_ink.download()</code> afterwards.</p>
-      <textarea id="snifferText" class="field-in mono" rows="10" spellcheck="false" readonly></textarea>
-    </div>
-    <div class="actions">
-      <a class="btn btn-quiet" id="snifferDownloadBtn" href="/dreamborn-sniffer.js" download="dreamborn-sniffer.js">Download .js</a>
-      <button id="snifferCopyBtn" class="btn">Copy to clipboard</button>
-    </div>
+<dialog id="snifferModal" class="modal wide" aria-labelledby="sniffTitle">
+  <div class="modal-head"><h2 id="sniffTitle" class="display">dreamborn.ink API sniffer</h2><button class="x" data-close-modal aria-label="Close">✕</button></div>
+  <div class="body">
+    <p class="note">Paste this into the DevTools console on <a href="https://dreamborn.ink" target="_blank" rel="noopener">dreamborn.ink</a>, then click around. It records every fetch, XHR and WebSocket call. Run <code>_ink.show()</code>, <code>_ink.curls()</code> or <code>_ink.download()</code> afterwards.</p>
+    <textarea id="snifferText" class="field-in mono" rows="10" spellcheck="false" readonly aria-label="Sniffer script"></textarea>
   </div>
-</div>
+  <div class="actions">
+    <a class="btn btn-quiet" id="snifferDownloadBtn" href="/dreamborn-sniffer.js" download="dreamborn-sniffer.js">Download .js</a>
+    <button id="snifferCopyBtn" class="btn" autofocus>Copy to clipboard</button>
+  </div>
+</dialog>
 
-<div id="preview" class="preview"><img alt=""></div>
+<div id="preview" class="preview" aria-hidden="true"><img alt=""></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script type="module" src="/js/pwa.js"></script>

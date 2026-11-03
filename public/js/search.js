@@ -413,13 +413,12 @@ export function searchCards(cards, query) {
   return { results: cards.filter(predicate), errors };
 }
 
-// Cheat-sheet HTML for the help popover.
+// Cheat-sheet HTML for the help dialog; it takes the page's type and table styles (.help in style.css).
 export const HELP_HTML = `
-<div style="font-family:Tahoma,sans-serif; font-size:12px; line-height:1.45;">
 <p>Combine filters separated by spaces. Use <b>OR</b> and parentheses for choice.
 Prefix with <code>-</code> to negate. Use <code>"quoted phrases"</code> for multi-word values.</p>
 
-<table style="border-collapse:collapse;">
+<table>
   <tr><td><code>c:</code> <code>color:</code> <code>ink:</code></td><td>amber·amethyst·emerald·ruby·sapphire·steel (or 1-letter a/m/e/r/s/t). Multi-color: <code>c:multi</code></td></tr>
   <tr><td><code>id:</code> <code>identity:</code></td><td>colour identity: cards whose inks are all listed — <code>id:amber,ruby</code> is mono Amber, mono Ruby and Amber/Ruby, never Ruby/Sapphire. The colour buttons use this when two or more are picked.</td></tr>
   <tr><td><code>t:</code> <code>type:</code></td><td>character · action · item · location · song</td></tr>
@@ -439,11 +438,10 @@ Prefix with <code>-</code> to negate. Use <code>"quoted phrases"</code> for mult
   <tr><td colspan=2><b>Symbols in oracle:</b> <code>{exert}</code> <code>{ink}</code> <code>{lore}</code> <code>{strength}</code> <code>{willpower}</code>. Shorthand: <code>o:{t}</code>=exert, <code>{i}</code>=ink, <code>{l}</code>=lore, <code>{s}</code>=strength, <code>{w}</code>=willpower.</td></tr>
 </table>
 
-<p style="margin-top:8px;"><b>Examples</b></p>
-<ul style="margin:4px 0 0 18px;">
+<p class="ex"><b>Examples</b></p>
+<ul>
   <li><code>(c:r or c:b) (t:item or t:character) o:draw o:banish o:"this item" -o:{t}</code></li>
   <li><code>c:amber t:character cost&gt;=3 cost&lt;=5 kw:singer</code></li>
   <li><code>p:villain o:banish r:legendary -t:song</code></li>
   <li><code>f:"toy story" lore&gt;=2 i:yes</code></li>
-</ul>
-</div>`;
+</ul>`;

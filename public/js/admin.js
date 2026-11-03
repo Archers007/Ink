@@ -2,6 +2,11 @@
 // from here and where each one is (queued → issue filed → Claude working), write up new reports (title, what
 // happened, a screenshot), and admins hand out roles and flip the two switches. Everything comes from lib/reports.js
 // and lib/accounts.js; the work itself happens on the maintainer's machine (tools/issue-worker.mjs).
+//
+// The page shell (tabs, panes, the report form) is built once. Refreshes and clicks only refill the lists inside it,
+// so a report being written keeps its text, screenshot and focus.
+
+import * as account from './account.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -9,7 +14,7 @@ const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000))
 const STATUS_LABEL = { queued: 'Queued for the worker', creating: 'Filing on GitHub…', issue: 'Issue filed', agent: 'Claude is on it', pr: 'PR open', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
 const KIND_LABEL = { filed: 'Filed', issue: 'Issue', agent: 'Claude', pr: 'Pull request', done: 'Done', failed: 'Failed', cancelled: 'Cancelled', queued: 'Queued', switch: 'Switch' };
 
-const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, activity: null, showClosed: false, open: new Set(), image: null, timer: null };
+const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, activity: null, showClosed: false, open: new Set(), image: null, timer: null, formMsg: null, sending: false };
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
@@ -19,59 +24,133 @@ async function api(path, opts = {}) {
 }
 
 async function boot() {
-  const acct = await api('/api/account').catch(() => ({ user: null }));
-  S.user = acct.user;
-  const role = S.user && !S.user.guest ? S.user.role : null;
-  if (role !== 'moderator' && role !== 'admin') {
-    $('#app').innerHTML = `<div class="gate"><h1>Admin</h1><p class="note">${S.user && !S.user.guest ? `Signed in as ${esc(S.user.name)}, but this page needs the moderator or admin role.` : 'Sign in with a moderator or admin account to use this page.'}</p>
-      <p><a class="btn" href="/">Back to the deck builder</a></p></div>`;
+  clearInterval(S.timer);
+  await account.load();
+  S.user = account.user();
+  const role = S.user?.role;
+  if (role !== 'moderator' && role !== 'admin') return gate();
+  try { S.data = await api('/api/admin/issues'); } catch (e) { S.data = { repo: '', issues: [], closed: [], prsByIssue: {}, reports: [], switches: {}, githubError: e.message }; }
+  build();
+  S.timer = setInterval(tick, 15000);
+}
+
+// signed out: the sign-in form right here (as /claim does); signed in without the role: say so and offer a way out
+function gate() {
+  const app = $('#app');
+  if (!S.user) {
+    app.innerHTML = `<div class="gate"><h1 class="display">Admin</h1><p class="note">Sign in with a moderator or admin account to use this page.</p>
+      <div class="box gate-form">${account.signInForm({ next: '/admin' })}</div>
+      <p><a class="btn btn-quiet btn-sm" href="/">Back to the deck builder</a></p></div>`;
+    account.bindSignInForm(app, boot);
     return;
   }
-  await refresh();
-  S.timer = setInterval(() => { if ((S.tab === 'issues' || S.tab === 'history') && document.visibilityState === 'visible') refresh(); }, 15000);
+  app.innerHTML = `<div class="gate"><h1 class="display">Admin</h1><p class="note">Signed in as ${esc(S.user.name)}, but this page needs the moderator or admin role.</p>
+    <p class="gate-acts"><button class="btn btn-quiet btn-sm" id="gateOut">Sign in as someone else</button><a class="btn btn-quiet btn-sm" href="/">Back to the deck builder</a></p></div>`;
+  $('#gateOut').onclick = async () => { await account.signOut(); boot(); };
+}
+
+// the 15-second refresh: only while someone could be looking at the lists, and never while a report is being
+// written — a list growing above the form on a narrow screen would push it out from under the cursor
+function tick() {
+  if (document.visibilityState !== 'visible' || S.sending) return;
+  if (S.tab === 'issues' && formBusy()) return;
+  if (S.tab === 'issues' || S.tab === 'history') refresh();
+}
+function formBusy() {
+  const f = $('#reportForm');
+  return !!f && (f.contains(document.activeElement) || !!$('#rTitle').value.trim() || !!$('#rBody').value.trim() || !!S.image);
 }
 
 async function refresh() {
-  try { S.data = await api('/api/admin/issues'); } catch (e) { S.data = { ...(S.data || { issues: [], closed: [], prsByIssue: {}, reports: [], switches: {} }), githubError: e.message }; }
+  try { S.data = await api('/api/admin/issues'); } catch (e) { S.data = { ...S.data, githubError: e.message }; }
   if (S.tab === 'history' || S.activity) { try { S.activity = (await api('/api/admin/activity')).activity; } catch { /* keep what we had */ } }
-  render();
+  fillIssues(); fillHistory(); fillSettings(); fillForm();
 }
 
-function render() {
-  const d = S.data;
-  const admin = S.user.role === 'admin';
+function build() {
+  const tab = (t, label) => `<button data-tab="${t}" class="${S.tab === t ? 'on' : ''}">${label}</button>`;
   $('#app').innerHTML = `
     <div class="adm-top"><h1>Admin</h1><span class="note">${esc(S.user.name)} · ${esc(S.user.role)}</span><span class="sp"></span>
-      <a class="btn btn-quiet btn-sm" href="https://github.com/${esc(d.repo)}/issues" target="_blank" rel="noopener">GitHub ↗</a><a class="btn btn-quiet btn-sm" href="/">Builder</a><a class="btn btn-quiet btn-sm" href="/play">Play</a></div>
-    <div class="tabs"><button data-tab="issues" class="${S.tab === 'issues' ? 'on' : ''}">Issues</button><button data-tab="history" class="${S.tab === 'history' ? 'on' : ''}">History</button><button data-tab="users" class="${S.tab === 'users' ? 'on' : ''}">Users</button><button data-tab="settings" class="${S.tab === 'settings' ? 'on' : ''}">Settings</button></div>
-    <section class="pane" id="paneIssues" ${S.tab === 'issues' ? '' : 'hidden'}>
-      ${d.workerConfigured ? '' : '<div class="warn">INK_WORKER_TOKEN isn\'t set on the server, so reports will queue but nothing picks them up. Set it in .env (server and worker) and restart.</div>'}
-      ${d.githubError ? `<div class="warn">Couldn't refresh GitHub: ${esc(d.githubError)}. Showing the last list.</div>` : ''}
+      <a class="btn btn-quiet btn-sm" id="ghLink" href="https://github.com/${esc(S.data.repo)}/issues" target="_blank" rel="noopener">GitHub ↗</a><a class="btn btn-quiet btn-sm" href="/">Builder</a><a class="btn btn-quiet btn-sm" href="/play">Play</a></div>
+    <div class="tabs">${tab('issues', 'Issues')}${tab('history', 'History')}${tab('users', 'Users')}${tab('settings', 'Settings')}</div>
+    <section class="pane" data-pane="issues">
+      <div id="issWarn"></div>
       <div class="grid">
-        <div><div class="box"><h2>Open issues · ${esc(d.repo)} <span class="note">(${d.issues.length})</span></h2><div class="issues" id="issues">${issuesHtml()}</div></div>
-          <div class="box" style="margin-top:14px"><h2 class="toggle" id="closedToggle">${S.showClosed ? '▾' : '▸'} Recently closed <span class="note">(${(d.closed || []).length})</span></h2>${S.showClosed ? `<div class="issues">${closedHtml()}</div>` : ''}</div></div>
+        <div><div class="box" id="openBox"></div><div class="box" id="closedBox" style="margin-top:14px"></div></div>
         <div>
           <div class="box form" id="reportForm">
             <h2>Report a problem</h2>
             <label for="rTitle">Title</label><input id="rTitle" type="text" maxlength="140" placeholder="Hard bot passes its turn">
             <label for="rBody">What happened</label><textarea id="rBody" placeholder="What you did, what you expected, what happened instead. Card names help."></textarea>
             <label>Screenshot <span class="note">(optional · PNG/JPEG · up to 6 MB · paste works too)</span></label>
-            <div class="drop ${S.image ? 'has' : ''}" id="drop">${S.image ? `<img src="${S.image}" alt=""><span>Click to change · <a href="#" id="dropClear">remove</a></span>` : 'Click to choose, drop a file here, or paste an image'}<input type="file" id="rFile" accept="image/png,image/jpeg,image/gif,image/webp" hidden></div>
-            <div class="row"><button class="btn btn-gold" id="rSend" ${d.switches.issues_on ? '' : 'disabled'}>File it</button><span class="msg" id="rMsg">${d.switches.issues_on ? `It becomes a GitHub issue${d.switches.fix_on ? ', and Claude starts on it on the maintainer\'s machine.' : '.'}` : 'Reports are switched off in Settings.'}</span></div>
+            <div class="drop" id="drop" tabindex="0" role="button"></div><input type="file" id="rFile" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+            <div class="row"><button class="btn btn-gold" id="rSend">File it</button><span class="msg" id="rMsg"></span></div>
           </div>
-          <div class="box" style="margin-top:14px"><h2>Reports from here <span class="note">(${d.reports.length})</span></h2><div class="issues">${reportsHtml()}</div></div>
+          <div class="box" id="reportsBox" style="margin-top:14px"></div>
         </div>
       </div>
     </section>
-    <section class="pane" id="paneHistory" ${S.tab === 'history' ? '' : 'hidden'}><div class="box"><h2>History <span class="note">every report, what was done with it, and how it turned out</span></h2>${S.activity ? historyHtml() : '<p class="note">Loading…</p>'}</div></section>
-    <section class="pane" id="paneUsers" ${S.tab === 'users' ? '' : 'hidden'}><div class="box"><h2>Accounts</h2><div id="users">${S.users ? usersHtml() : '<p class="note">Loading…</p>'}</div></div></section>
-    <section class="pane" id="paneSettings" ${S.tab === 'settings' ? '' : 'hidden'}><div class="box"><h2>Switches</h2>
-      <div class="switch"><div><b>Accept reports</b><span class="note">The form on the Issues tab. Off: nothing new can be filed from Ink.</span></div><span class="sp"></span><input type="checkbox" data-sw="issues_on" ${d.switches.issues_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
-      <div class="switch"><div><b>Fix with Claude</b><span class="note">After filing the issue, the worker opens a terminal on the maintainer's machine running Claude on it. Off: the issue is still filed, nobody starts on it.</span></div><span class="sp"></span><input type="checkbox" data-sw="fix_on" ${d.switches.fix_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
-      ${admin ? '' : '<p class="note">Only admins change these.</p>'}
-      <p class="note">Repository: ${esc(d.repo)} · worker ${d.workerConfigured ? 'configured' : 'not configured'}.</p></div></section>`;
-  bind();
+    <section class="pane" data-pane="history"><div class="box" id="histBox"></div></section>
+    <section class="pane" data-pane="users"><div id="usersPane"><div class="box"><p class="note">Loading…</p></div></div></section>
+    <section class="pane" data-pane="settings"><div class="box" id="settingsBox"></div></section>`;
+  bindForm();
+  showTab(S.tab);
+  fillIssues(); fillHistory(); fillSettings(); fillForm();
 }
+
+function showTab(t) {
+  S.tab = t;
+  document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== t; });
+}
+
+// ---------- lists ----------
+function fillIssues() {
+  const d = S.data;
+  $('#ghLink').href = `https://github.com/${d.repo}/issues`;
+  $('#issWarn').innerHTML = `${d.workerConfigured ? '' : '<div class="warn">INK_WORKER_TOKEN isn\'t set on the server, so reports will queue but nothing picks them up. Set it in .env (server and worker) and restart.</div>'}
+    ${d.githubError ? `<div class="warn">Couldn't refresh GitHub: ${esc(d.githubError)}. Showing the last list.</div>` : ''}`;
+  $('#openBox').innerHTML = `<h2>Open issues · ${esc(d.repo)} <span class="note">(${d.issues.length})</span></h2><div class="issues" id="issues">${issuesHtml()}</div>`;
+  $('#closedBox').innerHTML = `<h2 class="toggle" id="closedToggle" role="button" tabindex="0" aria-expanded="${S.showClosed}">${S.showClosed ? '▾' : '▸'} Recently closed <span class="note">(${(d.closed || []).length})</span></h2>${S.showClosed ? `<div class="issues">${closedHtml()}</div>` : ''}`;
+  $('#reportsBox').innerHTML = `<h2>Reports from here <span class="note">(${d.reports.length})</span></h2><div class="issues">${reportsHtml()}</div>`;
+}
+function fillHistory() {
+  $('#histBox').innerHTML = `<h2>History <span class="note">every report, what was done with it, and how it turned out</span></h2>${S.activity ? historyHtml() : '<p class="note">Loading…</p>'}`;
+}
+function fillSettings() {
+  const d = S.data, admin = S.user.role === 'admin';
+  $('#settingsBox').innerHTML = `<h2>Switches</h2>
+    <div class="switch"><div><b>Accept reports</b><span class="note">The form on the Issues tab. Off: nothing new can be filed from Ink.</span></div><span class="sp"></span><input type="checkbox" data-sw="issues_on" ${d.switches.issues_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
+    <div class="switch"><div><b>Fix with Claude</b><span class="note">After filing the issue, the worker opens a terminal on the maintainer's machine running Claude on it. Off: the issue is still filed, nobody starts on it.</span></div><span class="sp"></span><input type="checkbox" data-sw="fix_on" ${d.switches.fix_on ? 'checked' : ''} ${admin ? '' : 'disabled'}></div>
+    ${admin ? '' : '<p class="note">Only admins change these.</p>'}
+    <p class="note">Repository: ${esc(d.repo)} · worker ${d.workerConfigured ? 'configured' : 'not configured'}.</p>`;
+}
+function fillUsers() {
+  const admin = S.user.role === 'admin';
+  $('#usersPane').innerHTML = `${admin ? `<div class="box">${invitesHtml()}</div>` : ''}
+    <div class="box"${admin ? ' style="margin-top:14px"' : ''}><h2>Accounts <span class="note">(${S.users.length})</span></h2>${usersHtml()}</div>`;
+}
+
+// Issue bodies are GitHub markdown, often with pasted screenshots as <img …> tags or ![](…). Show each as a small
+// "image" chip in the text, and the pictures themselves once the row is opened.
+const IMG_RE = /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>|!\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/gi;
+function bodyParts(text) {
+  const src = String(text || '');
+  const imgs = [];
+  let html = '', last = 0;
+  for (const m of src.matchAll(IMG_RE)) {
+    html += esc(src.slice(last, m.index));
+    const url = m[1] || m[2];
+    if (/^https?:\/\//i.test(url)) imgs.push(url);
+    html += '<span class="imgchip">image</span>';
+    last = m.index + m[0].length;
+  }
+  html += esc(src.slice(last));
+  return { html: html.replace(/\n{3,}/g, '\n\n').trim(), imgs };
+}
+const shotsHtml = (urls) => (urls.length ? `<div class="shots">${urls.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img class="shot" loading="lazy" src="${esc(u)}" alt="Screenshot"></a>`).join('')}</div>` : '');
+// the ▸/▾ toggle, for rows that have more to show
+const chev = (key, open) => `<button class="chev" data-chev="${key}" aria-expanded="${open}" aria-label="${open ? 'Show less' : 'Show more'}">${open ? '▾' : '▸'}</button>`;
 
 // a pull request that names the issue: the fix is on its way (open), landed (merged — the issue closes when it reaches
 // the default branch), or was dropped (closed)
@@ -81,12 +160,13 @@ function prChips(number) {
 function issueRow(i, r, extra = '') {
   const key = `i${i.number}`;
   const open = S.open.has(key);
-  return `<div class="iss ${open ? 'open' : ''} ${i.closed ? 'closed' : ''}" data-open="${key}">
-    <div class="num">#${i.number}</div>
-    <div><div class="t"><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></div>
+  const b = bodyParts(i.body);
+  const more = !!(b.html || b.imgs.length);
+  return `<div class="iss ${open ? 'open' : ''} ${i.closed ? 'closed' : ''}" ${more ? `data-open="${key}"` : ''}>
+    <div class="num">${more ? chev(key, open) : ''}#${i.number}</div>
+    <div><div class="t"><a href="${esc(i.url)}" target="_blank" rel="noopener" title="Open on GitHub">${esc(i.title)}&nbsp;<span class="ext">↗</span></a></div>
       <div class="meta"><span>${esc(i.author)}</span><span>${i.closed ? `closed ${ago(i.closed)}${i.stateReason === 'not_planned' ? ' as not planned' : ''}` : ago(i.created)}</span>${i.comments ? `<span>${i.comments} comment${i.comments > 1 ? 's' : ''}</span>` : ''}${i.labels.map((l) => `<span class="lbl" style="border-color:#${esc(l.color)};color:#${esc(l.color)}">${esc(l.name)}</span>`).join('')}${prChips(i.number)}${r ? `<span class="st ${r.status}" title="${esc(r.note || '')}">${STATUS_LABEL[r.status] || r.status}</span>` : ''}${extra}</div>
-      ${i.body ? `<div class="body">${esc(i.body)}</div>` : ''}</div>
-    <div class="acts"><a class="btn btn-quiet" href="${esc(i.url)}" target="_blank" rel="noopener">Open</a></div></div>`;
+      ${b.html ? `<div class="body">${b.html}</div>` : ''}${shotsHtml(b.imgs)}</div></div>`;
 }
 function issuesHtml() {
   const d = S.data;
@@ -113,13 +193,17 @@ function reportsHtml() {
   const d = S.data;
   if (!d.reports.length) return '<p class="note">Nothing filed from here yet.</p>';
   return d.reports.map((r) => {
-    const open = S.open.has(`r${r.id}`);
+    const key = `r${r.id}`;
+    const open = S.open.has(key);
+    const b = bodyParts(r.body);
+    const imgs = [...(r.imageUrl ? [r.imageUrl] : []), ...b.imgs];
+    const more = !!(b.html || imgs.length);
     const retry = ['failed', 'cancelled'].includes(r.status) || (r.status === 'issue' && d.switches.fix_on);
-    return `<div class="iss ${open ? 'open' : ''}" data-open="r${r.id}">
-      <div class="num">${r.issueNumber ? `#${r.issueNumber}` : `R${r.id}`}</div>
-      <div><div class="t">${r.issueUrl ? `<a href="${esc(r.issueUrl)}" target="_blank" rel="noopener">${esc(r.title)}</a>` : esc(r.title)}</div>
-        <div class="meta"><span>${esc(r.author || '')}</span><span>${ago(r.created)}</span><span class="st ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.prUrl ? `<a class="st pr" href="${esc(r.prUrl)}" target="_blank" rel="noopener">pull request</a>` : ''}${r.note ? `<span title="${esc(r.note)}">${esc(r.note.slice(0, 90))}${r.note.length > 90 ? '…' : ''}</span>` : ''}</div>
-        <div class="body">${esc(r.body)}</div>${r.imageUrl && open ? `<img class="shot" src="${esc(r.imageUrl)}" alt="">` : ''}</div>
+    return `<div class="iss ${open ? 'open' : ''}" ${more ? `data-open="${key}"` : ''}>
+      <div class="num">${more ? chev(key, open) : ''}${r.issueNumber ? `#${r.issueNumber}` : `R${r.id}`}</div>
+      <div><div class="t">${r.issueUrl ? `<a href="${esc(r.issueUrl)}" target="_blank" rel="noopener" title="Open on GitHub">${esc(r.title)}&nbsp;<span class="ext">↗</span></a>` : esc(r.title)}</div>
+        <div class="meta"><span>${esc(r.author || '')}</span><span>${ago(r.created)}</span><span class="st ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.prUrl ? `<a class="st pr" href="${esc(r.prUrl)}" target="_blank" rel="noopener">pull request</a>` : ''}${r.note ? `<span title="${esc(r.note)}">${esc(r.note.slice(0, 90))}${r.note.length > 90 ? '…' : ''}</span>` : ''}${r.imageUrl ? '<span class="imgchip">image</span>' : ''}</div>
+        ${b.html ? `<div class="body">${b.html}</div>` : ''}${shotsHtml(imgs)}</div>
       <div class="acts">${retry ? `<button class="btn btn-quiet" data-rs="${r.id}" data-to="queued" title="Put it back in the queue (the worker files the issue if there isn't one, then starts Claude)">Retry</button>` : ''}
         ${!['done', 'cancelled'].includes(r.status) ? `<button class="btn btn-quiet" data-rs="${r.id}" data-to="done">Done</button>` : ''}
         ${['queued', 'failed'].includes(r.status) ? `<button class="btn btn-quiet" data-rs="${r.id}" data-to="cancelled">Cancel</button>` : ''}</div></div>`;
@@ -128,7 +212,7 @@ function reportsHtml() {
 
 function usersHtml() {
   const admin = S.user.role === 'admin';
-  return `${admin ? invitesHtml() : ''}<h2 style="margin-top:18px">Accounts</h2><table class="users"><thead><tr><th>Name</th>${admin ? '<th>Email</th>' : ''}<th>Role</th><th>Decks</th><th>Joined</th></tr></thead><tbody>
+  return `<table class="users"><thead><tr><th>Name</th>${admin ? '<th>Email</th>' : ''}<th>Role</th><th>Decks</th><th>Joined</th></tr></thead><tbody>
     ${S.users.map((u) => `<tr><td>${esc(u.name)}</td>${admin ? `<td class="note">${esc(u.email || '')}</td>` : ''}<td>${admin && u.id !== S.user.id
       ? `<select data-role="${u.id}">${['user', 'moderator', 'admin'].map((r) => `<option ${u.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select>` : esc(u.role)}</td><td>${u.decks}</td><td class="note">${new Date(u.created).toLocaleDateString()}</td></tr>`).join('')}
   </tbody></table>`;
@@ -139,7 +223,7 @@ function invitesHtml() {
   const list = S.invites || [];
   const when = (t) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const STATE = { ok: 'Waiting to be claimed', used: 'Claimed', expired: 'Expired', revoked: 'Withdrawn' };
-  return `<h2>Invite someone to a role</h2>
+  return `<h2>Invite to a role</h2>
     <div class="invite"><select id="invRole"><option value="moderator">Moderator</option><option value="admin">Admin</option></select>
       <input type="text" id="invLabel" maxlength="60" placeholder="Who it's for (optional, e.g. Adam)"><button class="btn btn-gold" id="invMake">Create link</button>
       <span class="note">Links work once and expire in 7 days.</span></div>
@@ -151,73 +235,118 @@ function invitesHtml() {
 async function loadUsersTab() {
   S.users = (await api('/api/admin/users')).users;
   if (S.user.role === 'admin') S.invites = (await api('/api/admin/invites')).invites;
+  fillUsers();
 }
 
-function bind() {
-  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = async () => {
-    S.tab = b.dataset.tab;
-    if (S.tab === 'users' && !S.users) await loadUsersTab();
-    if (S.tab === 'history') { try { S.activity = (await api('/api/admin/activity')).activity; } catch (e) { alert(e.message); } }
-    render();
-  });
-  const ct = $('#closedToggle');
-  if (ct) ct.onclick = () => { S.showClosed = !S.showClosed; render(); };
-  const mk = $('#invMake');
-  if (mk) mk.onclick = async () => {
-    mk.disabled = true;
-    try { const j = await api('/api/admin/invites', { method: 'POST', body: JSON.stringify({ role: $('#invRole').value, label: $('#invLabel').value }) }); S.newLink = j.invite.url; await loadUsersTab(); render(); }
-    catch (e) { alert(e.message); mk.disabled = false; }
-  };
-  const cp = $('#invCopy');
-  if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(S.newLink); cp.textContent = 'Copied'; } catch { window.prompt('Copy the link:', S.newLink); } };
-  document.querySelectorAll('[data-revoke]').forEach((b) => b.onclick = async () => {
-    try { await api(`/api/admin/invites/${b.dataset.revoke}/revoke`, { method: 'POST' }); await loadUsersTab(); render(); } catch (e) { alert(e.message); }
-  });
-  document.querySelectorAll('.iss[data-open]').forEach((el) => el.onclick = (e) => { if (e.target.closest('a,button,select')) return; const k = el.dataset.open; S.open.has(k) ? S.open.delete(k) : S.open.add(k); render(); });
-  document.querySelectorAll('[data-rs]').forEach((b) => b.onclick = async () => {
-    try { await api(`/api/admin/reports/${b.dataset.rs}/status`, { method: 'POST', body: JSON.stringify({ status: b.dataset.to }) }); await refresh(); } catch (e) { alert(e.message); }
-  });
-  document.querySelectorAll('[data-role]').forEach((sel) => sel.onchange = async () => {
-    try { await api(`/api/admin/users/${sel.dataset.role}/role`, { method: 'POST', body: JSON.stringify({ role: sel.value }) }); await loadUsersTab(); render(); }
-    catch (e) { alert(e.message); await loadUsersTab(); render(); }
-  });
-  document.querySelectorAll('[data-sw]').forEach((c) => c.onchange = async () => {
-    try { S.data.switches = (await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ key: c.dataset.sw, value: c.checked }) })).switches; render(); } catch (e) { alert(e.message); refresh(); }
-  });
-  // the report form
-  const drop = $('#drop'), file = $('#rFile');
-  if (drop) {
-    drop.onclick = (e) => { if (e.target.id === 'dropClear') { e.preventDefault(); S.image = null; render(); return; } file.click(); };
-    file.onchange = () => file.files[0] && takeImage(file.files[0]);
-    drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('has'); };
-    drop.ondragleave = () => drop.classList.toggle('has', !!S.image);
-    drop.ondrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) takeImage(f); };
-    document.onpaste = (e) => { const f = [...(e.clipboardData?.items || [])].find((it) => it.type.startsWith('image/'))?.getAsFile(); if (f && S.tab === 'issues') takeImage(f); };
-    $('#rSend').onclick = sendReport;
+// ---------- events: delegated once on #app, so refilled lists need no rebinding ----------
+function toggleRow(key) {
+  const el = document.querySelector(`.iss[data-open="${key}"]`);
+  if (!el) return;
+  const open = !S.open.has(key);
+  open ? S.open.add(key) : S.open.delete(key);
+  el.classList.toggle('open', open);
+  const c = el.querySelector('.chev');
+  if (c) { c.textContent = open ? '▾' : '▸'; c.setAttribute('aria-expanded', open); c.setAttribute('aria-label', open ? 'Show less' : 'Show more'); }
+}
+
+const app = $('#app');
+app.addEventListener('click', async (e) => {
+  const t = e.target;
+  const tabBtn = t.closest('[data-tab]');
+  if (tabBtn) {
+    showTab(tabBtn.dataset.tab);
+    if (S.tab === 'users' && !S.users) { try { await loadUsersTab(); } catch (x) { alert(x.message); } }
+    if (S.tab === 'history') { try { S.activity = (await api('/api/admin/activity')).activity; fillHistory(); } catch (x) { alert(x.message); } }
+    return;
   }
+  if (t.closest('#closedToggle')) { S.showClosed = !S.showClosed; fillIssues(); return; }
+  const chevBtn = t.closest('[data-chev]');
+  if (chevBtn) { toggleRow(chevBtn.dataset.chev); return; }
+  const rs = t.closest('[data-rs]');
+  if (rs) {
+    try { await api(`/api/admin/reports/${rs.dataset.rs}/status`, { method: 'POST', body: JSON.stringify({ status: rs.dataset.to }) }); await refresh(); } catch (x) { alert(x.message); }
+    return;
+  }
+  const mk = t.closest('#invMake');
+  if (mk) {
+    mk.disabled = true;
+    try { const j = await api('/api/admin/invites', { method: 'POST', body: JSON.stringify({ role: $('#invRole').value, label: $('#invLabel').value }) }); S.newLink = j.invite.url; await loadUsersTab(); }
+    catch (x) { alert(x.message); mk.disabled = false; }
+    return;
+  }
+  const cp = t.closest('#invCopy');
+  if (cp) { try { await navigator.clipboard.writeText(S.newLink); cp.textContent = 'Copied'; } catch { window.prompt('Copy the link:', S.newLink); } return; }
+  const rv = t.closest('[data-revoke]');
+  if (rv) { try { await api(`/api/admin/invites/${rv.dataset.revoke}/revoke`, { method: 'POST' }); await loadUsersTab(); } catch (x) { alert(x.message); } return; }
+  // anywhere else on an expandable row opens or closes it — but not links, buttons, or a drag to select text
+  const row = t.closest('.iss[data-open]');
+  if (row && !t.closest('a,button,select,input') && !String(getSelection()).trim()) toggleRow(row.dataset.open);
+});
+app.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.id === 'closedToggle') { e.preventDefault(); e.target.click(); }
+});
+app.addEventListener('change', async (e) => {
+  const sel = e.target.closest('[data-role]');
+  if (sel) {
+    try { await api(`/api/admin/users/${sel.dataset.role}/role`, { method: 'POST', body: JSON.stringify({ role: sel.value }) }); } catch (x) { alert(x.message); }
+    try { await loadUsersTab(); } catch { /* keep the table */ }
+    return;
+  }
+  const sw = e.target.closest('[data-sw]');
+  if (sw) {
+    try { S.data.switches = (await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ key: sw.dataset.sw, value: sw.checked }) })).switches; fillSettings(); fillIssues(); fillForm(); }
+    catch (x) { alert(x.message); refresh(); }
+  }
+});
+
+// ---------- the report form: built once, only its screenshot box, button and message are ever updated ----------
+function fillForm() {
+  const sw = S.data.switches;
+  const drop = $('#drop');
+  drop.classList.toggle('has', !!S.image);
+  drop.innerHTML = S.image ? `<img src="${S.image}" alt=""><span>Click to change · <a href="#" id="dropClear">remove</a></span>` : 'Click to choose, drop a file here, or paste an image';
+  $('#rSend').disabled = S.sending || !sw.issues_on;
+  const m = $('#rMsg');
+  const def = sw.issues_on ? `It becomes a GitHub issue${sw.fix_on ? ', and Claude starts on it on the maintainer\'s machine.' : '.'}` : 'Reports are switched off in Settings.';
+  m.textContent = S.formMsg?.text ?? def;
+  m.classList.toggle('err', !!S.formMsg?.err);
+}
+function bindForm() {
+  const drop = $('#drop'), file = $('#rFile');
+  drop.onclick = (e) => { if (e.target.id === 'dropClear') { e.preventDefault(); S.image = null; fillForm(); return; } file.click(); };
+  drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } };
+  file.onchange = () => { if (file.files[0]) takeImage(file.files[0]); file.value = ''; };
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('has'); };
+  drop.ondragleave = () => drop.classList.toggle('has', !!S.image);
+  drop.ondrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) takeImage(f); };
+  document.onpaste = (e) => { const f = [...(e.clipboardData?.items || [])].find((it) => it.type.startsWith('image/'))?.getAsFile(); if (f && S.tab === 'issues') takeImage(f); };
+  // typing clears an old "Queued." or error, so the line goes back to saying what filing will do
+  $('#rTitle').oninput = $('#rBody').oninput = () => { if (S.formMsg) { S.formMsg = null; fillForm(); } };
+  $('#rSend').onclick = sendReport;
 }
 
 function takeImage(f) {
   if (!/^image\/(png|jpeg|gif|webp)$/.test(f.type)) { msg('PNG, JPEG, GIF or WebP only.', true); return; }
   if (f.size > 6 * 1024 * 1024) { msg('That image is over 6 MB.', true); return; }
   const rd = new FileReader();
-  rd.onload = () => { S.image = rd.result; const t = $('#rTitle').value, b = $('#rBody').value; render(); $('#rTitle').value = t; $('#rBody').value = b; };
+  rd.onload = () => { S.image = rd.result; S.formMsg = null; fillForm(); };
   rd.readAsDataURL(f);
 }
-const msg = (t, err = false) => { const el = $('#rMsg'); if (el) { el.textContent = t; el.classList.toggle('err', err); } };
+const msg = (text, err = false) => { S.formMsg = { text, err }; fillForm(); };
 
 async function sendReport() {
   const title = $('#rTitle').value.trim(), body = $('#rBody').value.trim();
   if (title.length < 4) return msg('Give it a title.', true);
   if (body.length < 10) return msg('Describe what happened.', true);
-  $('#rSend').disabled = true; msg('Filing…');
+  S.sending = true; msg('Filing…');
   try {
     const context = { page: location.href, browser: navigator.userAgent, screen: `${screen.width}×${screen.height}`, filedBy: S.user.name, at: new Date().toISOString() };
     const j = await api('/api/admin/reports', { method: 'POST', body: JSON.stringify({ title, body, image: S.image, context }) });
-    S.image = null;
+    $('#rTitle').value = ''; $('#rBody').value = ''; S.image = null;
+    S.sending = false;
+    S.formMsg = { text: j.workerConfigured ? 'Queued. The worker files it on GitHub in a few seconds.' : 'Queued, but no worker is configured to pick it up.' };
     await refresh();
-    msg(j.workerConfigured ? 'Queued. The worker files it on GitHub in a few seconds.' : 'Queued, but no worker is configured to pick it up.');
-  } catch (e) { msg(e.message, true); $('#rSend').disabled = false; }
+  } catch (e) { S.sending = false; msg(e.message, true); }
 }
 
 boot();

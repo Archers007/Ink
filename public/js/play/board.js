@@ -6,30 +6,42 @@
 //
 // Every visible card is a CardObj keyed by its instance id (iid), so a card
 // glides from hand → play → discard instead of popping. Hidden cards (the
-// opponent's hand, inkwells) are keyed by slot.
+// opponent's hand, inkwells) are keyed by slot; when a card moves between a
+// slot and an iid the object is handed over, so one card always travels.
 
 import * as THREE from 'three';
 import {
-  CARD_W, CARD_H, initTextures, faceTexture, backTexture, damageTex, statsTex, pillTex, numberTex, floatTex, tableTex,
+  CARD_W, CARD_H, initTextures, faceTexture, faceTextureHi, backTexture, damageTex, statsTex, pillTex, numberTex, floatTex, tableTex, sweepTex,
 } from './textures.js';
 import { LORE_TO_WIN, KEYWORD_LABEL } from './rules.js';
 
 const W = CARD_W, H = CARD_H;
-const GAP = 1.1;
+// Every card in a row gets an exerted-wide slot, so exerting or readying one turns it in place instead of shoving
+// the rest of the row sideways (#97).
+const SLOT = H + 0.4;
+const SPELL = new Set(['action', 'song']);
+const IMPACT_MS = 250;     // a challenge's hit lands this far into the lunge
+const LUNGE_MS = 560;
+const CAST_HOLD_MS = 900;  // how long a played action/song shows at the cast pose (#92)
 
 // Table layout (z mirrored for the far player).
 const DESK = {
   charZ: 6.4, rowZ: 16.6, handZ: 35, oppHandZ: 26.5,
   deckX: 31, discardX: 39.5, inkX: -40.5, inkStep: 1.15, inkW: 13,
-  loreX: -42, loreZ: 6.8,
+  // the lore dial sits in the corner between the character row and the inkwell, clear of both (#96)
+  loreX: -41, loreZ: 5.4, loreS: 0.82,
   rowMinX: -20, rowMaxX: 25, charMinX: -35, charMaxX: 36,
   tableW: 104, tableD: 78,
 };
+// Landscape phones frame just the character rows (#51); the deck, discard and inkwell leave the table like portrait
+// (the plates carry their counts) and the hand peeks up from the bottom edge.
+const MOB = { ...DESK, handZ: 31.5, charMinX: -29, charMaxX: 29, rowMinX: -20, rowMaxX: 20 };
 // Portrait (PvZ Heroes-style lanes): narrow rows that swipe sideways past 3 cards; the deck, discard and inkwell
 // leave the table (the HUD banners carry their counts), so cards fly off the edges to reach them.
+// The front rows stand a little apart so the centre line between them stays clear for the midline pill and prompts.
 const PORT = {
   ...DESK,
-  charZ: 5.6, rowZ: 15.4, handZ: 28.5,
+  charZ: 6.8, rowZ: 17, handZ: 30.5,
   deckX: 26, discardX: 26, inkX: -32,
   rowMinX: -13.8, rowMaxX: 13.8, charMinX: -13.8, charMaxX: 13.8,
 };
@@ -62,11 +74,32 @@ const GEO = {
 };
 
 const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
-const dampAngle = (a, b, k, dt) => {
-  let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return a + d * (1 - Math.exp(-k * dt));
-};
+const wrapAngle = (d) => { d = ((d + Math.PI) % (Math.PI * 2)) - Math.PI; return d < -Math.PI ? d + Math.PI * 2 : d; };
+const dampAngle = (a, b, k, dt) => a + wrapAngle(b - a) * (1 - Math.exp(-k * dt));
+
+// ---------- motion ----------
+// Cards move on eased tweens whose length grows with the distance: a nudge is quick, a flight across the table takes
+// a little longer but never drags (#94). Flights ease in and out and arc up off the table, so a card clears the deck
+// box and the cards in its way and lands on a pile from above (#93); short moves (a hover lift) just ease out.
+const easeInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+export const flightMs = (d) => Math.min(560, 220 + 4 * d);
+const FIELDS = ['x', 'y', 'z', 'yaw', 'tilt', 'flip', 'scale'];
+const pose = (o) => ({ x: o.x, y: o.y, z: o.z, yaw: o.yaw, tilt: o.tilt, flip: o.flip, scale: o.scale });
+function samePose(a, b) {
+  for (const k of FIELDS) {
+    const d = k === 'yaw' ? wrapAngle(a[k] - b[k]) : a[k] - b[k];
+    if (Math.abs(d) > 1e-3) return false;
+  }
+  return true;
+}
+const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+
+// the attacker's lunge: a wind-up into the hit (at IMPACT_MS), then back
+function strike(p) {
+  const hit = IMPACT_MS / LUNGE_MS;
+  return p < hit ? 0.62 * Math.pow(p / hit, 2) : 0.62 * (1 - easeInOut((p - hit) / (1 - hit)));
+}
 
 // ---------- card object ----------
 class CardObj {
@@ -77,7 +110,16 @@ class CardObj {
     this.outer = new THREE.Group();
     this.inner = new THREE.Group();
     this.outer.add(this.inner);
-    this.frontMat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.0, side: THREE.FrontSide });
+    // Faces are unlit and skip tone mapping: the printed card is the thing to read, and ACES lighting dulled the
+    // parchment (#99). A per-card mip bias sharpens the few cards shown large (#77).
+    this.frontMat = new THREE.MeshBasicMaterial({ side: THREE.FrontSide, toneMapped: false });
+    this.bias = { value: 0 };
+    this.frontMat.onBeforeCompile = (sh) => {
+      sh.uniforms.faceBias = this.bias;
+      sh.fragmentShader = 'uniform float faceBias;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+        THREE.ShaderChunk.map_fragment.replace('texture2D( map, vMapUv )', 'texture2D( map, vMapUv, faceBias )'));
+    };
+    this.frontMat.customProgramCacheKey = () => 'card-face';
     this.front = new THREE.Mesh(GEO.card, this.frontMat);
     this.front.position.z = 0.03;
     this.back = new THREE.Mesh(GEO.card, board.backMat);
@@ -89,43 +131,82 @@ class CardObj {
     this.glow = new THREE.Mesh(GEO.glow, this.glowMat);
     this.glow.position.z = -0.05;
     this.glow.renderOrder = -1;
+    this.inner.add(this.glow, this.edge, this.back, this.front);
+    // stat strip and chips stay upright and flat whatever the card's yaw (#90): they're not part of the card's
+    // rotation, and they're laid against its on-screen footprint each frame
     this.badges = new THREE.Group();
-    this.badges.position.z = 0.09;
-    this.inner.add(this.glow, this.edge, this.back, this.front, this.badges);
+    this.badges.rotation.x = -Math.PI / 2;
     for (const m of [this.front, this.back, this.edge]) m.userData.card = this;
     this.target = { x: 0, y: 0, z: 0, yaw: 0, tilt: 0, flip: 0, scale: 1 };
     this.cur = null;  // set on first placement
+    this.tw = null;   // the running tween
+    this.vel = { x: 0, y: 0, z: 0 };
+    this.stops = [];  // [{ pose|null, until }]: show this pose (null = stay put) until then, before heading for target
+    this.follow = false;
     this.info = null; // { iid, zone, seat, faceUp }
     this.glowColor = null;
     this.badgeKey = '';
+    this.badgeHold = 0;
+    this.pendingBadges = null;
     this.dying = 0;
+    this.opacity = 1;
     this.lunge = null;
     this.pulse = 0;
+    this.landPulse = false;
     this.dimmed = false;
-    board.cardLayer.add(this.outer);
+    this.wantHi = false;
+    this.hiUntil = 0;
+    board.cardLayer.add(this.outer, this.badges);
   }
   setFace(cardId) {
-    if (cardId === this.cardId) return;
+    if (cardId === this.cardId && this.frontMat.map) return;
     this.cardId = cardId;
     this.frontMat.map = cardId ? faceTexture(cardId) : backTexture();
     this.frontMat.needsUpdate = true;
   }
+  // a face-down slot: whatever face it carries stays underneath (an inked card keeps its face while it turns over)
+  setHidden() { if (!this.frontMat.map) this.setFace(null); }
   place(t, spawn) {
     Object.assign(this.target, t);
+    this.follow = false;
     if (!this.cur) {
       this.cur = { ...this.target, ...(spawn || {}) };
-      this.apply();
+      this.apply(performance.now());
     }
   }
-  apply() {
+  dragTo(t) { Object.assign(this.target, t); this.follow = true; }
+  // hold still (or show `p`) for `ms`, then carry on to the target
+  hold(ms, p = null, now = performance.now()) { this.stops.push({ pose: p, until: now + ms }); }
+  goal(now) {
+    while (this.stops.length && now >= this.stops[0].until) this.stops.shift();
+    const s = this.stops[0];
+    if (!s) return this.target;
+    if (!s.pose) s.pose = pose(this.cur);
+    return s.pose;
+  }
+  startTween(g, now) {
+    const c = this.cur;
+    const to = pose(g);
+    to.yaw = c.yaw + wrapAngle(g.yaw - c.yaw);
+    const dh = Math.hypot(to.x - c.x, to.z - c.z), d = Math.hypot(dh, to.y - c.y);
+    const flight = dh > 10;
+    this.tw = {
+      from: pose(c), to, t0: now, dur: flightMs(d), done: false,
+      ease: flight ? easeInOut : easeOut,
+      // a card already up in the air (the hand, the cast pose) needs little or no extra lift
+      lift: flight ? Math.min(6, 1.5 + dh * 0.12) * Math.max(0, 1 - Math.max(c.y, to.y) / 14) : 0,
+      v: { ...this.vel },
+    };
+  }
+  apply(now) {
     const c = this.cur;
     let ox = 0, oz = 0, oy = 0;
     if (this.lunge) {
-      const p = (performance.now() - this.lunge.t0) / 520;
+      const p = (now - this.lunge.t0) / LUNGE_MS;
       if (p >= 1) this.lunge = null;
-      else {
-        const k = Math.sin(Math.PI * p) * 0.55;
-        ox = (this.lunge.x - c.x) * k; oz = (this.lunge.z - c.z) * k; oy = Math.sin(Math.PI * p) * 3;
+      else if (p > 0) {
+        const k = strike(p);
+        ox = this.lunge.dx * k; oz = this.lunge.dz * k; oy = Math.sin(Math.PI * p) * 2.5;
       }
     }
     this.outer.position.set(c.x + ox, c.y + oy, c.z + oz);
@@ -133,27 +214,95 @@ class CardObj {
     this.inner.rotation.set(-Math.PI / 2 + c.tilt, c.flip, 0);
     const s = c.scale * (1 + this.pulse * 0.12);
     this.outer.scale.setScalar(s);
+    if (this.badges.children.length) {
+      this.badges.position.set(c.x + ox, c.y + oy + 0.12, c.z + oz);
+      const half = ((Math.abs(Math.cos(c.yaw)) * H + Math.abs(Math.sin(c.yaw)) * W) / 2) * c.scale;   // footprint depth / 2
+      for (const b of this.badges.children) { const a = b.userData.anchor; if (a) b.position.y = a.edge * half + a.off; }
+    }
   }
-  tick(dt) {
-    const c = this.cur, t = this.target;
-    const k = 12;
-    c.x = damp(c.x, t.x, k, dt); c.y = damp(c.y, t.y, k, dt); c.z = damp(c.z, t.z, k, dt);
-    c.yaw = dampAngle(c.yaw, t.yaw, k, dt); c.tilt = damp(c.tilt, t.tilt, k, dt);
-    c.flip = damp(c.flip, t.flip, 10, dt); c.scale = damp(c.scale, t.scale, k, dt);
+  tick(dt, now) {
+    const c = this.cur;
+    const px = c.x, py = c.y, pz = c.z;
+    if (this.follow) {                                   // being dragged: track the pointer closely
+      const t = this.target, k = 22;
+      c.x = damp(c.x, t.x, k, dt); c.y = damp(c.y, t.y, k, dt); c.z = damp(c.z, t.z, k, dt);
+      c.yaw = dampAngle(c.yaw, t.yaw, k, dt); c.tilt = damp(c.tilt, t.tilt, k, dt);
+      c.flip = damp(c.flip, t.flip, k, dt); c.scale = damp(c.scale, t.scale, k, dt);
+      this.tw = null;
+    } else {
+      const g = this.goal(now);
+      if (!this.tw || !samePose(this.tw.to, g)) this.startTween(g, now);
+      const t = this.tw;
+      if (!t.done) {
+        const p = Math.min(1, (now - t.t0) / t.dur);
+        const e = t.ease(p);
+        // the Hermite term carries the velocity a card had when it was redirected, so a retarget doesn't jerk
+        const h = (p * (1 - p) * (1 - p) * t.dur) / 1000;
+        c.x = t.from.x + (t.to.x - t.from.x) * e + t.v.x * h;
+        // a flat-topped arc: up and off the table at once, over whatever's in the way, then down onto the pile from
+        // above (a plain sine was still low enough to clip the deck box beside the discard)
+        c.y = t.from.y + (t.to.y - t.from.y) * e + t.v.y * h + t.lift * (1 - Math.pow(2 * e - 1, 12));
+        c.z = t.from.z + (t.to.z - t.from.z) * e + t.v.z * h;
+        for (const k of ['yaw', 'tilt', 'flip', 'scale']) c[k] = t.from[k] + (t.to[k] - t.from[k]) * e;
+        if (p >= 1) {
+          t.done = true;
+          Object.assign(c, t.to);
+          if (this.landPulse && !this.stops.length) { this.landPulse = false; this.pulse = 1; }
+        }
+      }
+    }
+    if (dt > 0) {
+      const cap = (v) => Math.max(-150, Math.min(150, v));
+      this.vel.x = cap((c.x - px) / dt); this.vel.y = cap((c.y - py) / dt); this.vel.z = cap((c.z - pz) / dt);
+    }
     if (this.pulse > 0) this.pulse = Math.max(0, this.pulse - dt * 2.5);
+    if (this.pendingBadges && now >= this.badgeHold) { const b = this.pendingBadges; this.pendingBadges = null; this.setBadges(b.key, b.build); }
+    // shown large (lifted, being cast): the full-size image once it's decoded, sampled a mip sharper (#77)
+    const hi = (this.wantHi || now < this.hiUntil) && this.cardId;
+    if (hi || this.hiOn) {
+      const tex = hi ? faceTextureHi(this.cardId) || faceTexture(this.cardId) : (this.cardId ? faceTexture(this.cardId) : backTexture());
+      if (this.frontMat.map !== tex) this.frontMat.map = tex;
+      this.bias.value = hi ? -0.6 : 0;
+      this.hiOn = !!hi;
+    }
     // glow
     const want = this.glowColor ? 1 : 0;
     if (this.glowColor) this.glowMat.color.set(this.glowColor);
-    const pulse = this.glowColor ? 0.75 + 0.25 * Math.sin(performance.now() / 180) : 0;
-    this.glowMat.opacity = damp(this.glowMat.opacity, want * pulse, 14, dt);
+    const pulse = this.glowColor ? 0.75 + 0.25 * Math.sin(now / 180) : 0;
+    this.glowMat.opacity = damp(this.glowMat.opacity, want * pulse, 14, dt) * this.opacity;
     this.glow.visible = this.glowMat.opacity > 0.01;
     const dimTarget = this.dimmed ? 0.45 : 1;
     const col = this.frontMat.color;
     col.setScalar(damp(col.r, dimTarget, 10, dt));
-    this.apply();
+    this.apply(now);
+  }
+  // leaving view: own copies of the shared back/edge materials so this card alone can fade (#94)
+  fadeOut() {
+    if (this.ownMats) return;
+    this.ownMats = true;
+    this.back.material = this.board.backMat.clone();
+    this.edge.material = this.board.edgeMat.clone();
+    for (const m of [this.frontMat, this.back.material, this.edge.material]) { m.transparent = true; m.needsUpdate = true; }
+  }
+  revive() {
+    this.dying = 0;
+    this.setOpacity(1);
+    if (!this.ownMats) return;
+    this.ownMats = false;
+    this.back.material.dispose(); this.edge.material.dispose();
+    this.back.material = this.board.backMat;
+    this.edge.material = this.board.edgeMat;
+    this.frontMat.transparent = false; this.frontMat.needsUpdate = true;
+  }
+  setOpacity(o) {
+    o = Math.max(0, Math.min(1, o));
+    if (o === this.opacity) return;
+    this.opacity = o;
+    for (const m of [this.frontMat, this.back.material, this.edge.material]) m.opacity = o;
   }
   setBadges(key, build) {
-    if (key === this.badgeKey) return;
+    if (key === this.badgeKey) { this.pendingBadges = null; return; }
+    if (performance.now() < this.badgeHold) { this.pendingBadges = { key, build }; return; }   // a hit that hasn't landed yet
     this.badgeKey = key;
     for (const ch of [...this.badges.children]) { this.badges.remove(ch); ch.material.dispose(); }
     build(this.badges);
@@ -174,19 +323,21 @@ class CardObj {
   }
   dispose() {
     if (this.proxy) this.board.cardLayer.remove(this.proxy);
-    this.board.cardLayer.remove(this.outer);
+    this.board.cardLayer.remove(this.outer, this.badges);
     this.frontMat.dispose();
     this.glowMat.dispose();
+    if (this.ownMats) { this.back.material.dispose(); this.edge.material.dispose(); }
     for (const ch of this.badges.children) ch.material.dispose();
   }
 }
 
-function badgePlane(tex, width, x, y, z = 0) {
+function badgePlane(tex, width, x, y, z = 0, anchor = null) {
   const h = width / (tex.userData.aspect || 1);
-  const m = new THREE.Mesh(GEO.unit, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+  const m = new THREE.Mesh(GEO.unit, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
   m.scale.set(width, h, 1);
   m.position.set(x, y, z);
   m.renderOrder = 2;
+  m.userData.anchor = anchor;   // { edge: +1 top / -1 bottom of the card's footprint, off } — see CardObj.apply
   return m;
 }
 
@@ -206,6 +357,7 @@ export class Board {
     this.scene.background = new THREE.Color(0x080b1f);
     this.scene.fog = new THREE.Fog(0x080b1f, 140, 260);
     this.camera = new THREE.PerspectiveCamera(40, 1, 1, 600);
+    this.focus = new THREE.Vector3();
 
     this.scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x1a1530, 1.35));
     const key = new THREE.DirectionalLight(0xfff1d6, 1.6);
@@ -231,12 +383,18 @@ export class Board {
     this.scene.add(this.cardLayer);
     this.fx = new THREE.Group();
     this.scene.add(this.fx);
+    // the turn-change sweep: a gold band that runs across the new active player's side under their cards (#95)
+    this.sweep = new THREE.Mesh(GEO.unit, new THREE.MeshBasicMaterial({ map: sweepTex(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    this.sweep.rotation.x = -Math.PI / 2;
+    this.sweep.visible = false;
+    this.fx.add(this.sweep);
 
     this.cards = new Map();      // key -> CardObj
     this.sides = [];              // per-seat static props (deck box, lore dial, labels)
     this.zoneOutlines = new THREE.Group();
     this.scene.add(this.zoneOutlines);
     this.floaters = [];
+    this.timers = [];
     this.ui = { selected: null, targets: new Set(), multi: new Set(), targetColor: 0x6fa8ff };
     this.rowScroll = {};      // portrait lanes: how far each row is swiped (world units)
     this.rowMax = {};
@@ -250,15 +408,38 @@ export class Board {
 
     this.bindPointer();
     this.resize();
-    window.addEventListener('resize', () => this.resize());
+    window.addEventListener('resize', () => { this.resize(); if (this.fit) this.fit.stale = true; });   // the HUD rects are from before: main refits
     this.timer = new THREE.Timer();
     this.renderer.setAnimationLoop(() => this.tick());
   }
 
   // ---------- camera ----------
-  setInsets(insets) { this.insets = insets; this.resize(); }
-  // phones: frame the table closer (less depth to fit, the hand hugging the bottom edge), lift a tapped hand card
-  setMobile(on) { if (this.mobile === !!on) return; this.mobile = !!on; this.resize(); if (this.view) this.render(this.view, this.defs, []); }
+  // { left, right, top, bottom }: the free area to centre the table in; avoid: [{ x0, y0, x1, y1 }] screen rects of
+  // HUD panels that no card may sit under
+  // A refit with the same window keeps the current framing while it's still clear of the HUD, so a plate that grows or
+  // shrinks a line mid-game doesn't make the camera hop.
+  setInsets(insets) { this.insets = insets; this.resize(true); }
+  // phones: frame the character rows closer, the hand peeking up from the bottom edge, lift a tapped hand card
+  setMobile(on) {
+    if (this.mobile === !!on) return;
+    this.mobile = !!on;
+    this.relayout();
+  }
+  setPortrait(on) {
+    if (this.portrait === !!on) return;
+    this.portrait = !!on;
+    this.rowScroll = {};
+    this.relayout();
+  }
+  relayout() {
+    L = this.portrait ? PORT : this.mobile ? MOB : DESK;
+    for (const s of this.sides) if (s) this.scene.remove(s.group);
+    this.sides = [];
+    this.resize();
+    if (this.view) this.render(this.view, this.defs, []);
+  }
+  // the deck, discard, inkwell and lore dial live on the HUD plates instead of the table
+  offTable() { return !!(this.portrait || this.mobile); }
   rowKey(seat, z) { return `${seat}:${Math.abs(z) < (L.charZ + L.rowZ) / 2 ? 0 : 1}`; }
   // which lane a screen point is over (portrait swipes), or null
   laneAt(ev) {
@@ -268,50 +449,184 @@ export class Board {
     const seat = p.z > 0 ? me : 1 - me;
     return { key: this.rowKey(seat, p.z), x: p.x };
   }
-  setPortrait(on) {
-    if (this.portrait === !!on) return;
-    this.portrait = !!on;
-    L = this.portrait ? PORT : DESK;
-    this.rowScroll = {};
-    for (const s of this.sides) if (s) this.scene.remove(s.group);
-    this.sides = [];
-    this.resize();
-    if (this.view) this.render(this.view, this.defs, []);
+  // my hand: card scale at rest / lifted, how wide the fan may get, how far a lifted card comes forward
+  handCfg() {
+    // fit: how many cards' width the framing must leave room for (the fan then spreads as far as stays clear)
+    if (this.portrait) return { z: L.handZ, s: 1.08, up: 1.4, span: 21, lift: -7, fit: 2 };
+    if (this.mobile) return { z: L.handZ, s: 1.45, up: 1.75, span: 50, lift: -8.5, peek: 0.62, fit: 4 };
+    return { z: L.handZ, s: 1.22, up: 1.55, span: 70, lift: -8.5, fit: 4 };
   }
-  resize() {
+  // the corners of a resting hand reaching ±hx: its top edge and the lowest part that has to show
+  handPoints(hx, pts = []) {
+    const hc = this.handCfg();
+    const half = (H / 2) * hc.s, ct = Math.cos(0.55), st = Math.sin(0.55);
+    const u = hc.peek ? 2 * hc.peek - 1 : 1;    // -1 the card's top edge … +1 its bottom edge
+    for (const x of [-hx, 0, hx]) {
+      pts.push([x, 8 + half * st, hc.z - half * ct]);
+      pts.push([x, 8 - ((u - 1) / 2) * half * st, hc.z + 0.3 + ((u - 1) / 2) * half * ct]);
+      pts.push([x, 8 - u * half * st, hc.z + 0.6 + u * half * ct]);
+    }
+    return pts;
+  }
+  // World points that have to be on screen and clear of the HUD: the zones in use and a resting hand of 4 (a bigger
+  // hand fans as wide as the screen allows, then overlaps — see handSpan).
+  framePoints() {
+    const pts = [];
+    const rect = (x0, x1, z0, z1, y = 0.1) => { for (const x of [x0, (x0 + x1) / 2, x1]) for (const z of [z0, (z0 + z1) / 2, z1]) pts.push([x, y, z]); };
+    const zs = (s, a, b) => (s > 0 ? [a, b] : [-b, -a]);
+    const hc = this.handCfg();
+    this.handPoints(((hc.fit - 1) / 2) * Math.min(W * hc.s + 0.4, hc.span / hc.fit) + (W * hc.s) / 2, pts);
+    if (this.portrait) {
+      rect(L.rowMinX, L.rowMaxX, -(L.rowZ + H / 2 + 1.4), L.rowZ + H / 2 + 1.8);
+    } else if (this.mobile) {
+      for (const s of [1, -1]) {
+        rect(L.charMinX, L.charMaxX, ...zs(s, L.charZ - H / 2 - 1.4, L.charZ + H / 2 + 1.8));
+        rect(L.rowMinX, L.rowMaxX, ...zs(s, L.rowZ - H / 2, L.rowZ + H / 2 + 1.8));
+      }
+    } else {
+      for (const s of [1, -1]) {
+        rect(L.inkX - 3.5, L.inkX + L.inkW - 1.5, ...zs(s, L.rowZ - (H + 3) / 2, L.rowZ + (H + 3) / 2 + 2.2));
+        const r = 5.95 * L.loreS;
+        rect(L.loreX - r, L.loreX + r, ...zs(s, L.loreZ - r, L.loreZ + r));
+        rect(L.deckX - (W + 1) / 2, L.discardX + (W + 1) / 2, ...zs(s, L.rowZ - (H + 1) / 2, L.rowZ + (H + 1) / 2 + 2));
+        rect(L.charMinX, L.charMaxX, ...zs(s, L.charZ - H / 2 - 1.4, L.charZ + H / 2 + 1.8));
+      }
+      rect(-13, 13, -(L.oppHandZ + 3.4), -(L.oppHandZ - 3.4), 0.4);
+    }
+    return pts;
+  }
+  // Fit the camera: the closest distance (biggest cards) at which every frame point is on screen and outside every
+  // HUD rect, then the view offset nearest the free area's centre. One rule for every window shape: the hand's bottom
+  // edge at 1920x1080 (#78), a tablet's empty band above the table (#59), a phone's rails (#51), portrait plates (#55).
+  resize(soft = false) {
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
-    this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
-    // Fit the play surface into the gap between the HUD panels (left plates,
-    // right log) and shift the view so the table is centred in that gap.
-    const { left = 0, right = 0, top = 0, bottom = 0 } = this.insets || {};
-    const fovV = THREE.MathUtils.degToRad(this.camera.fov);
+    // portrait lanes widen with the screen (a tablet held upright fits more than a phone's three cards across)
+    let relaid = false;
     if (this.portrait) {
-      // fit the lane width (≈ 3 cards) across, and the rows from the far row to the hand down the free height
-      const freeH = Math.max(240, h - top - bottom);
-      const tanW = Math.tan(fovV / 2) * this.camera.aspect;
-      const tanV = Math.tan(fovV / 2) * (freeH / h);
-      const dist = Math.max(31 / (2 * tanW), 50 / (2 * tanV));
-      const elev = THREE.MathUtils.degToRad(70);
-      const focusZ = 4.5;
-      this.camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist + focusZ);
-      this.camera.lookAt(0, 0, focusZ);
-      this.camera.setViewOffset(w, h, 0, (bottom - top) / 2, w, h);
-      this.camera.updateProjectionMatrix();
-      return;
+      const lw = Math.round(Math.min(30, Math.max(PORT.rowMaxX, (PORT.rowMaxX * (w / h)) / (390 / 844))) * 10) / 10;
+      if (L.rowMaxX !== lw) { L = { ...PORT, rowMinX: -lw, rowMaxX: lw, charMinX: -lw, charMaxX: lw }; relaid = true; }
     }
-    const free = Math.max(320, w - left - right);
-    const tanH = Math.tan(fovV / 2) * this.camera.aspect * (free / w);
-    const needW = 92 / (2 * tanH);
-    const needH = (this.mobile ? 62 : 74) / (2 * Math.tan(fovV / 2));
-    const dist = Math.max(needW, needH);
-    const elev = THREE.MathUtils.degToRad(this.mobile ? 55 : 58);
-    const focusZ = this.mobile ? 5 : 2;
-    this.camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist + focusZ);
-    this.camera.lookAt(0, 0, focusZ);
-    this.camera.setViewOffset(w, h, (right - left) / 2, 0, w, h);
-    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h, false);
+    const cam = this.camera;
+    cam.aspect = w / h;
+    const { left = 0, right = 0, top = 0, bottom = 0, avoid = [], safe = {} } = this.insets || {};
+    const P = this.portrait, M = this.mobile && !P;
+    const mode = P ? 'port' : M ? 'mob' : 'desk';
+    const m = 6, pad = 8;
+    // the screen edges cards keep clear of: a small margin, plus the notch / home indicator (safe-area insets)
+    let ex0 = m + (safe.left || 0), ex1 = w - m - (safe.right || 0), ey0 = m + (safe.top || 0), ey1 = h - m - (safe.bottom || 0);
+    // clamp: the insets are hard edges too (portrait: everything between the plates, so the hand sits above mine and
+    // the lanes don't sink to the bottom to make room for it underneath)
+    if (this.insets?.clamp) { ey0 = Math.max(ey0, top); ey1 = Math.min(ey1, h - bottom); }
+    const boxes = avoid.map((r) => [r.x0 - pad, r.y0 - pad, r.x1 + pad, r.y1 + pad]);
+    const pts = this.framePoints();
+    const px = new Float64Array(pts.length), py = new Float64Array(pts.length);
+    const v = new THREE.Vector3();
+    const project = () => {
+      const b = [Infinity, -Infinity, Infinity, -Infinity];
+      for (let i = 0; i < pts.length; i++) {
+        v.set(pts[i][0], pts[i][1], pts[i][2]).project(cam);
+        px[i] = ((v.x + 1) / 2) * w; py[i] = ((1 - v.y) / 2) * h;
+        b[0] = Math.min(b[0], px[i]); b[1] = Math.max(b[1], px[i]); b[2] = Math.min(b[2], py[i]); b[3] = Math.max(b[3], py[i]);
+      }
+      return b;
+    };
+    const clear = (ox, oy) => {
+      for (let i = 0; i < pts.length; i++) {
+        const x = px[i] - ox, y = py[i] - oy;
+        for (const b of boxes) if (x > b[0] && x < b[2] && y > b[1] && y < b[3]) return false;
+      }
+      return true;
+    };
+    const f0 = this.fit;
+    let keep = false;
+    if (soft && f0 && !f0.stale && f0.w === w && f0.h === h && f0.mode === mode) {
+      const b = project();                                            // with the current offset applied
+      keep = b[0] >= ex0 - 1 && b[1] <= ex1 + 1 && b[2] >= ey0 - 1 && b[3] <= ey1 + 1 && clear(0, 0);
+    }
+    if (!keep) this.refit(w, h, mode, project, clear, { ex0, ex1, ey0, ey1 }, { left, right, top, bottom });
+    // how wide the hand may fan at this framing: as far each way as it stays on screen and out from under the HUD
+    // (a button column on one side shifts the fan toward the other)
+    const hc = this.handCfg();
+    const reach = (dir) => {
+      let hx = (W * hc.s) / 2;
+      for (let x = hx; x < 60; x += 0.5) {
+        const ok = this.handPoints(x).filter((p) => p[0] * dir > 0).every(([a, b, c]) => {
+          v.set(a, b, c).project(cam);
+          const X = ((v.x + 1) / 2) * w, Y = ((1 - v.y) / 2) * h;
+          return X >= ex0 && X <= ex1 && Y <= ey1 + 1 && !boxes.some((q) => X > q[0] && X < q[2] && Y > q[1] && Y < q[3]);
+        });
+        if (!ok) break;
+        hx = x;
+      }
+      return hx;
+    };
+    const xl = reach(-1), xr = reach(1);
+    const span = Math.min(hc.span, Math.max(0, xl + xr - W * hc.s));
+    const shift = span < hc.span ? (xr - xl) / 2 : 0;
+    if (span !== this.handSpan || shift !== this.handShift || relaid) {
+      this.handSpan = span; this.handShift = shift;
+      if (this.view) this.render(this.view, this.defs, []);
+    }
+  }
+  refit(w, h, mode, project, clear, { ex0, ex1, ey0, ey1 }, { left, right, top, bottom }) {
+    const cam = this.camera;
+    const P = mode === 'port', M = mode === 'mob';
+    const elev = THREE.MathUtils.degToRad(P ? 70 : M ? 55 : 58);
+    const focusZ = P ? 4.5 : M ? 5 : 2;
+    this.focus.set(0, 0, focusZ);
+    const at = (dist) => {
+      cam.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist + focusZ);
+      cam.lookAt(this.focus);
+      cam.updateMatrixWorld();
+    };
+    cam.clearViewOffset();
+    cam.updateProjectionMatrix();
+    const want = { x: (right - left) / 2, y: (bottom - top) / 2 };
+    const choices = (lo, hi, pref) => {
+      const out = [Math.min(hi, Math.max(lo, pref))];
+      for (let k = 0; k <= 10; k++) out.push(lo + ((hi - lo) * k) / 10);
+      return out;
+    };
+    let fit = null;
+    for (let dist = 30; dist < 480 && !fit; dist *= 1.02) {
+      at(dist);
+      const [x0, x1, y0, y1] = project();
+      const oxLo = x1 - ex1, oxHi = x0 - ex0, oyLo = y1 - ey1, oyHi = y0 - ey0;
+      if (oxLo > oxHi || oyLo > oyHi) continue;
+      const cands = [];
+      for (const ox of choices(oxLo, oxHi, want.x)) for (const oy of choices(oyLo, oyHi, want.y)) cands.push([ox, oy, 2 * Math.abs(ox - want.x) + Math.abs(oy - want.y)]);   // off-centre sideways looks worse
+      cands.sort((a, b) => a[2] - b[2]);
+      for (const [ox, oy] of cands) if (clear(ox, oy)) { fit = { dist, ox, oy }; break; }
+    }
+    if (!fit) {                                                       // nothing fits (a tiny window): the whole table, centred
+      const tanH = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.aspect;
+      fit = { dist: (P ? 34 : 96) / (2 * tanH), ox: want.x, oy: want.y };
+    }
+    at(fit.dist);
+    cam.setViewOffset(w, h, fit.ox, fit.oy, w, h);
+    cam.updateProjectionMatrix();
+    this.fit = { ...fit, w, h, mode };
+  }
+  // where a played action or song is shown: in front of the table's centre, raised toward and facing the camera (#92)
+  castPose() {
+    const f = this.focus, c = this.camera.position, k = 0.3;
+    const p = { x: f.x + (c.x - f.x) * k, y: f.y + (c.y - f.y) * k, z: f.z + (c.z - f.z) * k };
+    return { ...p, yaw: 0, tilt: Math.atan2(c.z - p.z, c.y - p.y), flip: 0, scale: 2 };
+  }
+  // an action still resolving (its choices pending) waits off to the side, standing up, after its cast moment
+  parkPose() {
+    const c = this.castPose();
+    if (this.offTable()) return { x: L.charMaxX - W / 2, y: 6, z: 0, yaw: 0, tilt: c.tilt, flip: 0, scale: 0.9 };
+    return { x: (L.deckX + L.discardX) / 2, y: 3, z: 0, yaw: 0, tilt: c.tilt, flip: 0, scale: 1.05 };
+  }
+  castAt(o, now) {
+    const p = this.castPose();
+    const until = now + flightMs(dist3(o.cur, p)) + CAST_HOLD_MS;
+    o.stops = [{ pose: p, until }];
+    o.hiUntil = until;
+    o.castShown = true;
   }
 
   // ---------- per-seat props ----------
@@ -352,9 +667,10 @@ export class Board {
     p.inkLabel = badgePlane(pillTex('INK 0/0'), 6, 0, 0);
     p.inkLabel.rotation.x = -Math.PI / 2;
     group.add(p.inkLabel);
-    // lore dial: 20 segments around a big number
+    // lore dial: 20 segments around a big number; the active player's halo hugs the ring (#96)
     p.lore = new THREE.Group();
     p.lore.position.set(L.loreX, 0.02, sign * L.loreZ);
+    p.lore.scale.setScalar(L.loreS);
     p.segs = [];
     const segA = (Math.PI * 2) / LORE_TO_WIN;
     for (let i = 0; i < LORE_TO_WIN; i++) {
@@ -368,7 +684,7 @@ export class Board {
     disc.rotation.x = -Math.PI / 2; disc.position.y = -0.01;
     p.lore.add(disc);
     p.disc = disc;
-    p.halo = new THREE.Mesh(new THREE.RingGeometry(5.6, 6.4, 48), new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+    p.halo = new THREE.Mesh(new THREE.RingGeometry(5.5, 5.95, 48), new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
     p.halo.rotation.x = -Math.PI / 2;
     p.lore.add(p.halo);
     p.loreNum = badgePlane(numberTex('0', '#f2dc9b', 'LORE'), 6.4, 0, 0);
@@ -386,8 +702,8 @@ export class Board {
 
   updateSide(seat, sign, pl, isActive) {
     const p = this.sideProps(seat, sign);
-    p.group.visible = !this.portrait;
-    if (this.portrait) return;
+    p.group.visible = !this.offTable();
+    if (this.offTable()) return;
     const n = pl.deckCount;
     p.deck.visible = n > 0;
     p.deck.scale.y = Math.max(0.05, n * 0.06);
@@ -416,7 +732,7 @@ export class Board {
     }
     if (p.lorePulse > 0) {
       p.lorePulse = Math.max(0, p.lorePulse - this.dt * 1.6);
-      p.lore.scale.setScalar(1 + Math.sin(p.lorePulse * Math.PI) * 0.18);
+      p.lore.scale.setScalar(L.loreS * (1 + Math.sin(p.lorePulse * Math.PI) * 0.18));
     }
     // active player's dial gets a glowing rim
     p.disc.material.color.set(isActive ? 0x3a2c08 : 0x0d1030);
@@ -430,34 +746,56 @@ export class Board {
     this.defs = defs;
     if (!view) { for (const c of this.cards.values()) c.dispose(); this.cards.clear(); return; }
     const me = view.you >= 0 ? view.you : 0;
+    const now = performance.now();
+    const off = this.offTable();
     const seen = new Set();
-    const spawnHint = new Map();   // iid -> {seat, zone}
+    const spawnHint = new Map();   // iid -> {seat, zone}: where it came from (its first move in this update)
     const leaveTo = new Map();     // iid -> {seat, zone}: where a card that's leaving view went
-    const slotMoves = [];          // every move, for face-down slots that aren't keyed by card (the opponent's hand)
+    const moves = [];
     for (const e of events) {
-      if (e.k !== 'move') continue;
-      if (e.iid) { spawnHint.set(e.iid, e.from); leaveTo.set(e.iid, e.to); }
-      if (e.from && e.to) slotMoves.push({ from: e.from, to: e.to });
+      if (e.k !== 'move' || !e.from || !e.to) continue;
+      moves.push(e);
+      if (e.iid) { if (!spawnHint.has(e.iid)) spawnHint.set(e.iid, e.from); leaveTo.set(e.iid, e.to); }
     }
+    // where cards were before this update moved them: a challenge lunges at the defender's old spot, and numbers
+    // rise over it, even when the re-layout has already sent the card on to the discard (#89)
+    const was = new Map();
+    for (const e of events) {
+      for (const id of [e.iid, e.a, e.t, ...(e.singers || [])]) {
+        const c = id && !was.has(id) && this.cards.get(id);
+        if (c?.cur) was.set(id, { x: c.cur.x, y: c.cur.y, z: c.cur.z });
+      }
+    }
+    // challenge damage shows on the cards when the hit lands, not when the update arrives
+    for (const e of events) if (e.k === 'challenge') for (const id of [e.a, e.t]) { const c = this.cards.get(id); if (c) c.badgeHold = now + IMPACT_MS; }
+    this.handOff(view, moves);
+    const castNow = new Set();     // actions/songs played in this update
+    for (const e of moves) if (e.iid && e.to.zone === 'play' && e.from.zone !== 'play' && SPELL.has(defs[e.cardId]?.type)) castNow.add(e.iid);
 
     const anchor = (seat, zone) => {
       const sign = seat === me ? 1 : -1;
+      const base = { yaw: 0, tilt: 0, flip: 0, scale: 1 };
       switch (zone) {
-        case 'hand': return { x: 0, y: 4, z: sign * (sign > 0 ? L.handZ : L.oppHandZ) };
-        case 'discard': return { x: L.discardX, y: 1, z: sign * L.rowZ };
-        case 'inkwell': return { x: L.inkX + 4, y: 1, z: sign * L.rowZ };
-        case 'play': return { x: 0, y: 1, z: sign * L.charZ };
-        default: return { x: L.deckX, y: 2, z: sign * L.rowZ, flip: Math.PI };
+        case 'hand': return { ...base, x: 0, y: 4, z: sign * (sign > 0 ? L.handZ : L.oppHandZ) };
+        case 'discard': return { ...base, x: L.discardX, y: 1, z: sign * L.rowZ };
+        case 'inkwell': return { ...base, x: L.inkX + 4, y: 1, z: sign * L.rowZ };
+        case 'play': return { ...base, x: 0, y: 1, z: sign * L.charZ };
+        default: {                                                    // the deck: just above its current top (#98)
+          const n = view.players[seat]?.deckCount || 0;
+          return { ...base, x: L.deckX, y: n * 0.06 + 0.6, z: sign * L.rowZ, flip: Math.PI };
+        }
       }
     };
     const get = (key, spawnFrom) => {
       let c = this.cards.get(key);
       if (!c) { c = new CardObj(this, key); this.cards.set(key, c); c.spawn = spawnFrom; }
-      c.dying = 0;
+      if (c.dying) c.revive();
+      c.wantHi = false;
       seen.add(key);
       return c;
     };
     const put = (c, t) => { c.place(t, c.spawn ? { ...c.spawn } : null); c.spawn = null; };
+    const from = (iid, seat, fallback) => (spawnHint.has(iid) ? anchor(spawnHint.get(iid).seat, spawnHint.get(iid).zone) : anchor(seat, fallback));
 
     view.players.forEach((pl, seat) => {
       const sign = seat === me ? 1 : -1;
@@ -475,24 +813,35 @@ export class Board {
       for (const l of locs) { row2.push({ c: l }); for (const c of atLoc(l)) row2.push({ c, at: true }); }
       for (const c of items) row2.push({ c });
       // orphaned (location left) chars fall back to row 1
-      this.layoutRow(chars.map((c) => ({ c })), sign * L.charZ, L.charMinX, L.charMaxX, seat, sign, get, put, spawnHint, anchor);
-      this.layoutRow(row2, sign * L.rowZ, L.rowMinX, L.rowMaxX, seat, sign, get, put, spawnHint, anchor);
+      this.layoutRow(chars.map((c) => ({ c })), sign * L.charZ, L.charMinX, L.charMaxX, seat, sign, get, put, from);
+      this.layoutRow(row2, sign * L.rowZ, L.rowMinX, L.rowMaxX, seat, sign, get, put, from);
+      // an action or song still resolving (its choices pending): shown at the cast pose, then parked to the side
+      for (const c of units.filter((u) => SPELL.has(def(u).type))) {
+        const o = get(c.iid, from(c.iid, seat, 'hand'));
+        o.setFace(c.cardId);
+        o.info = { iid: c.iid, zone: 'play', seat, cardId: c.cardId };
+        o.dimmed = false;
+        o.setBadges('', () => {});
+        put(o, this.parkPose());
+        if (!o.castShown) this.castAt(o, now);
+      }
 
-      // ---- discard (all cards, stacked; off the table in portrait) ----
-      if (!this.portrait) pl.discard.forEach((c, i) => {
-        const o = get(c.iid, spawnHint.has(c.iid) ? anchor(spawnHint.get(c.iid).seat, spawnHint.get(c.iid).zone) : anchor(seat, 'hand'));
+      // ---- discard (all cards, stacked; off the table on phones) ----
+      if (!off) pl.discard.forEach((c, i) => {
+        const o = get(c.iid, from(c.iid, seat, 'hand'));
         o.setFace(c.cardId);
         o.info = { iid: c.iid, zone: 'discard', seat, cardId: c.cardId };
         o.dimmed = false;
         o.setBadges('', () => {});
         put(o, { x: L.discardX + ((i * 37) % 5 - 2) * 0.06, y: 0.05 + i * 0.04, z: sign * L.rowZ + ((i * 53) % 5 - 2) * 0.06, yaw: ((i * 29) % 7 - 3) * 0.015, tilt: 0, flip: 0, scale: 1 });
+        if (castNow.has(c.iid) && !o.castShown) this.castAt(o, now);   // played and resolved in one go: show it, then discard it
       });
 
       // ---- inkwell (facedown slots; ready ones first) ----
-      for (let i = 0; i < (this.portrait ? 0 : pl.inkTotal); i++) {
+      for (let i = 0; i < (off ? 0 : pl.inkTotal); i++) {
         const key = `ink:${seat}:${i}`;
         const o = get(key, anchor(seat, 'hand'));
-        o.setFace(null);
+        o.setHidden();
         o.info = { zone: 'inkwell', seat, slot: i };
         o.dimmed = false;
         o.setBadges('', () => {});
@@ -503,65 +852,112 @@ export class Board {
       // ---- hand ----
       if (mine && pl.hand) {
         const n = pl.hand.length;
-        const P = this.portrait;
-        const step = Math.min(W * 1.22 + 0.4, (P ? 21 : 70) / Math.max(1, n));      // portrait: a tight fan along the bottom edge
-        const handZ = P ? L.handZ : this.mobile ? L.handZ - 3.5 : L.handZ;          // phones: the hand sits higher, fully on screen
+        const hc = this.handCfg();
+        const step = Math.min(W * hc.s + 0.4, (this.handSpan ?? hc.span) / Math.max(1, n - 1));   // centre to centre
+        const x0 = this.handShift || 0;
         pl.hand.forEach((c, i) => {
           const o = get(c.iid, anchor(seat, 'deck'));
           o.setFace(c.cardId);
           o.info = { iid: c.iid, zone: 'hand', seat, cardId: c.cardId };
           o.setBadges('', () => {});
-          const x = (i - (n - 1) / 2) * step;
+          const x = x0 + (i - (n - 1) / 2) * step;
           const hovered = !this.mobile && this.hover === o && !this.drag;          // no hover on a touch screen: a tap selects
           const lifted = hovered || this.ui.multi.has(c.iid) || this.ui.selected === c.iid;   // a tapped card stays up (its options float above it)
+          const big = hovered || this.ui.selected === c.iid;
+          o.wantHi = big;
           const arc = Math.abs(i - (n - 1) / 2) * 0.18;
-          o.setProxy({ x, y: 8 + i * 0.05, z: handZ + arc, tilt: 0.55, scale: 1.22 });
+          o.setProxy({ x, y: 8 + i * 0.05, z: hc.z + arc, tilt: 0.55, scale: hc.s });
           if (this.drag?.obj === o) return;
           put(o, {
-            x, y: 8 + i * 0.05 + (lifted ? 4 : 0), z: handZ + arc + (lifted ? (P ? -7 : -8.5) : 0),
-            yaw: 0, tilt: 0.55, flip: 0, scale: hovered || this.ui.selected === c.iid ? (P ? 1.4 : 1.55) : (P ? 1.08 : 1.22),
+            x, y: 8 + i * 0.05 + (lifted ? 4 : 0), z: hc.z + arc + (lifted ? hc.lift : 0),
+            yaw: 0, tilt: 0.55, flip: 0, scale: big ? hc.up : hc.s,
           });
         });
-      } else if (!this.portrait) {
+      } else if (!off) {
         const n = pl.handCount;
         const step = Math.min(3.2, 36 / Math.max(1, n));
         for (let i = 0; i < n; i++) {
           const o = get(`ohand:${seat}:${i}`, anchor(seat, 'deck'));
-          o.setFace(null);
+          o.setHidden();
           o.info = { zone: 'hand', seat, slot: i };
           o.dimmed = false;
           o.setBadges('', () => {});
-          put(o, { x: (i - (n - 1) / 2) * step, y: 0.4 + i * 0.03, z: -L.oppHandZ, yaw: 0, tilt: 0, flip: Math.PI, scale: 0.72 });
+          put(o, { x: (i - (n - 1) / 2) * step, y: 0.4 + i * 0.03, z: sign > 0 ? L.handZ : -L.oppHandZ, yaw: 0, tilt: 0, flip: Math.PI, scale: 0.72 });
         }
       }
     });
 
-    // cards that left visibility: fly to where they went and fade — the inkwell when inked, otherwise the deck (#24:
-    // every leaving card used to head for the deck, so an inked card looked like it went back into the deck too)
+    // cards that left visibility: fly to where they went (the inkwell when inked, otherwise the deck, #24) and fade out
+    const rest = [...moves];
     for (const [key, c] of this.cards) {
-      if (seen.has(key)) continue;
-      if (!c.dying) {
-        c.dying = performance.now();
-        const seat = c.info?.seat ?? 0;
-        let to = leaveTo.get(key);
-        if (!to && c.info?.zone) {                                    // a face-down slot (the opponent's hand): the move out of that zone
-          const k = slotMoves.findIndex((m) => m.from.seat === seat && m.from.zone === c.info.zone);
-          if (k >= 0) to = slotMoves.splice(k, 1)[0].to;
-        }
-        const dest = ['inkwell', 'play', 'discard', 'hand'].includes(to?.zone) ? to.zone : 'deck';
-        const a = anchor(to?.seat ?? seat, dest);
-        c.place({ x: a.x, y: dest === 'deck' ? 3 : 1, z: a.z, scale: 0.9, flip: Math.PI, yaw: 0, tilt: 0 });
+      if (seen.has(key) || c.dying) continue;
+      c.dying = now;
+      c.fadeOut();
+      c.setProxy(null);
+      c.setBadges('', () => {});
+      const seat = c.info?.seat ?? 0;
+      let to = leaveTo.get(key);
+      if (!to && c.info?.zone) {                                    // a face-down slot: the move out of that zone
+        const k = rest.findIndex((m) => m.from.seat === seat && m.from.zone === c.info.zone && !m.iid);
+        if (k >= 0) to = rest.splice(k, 1)[0].to;
       }
+      const dest = ['inkwell', 'play', 'discard', 'hand'].includes(to?.zone) ? to.zone : 'deck';
+      const a = anchor(to?.seat ?? seat, dest);
+      c.place({ x: a.x, y: dest === 'deck' ? a.y + 0.5 : 1, z: a.z, scale: 0.9, flip: dest === 'discard' ? 0 : Math.PI, yaw: 0, tilt: 0 });
+      if (castNow.has(key) && !c.castShown) this.castAt(c, now);
     }
 
-    this.playEvents(events, me);
+    this.playEvents(events, me, was, now);
     this.refreshGlow();
   }
 
-  layoutRow(entries, z, minX, maxX, seat, sign, get, put, spawnHint, anchor) {
+  // One object per physical card (#87 #88). When a card moves to where it's drawn under another key — a hand card
+  // into an inkwell slot, an opponent's face-down hand slot into play — the object it already has becomes the new
+  // one, so it travels (turning over on the way) instead of a twin appearing while the original pops. Slots pair up in
+  // order: the opponent's vanishing hand slots (the last ones) with their moves out of the hand, new ink slots with
+  // moves into the inkwell.
+  handOff(view, moves) {
+    if (!moves.length) return;
+    const off = this.offTable();
+    const live = (k) => { const c = this.cards.get(k); return c && !c.dying; };
+    const count = (prefix, seat) => { let n = 0; while (live(`${prefix}:${seat}:${n}`)) n++; return n; };
+    const range = (prefix, seat, a, b) => { const out = []; for (let i = a; i < b; i++) out.push(`${prefix}:${seat}:${i}`); return out; };
+    const pools = new Map();
+    const pool = (kind, seat) => {
+      if (!pools.has(kind + seat)) {
+        const pl = view.players[seat];
+        const hidden = !off && seat !== view.you;                     // a hand drawn as face-down slots
+        let list = [];
+        if (pl && !off && kind === 'inkIn') list = range('ink', seat, count('ink', seat), pl.inkTotal);
+        else if (pl && !off && kind === 'inkOut') list = range('ink', seat, pl.inkTotal, count('ink', seat)).reverse();
+        else if (pl && hidden && kind === 'handIn') list = range('ohand', seat, count('ohand', seat), pl.handCount);
+        else if (pl && hidden && kind === 'handOut') list = range('ohand', seat, pl.handCount, count('ohand', seat)).reverse();
+        pools.set(kind + seat, list);
+      }
+      return pools.get(kind + seat);
+    };
+    for (const e of moves) {
+      const { from, to } = e;
+      let src = e.iid && live(e.iid) ? e.iid : null;
+      if (!src && from.zone === 'hand' && from.seat !== view.you) src = pool('handOut', from.seat).shift() || null;
+      if (!src && from.zone === 'inkwell') src = pool('inkOut', from.seat).shift() || null;
+      let dst = null;
+      if (to.zone === 'inkwell') dst = pool('inkIn', to.seat).shift() || null;
+      else if (to.zone === 'hand' && to.seat !== view.you) dst = pool('handIn', to.seat).shift() || null;
+      else if (e.iid && ['play', 'discard', 'hand', 'under'].includes(to.zone)) dst = e.iid;
+      if (!src || !dst || src === dst || this.cards.has(dst)) continue;
+      const c = this.cards.get(src);
+      this.cards.delete(src);
+      this.cards.set(dst, c);
+      c.key = dst;
+      c.setProxy(null);
+    }
+  }
+
+  layoutRow(entries, z, minX, maxX, seat, sign, get, put, from) {
     const side = (c) => c.exerted || this.defs[c.cardId]?.type === 'location';
-    const fw = ({ c }) => (side(c) ? H : W) + GAP + (c.under?.length ? 0.8 : 0);
-    const total = entries.reduce((a, e) => a + fw(e), 0) - GAP;
+    const fw = ({ c }) => SLOT + (c.under?.length ? 0.8 : 0);
+    const total = entries.reduce((a, e) => a + fw(e), 0) - (SLOT - H);
     const span = maxX - minX;
     const center = (minX + maxX) / 2;
     let squeeze = total > span ? span / total : 1;
@@ -578,11 +974,10 @@ export class Board {
     }
     for (const e of entries) {
       const c = e.c;
-      const w = fw(e) * squeeze;
-      const cx = x + ((side(c) ? H : W) * squeeze) / 2;
-      x += w;
-      const hint = spawnHint.get(c.iid);
-      const o = get(c.iid, hint ? anchor(hint.seat, hint.zone) : anchor(seat, 'hand'));
+      const under = c.under?.length ? 0.8 : 0;
+      const cx = x + (under + H / 2) * squeeze;                       // centred in an H-wide box, stack peeking left
+      x += fw(e) * squeeze;
+      const o = get(c.iid, from(c.iid, seat, 'hand'));
       o.setFace(c.cardId);
       o.info = { iid: c.iid, zone: 'play', seat, cardId: c.cardId };
       o.dimmed = false;
@@ -617,10 +1012,10 @@ export class Board {
     const eff = c.eff || {};
     const chips = [];
     if (c.drying && d.type === 'character') chips.push(['DRYING', '#3a4a8a']);
-    if (c.granted?.length) chips.push([`+${c.granted.length} ability`, '#1d6b3a']);
+    if (c.granted?.length) chips.push([`+${c.granted.length} ABILITY`, '#1d6b3a']);
     for (const m of c.mods || []) if (m.stat === 'kw') chips.push([`${m.delta > 0 ? '+' : '−'}${KEYWORD_LABEL[m.kw] || m.kw}`, m.delta > 0 ? '#1d6b3a' : '#7a1d1d']);
     if (c.under?.length) chips.push([`STACK ×${c.under.length + 1}`, '#5a2d82']);
-    if (c.atLocation) chips.push(['@ LOCATION', '#6b4d12']);
+    if (c.atLocation) chips.push(['@ LOC', '#6b4d12']);
     const stats = [];
     if (d.type === 'character') {
       stats.push({ icon: '⚔️', value: eff.str ?? d.str, base: d.str ?? 0 });
@@ -633,48 +1028,101 @@ export class Board {
     }
     const key = JSON.stringify([c.damage, stats.map((s) => s.value), chips, d.type]);
     o.setBadges(key, (g) => {
+      // the stat strip hangs off the bottom of the card's footprint, a little over the card (#91: ~2 units tall)
       if (stats.length) {
         const t = statsTex(stats);
-        const wdt = Math.min(W * 1.05, stats.length * 2.3);
-        g.add(badgePlane(t, wdt, 0, -H / 2 - 0.2 - (wdt / t.userData.aspect) / 2 + 0.9, 0));
+        const wdt = Math.min(W * 1.12, stats.length * 2.45);
+        const sh = wdt / t.userData.aspect;
+        g.add(badgePlane(t, wdt, 0, 0, 0, { edge: -1, off: -sh / 2 + 0.85 }));
       }
-      if (c.damage > 0) g.add(badgePlane(damageTex(c.damage), 3.1, 0, 0.6, 0.02));
-      let y = H / 2 - 0.2;
-      for (const [label, bg] of chips) {
-        const t = pillTex(label, bg);
-        const wdt = Math.min(W * 0.95, 0.95 + label.length * 0.36);
-        g.add(badgePlane(t, wdt, 0, y, 0.01));
-        y -= 1.05;
+      if (c.damage > 0) g.add(badgePlane(damageTex(c.damage), 3.4, 0, 0.4, 0.02));
+      // status chips: one row along the top edge, ~1.9 units tall; a crowded row shrinks a little, then wraps upward
+      if (chips.length) {
+        const MAXW = W + 2, GAPX = 0.2;
+        const ts = chips.map(([label, bg]) => pillTex(label, bg));
+        const sum = ts.reduce((a, t) => a + t.userData.aspect, 0);   // row width per unit of chip height
+        const ch = Math.max(1.45, Math.min(1.9, (MAXW - GAPX * (ts.length - 1)) / sum));
+        const cwOf = (t) => Math.min(MAXW, ch * t.userData.aspect);  // a very long label gets a slimmer chip, never a wider one
+        const rows = [[]];
+        let rw = 0;
+        for (const t of ts) {
+          const cw = cwOf(t);
+          if (rows[rows.length - 1].length && rw + GAPX + cw > MAXW) { rows.push([]); rw = 0; }
+          rows[rows.length - 1].push(t);
+          rw += (rw ? GAPX : 0) + cw;
+        }
+        rows.forEach((row, r) => {
+          const widths = row.map(cwOf);
+          let x = -(widths.reduce((a, b) => a + b, 0) + GAPX * (row.length - 1)) / 2;
+          row.forEach((t, i) => {
+            g.add(badgePlane(t, widths[i], x + widths[i] / 2, 0, 0.01, { edge: 1, off: ch / 2 - 0.55 + r * (ch + 0.15) }));
+            x += widths[i] + GAPX;
+          });
+        });
       }
     });
   }
 
   // ---------- effects ----------
-  playEvents(events, me) {
+  later(ms, fn) { this.timers.push({ at: performance.now() + ms, fn }); }
+  playEvents(events, me, was, now) {
+    const at = (iid) => was.get(iid) || this.cards.get(iid)?.target;
+    const fight = new Set();
+    for (const e of events) if (e.k === 'challenge') fight.add(e.a).add(e.t);
+    const hitDelay = (iid) => (fight.has(iid) ? IMPACT_MS / 1000 : 0);
     for (const e of events) {
       if (e.k === 'quest') {
         const o = this.cards.get(e.iid);
-        if (o) { o.pulse = 1; this.floatText(`+${e.lore} ◆`, '#ffd34d', o.target); }
+        if (o) { o.pulse = 1; this.floatText(`+${e.lore} ◆`, '#ffd34d', at(e.iid)); }
       } else if (e.k === 'damage') {
-        const o = this.cards.get(e.iid);
-        if (o) this.floatText(e.n > 0 ? `−${e.n}` : `+${-e.n}`, e.n > 0 ? '#ff6b6b' : '#7dffa0', o.target, 0.25);
+        const p = at(e.iid);
+        if (p) this.floatText(e.n > 0 ? `−${e.n}` : `+${-e.n}`, e.n > 0 ? '#ff6b6b' : '#7dffa0', p, fight.has(e.iid) ? IMPACT_MS / 1000 : 0.15);
       } else if (e.k === 'challenge') {
-        const a = this.cards.get(e.a), t = this.cards.get(e.t);
-        if (a && t) a.lunge = { x: t.target.x, z: t.target.z, t0: performance.now() };
+        // the attacker lunges from where it stood at where the defender stood; both stay put until the hit has landed
+        const A = this.cards.get(e.a), T = this.cards.get(e.t), pa = at(e.a), pt = at(e.t);
+        if (A && pa && pt) { A.stops = [{ pose: null, until: now + LUNGE_MS }]; A.lunge = { dx: pt.x - pa.x, dz: pt.z - pa.z, t0: now }; }
+        if (T) { T.stops = [{ pose: null, until: now + IMPACT_MS + 160 }]; this.later(IMPACT_MS, () => { T.pulse = 1; }); }
+        if (A) this.later(IMPACT_MS, () => { A.pulse = 0.6; });
       } else if (e.k === 'banish') {
-        const o = this.cards.get(e.iid);
-        if (o) this.floatText('BANISHED', '#ff9d4d', o.cur || o.target, 0.5);
+        // a banished card stays where it fell long enough to read "BANISHED" over it, then goes to the discard
+        const o = this.cards.get(e.iid), p = at(e.iid);
+        if (o) o.stops = [{ pose: null, until: now + (fight.has(e.iid) ? IMPACT_MS + 650 : 600) }];
+        if (p) this.floatText('BANISHED', '#ff9d4d', p, hitDelay(e.iid) + 0.15);
       } else if (e.k === 'lore' && e.n < 0) {
         const side = this.sides[e.seat];
         if (side) this.floatText(`${e.n} ◆`, '#ff7d7d', { x: L.loreX, z: side.sign * L.loreZ });
       } else if (e.k === 'mod') {
-        const o = this.cards.get(e.iid);
+        const p = at(e.iid);
         const icon = { str: '⚔️', wp: '🛡️', lore: '◆', sing: '♪', kw: '★' }[e.stat] || '';
-        if (o) this.floatText(`${e.delta > 0 ? '+' : ''}${e.delta} ${icon}`, e.delta > 0 ? '#7dffa0' : '#ff7d7d', o.target, 0.15);
+        if (p) this.floatText(`${e.delta > 0 ? '+' : ''}${e.delta} ${icon}`, e.delta > 0 ? '#7dffa0' : '#ff7d7d', p, 0.15);
       } else if (e.k === 'sing') {
-        for (const iid of e.singers) { const o = this.cards.get(iid); if (o) this.floatText('♪', '#c7a2ff', o.target); }
+        for (const iid of e.singers) { const p = at(iid); if (p) this.floatText('♪', '#c7a2ff', p); }
+      } else if (e.k === 'turn') {
+        this.turnSweep(e.seat, me, now);
+      } else if (e.k === 'shuffle') {
+        const s = this.sides[e.seat];
+        if (s) s.shuffleT0 = now;
+      } else if (e.k === 'shift') {
+        // Shift: the new card comes in above the stack, drops onto it and pulses as it lands
+        const o = this.cards.get(e.iid);
+        if (o?.cur) {
+          const above = { ...pose(o.target), y: o.target.y + 7, scale: 1.08 };
+          o.stops = [{ pose: above, until: now + flightMs(dist3(o.cur, above)) + 60 }];
+          o.landPulse = true;
+        }
       }
     }
+  }
+  // a new turn: a band of light runs across the active side and their exerted cards ready one after another (#95)
+  turnSweep(seat, me, now) {
+    const sign = seat === me ? 1 : -1;
+    const depth = L.rowZ + H / 2;
+    this.sweep.scale.set(16, depth, 1);
+    this.sweep.position.set(-60, 0.03, sign * (depth / 2 + 1));
+    this.sweepT0 = now;
+    const readying = [...this.cards.values()].filter((c) => c.info?.seat === seat && (c.info.zone === 'play' || c.info.zone === 'inkwell') && c.cur && Math.abs(wrapAngle(c.target.yaw - c.cur.yaw)) > 0.3 && !c.dying);
+    readying.sort((a, b) => a.cur.x - b.cur.x);
+    readying.forEach((c, i) => { if (!c.stops.length) c.hold(200 + i * 80, null, now); });
   }
 
   floatText(text, color, at, delay = 0) {
@@ -717,11 +1165,11 @@ export class Board {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const objs = [];
     for (const c of this.cards.values()) {
-      if (c.dying || c === this.drag?.obj) continue;
+      if (c.dying || c.stops.length || c === this.drag?.obj) continue;   // mid-animation (cast, hit, readying): not a target
       objs.push(c.front, c.back);
       if (c.proxy?.visible && c.info?.zone === 'hand') objs.push(c.proxy);
     }
-    if (!this.portrait) for (const s of this.sides) if (s) objs.push(s.deck, s.discardZone, s.inkZone, ...s.lore.children);
+    if (!this.offTable()) for (const s of this.sides) if (s) objs.push(s.deck, s.discardZone, s.inkZone, ...s.lore.children);
     const hits = this.raycaster.intersectObjects(objs, false);
     for (const h of hits) {
       if (h.object.userData.card) return { card: h.object.userData.card };
@@ -761,7 +1209,7 @@ export class Board {
         }
         if (d.active) {
           const p = this.planePoint(ev, 4);
-          if (p) d.obj.place({ x: p.x, y: 4, z: p.z, tilt: 0, scale: 1.05, yaw: 0, flip: 0 });
+          if (p) d.obj.dragTo({ x: p.x, y: 4, z: p.z, tilt: 0, scale: 1.05, yaw: 0, flip: 0 });
           const over = this.pick(ev);
           this.setHover(over?.card || null, over);
           return;
@@ -832,9 +1280,14 @@ export class Board {
     const dt = Math.min(0.05, this.timer.getDelta());
     this.dt = dt;
     const now = performance.now();
+    for (let i = this.timers.length - 1; i >= 0; i--) if (now >= this.timers[i].at) this.timers.splice(i, 1)[0].fn();
     for (const [key, c] of this.cards) {
-      if (c.dying && now - c.dying > 450) { c.dispose(); this.cards.delete(key); continue; }
-      c.tick(dt);
+      c.tick(dt, now);
+      if (!c.dying) continue;
+      const t = c.tw;
+      const flying = !c.stops.length && t && samePose(t.to, c.target);
+      if ((flying && t.done) || now - c.dying > 5000) { c.dispose(); this.cards.delete(key); continue; }
+      if (flying) c.setOpacity((t.t0 + t.dur - now) / 150);       // fade over the last 150ms of the way out (#94)
     }
     for (let i = this.floaters.length - 1; i >= 0; i--) {
       const f = this.floaters[i];
@@ -844,6 +1297,22 @@ export class Board {
       if (p >= 1) { this.fx.remove(f.s); f.s.material.dispose(); this.floaters.splice(i, 1); continue; }
       f.s.position.y = 6 + p * 7;
       f.s.material.opacity = p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3;
+    }
+    if (this.sweepT0) {
+      const p = (now - this.sweepT0) / 900;
+      if (p >= 1) { this.sweepT0 = 0; this.sweep.visible = false; } else {
+        this.sweep.visible = true;
+        this.sweep.position.x = -60 + easeInOut(p) * 120;
+        this.sweep.material.opacity = 0.5 * Math.sin(Math.PI * p);
+      }
+    }
+    for (const s of this.sides) {
+      if (!s?.shuffleT0) continue;
+      const p = (now - s.shuffleT0) / 650;                            // a shuffle: the deck box jiggles (#95)
+      if (p >= 1) { s.shuffleT0 = 0; s.deck.rotation.y = 0; s.deck.position.x = L.deckX; continue; }
+      const k = Math.sin(Math.PI * p);
+      s.deck.rotation.y = Math.sin(p * 38) * 0.1 * k;
+      s.deck.position.x = L.deckX + Math.sin(p * 27) * 0.5 * k;
     }
     if (this.view) for (const [seat, s] of this.sides.entries()) if (s && s.lorePulse > 0) this.updateSide(seat, s.sign, this.view.players[seat], this.view.active === seat);
     this.renderer.render(this.scene, this.camera);
@@ -855,6 +1324,26 @@ export class Board {
     if (!t) return null;
     const half = (H / 2) * (t.scale || 1);
     return { center: this.toScreen({ x: t.x, y: t.y || 0, z: t.z }), top: this.toScreen({ x: t.x, y: (t.y || 0) + half * Math.sin(t.tilt || 0), z: t.z - half * Math.cos(t.tilt || 0) }) };
+  }
+  // a card's resting rectangle on screen (where it's heading), in page pixels — for DOM overlays that sit by a card
+  cardRect(iid) {
+    const t = this.cards.get(iid)?.target;
+    if (!t) return null;
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(t.x, t.y || 0, t.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, t.yaw || 0, 0)), new THREE.Vector3().setScalar(t.scale || 1))
+      .multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-Math.PI / 2 + (t.tilt || 0), t.flip || 0, 0)));
+    const r = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+    for (const [x, y] of [[-W / 2, -H / 2], [W / 2, -H / 2], [-W / 2, H / 2], [W / 2, H / 2]]) {
+      const p = this.toScreen(new THREE.Vector3(x, y, 0).applyMatrix4(m));
+      r.left = Math.min(r.left, p.x); r.right = Math.max(r.right, p.x); r.top = Math.min(r.top, p.y); r.bottom = Math.max(r.bottom, p.y);
+    }
+    return r;
+  }
+  // the screen band between the two front rows (the far row's stat strips above, my row's chips below): where a
+  // banner or the midline pill can sit without covering cards. top > bottom when the rows overlap the centre line.
+  frontGap() {
+    const top = this.toScreen({ x: 0, y: 0, z: -(L.charZ - H / 2) + 1.3 }).y;
+    const bottom = this.toScreen({ x: 0, y: 0, z: L.charZ - H / 2 - 1.35 }).y;
+    return { top, bottom, mid: this.toScreen({ x: 0, y: 0, z: 0 }).y };
   }
   // project a world point to screen pixels (for DOM overlays)
   toScreen(v) {
