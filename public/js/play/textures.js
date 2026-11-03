@@ -62,6 +62,36 @@ export function faceTexture(cardId) {
   return tex;
 }
 
+// The full 734x1024 image, for the few cards shown large (a lifted hand card, a card being cast) (#77). Null until it
+// has decoded, so the caller keeps the small face meanwhile. A short LRU: only a handful are ever on screen at once,
+// and every face at full size would cost ~4 MB of VRAM each.
+const hiCache = new Map();     // cardId -> { tex, ok }
+const HI_KEEP = 6;
+export function faceTextureHi(cardId) {
+  let e = hiCache.get(cardId);
+  if (e) { hiCache.delete(cardId); hiCache.set(cardId, e); return e.ok ? e.tex : null; }   // refresh its LRU slot
+  e = { tex: null, ok: false };
+  hiCache.set(cardId, e);
+  (async () => {
+    try {
+      const res = await fetch(IMG(cardId), { mode: 'cors' });     // the browser cache already has it from faceTexture
+      if (!res.ok) throw new Error(res.status);
+      const bmp = await createImageBitmap(await res.blob(), { imageOrientation: 'flipY' });
+      const tex = new THREE.Texture(bmp);
+      tex.flipY = false;
+      finish(tex);
+      if (hiCache.get(cardId) !== e) { tex.dispose(); bmp.close?.(); return; }   // evicted while loading
+      e.tex = tex; e.ok = true;
+    } catch { /* the small face stays */ }
+  })();
+  while (hiCache.size > HI_KEEP) {
+    const [k, old] = hiCache.entries().next().value;
+    hiCache.delete(k);
+    if (old.tex) { old.tex.image?.close?.(); old.tex.dispose(); }
+  }
+  return null;
+}
+
 // ---------- card back (original art, not the official back) ----------
 let backTex = null;
 export function backTexture() {
@@ -147,30 +177,31 @@ export function damageTex(n) {
   });
 }
 
-// Stat strip under a card: [{icon, value, base}] — value colored vs base.
+// Stat strip under a card: [{icon, value, base}] — value colored vs base. Tall cells and big numerals: the strip is
+// ~2 world units tall on the table, which is only 15–20px on screen (#91).
 export function statsTex(items) {
   const key = 'st:' + items.map((i) => `${i.icon}${i.value}/${i.base}/${i.extra || ''}`).join('|');
-  const cellW = 112;
-  return canvasTex(key, cellW * items.length, 72, (g, w, h) => {
-    g.fillStyle = 'rgba(10,12,28,0.88)'; roundRect(g, 2, 2, w - 4, h - 4, 18); g.fill();
-    g.strokeStyle = 'rgba(217,180,90,0.9)'; g.lineWidth = 3; g.stroke();
+  const cellW = 92;
+  return canvasTex(key, cellW * items.length, 84, (g, w, h) => {
+    g.fillStyle = 'rgba(10,12,28,0.92)'; roundRect(g, 2, 2, w - 4, h - 4, 20); g.fill();
+    g.strokeStyle = 'rgba(217,180,90,0.95)'; g.lineWidth = 4; g.stroke();
     items.forEach((it, i) => {
       const x = i * cellW + cellW / 2;
       const col = it.value > it.base ? '#6dff9a' : it.value < it.base ? '#ff7d7d' : '#ffffff';
-      g.font = `700 34px ${FONT}`; g.textBaseline = 'middle'; g.textAlign = 'right';
-      g.fillStyle = it.iconColor || '#f2dc9b'; g.fillText(it.icon, x - 4, h / 2 + 2);
-      g.textAlign = 'left'; g.fillStyle = col; g.font = `800 40px ${FONT}`;
-      g.fillText(String(it.value) + (it.extra || ''), x + 2, h / 2 + 3);
+      g.font = `700 32px ${FONT}`; g.textBaseline = 'middle'; g.textAlign = 'right';
+      g.fillStyle = it.iconColor || '#f2dc9b'; g.fillText(it.icon, x - 6, h / 2 + 2);
+      g.textAlign = 'left'; g.fillStyle = col; g.font = `900 58px ${FONT}`;
+      g.fillText(String(it.value) + (it.extra || ''), x - 2, h / 2 + 4);
     });
   });
 }
 
 // Small pill label (status chips: DRYING, +Evasive, ×2 under, counts).
 export function pillTex(text, bg = '#1b2a6b', fg = '#fff') {
-  return canvasTex(`pill:${text}:${bg}:${fg}`, Math.max(96, 26 + text.length * 22), 56, (g, w, h) => {
-    g.fillStyle = bg; roundRect(g, 2, 2, w - 4, h - 4, 26); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 3; g.stroke();
-    g.fillStyle = fg; g.font = `800 32px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  return canvasTex(`pill:${text}:${bg}:${fg}`, Math.max(96, 30 + text.length * 25), 64, (g, w, h) => {
+    g.fillStyle = bg; roundRect(g, 2, 2, w - 4, h - 4, 28); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 3; g.stroke();
+    g.fillStyle = fg; g.font = `800 38px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, w / 2, h / 2 + 2);
   });
 }
@@ -192,6 +223,15 @@ export function floatTex(text, color) {
     g.font = `900 64px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.lineWidth = 10; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.strokeText(text, w / 2, h / 2 + 4);
     g.fillStyle = color; g.fillText(text, w / 2, h / 2 + 4);
+  });
+}
+
+// A soft gold band (transparent at both ends) for the turn-change sweep.
+export function sweepTex() {
+  return canvasTex('sweep', 256, 4, (g, w, h) => {
+    const grd = g.createLinearGradient(0, 0, w, 0);
+    grd.addColorStop(0, 'rgba(255,211,77,0)'); grd.addColorStop(0.55, 'rgba(255,211,77,0.85)'); grd.addColorStop(0.62, 'rgba(255,240,190,1)'); grd.addColorStop(1, 'rgba(255,211,77,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
   });
 }
 

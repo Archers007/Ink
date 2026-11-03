@@ -1,6 +1,6 @@
 // Glue: boot DB, render catalog, render deck, wire UI, talk to auth.
 
-import { DB, loadDB, INK_ORDER, inkSymbol, canonicalPrintings } from './db.js';
+import { DB, loadDB, INK_ORDER, canonicalPrintings } from './db.js';
 import * as Deck from './deck.js';
 import * as Auth from './auth.js';
 import { compileQuery, HELP_HTML } from './search.js';
@@ -10,6 +10,7 @@ import * as Sim from './simui.js';
 
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const IMG = (id) => `https://cdn.dreamborn.ink/images/en/cards/${id}`;
 
 // ---------- state ----------
 const state = {
@@ -19,6 +20,8 @@ const state = {
   ownedOnly: false,
   role: null,           // role chip filter: 'removal' · 'draw' · … · 'class:pirate'
 };
+let byId = new Map();   // every printing by id
+const cardById = (id) => byId.get(String(id)) || null;
 
 // ---------- boot ----------
 boot().catch((err) => {
@@ -31,13 +34,16 @@ async function boot() {
   const acct = account.load();
   await loadDB((stage, msg) => setStatus(msg));
 
+  byId = new Map(DB.allCards.map((c) => [c.id, c]));
   state.catalog = canonicalPrintings(DB.allCards);
   applyFilters();
 
-  setStatus(`${state.catalog.length.toLocaleString()} cards · ${new Set(DB.allCards.map((c) => c.setId)).size} sets`);
+  setStatus('');
+  $('#resultCount').title = `${state.catalog.length.toLocaleString()} cards in ${new Set(DB.allCards.map((c) => c.setId)).size} sets`;
 
   wireUI();
   renderDeck();
+  markClean();
   renderChips();
 
   loadRoles();
@@ -46,15 +52,18 @@ async function boot() {
   if (signin === 'failed') showNotice("Sign-in didn't go through. Try again, or keep building as a guest.", true);
   else if (migrated) showNotice(`Moved ${migrated} deck${migrated === 1 ? '' : 's'} saved in this browser to ${account.signedIn() ? 'your account' : 'your guest account on the Ink server'}.`);
   renderAccount();
-  account.onChange(() => { renderAccount(); refreshDeckPicker(); });
+  account.onChange(() => { renderAccount(); refreshDeckMeta(); });
 
   // reopen the last deck
   const last = localStorage.getItem('ink.lastDeck');
   if (last) {
     const d = await account.getDeck(last).catch(() => null);
-    if (d) openDeck(d);
+    if (d && !isDirty()) openDeck(d);
   }
-  await refreshDeckPicker();
+  await refreshDeckMeta();
+
+  // /#browse (the "Browse decks" link on other pages) opens the deck browser
+  if (location.hash === '#browse') { history.replaceState(null, '', location.pathname + location.search); $('#openDecksBtn').click(); }
 
   // Dreamborn collection link (separate from the Ink account)
   const m = await Auth.me().catch(() => ({}));
@@ -64,7 +73,7 @@ async function boot() {
 function showNotice(text, bad = false) {
   const el = $('#notice');
   el.className = `notice strip ${bad ? 'bad' : ''}`;
-  el.innerHTML = `<span>${escapeHtml(text)}</span><button aria-label="Dismiss">✕</button>`;
+  el.innerHTML = `<span class="txt">${escapeHtml(text)}</span><button aria-label="Dismiss">✕</button>`;
   el.hidden = false;
   el.querySelector('button').onclick = () => { el.hidden = true; };
 }
@@ -81,7 +90,7 @@ function renderAccount() {
   box.innerHTML = u
     ? `<button class="who" id="accountBtn" title="Your account">${avatarHtml(u)}<span>${escapeHtml(u.name)}</span></button>`
     : `<button class="btn btn-sm" id="accountBtn">Sign in</button>`;
-  $('#accountBtn').onclick = () => { renderAccountModal(); openModal('#accountModal'); };
+  $('#accountBtn').onclick = () => { renderAccountModal(); openModal('#accountModal'); $('#accountModal input, #accountModal .btn')?.focus(); };
   $('#saveNote').textContent = '';
 }
 function renderAccountModal() {
@@ -95,19 +104,20 @@ function renderAccountModal() {
     <div class="acct-row"><div><b>Dreamborn collection</b><span class="note">${db ? `Linked as ${escapeHtml(db)}${owned ? ` · ${owned.toLocaleString()} owned printings synced` : ' · not synced yet'}` : 'Link your dreamborn.ink account to filter the pool to cards you own.'}</span></div>
       ${db ? `<button class="btn btn-sm" id="acctSync">Sync</button><button class="btn btn-quiet btn-sm" id="acctUnlink">Unlink</button>` : `<button class="btn btn-sm" id="acctLink">Link</button>`}</div>`;
   account.bindSignInForm(body, () => location.reload());
-  $('#acctSignOut')?.addEventListener('click', async () => { await account.signOut(); closeModal('#accountModal'); newDeck(); });
+  $('#acctSignOut')?.addEventListener('click', async () => {
+    if (!(await confirmLeave('sign out'))) return;
+    await account.signOut(); closeModal('#accountModal'); newDeck();
+  });
   $('#acctLink')?.addEventListener('click', () => { closeModal('#accountModal'); openModal('#signInModal'); });
   $('#acctSync')?.addEventListener('click', () => $('#syncCollectionBtn').click());
   $('#acctUnlink')?.addEventListener('click', () => $('#signOutBtn').click());
 }
 
-async function refreshDeckPicker() {
-  const sel = $('#deckPicker');
+// The bits of the deck panel that depend on the saved decks: My decks count, Delete, Share.
+async function refreshDeckMeta() {
   let decks = [];
   try { decks = await account.listDecks(); } catch (e) { showNotice(`Couldn't load your decks: ${e.message}`, true); }
-  const where = account.signedIn() ? 'My decks' : 'My decks (guest, this device)';
-  sel.innerHTML = `<option value="">${decks.length ? `Open a deck… (${decks.length})` : 'No saved decks yet'}</option>`
-    + (decks.length ? `<optgroup label="${where}">${decks.map((d) => `<option value="${escapeHtml(d.id)}" ${d.id === Deck.Deck.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}</optgroup>` : '');
+  $('#myDecksBtn').textContent = decks.length ? `My decks · ${decks.length}` : 'My decks';
   $('#deleteDeckBtn').hidden = !Deck.Deck.id;
   const share = $('#shareDeck');
   share.disabled = !account.signedIn();
@@ -115,6 +125,37 @@ async function refreshDeckPicker() {
   $('#shareWrap').title = account.signedIn() ? 'List this deck under Browse decks → Ink players' : 'Create an account to share decks';
 }
 function setDeckName(n) { Deck.Deck.name = n; $('#deckTitle').value = n; }
+const deckName = () => ($('#deckTitle').value || '').trim() || 'Untitled deck';
+
+// ---------- unsaved changes (#36) ----------
+// The deck as last opened or saved: name, cards and cover. Comparing against it (rather than setting a flag in each
+// edit path) catches every way the deck can change — pool clicks, the list's − / +, keys, auto-fix, renaming,
+// the cover star — and taking an edit back makes the deck clean again.
+let cleanSnap = '';
+function snapshot() {
+  return JSON.stringify([deckName(), [...Deck.Deck.cards.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)), Deck.Deck.cover || null]);
+}
+function markClean() { cleanSnap = snapshot(); updateDirty(); }
+// an empty deck that was never saved has nothing to lose
+function isDirty() { return (!!Deck.Deck.id || Deck.Deck.cards.size > 0) && snapshot() !== cleanSnap; }
+function updateDirty() { $('#dirtyMark').hidden = !isDirty(); }
+
+// Before anything replaces the open deck: Save, Discard or Cancel. Resolves true when it's fine to go on.
+async function confirmLeave(doing) {
+  if (!isDirty()) return true;
+  const dlg = $('#leaveModal');
+  $('#leaveText').textContent = `“${deckName()}” has changes you haven't saved. Save them before you ${doing}?`;
+  dlg.returnValue = '';
+  openModal(dlg);
+  const choice = await new Promise((res) => dlg.addEventListener('close', () => res(dlg.returnValue), { once: true }));
+  if (choice === 'discard') return true;
+  if (choice !== 'save') return false;
+  try { await saveCurrent(); flash($('#saveDeckBtn'), 'Saved'); return true; }
+  catch (e) { alert("Can't save: " + e.message); return false; }
+}
+window.addEventListener('beforeunload', (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+let sugDismissed = null;   // the role nudge the player waved away, for this deck
 function openDeck(d) {
   Deck.clear();
   for (const [id, q] of d.cards) Deck.setQty(String(id), q);
@@ -123,17 +164,23 @@ function openDeck(d) {
   Deck.Deck.cover = d.cover || null;
   setDeckName(d.name);
   localStorage.setItem('ink.lastDeck', d.id);
-  renderGrid(); renderDeck(); refreshDeckPicker();
+  sugDismissed = null;
+  syncTiles(); renderDeck(); markClean(); refreshDeckMeta();
 }
-function newDeck() {
+// A deck that isn't saved yet: a blank one, an import, or a copy of someone's shared deck.
+function startDeck({ name = 'Untitled deck', cards = [] } = {}) {
   Deck.clear(); Deck.Deck.id = null; Deck.Deck.shared = false; Deck.Deck.cover = null;
-  setDeckName('Untitled deck');
+  setDeckName(name);
   localStorage.removeItem('ink.lastDeck');
-  renderGrid(); renderDeck(); refreshDeckPicker();
+  sugDismissed = null;
+  markClean();                                   // against an empty deck, so imported cards count as unsaved
+  for (const [id, q] of cards) Deck.setQty(String(id), q);
+  syncTiles(); renderDeck(); refreshDeckMeta();
 }
+function newDeck() { startDeck(); }
 async function saveCurrent() {
   if (!Deck.Deck.cards.size) throw new Error('add some cards first');
-  const name = ($('#deckTitle').value || '').trim() || 'Untitled deck';
+  const name = deckName();
   setDeckName(name);
   const d = await account.saveDeck({ id: Deck.Deck.id, name, cards: [...Deck.Deck.cards.entries()], shared: account.signedIn() ? $('#shareDeck').checked : undefined, cover: Deck.Deck.cover });
   Deck.Deck.id = d.id;
@@ -141,8 +188,74 @@ async function saveCurrent() {
   Deck.Deck.cover = d.cover || null;
   localStorage.setItem('ink.lastDeck', d.id);
   $('#saveNote').textContent = account.signedIn() ? '' : 'Saved as a guest on this device. Create an account to keep it on every device and share it.';
-  await refreshDeckPicker();
+  markClean();
+  await refreshDeckMeta();
   return d;
+}
+
+// ---------- My decks: the visual picker (#32) ----------
+const picker = { decks: [], info: {} };     // info: id → deck-check summary { key, size, inks, legal, problems, cover }
+const infoKey = (d) => `${d.updated}|${d.cover || ''}|${d.cards.length}`;
+async function openPicker() {
+  $('#pickerSearch').value = '';
+  $('#pickerWhere').textContent = account.signedIn() ? '' : 'Guest decks are kept on Ink for this device. Sign in to have them everywhere.';
+  openModal('#pickerModal');
+  renderPicker();
+  try { picker.decks = await account.listDecks({ fresh: true }); } catch (e) { $('#pickerGrid').innerHTML = `<p class="warn empty">Couldn't load your decks: ${escapeHtml(e.message)}</p>`; return; }
+  renderPicker();
+  const need = picker.decks.filter((d) => picker.info[d.id]?.key !== infoKey(d));
+  if (!need.length) return;
+  try {
+    const r = await fetch('/api/play/deck-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decks: need.map(({ id, cards, cover }) => ({ id, cards, cover })) }) });
+    if (!r.ok) return;
+    const j = await r.json();
+    for (const d of need) if (j[d.id]) picker.info[d.id] = { ...j[d.id], key: infoKey(d) };
+    if ($('#pickerModal').open) renderPicker();
+  } catch { /* the tiles show without cover art and legality */ }
+}
+function renderPicker() {
+  const q = $('#pickerSearch').value.trim().toLowerCase();
+  const list = picker.decks.filter((d) => !q || d.name.toLowerCase().includes(q)).sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  const add = q ? '' : `<button class="dtile add" data-deck="+new"><span class="plus">+</span><span class="dt-sub">New deck</span></button>`;
+  const none = !picker.decks.length ? '<p class="note empty">No saved decks yet. Build one and press Save, or import a list from the ⋯ menu.</p>'
+    : !list.length ? `<p class="note empty">No deck called “${escapeHtml(q)}”.</p>` : '';
+  $('#pickerGrid').innerHTML = add + list.map(pickerTile).join('') + none;
+}
+function pickerTile(d) {
+  const info = picker.info[d.id];
+  const on = d.id === Deck.Deck.id;
+  const size = info?.size ?? d.cards.reduce((n, [, q]) => n + q, 0);
+  const status = !info ? `<span class="dt-sub">${size} cards</span>`
+    : info.legal ? `<span class="dt-sub">${size} cards · legal</span>`
+    : `<span class="dt-sub bad" title="${escapeHtml(info.problems.join('\n'))}">${size} cards · ${size < 60 ? `needs ${60 - size}` : 'not legal'}</span>`;
+  return `<button class="dtile ${on ? 'on' : ''}" data-deck="${escapeHtml(d.id)}" ${on ? 'aria-current="true"' : ''}>
+    <span class="dt-art">${info?.cover != null ? `<img src="${IMG(info.cover)}" alt="" loading="lazy">` : ''}</span>
+    <span class="dt-meta"><b title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</b>
+      <span class="dt-inks">${(info?.inks || []).map((x) => `<i class="hexi ${x}" title="${x}"></i>`).join('')}${on ? `<span class="dt-tag">${isDirty() ? 'Open · unsaved' : 'Open'}</span>` : ''}</span>
+      ${status}<span class="dt-sub">Edited ${escapeHtml(ago(d.updated))}</span></span>
+  </button>`;
+}
+function ago(ts) {
+  if (!ts) return '—';
+  const s = (Date.now() - ts) / 1000;
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  if (s < 60) return 'just now';
+  if (s < 3600) return rtf.format(-Math.floor(s / 60), 'minute');
+  if (s < 86400) return rtf.format(-Math.floor(s / 3600), 'hour');
+  if (s < 7 * 86400) return rtf.format(-Math.floor(s / 86400), 'day');
+  return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: s > 300 * 86400 ? 'numeric' : undefined });
+}
+async function pickDeck(id) {
+  if (id === '+new') {
+    if (!(await confirmLeave('start a new deck'))) return;
+    closeModal('#pickerModal'); newDeck(); $('#deckTitle').select();
+    return;
+  }
+  if (id === Deck.Deck.id) { closeModal('#pickerModal'); return; }
+  const d = picker.decks.find((x) => x.id === id);
+  if (!d || !(await confirmLeave(`open “${d.name}”`))) return;
+  closeModal('#pickerModal');
+  openDeck(d);
 }
 
 // ---------- filter UI (Scryfall-style query bar) ----------
@@ -156,14 +269,6 @@ function applyFilters() {
   arr.sort((a, b) => (a.cost - b.cost) || a.name.localeCompare(b.name));
   state.filtered = arr;
   renderGrid();
-}
-
-// Append a fragment to the current query bar (so chips compose).
-function appendQuery(snippet) {
-  const inp = $('#search');
-  const cur = inp.value.trim();
-  setQuery(cur ? cur + ' ' + snippet : snippet);
-  inp.focus();
 }
 
 // Canonical setter: bar value + state + filters + builder + chips, all in sync.
@@ -207,12 +312,13 @@ function removeToken(tok) {
 }
 
 // ---------- friendly chip labels ----------
-const INK_HEX = {
-  amber: '#f4b400', amethyst: '#8a3ffc', emerald: '#00a26a',
-  ruby: '#d6204e', sapphire: '#1a86d6', steel: '#94a3b8',
+// the search bar's colour aliases (search.js), so a chip names the colour whichever way it was typed
+const INK_ALIAS = {
+  a: 'amber', am: 'amber', m: 'amethyst', purple: 'amethyst', p: 'amethyst', e: 'emerald', g: 'emerald', green: 'emerald',
+  r: 'ruby', red: 'ruby', s: 'sapphire', b: 'sapphire', blue: 'sapphire', t: 'steel', gray: 'steel', grey: 'steel',
 };
 const FIELD_LABEL = {
-  c: 'Color', color: 'Color', ink: 'Color',
+  c: 'Color', color: 'Color', ink: 'Color', id: 'Colors', identity: 'Colors',
   t: 'Type', type: 'Type',
   n: 'Name', name: 'Name',
   tt: 'Subtitle', title: 'Subtitle',
@@ -243,25 +349,26 @@ function friendlyChip(raw) {
   const m = t.match(/^([a-z]+)([:=]|>=|<=|>|<|!=|!)(.+)$/i);
   if (!m) {
     // bare-word search → defaults to card name / subtitle (see search.js #4)
-    return {
-      html: `<span class="label-text">Name: <i>${escapeHtml(t.replace(/^"|"$/g, ''))}</i></span>`,
-      negated: neg,
-    };
+    return { html: `<span class="label-text">Name: <i>${escapeHtml(t.replace(/^"|"$/g, ''))}</i></span>`, negated: neg };
   }
   const key = m[1].toLowerCase();
   const op  = m[2];
   const val = m[3].replace(/^"|"$/g, '');
-  const negOp = op === '!';
-  const negated = neg || negOp;
+  const negated = neg || op === '!';
   const fieldLabel = FIELD_LABEL[key] || key;
 
-  // colors get a swatch
-  if (['c','color','ink'].includes(key)) {
-    const list = val.split(/[,/+]/).map((x) => x.trim().toLowerCase());
-    const swatches = list.map((n) => `<span class="swatch" style="background:${INK_HEX[n] || '#888'}"></span>`).join('');
-    return { html: `${swatches}<span class="label-text">${list.map(cap).join(', ')}</span>`, negated };
+  // colours: theme swatches and names, never the raw syntax (#45)
+  if (['c', 'color', 'ink', 'id', 'identity'].includes(key)) {
+    const lc = val.toLowerCase();
+    if (['multi', 'm', '2+'].includes(lc) && !key.startsWith('i')) return { html: '<span class="label-text">Two inks</span>', negated };
+    if (['mono', 'single', '1'].includes(lc) && !key.startsWith('i')) return { html: '<span class="label-text">One ink</span>', negated };
+    const list = lc.split(/[,/+]/).map((x) => INK_ALIAS[x.trim()] || x.trim()).filter(Boolean);
+    const sw = list.map((n) => (INK_ORDER.includes(n) ? `<span class="ink ink-${n}"></span>` : '')).join('');
+    const names = list.map(cap);
+    const text = key === 'id' || key === 'identity' ? `Colors: ${names.join(' + ')}` : names.join(' or ');
+    return { html: `<span class="swatches" aria-hidden="true">${sw}</span><span class="label-text">${escapeHtml(text)}</span>`, negated };
   }
-  if (['i','inkable'].includes(key)) {
+  if (['i', 'inkable'].includes(key)) {
     const yes = /^(yes|y|true|1)$/i.test(val);
     return { html: `<span class="label-text">${yes ? 'Inkable' : 'Uninkable'}</span>`, negated };
   }
@@ -270,10 +377,10 @@ function friendlyChip(raw) {
     if (op === ':' || op === '=') {
       const range = val.match(/^(\d+)\.\.(\d+)$/);
       const display = range ? `${range[1]}–${range[2]}` : val;
-      return { html: `<span class="label-text">${fieldLabel}: ${display}</span>`, negated };
+      return { html: `<span class="label-text">${fieldLabel}: ${escapeHtml(display)}</span>`, negated };
     }
     const display = (op === '>=' ? '≥ ' : op === '<=' ? '≤ ' : op === '>' ? '> ' : op === '<' ? '< ' : '≠ ') + val;
-    return { html: `<span class="label-text">${fieldLabel} ${display}</span>`, negated };
+    return { html: `<span class="label-text">${fieldLabel} ${escapeHtml(display)}</span>`, negated };
   }
   // multi-value (comma list) for type/rarity/keyword/property/franchise/set
   if (['t','type','r','rarity','kw','keyword','p','prop','char','f','franchise','set','s'].includes(key)) {
@@ -282,32 +389,23 @@ function friendlyChip(raw) {
     return { html: `<span class="label-text">${fieldLabel}: ${escapeHtml(joined)}</span>`, negated };
   }
   // text-ish fallback
-  return {
-    html: `<span class="label-text">${fieldLabel}: <i>${escapeHtml(val)}</i></span>`,
-    negated,
-  };
+  return { html: `<span class="label-text">${escapeHtml(fieldLabel)}: <i>${escapeHtml(val)}</i></span>`, negated };
 }
 function cap(s) { s = String(s); return s ? s[0].toUpperCase() + s.slice(1) : s; }
 
 function renderChips() {
-  const wrap = $('#activeChips');
   const tokens = splitTopLevel(state.query);
-  if (!tokens.length) {
-    wrap.innerHTML = '<span class="empty">No filters — click a color, type, or filter above to start.</span>';
-    return;
-  }
-  const html = tokens.map((tok) => {
+  $('#activeChips').innerHTML = tokens.map((tok) => {
     const { html, negated } = friendlyChip(tok);
-    return `<span class="active-chip${negated ? ' negated' : ''}" title="${escapeHtml(tok)}">`
-         + (negated ? '<b style="color:#a00">NOT</b> ' : '')
+    return `<span class="active-chip${negated ? ' negated' : ''}" title="${escapeAttr(tok)}">`
+         + (negated ? '<span class="not">NOT</span>' : '')
          + html
-         + `<button class="x" data-token="${escapeAttr(tok)}" title="Remove">✕</button>`
+         + `<button class="x" data-token="${escapeAttr(tok)}" aria-label="Remove filter ${escapeAttr(tok)}">✕</button>`
          + `</span>`;
   }).join('');
-  wrap.innerHTML = html + `<button class="clear-all" data-act="clear-all" title="Clear all filters">clear all</button>`;
 }
 
-function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
+function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
 // ---------- builder <-> query sync ----------
 //
@@ -406,7 +504,7 @@ function syncBuilderFromQuery() {
     const p = parseSimpleToken(tok); if (!p) continue;
     switch (p.key) {
       case 'c': case 'color': case 'ink': case 'id': case 'identity':
-        p.val.split(/[,/+]/).forEach((c) => owned.colors.add(c.trim()));
+        p.val.split(/[,/+]/).forEach((c) => owned.colors.add(INK_ALIAS[c.trim().toLowerCase()] || c.trim().toLowerCase()));
         break;
       case 't': case 'type':
         p.val.split(/,/).forEach((c) => owned.types.add(c.trim()));
@@ -455,20 +553,18 @@ function applyNumericToOwned(o, prefix, op, val) {
     else if (op === '<')  o[prefix + 'Max'] = String(Number(val) - 1);
 }
 
+// toggles report their state to screen readers too (#40)
+function setPressed(b, on) { b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
 function applyOwnedToBuilder(o) {
   const setActive = (sel, attr, set) => {
-    document.querySelectorAll('#builder ' + sel).forEach((b) => {
-      b.classList.toggle('active', set.has(b.dataset[attr]));
-    });
+    document.querySelectorAll('#builder ' + sel).forEach((b) => setPressed(b, set.has(b.dataset[attr])));
   };
   setActive('.ink-btn[data-color]', 'color', o.colors);
   setActive('[data-type]', 'type', o.types);
   setActive('[data-rarity]', 'rarity', o.rarities);
   setActive('[data-kw]', 'kw', o.keywords);
   setActive('[data-set]', 'set', o.sets);
-  document.querySelectorAll('#builder [data-inkable]').forEach((b) => {
-    b.classList.toggle('active', b.dataset.inkable === o.inkable);
-  });
+  document.querySelectorAll('#builder [data-inkable]').forEach((b) => setPressed(b, b.dataset.inkable === o.inkable));
   const setVal = (id, v) => { const e = document.getElementById(id); if (e && e.value !== v) e.value = v; };
   setVal('bCostMin', o.costMin); setVal('bCostMax', o.costMax);
   setVal('bStrMin',  o.strMin);  setVal('bStrMax',  o.strMax);
@@ -479,44 +575,118 @@ function applyOwnedToBuilder(o) {
   setVal('bName',  o.name);
   setVal('bTitle', o.title);
   setVal('bText',  o.text);
+  // how many of the hidden "More filters" are in use, so a closed popover still says so
+  const more = o.rarities.size + o.keywords.size + o.sets.size + [o.strMin, o.strMax, o.wpMin, o.wpMax, o.loreMin, o.loreMax, o.property, o.franchise, o.name, o.title, o.text].filter(Boolean).length;
+  $('#moreCount').textContent = more ? `(${more})` : '';
 }
 
 // ---------- card grid ----------
+// Tiles are added a chunk at a time as the grid scrolls (#43), and a deck edit updates the tiles' badges in place
+// rather than rebuilding the grid, so keyboard focus stays where it is (#40).
+const CHUNK = 120;
+const grid = { shown: 0, tiles: [], byId: new Map(), io: null };
 function renderGrid() {
-  const grid = $('#cardGrid');
-  grid.innerHTML = '';
-  const max = 400;
-  const slice = state.filtered.slice(0, max);
-  $('#resultCount').textContent = `${state.filtered.length} match${state.filtered.length === 1 ? '' : 'es'}${state.filtered.length > max ? ` (showing first ${max})` : ''}`;
+  const el = $('#cardGrid');
+  el.innerHTML = '';
+  grid.shown = 0; grid.tiles = []; grid.byId.clear();
+  const n = state.filtered.length;
+  $('#resultCount').textContent = `${n.toLocaleString()} match${n === 1 ? '' : 'es'}`;
+  if (!n && state.catalog.length) el.innerHTML = '<div class="note" style="padding:20px">No cards match. Remove a filter, or press ✕ to clear them all.</div>';
+  appendTiles();
+}
+function appendTiles(count = CHUNK) {
+  const end = Math.min(state.filtered.length, grid.shown + count);
   const frag = document.createDocumentFragment();
-  for (const c of slice) {
-    const t = document.createElement('div');
-    const qty = Deck.Deck.cards.get(c.id) || 0;
-    t.className = 'card-tile' + (qty ? ' in-deck' : '');
-    t.dataset.id = c.id;
-    const owned = Auth.Session.collection ? Auth.ownedQty(c.id) : null;
-    const inkChips = c.inks.map((ink) => `<span class="ink ink-${ink}" title="${ink}"></span>`).join('');
-    const tags = roleTagsFor(c);
-    t.innerHTML = `
-      <img loading="lazy" src="${c.image}" alt="${escapeHtml(c.name + (c.title ? ' - ' + c.title : ''))}">
-      ${qty ? `<div class="qty-badge">×${qty}</div>` : ''}
-      <div class="label">
-        <div class="name" title="${escapeHtml(c.name + (c.title ? ' — ' + c.title : ''))}">${escapeHtml(c.name)}</div>
-        ${c.title ? `<div class="title">${escapeHtml(c.title)}</div>` : ''}
-        <div class="stats">
+  for (let i = grid.shown; i < end; i++) frag.appendChild(tileEl(state.filtered[i], i));
+  $('#cardGrid').appendChild(frag);
+  grid.shown = end;
+  const left = state.filtered.length - end;
+  $('#gridMore').hidden = left <= 0;
+  $('#gridMoreBtn').textContent = `Show more (${left.toLocaleString()} left)`;
+  requestAnimationFrame(moreIfNear);
+}
+// keep loading while the end of the grid is within a screen of view (a tall screen can show a whole chunk)
+function moreIfNear() {
+  const m = $('#gridMore');
+  if (m.hidden || !m.offsetParent) return;
+  if (m.getBoundingClientRect().top < innerHeight + 900) appendTiles();
+}
+function tileEl(c, i) {
+  const t = document.createElement('div');
+  t.className = 'card-tile';
+  t.dataset.id = c.id;
+  t._i = i;
+  t._full = c.name + (c.title ? ' – ' + c.title : '');
+  const owned = Auth.Session.collection ? Auth.ownedQty(c.id) : null;
+  const inkChips = c.inks.map((ink) => `<span class="ink ink-${ink}" title="${ink}"></span>`).join('');
+  t.innerHTML = `<button type="button" class="tile-main" tabindex="${i === 0 ? 0 : -1}">
+      <img loading="lazy" src="${c.image}" alt="">
+      <span class="label">
+        <span class="name">${escapeHtml(c.name)}</span>
+        ${c.title ? `<span class="title">${escapeHtml(c.title)}</span>` : ''}
+        <span class="stats">
           <span class="cost ${Deck.inkable(c) ? '' : 'uninkable'}" title="${Deck.inkable(c) ? 'Inkable' : 'Uninkable'}">${c.cost}</span>
           ${inkChips}
           ${owned ? `<span class="owned" title="Owned">own ${owned}</span>` : ''}
-        </div>
-        ${tags}
-      </div>
-    `;
-    frag.appendChild(t);
+        </span>
+        ${roleTagsFor(c)}
+      </span>
+    </button>
+    <span class="tile-qty"><button type="button" class="tile-dec" tabindex="-1" title="Take one out" aria-label="One fewer ${escapeAttr(t._full)}">−</button><b class="qty-badge"></b><button type="button" class="tile-inc" tabindex="-1" title="Add one" aria-label="One more ${escapeAttr(t._full)}">+</button></span>`;
+  updateTile(t);
+  grid.tiles.push(t);
+  grid.byId.set(c.id, t);
+  return t;
+}
+function updateTile(t) {
+  const qty = Deck.Deck.cards.get(t.dataset.id) || 0;
+  if (t._qty === qty) return;
+  t._qty = qty;
+  t.classList.toggle('in-deck', qty > 0);
+  const b = t.querySelector('.qty-badge');
+  if (!b.classList.contains('max')) b.textContent = `×${qty}`;
+  t.firstElementChild.setAttribute('aria-label', `Add ${t._full}${qty ? `, ${qty} in deck` : ''}`);
+}
+function syncTiles() { for (const t of grid.tiles) updateTile(t); }
+
+// One more or one fewer of a card, from anywhere (pool, list, keys). At the copy limit it says so (#43).
+function changeQty(id, delta) {
+  const before = Deck.Deck.cards.get(id) || 0;
+  Deck.bump(id, delta);
+  const after = Deck.Deck.cards.get(id) || 0;
+  if (after === before) { if (delta > 0 && (before > 0 || Deck.roomFor(id) === 0)) flashMax(id); return; }   // at the limit, counting other printings (#31)
+  const t = grid.byId.get(id);
+  if (t) updateTile(t);
+  renderDeck();
+  live(`${cardById(id)?.name || 'Card'}: ${after} in deck`);
+}
+function flashMax(id) {
+  const max = Deck.maxCopies(cardById(id) || {});
+  const msg = `Max ${max}`;
+  const t = grid.byId.get(id);
+  if (t) {
+    const b = t.querySelector('.qty-badge');
+    b.classList.add('max'); b.textContent = msg;
+    clearTimeout(t._maxT);
+    t._maxT = setTimeout(() => { b.classList.remove('max'); b.textContent = `×${t._qty}`; }, 1300);
   }
-  grid.appendChild(frag);
+  const q = $(`#deckList .deck-row[data-id="${CSS.escape(id)}"] .qty > span`);
+  if (q) { q.classList.add('max'); q.textContent = msg; setTimeout(() => { q.classList.remove('max'); q.textContent = Deck.Deck.cards.get(id) || 0; }, 1300); }
+  live(`${msg} copies of ${cardById(id)?.name || 'that card'}`);
+}
+function live(text) { const el = $('#poolLive'); el.textContent = ''; requestAnimationFrame(() => { el.textContent = text; }); }
+
+function gridCols() { return getComputedStyle($('#cardGrid')).gridTemplateColumns.split(' ').length || 1; }
+function focusTile(i) {
+  i = Math.max(0, Math.min(state.filtered.length - 1, i));
+  while (i >= grid.shown && grid.shown < state.filtered.length) appendTiles();
+  const t = grid.tiles[i]; if (!t) return;
+  for (const x of $$('#cardGrid .tile-main[tabindex="0"]')) x.tabIndex = -1;
+  t.firstElementChild.tabIndex = 0;
+  t.firstElementChild.focus();
+  t.scrollIntoView({ block: 'nearest' });
 }
 
-// ---------- deck list ----------
 // ---------- roles: what cards do, read off their compiled abilities (/api/cards/roles, game/procs/roles.js) ----------
 const R = { labels: {}, roles: {}, cares: {}, ready: false };
 const ROLE_ORDER = ['removal', 'draw', 'ramp', 'lore', 'protection', 'recursion', 'songs'];
@@ -552,18 +722,26 @@ function renderRoleChips() {
   const chips = ROLE_ORDER.map((k) => [k, R.labels[k] || k]);
   if (cls) chips.push([`class:${cls}`, `${titleCase(cls)} synergy`]);
   if (state.role?.startsWith('class:') && !chips.some(([k]) => k === state.role)) chips.push([state.role, `${titleCase(state.role.slice(6))} synergy`]);
-  el.innerHTML = '<span class="lbl" style="align-self:center;margin-right:4px">Does</span>' + chips.map(([k, label]) => `<button class="role ${state.role === k ? 'on' : ''}" data-role="${escapeHtml(k)}" aria-pressed="${state.role === k}">${escapeHtml(label)}</button>`).join('');
+  el.innerHTML = '<span class="lbl">Does</span>' + chips.map(([k, label]) => `<button class="role ${state.role === k ? 'on' : ''}" data-role="${escapeHtml(k)}" aria-pressed="${state.role === k}">${escapeHtml(label)}</button>`).join('');
   el.querySelectorAll('[data-role]').forEach((b) => b.onclick = () => { state.role = state.role === b.dataset.role ? null : b.dataset.role; renderRoleChips(); applyFilters(); });
 }
 function roleTagsFor(c) {
   if (!R.ready) return '';
   const r = rolesOf(c).filter((k) => k !== 'songs' || c.type !== 'song').slice(0, 2);
-  return r.length ? `<div class="tags">${r.map((k) => `<span class="tag">${escapeHtml(R.labels[k] || k)}</span>`).join('')}</div>` : '';
+  return r.length ? `<span class="tags">${r.map((k) => `<span class="tag">${escapeHtml(R.labels[k] || k)}</span>`).join('')}</span>` : '';
+}
+// the meters fold away behind "Roles" so the list keeps its room on a short screen (#35); the player's choice sticks
+const ROLES_KEY = 'ink.builder.roles';
+function rolesOpen() {
+  let v = null;
+  try { v = localStorage.getItem(ROLES_KEY); } catch { /* storage blocked */ }
+  return v ? v === '1' : innerHeight >= 900;
 }
 function renderRoleMeters() {
   const el = $('#roleMeters');
   const sug = $('#suggest');
-  if (!R.ready || !Deck.Deck.cards.size) { el.innerHTML = ''; sug.hidden = true; return; }
+  const tog = $('#rolesToggle');
+  if (!R.ready || !Deck.Deck.cards.size) { el.innerHTML = ''; sug.hidden = true; tog.hidden = true; return; }
   const n = Object.fromEntries(ROLE_ORDER.map((k) => [k, 0]));
   for (const { card, qty } of Deck.entries()) for (const k of rolesOf(card)) if (k in n) n[k] += qty;
   const total = Deck.summary().total;
@@ -576,15 +754,23 @@ function renderRoleMeters() {
       <span class="track">${t ? `<u style="left:${(t[0] / SCALE) * 100}%;width:${((t[1] - t[0]) / SCALE) * 100}%"></u>` : ''}<i style="width:${Math.min(100, (n[k] / SCALE) * 100)}%"></i></span></div>`;
   }).join('');
   el.querySelectorAll('[data-role]').forEach((m) => m.onclick = () => showRoleInInks(m.dataset.role));
-  // one suggestion at a time, once the deck has taken shape
+  const open = rolesOpen();
+  const lows = ['removal', 'draw'].filter((k) => total >= 30 && n[k] < THUMB[k][0]).length;
+  tog.hidden = false;
+  tog.setAttribute('aria-expanded', String(open));
+  $('#rolesLow').textContent = lows && !open ? ` (${lows} low)` : '';
+  el.hidden = !open;
+  // one suggestion at a time, once the deck has taken shape; one line, and it can be dismissed (#38)
   const need = total >= 20 && ['removal', 'draw'].find((k) => n[k] < THUMB[k][0]);
-  if (!need) { sug.hidden = true; renderRoleChips(); return; }
+  if (!need || sugDismissed === need) { sug.hidden = true; renderRoleChips(); return; }
   const label = (R.labels[need] || need).toLowerCase();
   const inks = Deck.summary().inks;
-  sug.innerHTML = `<span class="grow">Your deck is light on <b>${escapeHtml(label)}</b> (${n[need]}; a common rule of thumb is ${THUMB[need][0]}–${THUMB[need][1]}).</span>
-    <button class="btn btn-sm" id="sugBtn">Show ${escapeHtml(label)}${inks.length ? ` in ${inks.map(titleCase).join(' / ')}` : ''}</button>`;
+  sug.innerHTML = `<span class="txt">Light on <b>${escapeHtml(label)}</b>: ${n[need]} card${n[need] === 1 ? '' : 's'}, where ${THUMB[need][0]}–${THUMB[need][1]} is a common rule of thumb.</span>
+    <button class="linkish" id="sugBtn">Show ${escapeHtml(label)}${inks.length ? ` in ${inks.map(titleCase).join(' / ')}` : ''}</button>
+    <button class="x" id="sugX" aria-label="Dismiss this suggestion" title="Dismiss">✕</button>`;
   sug.hidden = false;
   $('#sugBtn').onclick = () => showRoleInInks(need);
+  $('#sugX').onclick = () => { sugDismissed = need; sug.hidden = true; };
   renderRoleChips();
 }
 function showRoleInInks(role) {
@@ -595,8 +781,18 @@ function showRoleInInks(role) {
   $('.mtabs button[data-pane="pool"]')?.click();
 }
 
+// ---------- deck list ----------
+// the card on the deck's tile: the chosen one, else what the server picks (lib: most copies of a character, then cost)
+function coverCard() {
+  if (Deck.Deck.cover && Deck.Deck.cards.has(Deck.Deck.cover)) return { card: cardById(Deck.Deck.cover), chosen: true };
+  const best = Deck.entries().sort((a, b) => (b.card.type === 'character') - (a.card.type === 'character') || b.qty - a.qty || (b.card.cost || 0) - (a.card.cost || 0))[0];
+  return best ? { card: best.card, chosen: false } : null;
+}
 function renderDeck() {
   const list = $('#deckList');
+  // keep keyboard focus on the same row's button across the re-render
+  const f = document.activeElement;
+  const keep = list.contains(f) ? { id: f.closest('.deck-row')?.dataset.id, act: f.dataset.act } : null;
   list.innerHTML = '';
   const groups = Deck.grouped();
   if (Deck.Deck.cover && !Deck.Deck.cards.has(Deck.Deck.cover)) Deck.Deck.cover = null;   // the cover card left the deck
@@ -613,11 +809,13 @@ function renderDeck() {
       const row = document.createElement('div');
       row.className = 'deck-row';
       row.dataset.id = card.id;
+      const full = escapeHtml(card.name + (card.title ? ' – ' + card.title : ''));
+      const isCover = Deck.Deck.cover === card.id;
       row.innerHTML = `
         <span class="cost ${Deck.inkable(card) ? '' : 'uninkable'}">${card.cost}</span>
-        <span class="name" title="${escapeHtml(card.name + (card.title ? ' - ' + card.title : ''))}">${escapeHtml(card.name)}${card.title ? ' <span class="muted">· ' + escapeHtml(card.title) + '</span>' : ''}</span>
-        <button class="cover-btn ${Deck.Deck.cover === card.id ? 'on' : ''}" data-act="cover" aria-pressed="${Deck.Deck.cover === card.id}" title="${Deck.Deck.cover === card.id ? 'This is the deck\'s cover card (click for automatic)' : 'Use as the deck\'s cover card'}">★</button>
-        <span class="qty"><button data-act="dec" aria-label="One fewer">−</button><span>${qty}</span><button data-act="inc" aria-label="One more">+</button></span>
+        <span class="name">${escapeHtml(card.name)}${card.title ? ' <span class="muted">· ' + escapeHtml(card.title) + '</span>' : ''}</span>
+        <button class="cover-btn ${isCover ? 'on' : ''}" data-act="cover" aria-pressed="${isCover}" aria-label="Cover card: ${full}" title="${isCover ? 'The cover card. Click to let Ink pick one' : 'Set as cover'}">★</button>
+        <span class="qty"><button data-act="dec" aria-label="One fewer ${full}">−</button><span>${qty}</span><button data-act="inc" aria-label="One more ${full}">+</button></span>
       `;
       section.appendChild(row);
     }
@@ -626,6 +824,7 @@ function renderDeck() {
   if (Deck.Deck.cards.size === 0) {
     list.innerHTML = `<div class="deck-empty">Empty deck. Click cards in the pool to add them.</div>`;
   }
+  if (keep?.id) list.querySelector(`.deck-row[data-id="${CSS.escape(keep.id)}"] [data-act="${keep.act}"]`)?.focus();
 
   const s = Deck.summary();
   $('#statCount').textContent = s.total;
@@ -634,11 +833,23 @@ function renderDeck() {
   $('#mtabCount').textContent = s.total;
   $('#deckInks').innerHTML = s.inks.length ? s.inks.map((i) => `<span class="ink ink-${i}" title="${i}"></span>`).join('') : '';
 
+  // the cover beside the name (#46)
+  const cov = coverCard();
+  const th = $('#coverThumb');
+  th.hidden = !cov?.card;
+  if (cov?.card) {
+    const img = th.firstElementChild;
+    if (img.getAttribute('src') !== cov.card.image) img.src = cov.card.image;
+    th.classList.toggle('chosen', cov.chosen);
+    th.title = `Cover card${cov.chosen ? '' : ' (picked for you)'}: ${cov.card.name}${cov.card.title ? ' – ' + cov.card.title : ''}. Choose another with ★ in the list.`;
+  }
+
   // ink curve: 1…7+ (0-cost folds into 1)
   const buckets = new Array(8).fill(0);
   for (const { card, qty } of Deck.entries()) buckets[Math.min(7, Math.max(1, card.cost || 0))] += qty;
   const peak = Math.max(1, ...buckets);
-  $('#curve').innerHTML = buckets.slice(1).map((n, i) => `<div class="bar" title="${n} card${n === 1 ? '' : 's'} costing ${i + 1}${i === 6 ? '+' : ''}"><b>${n || ''}</b><i style="height:${(n / peak) * 50}px"></i>${i + 1}${i === 6 ? '+' : ''}</div>`).join('');
+  $('#curve').innerHTML = buckets.slice(1).map((n, i) => `<div class="bar" title="${n} card${n === 1 ? '' : 's'} costing ${i + 1}${i === 6 ? '+' : ''}"><b>${n || ''}</b><i style="height:${(n / peak) * 26}px"></i>${i + 1}${i === 6 ? '+' : ''}</div>`).join('');
+  $('#curve').setAttribute('aria-label', 'Ink curve: ' + buckets.slice(1).map((n, i) => `${n} at ${i + 1}${i === 6 ? '+' : ''}`).join(', '));
 
   const errs = Deck.legality();
   const lab = $('#deckLegality');
@@ -646,10 +857,80 @@ function renderDeck() {
   else if (s.total === 0) { lab.textContent = ''; lab.className = 'legal'; }
   else { lab.textContent = errs[0][0].toUpperCase() + errs[0].slice(1); lab.className = 'legal bad'; lab.title = errs.join('\n'); }
   renderRoleMeters();
+  updateDirty();
+}
+
+// ---------- import: preview first, then apply (#37) ----------
+let importParsed = null;
+function listStats(cards) {
+  let total = 0, inkable = 0;
+  const inks = new Set();
+  for (const [id, q] of cards) { const c = cardById(id); if (!c) continue; total += q; if (Deck.inkable(c)) inkable += q; c.inks.forEach((i) => inks.add(i)); }
+  const problems = [];
+  if (total !== 60) problems.push(`${total} cards, not 60`);
+  if (inks.size > 2) problems.push(`${inks.size} inks`);
+  if (inkable < 30) problems.push(`${inkable} inkable, under 30`);
+  return { total, inkable, inks: INK_ORDER.filter((i) => inks.has(i)), problems };
+}
+function openImport() {
+  resetImport();
+  $('#importText').value = '';
+  const has = !!Deck.Deck.id || Deck.Deck.cards.size > 0;
+  $('#importReplaceLabel').textContent = has ? `“${deckName()}”, replacing its ${Deck.totalCount()} cards` : 'This deck';
+  openModal('#importModal');
+}
+function resetImport() {
+  importParsed = null;
+  $('#importPreview').hidden = true;
+  $('#importMode').hidden = true;
+  $('#importSubmit').hidden = true;
+  $('#importPreviewBtn').hidden = false;
+}
+function previewImport() {
+  const text = $('#importText').value;
+  const box = $('#importPreview');
+  box.hidden = false;
+  if (!text.trim()) { box.innerHTML = '<p class="warn">Paste a decklist first.</p>'; $('#importText').focus(); return; }
+  const p = Deck.parseText(text);
+  const st = listStats(p.cards);
+  const line = (id, q) => { const c = cardById(id); return `<li>${q} ${escapeHtml(c ? c.name + (c.title ? ' – ' + c.title : '') : id)}</li>`; };
+  box.innerHTML = (p.cards.length
+      ? `<p><b>${st.total} cards</b>, ${p.cards.length} different · ${st.inks.map((i) => `<span class="ink ink-${i}" title="${i}"></span>`).join(' ') || 'no inks'} · ${st.problems.length ? `<span class="warn">not legal yet: ${escapeHtml(st.problems.join(', '))}</span>` : '<span class="ok">✓ legal</span>'}</p>
+         <ul class="cols">${p.cards.map(([id, q]) => line(id, q)).join('')}</ul>`
+      : '<p class="warn">No cards recognised. Lines look like <code>4 Mickey Mouse - Brave Little Tailor</code>.</p>')
+    + (p.errs.length ? `<p class="warn">Skipped ${p.errs.length} line${p.errs.length === 1 ? '' : 's'}:</p><ul>${p.errs.map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>` : '')
+    + (p.capped.length ? `<p class="warn">Cut to the copy limit: ${escapeHtml(p.capped.join(', '))}</p>` : '');
+  if (!p.cards.length) return;
+  importParsed = p;
+  const has = !!Deck.Deck.id || Deck.Deck.cards.size > 0;
+  $('#importMode').hidden = !has;
+  $('#importPreviewBtn').hidden = true;
+  const go = $('#importSubmit');
+  go.hidden = false;
+  go.textContent = `Import ${st.total} card${st.total === 1 ? '' : 's'}`;
+  go.focus();
+}
+async function applyImport() {
+  const p = importParsed; if (!p) return;
+  const has = !!Deck.Deck.id || Deck.Deck.cards.size > 0;
+  const mode = has ? $('#importMode input:checked').value : 'new';
+  if (mode === 'new') {
+    if (!(await confirmLeave('import this list as a new deck'))) return;
+    startDeck({ name: 'Imported deck', cards: p.cards });
+  } else {
+    Deck.clear();
+    for (const [id, q] of p.cards) Deck.setQty(id, q);
+    syncTiles(); renderDeck();
+  }
+  closeModal('#importModal');
+  showNotice(`Imported ${p.total} cards${p.errs.length ? `; skipped ${p.errs.length} line${p.errs.length === 1 ? '' : 's'} we couldn't match` : ''}. Save the deck to keep it.`, !!p.errs.length);
 }
 
 // ---------- UI wiring ----------
 function wireUI() {
+  wireDialogs();
+  wireMenu();
+
   // populate the dynamic Set toggles in the builder (3-digit set ids).
   const sets = [...new Set(DB.allCards.map((c) => c.setId))].sort();
   const setsEl = $('#bSets');
@@ -658,6 +939,7 @@ function wireUI() {
     b.className = 'tog-btn';
     b.dataset.set = s;
     b.textContent = s;
+    b.setAttribute('aria-pressed', 'false');
     setsEl.appendChild(b);
   }
 
@@ -668,7 +950,10 @@ function wireUI() {
     clearTimeout(qTimer);
     qTimer = setTimeout(() => { applyFilters(); syncBuilderFromQuery(); renderChips(); }, 80);
   });
+  // from the search box, ↓ goes to the first card
+  $('#search').addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' && grid.tiles.length) { e.preventDefault(); focusTile(0); } });
   $('#searchClearBtn').addEventListener('click', () => {
+    state.role = null; renderRoleChips();
     setQuery('');
     $('#search').focus();
   });
@@ -682,15 +967,20 @@ function wireUI() {
   });
 
   // ---------- builder wiring ----------
-  $('#builderToggleBtn').addEventListener('click', () => {
-    const b = $('#builder');
-    b.classList.toggle('builder-collapsed');
-    $('#builderToggleBtn').textContent = b.classList.contains('builder-collapsed')
-      ? 'More filters ▾' : 'Fewer filters ▴';
-  });
+  const more = $('#builderMore'), moreBtn = $('#builderToggleBtn');
+  const setMore = (open, refocus) => {
+    more.hidden = !open;
+    moreBtn.setAttribute('aria-expanded', String(open));
+    if (open) more.querySelector('button, input')?.focus();
+    else if (refocus) moreBtn.focus();
+  };
+  moreBtn.addEventListener('click', () => setMore(more.hidden));
+  $('#builderDoneBtn').addEventListener('click', () => setMore(false, true));
+  more.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); setMore(false, true); } });
+  document.addEventListener('pointerdown', (e) => { if (!more.hidden && !more.contains(e.target) && !moreBtn.contains(e.target)) setMore(false); });
 
   // colored ink buttons
-  document.querySelectorAll('.ink-btn[data-color]').forEach((b) => {
+  $$('#builder .ink-btn[data-color]').forEach((b) => {
     b.addEventListener('click', () => {
       b.classList.toggle('active');
       writeBuilderToQuery();
@@ -714,7 +1004,7 @@ function wireUI() {
     });
   });
   // ensure "Any" starts pressed
-  document.querySelector('#builder [data-inkable=""]').classList.add('active');
+  setPressed(document.querySelector('#builder [data-inkable=""]'), true);
 
   // numeric + text inputs
   for (const id of ['bCostMin','bCostMax','bStrMin','bStrMax','bWpMin','bWpMax','bLoreMin','bLoreMax','bProperty','bFranchise','bName','bTitle','bText']) {
@@ -729,30 +1019,26 @@ function wireUI() {
 
   // active-chips strip
   $('#activeChips').addEventListener('click', (e) => {
-    const btn = e.target.closest('button'); if (!btn) return;
-    if (btn.dataset.act === 'clear-all') { setQuery(''); return; }
-    if (btn.dataset.token) {
-      removeToken(btn.dataset.token);
-    }
+    const btn = e.target.closest('button[data-token]'); if (!btn) return;
+    removeToken(btn.dataset.token);
+    $('#search').focus();
   });
 
   $('#ownedOnly').addEventListener('change',  (e) => { state.ownedOnly = e.target.checked; applyFilters(); });
 
-  // deck browser
+  // deck browser: an import opens as a new, unsaved deck (after asking about this one's unsaved changes)
   Decks.wire();
   $('#openDecksBtn').addEventListener('click', () => {
     Decks.open({
-      onImport: ({ deck, errs }) => {
-        Deck.Deck.id = null; Deck.Deck.shared = false;
-        setDeckName(deck.name || 'Imported deck');
-        renderGrid(); renderDeck();
-        if (errs && errs.length) {
-          alert(`Imported "${deck.name}" but ${errs.length} cards couldn't be matched in our DB:\n\n${errs.slice(0, 10).join('\n')}`);
-        }
+      onImport: async ({ name, cards, errs }) => {
+        if (!(await confirmLeave(`open “${name}”`))) return false;
+        startDeck({ name: name || 'Imported deck', cards });
+        if (errs?.length) showNotice(`Opened “${name}”, but ${errs.length} card${errs.length === 1 ? '' : 's'} couldn't be matched: ${errs.slice(0, 6).join(', ')}${errs.length > 6 ? '…' : ''}. Save it to keep it.`, true);
+        else showNotice(`Opened a copy of “${name}”. Save it to keep it in My decks.`);
+        return true;
       },
     });
   });
-
 
   // dreamborn sniffer modal
   $('#openSnifferBtn').addEventListener('click', async () => {
@@ -768,36 +1054,60 @@ function wireUI() {
     catch { document.execCommand('copy'); flash($('#snifferCopyBtn'), 'Copied!'); }
   });
 
-  // grid: left-click adds, right-click removes; hover preview
-  const grid = $('#cardGrid');
-  grid.addEventListener('click', (e) => {
+  // grid: click (or Enter) adds, right-click / long-press / − / Delete takes one out; hover or focus previews
+  const gridEl = $('#cardGrid');
+  gridEl.addEventListener('click', (e) => {
     const tile = e.target.closest('.card-tile'); if (!tile) return;
-    Deck.bump(tile.dataset.id, +1);
-    renderGrid(); renderDeck();
+    changeQty(tile.dataset.id, e.target.closest('.tile-dec') ? -1 : +1);
   });
-  grid.addEventListener('contextmenu', (e) => {
+  let lastTouch = 0;
+  gridEl.addEventListener('contextmenu', (e) => {
     const tile = e.target.closest('.card-tile'); if (!tile) return;
     e.preventDefault();
-    Deck.bump(tile.dataset.id, -1);
-    renderGrid(); renderDeck();
+    if (Date.now() - lastTouch < 1500) return;                    // a long-press on a phone: the timer below took one out
+    changeQty(tile.dataset.id, -1);
   });
+  gridEl.addEventListener('keydown', (e) => {
+    const main = e.target.closest('.tile-main'); if (!main) return;
+    const tile = main.parentElement;
+    if (['Delete', 'Backspace', '-', '_'].includes(e.key)) { e.preventDefault(); changeQty(tile.dataset.id, -1); return; }
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); changeQty(tile.dataset.id, +1); return; }
+    const cols = gridCols();
+    const to = { ArrowRight: tile._i + 1, ArrowLeft: tile._i - 1, ArrowDown: tile._i + cols, ArrowUp: tile._i - cols, Home: 0, End: grid.shown - 1, PageDown: tile._i + cols * 3, PageUp: tile._i - cols * 3 }[e.key];
+    if (to == null) return;
+    e.preventDefault();
+    if (e.key === 'ArrowUp' && tile._i < cols) { $('#search').focus(); return; }
+    focusTile(to);
+  });
+  gridEl.addEventListener('focusin', (e) => {
+    const main = e.target.closest('.tile-main'); if (!main) return;
+    if (main.tabIndex !== 0) { for (const x of $$('#cardGrid .tile-main[tabindex="0"]')) x.tabIndex = -1; main.tabIndex = 0; }
+    if (!main.matches(':focus-visible')) return;
+    const card = cardById(main.parentElement.dataset.id);
+    if (card) previewAt(card, besideRect(main.parentElement.getBoundingClientRect()), true);
+  });
+  gridEl.addEventListener('focusout', () => previewHide());
   let pressT = 0, pressed = false;
-  grid.addEventListener('touchstart', (e) => {
-    const tile = e.target.closest('.card-tile'); if (!tile) return;
-    pressed = false;
-    pressT = setTimeout(() => { pressed = true; Deck.bump(tile.dataset.id, -1); navigator.vibrate?.(15); renderGrid(); renderDeck(); }, 450);
+  gridEl.addEventListener('touchstart', (e) => {
+    const tile = e.target.closest('.card-tile'); if (!tile || e.target.closest('.tile-qty')) return;
+    pressed = false; lastTouch = Date.now();
+    pressT = setTimeout(() => { pressed = true; changeQty(tile.dataset.id, -1); navigator.vibrate?.(15); }, 450);
   }, { passive: true });
-  grid.addEventListener('touchend', (e) => { clearTimeout(pressT); if (pressed) e.preventDefault(); }, { passive: false });
-  grid.addEventListener('touchmove', () => clearTimeout(pressT), { passive: true });
-  grid.addEventListener('mousemove', (e) => {
+  gridEl.addEventListener('touchend', (e) => { clearTimeout(pressT); if (pressed) e.preventDefault(); }, { passive: false });
+  gridEl.addEventListener('touchmove', () => clearTimeout(pressT), { passive: true });
+  // a mouse only: a tap on a phone also fires mouse events, which would leave a preview stuck on the screen
+  gridEl.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
     const tile = e.target.closest('.card-tile'); if (!tile) return previewHide();
-    const id = tile.dataset.id;
-    const card = state.catalog.find((c) => c.id === id);
-    if (card) previewShow(card.image, e.clientX, e.clientY, card.type === 'location');
+    const card = cardById(tile.dataset.id);
+    if (card) previewAt(card, besideRect(tile.getBoundingClientRect()));   // beside the tile, so its −/+ and badge stay visible
   });
-  grid.addEventListener('mouseleave', previewHide);
+  gridEl.addEventListener('pointerleave', previewHide);
+  $('#gridMoreBtn').addEventListener('click', () => appendTiles());
+  grid.io = new IntersectionObserver((ents) => { if (ents.some((x) => x.isIntersecting)) appendTiles(); }, { rootMargin: '0px 0px 900px 0px' });
+  grid.io.observe($('#gridMore'));
 
-  // deck list: +/-
+  // deck list: − / + / cover
   $('#deckList').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act]'); if (!btn) return;
     const row = e.target.closest('.deck-row'); if (!row) return;
@@ -807,28 +1117,30 @@ function wireUI() {
       renderDeck();
       return;
     }
-    Deck.bump(row.dataset.id, btn.dataset.act === 'inc' ? +1 : -1);
-    renderGrid(); renderDeck();
+    changeQty(row.dataset.id, btn.dataset.act === 'inc' ? +1 : -1);
   });
-  $('#deckList').addEventListener('mousemove', (e) => {
+  // the preview opens outside the panel, beside the row, so it never covers the row's buttons (#44)
+  $('#deckList').addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
     const row = e.target.closest('.deck-row'); if (!row) return previewHide();
-    const card = DB.allCards.find((c) => c.id === row.dataset.id);
-    if (card) previewShow(card.image, e.clientX, e.clientY, card.type === 'location');
+    const card = cardById(row.dataset.id);
+    if (card) previewAt(card, besidePanel(row));
   });
-  $('#deckList').addEventListener('mouseleave', previewHide);
+  $('#deckList').addEventListener('pointerleave', previewHide);
 
-  // deck toolbar
-  $('#newDeckBtn').addEventListener('click', () => {
-    if (Deck.Deck.cards.size && !confirm('Start a new deck? Unsaved changes to this one are lost.')) return;
+  // deck panel
+  $('#myDecksBtn').addEventListener('click', openPicker);
+  $('#pickerSearch').addEventListener('input', renderPicker);
+  $('#pickerSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#pickerGrid .dtile:not(.add)')?.click(); });
+  $('#pickerGrid').addEventListener('click', (e) => { const t = e.target.closest('[data-deck]'); if (t) pickDeck(t.dataset.deck); });
+  $('#newDeckBtn').addEventListener('click', async () => {
+    if (!(await confirmLeave('start a new deck'))) return;
     newDeck();
+    $('#deckTitle').select();
   });
   $('#deckTitle').addEventListener('change', (e) => { Deck.Deck.name = e.target.value.trim() || 'Untitled deck'; });
+  $('#deckTitle').addEventListener('input', updateDirty);
   $('#deckTitle').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
-  $('#deckPicker').addEventListener('change', async (e) => {
-    const id = e.target.value; if (!id) return;
-    const d = await account.getDeck(id);
-    if (d) openDeck(d);
-  });
   $('#saveDeckBtn').addEventListener('click', async () => {
     try { await saveCurrent(); flash($('#saveDeckBtn'), 'Saved'); }
     catch (e) { alert("Can't save: " + e.message); }
@@ -850,22 +1162,27 @@ function wireUI() {
     try { await account.deleteDeck(Deck.Deck.id); newDeck(); }
     catch (e) { alert('Delete failed: ' + e.message); }
   });
+  $('#rolesToggle').addEventListener('click', () => {
+    const open = !rolesOpen();
+    try { localStorage.setItem(ROLES_KEY, open ? '1' : '0'); } catch { /* storage blocked */ }
+    renderRoleMeters();
+  });
   // test the deck: the engine plays it against other decks on the server (simui.js, lib/sim.js)
   Sim.init({
-    getDeck: () => ({ name: ($('#deckTitle').value || '').trim() || 'Untitled deck', cards: [...Deck.Deck.cards.entries()] }),
+    getDeck: () => ({ name: deckName(), cards: [...Deck.Deck.cards.entries()] }),
     onRole: (role) => showRoleInInks(role),
     // auto-fix's list replaces the deck in the builder (saved only when the player saves)
     applyCards: (cards) => {
       Deck.clear();
       for (const [id, q] of cards) Deck.setQty(String(id), q);
-      renderGrid(); renderDeck();
+      syncTiles(); renderDeck();
       showNotice('Auto-fix changes applied. Save the deck to keep them.');
     },
   });
   $('#testDeckBtn').addEventListener('click', () => Sim.open());
   // phones: pool and deck are two tabs
   $$('.mtabs button').forEach((b) => b.addEventListener('click', () => {
-    $$('.mtabs button').forEach((x) => x.classList.toggle('on', x === b));
+    $$('.mtabs button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
     $('#layout').dataset.pane = b.dataset.pane;
     window.scrollTo({ top: 0 });
   }));
@@ -913,20 +1230,18 @@ function wireUI() {
     $('#exportStatus').textContent = '✓ Downloaded ' + filename;
     flash($('#exportDownloadBtn'), 'Saved!');
   });
-  $('#importDeckBtn').addEventListener('click', () => openModal('#importModal'));
-  $('#importSubmit').addEventListener('click', () => {
-    const errs = Deck.fromText($('#importText').value);
-    $('#importError').textContent = errs.length ? errs.join(' · ') : '';
-    if (!errs.length) closeModal('#importModal');
-    renderGrid(); renderDeck();
-  });
+  $('#importDeckBtn').addEventListener('click', openImport);
+  $('#importText').addEventListener('input', () => { if (importParsed || !$('#importPreview').hidden) resetImport(); });
+  $('#importText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); importParsed ? applyImport() : previewImport(); } });
+  $('#importPreviewBtn').addEventListener('click', previewImport);
+  $('#importSubmit').addEventListener('click', applyImport);
 
   // sign-in
   $('#signInBtn').addEventListener('click', () => openModal('#signInModal'));
   $('#signOutBtn').addEventListener('click', async () => {
     await Auth.logout();
     onSignedOut();
-    if ($('#accountModal').classList.contains('show')) renderAccountModal();
+    if ($('#accountModal').open) renderAccountModal();
   });
   $('#syncCollectionBtn').addEventListener('click', async () => {
     flash($('#syncCollectionBtn'), 'Syncing…');
@@ -934,7 +1249,7 @@ function wireUI() {
       const owned = await Auth.syncCollection();
       showNotice(`Synced your Dreamborn collection: ${Object.keys(owned).length.toLocaleString()} owned printings. Tick “Owned only” to filter the pool.`);
       renderGrid();
-      if ($('#accountModal').classList.contains('show')) renderAccountModal();
+      if ($('#accountModal').open) renderAccountModal();
     } catch (e) {
       alert('Sync failed: ' + e.message);
     }
@@ -952,16 +1267,6 @@ function wireUI() {
       $('#signInError').textContent = e.message;
     }
   });
-
-  // modals
-  document.body.addEventListener('click', (e) => {
-    if (e.target.closest('[data-close-modal]') || e.target.classList.contains('modal-backdrop')) {
-      const m = e.target.closest('.modal-backdrop');
-      if (m) m.classList.remove('show');
-    }
-  });
-
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $$('.modal-backdrop.show').forEach((m) => m.classList.remove('show')); });
 
   // about link
   $('#aboutLink').addEventListener('click', (e) => {
@@ -996,31 +1301,106 @@ function onSignedOut() {
   renderGrid();
 }
 
-// ---------- modal helpers ----------
-function openModal(sel)  { $(sel).classList.add('show'); }
-function closeModal(sel) { $(sel).classList.remove('show'); }
-
-// ---------- preview popover ----------
-// Location cards are landscape but their art ships portrait, so the popout is
-// rotated 90° clockwise (see .preview.location in style.css). When rotated the
-// popover's footprint is landscape, so swap the collision-detection extents.
-function previewShow(src, x, y, isLocation = false) {
-  const p = $('#preview');
-  const img = p.querySelector('img');
-  if (img.src !== src) img.src = src;
-  p.classList.toggle('location', !!isLocation);
-  p.classList.add('show');
-  // Position: prefer right side, fall back to left
-  const W = isLocation ? 372 : 268;
-  const H = isLocation ? 276 : 380;
-  let px = x + 20, py = y - H / 2;
-  if (px + W > window.innerWidth) px = x - W - 20;
-  if (py < 8) py = 8;
-  if (py + H > window.innerHeight) py = window.innerHeight - H - 8;
-  p.style.left = px + 'px';
-  p.style.top  = py + 'px';
+// ---------- dialogs (#41) ----------
+// Every dialog is a <dialog> opened with showModal(): the page behind goes inert, Tab stays inside, Escape closes it,
+// and [autofocus] picks the field that gets focus. This adds the rest for all of them, whichever module opens one
+// (decks.js and simui.js call showModal themselves): focus goes back to whatever opened the dialog, ✕ / Cancel
+// buttons ([data-close-modal]) close it, and so does a click on the backdrop.
+function openModal(sel) { const d = typeof sel === 'string' ? $(sel) : sel; if (!d.open) d.showModal(); }
+function closeModal(sel) { const d = typeof sel === 'string' ? $(sel) : sel; if (d.open) d.close(); }
+function wireDialogs() {
+  const recent = [];                                      // the last few focused elements, newest last
+  document.addEventListener('focusin', (e) => { recent.push(e.target); if (recent.length > 8) recent.shift(); });
+  const watch = new MutationObserver((muts) => {
+    for (const m of muts) {
+      const d = m.target;
+      // showModal() has already moved focus inside, so the opener is the newest element outside this dialog
+      if (d.open && m.oldValue === null) d._opener = [...recent].reverse().find((x) => x.isConnected && !d.contains(x)) || null;
+    }
+  });
+  for (const d of $$('dialog')) {
+    watch.observe(d, { attributes: true, attributeFilter: ['open'], attributeOldValue: true });
+    d.addEventListener('close', () => {
+      const back = d._opener; d._opener = null;
+      // after any other close handlers have run (one may open a deck, or close the dialog underneath it)
+      if (back) setTimeout(() => back.isConnected && back.focus(), 0);
+    });
+  }
+  let downOutside = null;
+  const outside = (d, e) => { const r = d.getBoundingClientRect(); return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom; };
+  document.addEventListener('pointerdown', (e) => { downOutside = e.target instanceof HTMLDialogElement && outside(e.target, e) ? e.target : null; });
+  document.addEventListener('click', (e) => {
+    const x = e.target.closest('[data-close-modal]');
+    if (x) { x.closest('dialog')?.close(); return; }
+    if (e.target instanceof HTMLDialogElement && e.target === downOutside && outside(e.target, e)) e.target.close();
+  });
 }
-function previewHide() { $('#preview').classList.remove('show'); }
+
+// ---------- the ⋯ deck menu (#35) ----------
+function wireMenu() {
+  const btn = $('#deckMenuBtn'), menu = $('#deckMenu');
+  const items = () => [...menu.querySelectorAll('[role=menuitem]')].filter((b) => !b.hidden);
+  const open = () => { menu.hidden = false; btn.setAttribute('aria-expanded', 'true'); items()[0]?.focus(); };
+  const close = (refocus) => { if (menu.hidden) return; menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (refocus) btn.focus(); };
+  btn.addEventListener('click', () => (menu.hidden ? open() : close(true)));
+  btn.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown') { e.preventDefault(); open(); } });
+  // capture: shut the menu (focus back on ⋯) before the item's own handler opens a dialog, so the dialog hands
+  // focus back to ⋯ and not to a hidden menu item
+  menu.addEventListener('click', (e) => { if (e.target.closest('[role=menuitem]')) close(true); }, true);
+  menu.addEventListener('keydown', (e) => {
+    const list = items(); const i = list.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length].focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+    else if (e.key === 'Home') { e.preventDefault(); list[0].focus(); }
+    else if (e.key === 'End') { e.preventDefault(); list.at(-1).focus(); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+    else if (e.key === 'Tab') close(false);
+  });
+  document.addEventListener('pointerdown', (e) => { if (!menu.contains(e.target) && !btn.contains(e.target)) close(false); });
+}
+
+// ---------- preview popover (#44) ----------
+// About min(380px, 48vh) wide so the rules text reads. It waits ~150ms before it first appears, so sweeping the
+// mouse across the grid doesn't flash cards, then follows without a delay. Location cards are landscape but their
+// art ships portrait, so the image is turned 90° in a landscape box (see .preview.location in style.css).
+const pv = { timer: 0, shown: false };
+function previewSize(isLocation) {
+  const w = Math.min(380, innerHeight * 0.48), h = w * 1024 / 734;
+  return isLocation ? [h, w] : [w, h];
+}
+function previewAt(card, place, now = false) {
+  const go = () => {
+    const p = $('#preview');
+    const img = p.firstElementChild;
+    const loc = card.type === 'location';
+    const [W, H] = previewSize(loc);
+    const xy = place(W, H);
+    if (!xy) { previewHide(); return; }
+    if (img.getAttribute('src') !== card.image) img.src = card.image;
+    p.classList.toggle('location', loc);
+    p.style.left = xy[0] + 'px';
+    p.style.top = xy[1] + 'px';
+    p.classList.add('show');
+    pv.shown = true;
+  };
+  clearTimeout(pv.timer);
+  if (pv.shown || now) go(); else pv.timer = setTimeout(go, 150);
+}
+function previewHide() { clearTimeout(pv.timer); pv.shown = false; $('#preview').classList.remove('show'); }
+const clampY = (y, H) => Math.max(8, Math.min(innerHeight - H - 8, y));
+// beside a tile: right of it, or left when there's no room
+const besideRect = (r) => (W, H) => {
+  const x = r.right + 12 + W <= innerWidth - 8 ? r.right + 12 : r.left - W - 12;
+  return x < 8 ? null : [x, clampY(r.top + r.height / 2 - H / 2, H)];
+};
+// outside the deck panel, level with the row
+function besidePanel(row) {
+  return (W, H) => {
+    const pr = $('.deckpanel').getBoundingClientRect(), rr = row.getBoundingClientRect();
+    const x = pr.left - W - 14;
+    return x < 8 ? null : [x, clampY(rr.top + rr.height / 2 - H / 2, H)];
+  };
+}
 
 // ---------- misc ----------
 function escapeHtml(s) {

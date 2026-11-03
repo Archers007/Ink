@@ -1,0 +1,43 @@
+/* The admin coach (public/js/play/coach.js): a panel docked at the top of the right column, over the log (the table's
+   inkwell, lore and hand stay clear), and gold rings on the cards the highlighted suggestion uses. */
+#coachBox { position: fixed; right: 14px; top: 54px; width: 290px; box-sizing: border-box; z-index: 4; background: rgba(14, 17, 40, .98);
+  border: 1px solid var(--gilt, #d9b45a); border-radius: 14px; padding: 10px 12px; box-shadow: 0 14px 34px rgba(0,0,0,.55);
+  font: 14px/1.35 var(--font-ui, system-ui); color: var(--fg, #eef0ff); }
+#coachBox[hidden] { display: none; }
+#coachBox .cb-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+#coachBox .cb-title { font: 400 17px/1 var(--font-display, serif); color: var(--gilt-hi, #f1dca0); }
+#coachBox .cb-sub { flex: 1; font-size: 12px; color: var(--mist, #b8bedf); }
+#coachBox .cb-eval { font-size: 15px; }
+#coachBox .up { color: var(--ok, #7fd99a); } #coachBox .down { color: var(--ember, #ff8a6b); }
+#coachBox .cb-x { background: none; border: 0; color: var(--mist, #b8bedf); font-size: 15px; cursor: pointer; min-width: 32px; min-height: 32px; border-radius: 8px; }
+#coachBox .cb-x:hover { background: rgba(255,255,255,.08); color: var(--fg, #fff); }
+#coachBox ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+#coachBox li { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 9px; border: 1px solid transparent; cursor: default; }
+#coachBox li.on { background: rgba(217, 180, 90, .12); border-color: rgba(217, 180, 90, .45); }
+#coachBox li:focus-visible { outline: 2px solid var(--gilt, #d9b45a); }
+#coachBox .cb-rank { flex: none; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #2a3270; font: 800 11px/1 var(--font-ui, system-ui); }
+#coachBox li:first-child .cb-rank { background: var(--gilt, #d9b45a); color: #241a05; }
+#coachBox .cb-label { flex: 1; min-width: 0; }
+#coachBox .cb-score { flex: none; font-variant-numeric: tabular-nums; }
+#coachBox .cb-note { margin: 2px 0; color: var(--mist, #b8bedf); font-size: 13px; }
+#coachBox .cb-think::after { content: ''; display: inline-block; width: 10px; height: 10px; margin-left: 8px; border: 2px solid var(--gilt, #d9b45a); border-right-color: transparent; border-radius: 50%; animation: cbspin .8s linear infinite; vertical-align: -1px; }
+@keyframes cbspin { to { transform: rotate(360deg); } }
+#coachMarks .cm { position: fixed; z-index: 2; pointer-events: none; border: 3px solid var(--gilt-hi, #f1dca0); border-radius: 10px;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.35), 0 0 18px rgba(255, 210, 110, .75); transition: left .12s, top .12s, width .12s, height .12s; }
+#coachMarks .cm:not(.main) { border-style: dashed; box-shadow: 0 0 12px rgba(255, 210, 110, .45); }
+/* the card the move is about: a numbered gold badge on its corner (the move's rank in the list) */
+#coachMarks .cm.main::before { content: attr(data-n); position: absolute; top: -13px; left: -13px; width: 24px; height: 24px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--gilt, #d9b45a); color: #241a05; font: 800 13px/1 var(--font-ui, system-ui); box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+#coachBtn.on { border-color: var(--gilt, #d9b45a); color: var(--gilt-hi, #f1dca0); }
+/* phones: one line where the ticker sits (the best move and its score); tap it for the full list; hidden off-turn */
+body.mobile #coachBox { left: 50%; right: auto; bottom: auto; top: calc(34px + var(--sat, 0px)); transform: translateX(-50%); width: min(420px, 60vw);
+  font-size: 13px; padding: 3px 6px; border-radius: 12px; }
+body.mobile #coachBox.idle { display: none; }
+body.mobile #coachBox:not(.open) .cb-head { display: none; }
+body.mobile #coachBox:not(.open) li:not(:first-child) { display: none; }
+body.mobile #coachBox li { padding: 4px 6px; min-height: 36px; cursor: pointer; }
+body.mobile #coachBox:not(.open) li:first-child::after { content: '▾'; color: var(--mist, #b8bedf); margin-left: 2px; }
+body.mobile #coachBox .cb-sub { display: none; }
+body.mobile.coaching #ticker { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { #coachMarks .cm { transition: none; } #coachBox .cb-think::after { animation: none; } }
+@media (max-width: 1100px) { #coachBox { width: 230px; } }

@@ -20,7 +20,8 @@ export function init(options) { ctx = options; }
 export async function open() {
   const deck = ctx.getDeck();
   $('#simDeckName').textContent = deck.name || 'this deck';
-  $('#simModal').classList.add('show');
+  const dlg = $('#simModal');
+  if (!dlg.open) dlg.showModal();                        // a <dialog>: app.js hands focus back when it closes
   if (run && !last?.done) return;                        // a test is running: keep showing it
   await renderSetup(deck);
 }
@@ -96,7 +97,7 @@ async function poll() {
   try {
     const j = await api(`/api/sim/${run.id}`);
     last = j;
-    if ($('#simModal').classList.contains('show')) renderRun(j);
+    if ($('#simModal').open) renderRun(j);
     if (!j.done) run.timer = setTimeout(poll, POLL_MS);
   } catch (e) {
     $('#simBody').innerHTML = `<div class="strip bad"><span class="txt">${esc(e.message)}</span></div>`;
@@ -122,7 +123,7 @@ function renderRun(j) {
   $('#simAgain')?.addEventListener('click', () => { run = null; last = null; fix = null; renderSetup(ctx.getDeck()); });
   $('#simFix')?.addEventListener('click', () => { if (!fix || fix.run !== j.id) fix = { run: j.id, state: 'setup', locks: new Set() }; renderRun(j); $('#simBody').scrollTop = 0; });
   bindFix(j);
-  body.querySelectorAll('[data-role]').forEach((b) => b.onclick = () => { $('#simModal').classList.remove('show'); ctx.onRole(b.dataset.role); });
+  body.querySelectorAll('[data-role]').forEach((b) => b.onclick = () => { $('#simModal').close(); ctx.onRole(b.dataset.role); });
 }
 
 function previewHtml(f) {
@@ -174,14 +175,14 @@ function bindFix(j) {
     } catch (e) { alert(e.message); }
   });
   $('#fixStop')?.addEventListener('click', () => api(`/api/sim/autofix/${fix.job}/cancel`, { method: 'POST' }).catch(() => {}));
-  $('#fixApply')?.addEventListener('click', () => { ctx.applyCards(fix.data.cards); $('#simModal').classList.remove('show'); });
+  $('#fixApply')?.addEventListener('click', () => { ctx.applyCards(fix.data.cards); $('#simModal').close(); });
 }
 async function pollFix(j) {
   if (!fix?.job) return;
   try {
     fix.data = await api(`/api/sim/autofix/${fix.job}`);
     fix.state = fix.data.state === 'running' ? 'running' : 'done';
-    if ($('#simModal').classList.contains('show') && last?.id === j.id) renderRun(last);
+    if ($('#simModal').open && last?.id === j.id) renderRun(last);
     if (fix.data.state === 'running') setTimeout(() => pollFix(j), 1500);
   } catch (e) { fix.state = 'done'; fix.data = { ...(fix.data || {}), state: 'failed', error: e.message, rounds: [], changes: [] }; renderRun(last); }
 }

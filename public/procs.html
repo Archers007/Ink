@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ink · Cards</title>
+<title>Ink · Card rules</title>
 <meta name="theme-color" content="#080b1f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,17 @@
   header { display: flex; gap: 24px; align-items: center; padding: 14px 28px; border-bottom: 1px solid rgba(241,220,160,.1); background: rgba(8,11,31,.6); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 2; }
   header .tabs { padding-top: 8px; }
   #q { flex: 1; max-width: 560px; }
-  #cov { color: var(--mute); font-size: 12px; white-space: nowrap; cursor: pointer; }
+  #cov { color: var(--mute); font-size: 12px; white-space: nowrap; cursor: pointer; margin-right: auto; }
+  .acct { display: inline-flex; align-items: center; }
+  .acct .who { display: inline-flex; align-items: center; gap: 8px; color: var(--fg); font-weight: 600; text-decoration: none; }
+  .signin-dlg { width: min(400px, 92vw); padding: 20px 22px 22px; border-radius: 16px; border: 1px solid var(--line-2); background: var(--ink-table); color: var(--fg); }
+  .signin-dlg::backdrop { background: rgba(4,5,14,.72); }
+  .signin-dlg .sd-head { display: flex; align-items: center; justify-content: space-between; }
+  .signin-dlg .x { background: none; border: 0; color: var(--mute); font-size: 18px; cursor: pointer; min-width: 44px; min-height: 44px; }
+  .signin-dlg .field { display: flex; flex-direction: column; gap: 6px; color: var(--mute); font-size: 13px; }
+  .signin-dlg h2 { margin: 0; }
+  .signin-dlg [hidden] { display: none; }
+  @media (pointer: coarse) { .signin-dlg .sf-tabs button, .signin-dlg .field-in, header .btn { min-height: 44px; } }
   main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 67px); }
   #list { overflow: auto; border-right: 1px solid var(--line); }
   #list .meta { padding: 8px 12px; color: var(--mute); font-size: 12px; border-bottom: 1px solid var(--line); }
@@ -62,15 +72,24 @@
 <body>
 <header>
   <a class="brandmark" href="/">Ink</a>
-  <nav class="tabs" aria-label="Sections"><a href="/play">Play</a><a href="/">Decks</a><a href="/procs" aria-current="page">Cards</a></nav>
+  <nav class="tabs" aria-label="Sections"><a href="/play">Play</a><a href="/">Decks</a><a href="/procs" aria-current="page" title="How the rules engine reads each card: its abilities and the effects they run">Card rules</a></nav>
   <input id="q" class="field-in" placeholder="Search a card… (try: hades · fn:draw · kind:static · ev:quest · status:manual)" autocomplete="off" autofocus>
   <span id="cov" title="How many abilities the engine runs by itself. Click for stats."></span>
+  <!-- the same top bar as the builder (#48): Browse decks and the account -->
+  <a class="btn btn-quiet btn-sm" href="/#browse" title="Decks other Ink players shared, and public decks from dreamborn.ink">Browse decks</a>
+  <span id="acct" class="acct"></span>
 </header>
+<dialog id="signIn" class="signin-dlg" aria-labelledby="signInTitle">
+  <div class="sd-head"><h2 id="signInTitle">Sign in</h2><button class="x" aria-label="Close" data-close-dlg>✕</button></div>
+  <p class="hint">Sign in so your decks follow you between phone and desktop.</p>
+  <div id="signInBody"></div>
+</dialog>
 <main>
   <section id="list"><div class="meta">loading…</div></section>
   <section id="detail"></section>
 </main>
 <script type="module">
+import * as account from '/js/account.js';
 const $ = (s) => document.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const IMG = (id) => `https://cdn.dreamborn.ink/images/en/cards/${id}`;
@@ -161,6 +180,19 @@ async function showStats() {
 }
 $('#cov').onclick = showStats;
 
+// the account, as on the builder's top bar: a Sign in button, or who you are
+account.load().then(() => {
+  const u = account.user();
+  $('#acct').innerHTML = u
+    ? `<a class="who" href="/play" title="Signed in">${u.avatar ? `<img class="avatar" src="${esc(u.avatar)}" alt="">` : `<span class="avatar">${esc(u.name.slice(0, 1).toUpperCase())}</span>`}<span>${esc(u.name)}</span></a>`
+    : '<button class="btn btn-sm" id="signInBtn">Sign in</button>';
+  $('#signInBtn')?.addEventListener('click', () => {
+    $('#signInBody').innerHTML = account.signInForm({ next: location.pathname + location.search });
+    account.bindSignInForm($('#signInBody'), () => location.reload());
+    $('#signIn').showModal();
+  });
+}).catch(() => {});
+$('[data-close-dlg]').onclick = () => $('#signIn').close();
 api('/api/procs/stats').then((s) => { $('#cov').textContent = `⚡ ${s.pct}% of abilities · ${s.auto}/${s.cards} cards automatic`; }).catch(() => {});
 const params = new URLSearchParams(location.search);
 if (params.has('card')) { $('#q').value = params.get('card'); runSearch().then(() => show(params.get('card'))); }

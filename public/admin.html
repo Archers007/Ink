@@ -31,8 +31,14 @@
   .msg { font-size: 13px; color: var(--muted); }
   .msg.err { color: var(--ember); }
   .issues { display: flex; flex-direction: column; gap: 8px; }
-  .iss { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 10px; align-items: start; background: var(--ink-panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
-  .iss .num { color: var(--muted); font-weight: 700; }
+  .iss { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: start; background: var(--ink-panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .iss[data-open] { cursor: pointer; }
+  .iss[data-open]:hover { border-color: rgba(217,180,90,.35); }
+  .iss .num { color: var(--muted); font-weight: 700; display: flex; align-items: center; gap: 2px; }
+  .iss:not([data-open]) .num { padding-left: 20px; }   /* line the numbers up with rows that have a toggle */
+  .chev { width: 18px; flex: none; background: none; border: 0; padding: 0; color: var(--gilt); font-size: 15px; line-height: 1; cursor: pointer; }
+  .chev:hover, .iss[data-open]:hover .chev { color: var(--gilt-hi); }
+  .iss .t .ext { font-size: 11px; color: var(--muted); font-weight: 400; }
   .iss .t { font-weight: 700; }
   .iss .t a { color: var(--fg); text-decoration: none; }
   .iss .t a:hover { color: var(--gilt-hi); }
@@ -46,9 +52,14 @@
   table.hist td:nth-child(3) { line-height: 1.5; }
   .iss .acts { display: flex; gap: 6px; flex-direction: column; align-items: flex-end; }
   .iss .acts button, .iss .acts a { font-size: 12px; padding: 4px 9px; }
-  .iss .body { font-size: 12.5px; color: var(--mist); margin-top: 6px; white-space: pre-wrap; max-height: 5.4em; overflow: hidden; }
-  .iss.open .body { max-height: none; }
-  .iss .shot { max-width: 220px; border-radius: 8px; margin-top: 6px; display: block; }
+  /* closed rows show three whole lines of the body; open ones all of it, with the screenshots */
+  .iss .body { font-size: 12.5px; line-height: 1.45; color: var(--mist); margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+  .iss:not(.open) .body { white-space: normal; }   /* the preview runs paragraphs together instead of spending a line on a gap */
+  .iss.open .body { display: block; -webkit-line-clamp: none; line-clamp: none; }
+  .imgchip { display: inline-block; font-size: 11px; line-height: 1.5; padding: 0 7px; border-radius: 7px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .shots { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .iss:not(.open) .shots { display: none; }
+  .iss .shot { max-width: 220px; max-height: 160px; object-fit: cover; border-radius: 8px; display: block; border: 1px solid var(--line); }
   table.users { width: 100%; border-collapse: collapse; font-size: 14px; }
   table.users th, table.users td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   table.users th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
@@ -65,6 +76,9 @@
   .switch input { width: 20px; height: 20px; }
   .warn { background: rgba(217,120,60,.12); border: 1px solid rgba(217,120,60,.4); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }
   .gate { max-width: 520px; margin: 80px auto; text-align: center; }
+  .gate h1 { font-size: 30px; margin: 0 0 6px; }
+  .gate .gate-form { text-align: left; max-width: 380px; margin: 18px auto; }
+  .gate-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 </style>
 </head>
 <body>
