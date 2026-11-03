@@ -5,6 +5,7 @@ import { IMG, CARD_W, CARD_H } from './textures.js';
 import { install, installable } from '../pwa.js';
 import * as account from '../account.js';
 import { createCoach } from './coach.js';
+import { createReview } from './review.js';
 import {
   LORE_TO_WIN, KEYWORD_HELP, KEYWORD_LABEL, cardLabel, prettyText, effectiveKeywords,
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker, singValue,
@@ -1094,7 +1095,7 @@ function renderPhaseModals() {
       S.overDrawn = drawKey;
       // against the bot, the next game is one click (#68): ready and start with the same deck; Change deck opens the room
       const vsBot = you() >= 0 && !!S.room?.seats?.some((s) => s?.bot);
-      const rp = replay ? '<button id="watchReplay">Watch replay</button>' : saving ? '<button id="watchReplay" disabled>Saving replay…</button>' : '';
+      const rp = replay ? '<button id="watchReplay" title="The replay, with the engine rating both players\' moves">Game review</button>' : saving ? '<button id="watchReplay" disabled>Saving replay…</button>' : '';
       const next = you() < 0 || !S.room ? ''
         : vsBot ? '<button id="changeDeck">Change deck</button><button class="hot" id="playAgain">Play again</button>'
         : '<button class="hot" id="rematch">Back to room</button>';
@@ -1570,6 +1571,7 @@ async function loadReplay(id, seat = null) {
     const u = new URL(location.href); u.searchParams.set('replay', id); u.searchParams.delete('room'); history.replaceState(null, '', u);
     clearTargeting(); S.selected = null; closeModal();
     showFrame(0);
+    review.open(S.replay);                                            // starts the engine if the game isn't reviewed yet
     if (j.error) toast(j.error, 'err');
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -1608,30 +1610,7 @@ function exitReplay() {
   $('#replayBar').hidden = true;
   renderAll(); renderLobby(); refreshExtras();
 }
-// engine review of the watched seat's moves (lib/replays.js → game/analysis/review.js)
-async function startReview() {
-  const R = S.replay;
-  if (!R || R.review || R.reviewing) { if (R?.review) { R.showReview = !R.showReview; renderReview(); } return; }
-  const url = `/api/replays/${encodeURIComponent(R.id)}/review`;
-  try {
-    const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ seat: R.data.seat }) });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || 'Could not start the review.');
-    R.reviewing = { progress: [0, 0] };
-    renderReplayBar();
-    const poll = async () => {
-      if (S.replay !== R) return;
-      const g = await fetch(`${url}?seat=${R.data.seat}`).then((x) => x.json()).catch(() => null);
-      if (g?.state === 'done') { R.review = g.review; R.reviewing = null; R.showReview = true; renderReplayBar(); return; }
-      if (g?.state === 'failed') { R.reviewing = null; toast(`Review failed: ${g.error}`, 'err'); renderReplayBar(); return; }
-      R.reviewing = { progress: g?.progress || [0, 0], ahead: g?.ahead };
-      renderReview();
-      setTimeout(poll, 1000);
-    };
-    poll();
-  } catch (e) { toast(e.message, 'err'); }
-}
-const CLS = { best: ['Best', 'best'], good: ['Good', 'good'], inaccuracy: ['Inaccuracy', 'inac'], mistake: ['Mistake', 'mist'], blunder: ['Blunder', 'blun'], forced: ['Only move', 'forced'] };
+// the game review: both players' accuracy, the eval graph and each move rated (./review.js, lib/replays.js)
 // the engine names a by-hand move by its action type ("mill"): the Tools dialog's words instead (#73)
 const HAND_MOVES = {
   mill: 'Top card → discard', draw: 'Draw (Tools)', shuffle: 'Shuffle', lore: 'Lore ±1 (Tools)', inkPay: 'Pay / ready ink (Tools)',
@@ -1640,36 +1619,8 @@ const HAND_MOVES = {
   clearMods: 'Clear modifiers', reveal: 'Reveal to opponent',
 };
 const moveName = (s) => HAND_MOVES[s] || s || '?';
-function renderReview() {
-  const R = S.replay, el = $('#reviewBox');
-  if (!R || (!R.review && !R.reviewing) || (R.review && R.showReview === false)) { el.hidden = true; return; }
-  // on a desktop it sits at the top of the right column, over the log, so it covers none of the table; phones keep
-  // it floating, with one scrolling row of dots (play.css)
-  const home = isMobile() ? $('#hud') : $('#side');
-  if (el.parentElement !== home) home.prepend(el);
-  el.hidden = false;
-  const bar = $('#replayBar');                                         // phones: just under the replay bar, however it wraps
-  el.style.top = isMobile() && !bar.hidden ? `${Math.round(bar.getBoundingClientRect().bottom + 6)}px` : '';
-  if (!R.review) {
-    const [d, t] = R.reviewing.progress;
-    el.innerHTML = `<span class="lbl">Engine review</span> <span class="muted small">${R.reviewing.ahead > 1 ? `waiting (${R.reviewing.ahead - 1} ahead)` : t ? `${d} of ${t} moves analyzed` : 'starting…'}</span>`;
-    return;
-  }
-  const rv = R.review, fr = R.data.frames;
-  const next = rv.moves.find((m) => m.k === fr[R.i].k + 1);       // the move made from the position on screen
-  const frameOf = (k) => fr.findIndex((f) => f.k === k - 1);
-  const fmt = (x) => (x >= 150 ? 'wins' : x <= -150 ? 'loses' : `${x > 0 ? '+' : ''}${x}`);
-  el.innerHTML = `<div class="rv-head"><span class="lbl">Engine review · ${esc(R.data.seats[rv.seat].name)}</span>
-      <b class="rv-acc">${rv.accuracy ?? '—'}<small>% accuracy</small></b>
-      <span class="rv-counts">${['best', 'good', 'inaccuracy', 'mistake', 'blunder'].map((c) => `<span class="rv-c ${CLS[c][1]}">${rv.counts[c]} ${CLS[c][0].toLowerCase()}</span>`).join('')}</span>
-      <button class="sm ghost" id="rvX" aria-label="Hide review">✕</button></div>
-    <div class="rv-strip">${rv.moves.map((m) => `<button class="rv-dot ${CLS[m.cls][1]} ${next === m ? 'on' : ''}" data-jump="${frameOf(m.k)}" title="Turn ${m.turn}: ${esc(moveName(m.played))} · ${CLS[m.cls][0]}${m.loss ? ` (−${m.loss})` : ''}" aria-label="Turn ${m.turn}: ${esc(moveName(m.played))}, ${CLS[m.cls][0]}"></button>`).join('')}</div>
-    ${next ? `<div class="rv-now"><span class="rv-c ${CLS[next.cls][1]}">${CLS[next.cls][0]}</span> <b>${esc(moveName(next.played))}</b>${next.loss ? ` <span class="muted">−${next.loss} lore</span>` : ''}
-      ${next.cls !== 'best' && next.best ? `<span class="muted"> · engine: </span>${esc(moveName(next.best))} <span class="muted">(${fmt(next.bestScore)})</span>` : next.cls === 'best' ? '<span class="muted"> · the engine agrees</span>' : ''}
-      <span class="muted small"> · eval ${fmt(next.eval)}</span></div>` : '<div class="rv-now muted small">Step to one of their moves (the dots) to see how it rates.</div>'}`;
-  $('#rvX').onclick = () => { R.showReview = false; renderReview(); };
-  el.querySelectorAll('[data-jump]').forEach((b) => b.onclick = () => { stopReplay(); showFrame(Math.max(0, +b.dataset.jump)); });
-}
+const review = createReview({ replay: () => S.replay, showFrame, stopReplay, isMobile, esc, moveName, toast, onChange: () => renderReplayBar() });
+
 function renderReplayBar() {
   const R = S.replay, el = $('#replayBar');
   if (!R) { el.hidden = true; return; }
@@ -1684,7 +1635,7 @@ function renderReplayBar() {
     <span class="rp-pos">Move ${R.i} of ${fr.length - 1} · turn ${f.view.turn}</span>
     <select aria-label="Speed"><option value="0.5">½×</option><option value="1" ${R.speed === 1 ? 'selected' : ''}>1×</option><option value="2" ${R.speed === 2 ? 'selected' : ''}>2×</option><option value="4" ${R.speed === 4 ? 'selected' : ''}>4×</option></select>
     <button class="sm" data-rp="seat" title="Watch from the other player's side">View as ${esc(seats[1 - R.data.seat].name)}</button>
-    <button class="sm" data-rp="review" title="The engine rates every move ${esc(seats[R.data.seat].name)} made">${R.review ? 'Review ✓' : R.reviewing ? 'Reviewing…' : 'Engine review'}</button>
+    <button class="sm" data-rp="review" title="The engine rates every move both players made, with a graph of the game">${{ done: R.showReview === false ? 'Show review' : 'Hide review', running: 'Reviewing…', failed: 'Review', none: 'Review' }[review.state(R)]}</button>
     <button class="sm ghost" data-rp="exit">Exit</button>`;
   el.querySelectorAll('[data-rp]').forEach((b) => b.onclick = () => {
     const k = b.dataset.rp;
@@ -1698,9 +1649,9 @@ function renderReplayBar() {
     if (k === 'nturn') turnJump(1);
     if (k === 'seat') loadReplay(R.id, 1 - R.data.seat).then(() => showFrame(Math.min(R.i, S.replay.data.frames.length - 1)));
     if (k === 'exit') exitReplay();
-    if (k === 'review') startReview();
+    if (k === 'review') review.toggle();
   });
-  renderReview();
+  review.render();
   el.querySelector('input[type=range]').oninput = (e) => { stopReplay(); showFrame(+e.target.value); };
   el.querySelector('select').onchange = (e) => { R.speed = +e.target.value; if (R.timer) { stopReplay(); playReplay(); } };
 }
@@ -1861,6 +1812,7 @@ function applyDevice() {
   board.setMobile(mob);
   board.setPortrait(pm);
   updateInsets();
+  if (S.replay) review.render();                                      // the review moves between the side column and the floating panel
 }
 // the midline pill ("Your turn · 7") sits on the table's centre line
 function placeMidline() {
