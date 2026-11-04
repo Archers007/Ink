@@ -62,6 +62,20 @@ async function boot() {
   }
   await refreshDeckMeta();
 
+  // /?adminDeck=<id> (the admin page's "Open copy in builder"): an unsaved copy of a player's deck. The server only
+  // answers admins; saving it puts the copy in the admin's own account and never touches the owner's deck.
+  const adminDeck = new URLSearchParams(location.search).get('adminDeck');
+  if (adminDeck) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    try {
+      const r = await fetch('/api/admin/decks/' + encodeURIComponent(adminDeck), { credentials: 'same-origin' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `couldn't open that deck (${r.status})`);
+      startDeck({ name: `${j.deck.name} (${j.deck.author || 'player'})`.slice(0, 60), cards: j.deck.cards });
+      showNotice(`Viewing a copy of ${j.deck.author || 'a player'}'s deck "${j.deck.name}". Saving keeps the copy in your account; theirs isn't changed.`);
+    } catch (e) { showNotice(e.message, true); }
+  }
+
   // /#browse (the "Browse decks" link on other pages) opens the deck browser
   if (location.hash === '#browse') { history.replaceState(null, '', location.pathname + location.search); $('#openDecksBtn').click(); }
 

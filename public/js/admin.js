@@ -14,7 +14,7 @@ const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000))
 const STATUS_LABEL = { queued: 'Queued for the worker', creating: 'Filing on GitHub…', issue: 'Issue filed', agent: 'Claude is on it', pr: 'PR open', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
 const KIND_LABEL = { filed: 'Filed', issue: 'Issue', agent: 'Claude', pr: 'Pull request', done: 'Done', failed: 'Failed', cancelled: 'Cancelled', queued: 'Queued', switch: 'Switch' };
 
-const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, activity: null, showClosed: false, open: new Set(), image: null, timer: null, formMsg: null, sending: false };
+const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, activity: null, showClosed: false, open: new Set(), image: null, timer: null, formMsg: null, sending: false, userDecks: {}, openUsers: new Set(), openDecks: new Set() };
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
@@ -215,10 +215,44 @@ function reportsHtml() {
 
 function usersHtml() {
   const admin = S.user.role === 'admin';
+  const cols = admin ? 5 : 4;
+  // admins open a player's decks from the count, private ones included
+  const deckCell = (u) => admin && u.decks > 0
+    ? `<button class="btn btn-quiet btn-sm" data-udecks="${u.id}" aria-expanded="${S.openUsers.has(u.id)}" title="See ${esc(u.name)}'s decks">${u.decks} ${S.openUsers.has(u.id) ? '▴' : '▾'}</button>`
+    : u.decks;
   return `<table class="users"><thead><tr><th>Name</th>${admin ? '<th>Email</th>' : ''}<th>Role</th><th>Decks</th><th>Joined</th></tr></thead><tbody>
     ${S.users.map((u) => `<tr><td>${esc(u.name)}</td>${admin ? `<td class="note">${esc(u.email || '')}</td>` : ''}<td>${admin && u.id !== S.user.id
-      ? `<select data-role="${u.id}">${['user', 'moderator', 'admin'].map((r) => `<option ${u.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select>` : esc(u.role)}</td><td>${u.decks}</td><td class="note">${new Date(u.created).toLocaleDateString()}</td></tr>`).join('')}
+      ? `<select data-role="${u.id}">${['user', 'moderator', 'admin'].map((r) => `<option ${u.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select>` : esc(u.role)}</td><td>${deckCell(u)}</td><td class="note">${new Date(u.created).toLocaleDateString()}</td></tr>
+      ${S.openUsers.has(u.id) ? `<tr class="udecks"><td colspan="${cols}">${userDecksHtml(u.id)}</td></tr>` : ''}`).join('')}
   </tbody></table>`;
+}
+function userDecksHtml(uid) {
+  const got = S.userDecks[uid];
+  if (!got) return '<p class="note">Loading decks…</p>';
+  if (got.error) return `<p class="note">Couldn't load the decks: ${esc(got.error)}</p>`;
+  if (!got.decks.length) return '<p class="note">No decks.</p>';
+  return `<div class="udeck-list">${got.decks.map((d) => {
+    const open = S.openDecks.has(d.id);
+    const list = [...(d.list || [])].sort((a, b) => (a.cost ?? 99) - (b.cost ?? 99) || a.name.localeCompare(b.name));
+    return `<div class="udeck ${open ? 'open' : ''}">
+      <div class="udeck-head" data-udeck="${esc(d.id)}" role="button" tabindex="0" aria-expanded="${open}">
+        <span class="inks">${(d.inks || []).map((c) => `<span class="inkdot ink-${esc(c)}" title="${esc(c)}"></span>`).join('')}</span>
+        <b>${esc(d.name)}</b>
+        <span class="vis ${d.shared ? 'shared' : 'private'}">${d.shared ? 'Shared' : 'Private'}</span>
+        <span class="note">${d.size ?? '?'} cards${d.legal === false ? ' · not legal' : ''} · ${new Date(d.updated).toLocaleDateString()}</span>
+        <span class="spacer"></span>
+        <a class="btn btn-quiet btn-sm" href="/?adminDeck=${encodeURIComponent(d.id)}" target="_blank" rel="noopener" title="Opens an unsaved copy in the deck builder; their deck isn't changed">Open copy in builder ↗</a>
+      </div>
+      ${open ? `<ul class="udeck-cards">${list.map((c) => `<li><span class="q">${c.qty}×</span> ${esc(c.name)} <span class="note">${c.cost ?? '?'}◆ · ${esc((c.inks || []).join('/'))}</span></li>`).join('')}</ul>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+async function toggleUserDecks(uid) {
+  if (S.openUsers.has(uid)) { S.openUsers.delete(uid); fillUsers(); return; }
+  S.openUsers.add(uid); fillUsers();
+  try { S.userDecks[uid] = await api(`/api/admin/users/${uid}/decks`); }
+  catch (x) { S.userDecks[uid] = { error: x.message }; }
+  fillUsers();
 }
 
 // invite links: make one for a role, send it; whoever opens it signs in or creates an account and claims the role
@@ -237,6 +271,8 @@ function invitesHtml() {
 }
 async function loadUsersTab() {
   S.users = (await api('/api/admin/users')).users;
+  S.userDecks = {};
+  for (const uid of S.openUsers) api(`/api/admin/users/${uid}/decks`).then((j) => { S.userDecks[uid] = j; }, (x) => { S.userDecks[uid] = { error: x.message }; }).then(() => { if (S.users) fillUsers(); });
   if (S.user.role === 'admin') S.invites = (await api('/api/admin/invites')).invites;
   fillUsers();
 }
@@ -279,6 +315,10 @@ app.addEventListener('click', async (e) => {
   }
   const cp = t.closest('#invCopy');
   if (cp) { try { await navigator.clipboard.writeText(S.newLink); cp.textContent = 'Copied'; } catch { window.prompt('Copy the link:', S.newLink); } return; }
+  const ud = t.closest('[data-udecks]');
+  if (ud) { toggleUserDecks(Number(ud.dataset.udecks)); return; }
+  const dk = t.closest('[data-udeck]');
+  if (dk && !t.closest('a')) { const id = dk.dataset.udeck; if (S.openDecks.has(id)) S.openDecks.delete(id); else S.openDecks.add(id); fillUsers(); return; }
   const rv = t.closest('[data-revoke]');
   if (rv) { try { await api(`/api/admin/invites/${rv.dataset.revoke}/revoke`, { method: 'POST' }); await loadUsersTab(); } catch (x) { alert(x.message); } return; }
   // anywhere else on an expandable row opens or closes it — but not links, buttons, or a drag to select text
@@ -286,7 +326,7 @@ app.addEventListener('click', async (e) => {
   if (row && !t.closest('a,button,select,input') && !String(getSelection()).trim()) toggleRow(row.dataset.open);
 });
 app.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.id === 'closedToggle') { e.preventDefault(); e.target.click(); }
+  if ((e.key === 'Enter' || e.key === ' ') && (e.target.id === 'closedToggle' || e.target.matches?.('[data-udeck]'))) { e.preventDefault(); e.target.click(); }
 });
 app.addEventListener('change', async (e) => {
   const sel = e.target.closest('[data-role]');
