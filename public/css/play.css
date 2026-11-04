@@ -788,3 +788,84 @@ body.pmode #revealed { top: calc(var(--ptop, 120px) + 4px); max-width: calc(100v
   background: radial-gradient(circle at 50% 42%, rgba(217,180,90,.45) 0 14%, transparent 15%), repeating-linear-gradient(45deg, #1b2350 0 6px, #141b40 6px 12px); }
 body.mobile #revealed .rc, body.mobile #revealed .pick > .rc { width: 66px; }
 @media (prefers-reduced-motion: reduce) { #revealed .pick.flip > * { animation: none; } }
+/* ---------- duels.ink-style overlays (main.js previewInfo / cardKey / requestEndTurn, overlay.js) ---------- */
+/* a key on an action button; keyboards only */
+kbd.k { margin-left: 8px; font: 700 10.5px/1 var(--font-ui); padding: 3px 5px; border-radius: 5px; border: 1px solid currentColor; opacity: .7; vertical-align: 1px; }
+body.mobile kbd.k { display: none; }
+#endTurn kbd.k { opacity: .65; }
+/* the hover panel: under the picture, the card's live numbers and what it can do now, each with its key */
+#hud #preview.acts { pointer-events: auto; width: clamp(250px, calc(40vh * .717), 330px); max-height: calc(100vh - 128px); overflow: auto; }
+#preview .pv-info:empty { display: none; }
+#preview .pv-info { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+#preview .pv-facts { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; background: rgba(14,17,40,.94); border: 1px solid var(--line); border-radius: 12px; padding: 7px 9px; }
+#preview .pv-facts .insp-stats { margin: 0 6px 0 0; }
+#preview .pv-acts { display: flex; flex-direction: column; gap: 5px; }
+#preview .pv-acts .act { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 6px 10px; font-size: 14px; background: #141a44; border: 1px solid var(--line-2); border-radius: 10px; }
+#preview .pv-acts .act:hover:not(:disabled) { border-color: var(--gilt); background: var(--ink-panel-2); }
+#preview .pv-acts .act.hot { background: linear-gradient(180deg, var(--gilt-hi), var(--gilt-lo)); color: #241a05; border-color: #f6e6b4; }
+#preview .pv-acts .act:disabled { background: rgba(8,11,31,.92); color: var(--mist); }
+#preview .pv-acts .act:disabled kbd { opacity: .35; }
+
+/* the big turn banner across the table's middle line */
+#hud #turnCue { z-index: 7; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap; font: 400 clamp(36px, 6.5vw, 64px)/1 var(--font-display);
+  color: #fff; letter-spacing: .02em; text-shadow: 0 4px 18px rgba(0,0,0,.85), 0 0 2px rgba(0,0,0,.9); padding: 14px 44px; border-radius: 999px;
+  background: radial-gradient(closest-side, rgba(8,11,31,.6), rgba(8,11,31,0)); }
+#turnCue.mine { color: var(--vellum); text-shadow: 0 4px 18px rgba(0,0,0,.85), 0 0 26px rgba(217,180,90,.65); }
+#turnCue.theirs { font-size: clamp(26px, 4.4vw, 44px); color: var(--mist); }
+#turnCue.go { animation: turncue 1.7s ease-out forwards; }
+@keyframes turncue { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.82); } 14% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+  24% { transform: translate(-50%, -50%) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+body.mobile #turnCue { font-size: 34px; } body.mobile #turnCue.theirs { font-size: 24px; }
+
+/* their turn: the End turn button waits, with a turning hourglass */
+#endTurn.waiting { background: rgba(14,17,40,.9); color: var(--mist); border: 1px solid var(--line); opacity: 1; }
+#endTurn .hg { display: inline-block; animation: hourglass 2.4s ease-in-out infinite; }
+@keyframes hourglass { 0%, 40% { transform: rotate(0); } 50%, 90% { transform: rotate(180deg); } 100% { transform: rotate(360deg); } }
+
+/* the spotlight: what the opponent just played or used, and the card you're choosing targets for, large at the right
+   edge above the turn buttons */
+#hud #spot { z-index: 4; right: 14px; bottom: 80px; width: 172px; display: flex; flex-direction: column; gap: 6px; align-items: stretch;
+  background: rgba(14,17,40,.94); border: 1px solid var(--line-2); border-radius: 14px; padding: 8px; box-shadow: 0 18px 40px rgba(0,0,0,.6); }
+#spot.flash { border-color: var(--ember); box-shadow: 0 18px 40px rgba(0,0,0,.6), 0 0 22px rgba(255,143,134,.35); }
+#spot.src { border-color: var(--glimmer); }
+#spot.in { animation: spotin .28s ease-out; }
+@keyframes spotin { from { opacity: 0; transform: translateX(30px) scale(.94); } }
+#spot .sp-cap { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ember); }
+#spot.src .sp-cap { color: var(--glimmer); }
+#spot .sp-card { cursor: zoom-in; border-radius: 9px; overflow: hidden; }
+#spot .sp-card img { display: block; width: 100%; aspect-ratio: 734 / 1024; }
+#spot .sp-card.land { aspect-ratio: 1024 / 734; position: relative; }
+#spot .sp-card.land img { position: absolute; width: 71.7%; left: 14.15%; top: -19.7%; transform: rotate(90deg); }
+#spot .sp-sub { font: 400 14px/1.25 var(--font-display); color: var(--vellum); }
+body.replaying #hud #spot { bottom: 14px; }
+/* phones: a small card under the top bar, between the rails */
+body.mobile #hud #spot { right: auto; left: 50%; bottom: auto; top: calc(34px + var(--sat)); transform: translateX(-50%); width: auto; flex-direction: row; align-items: center; padding: 5px 8px; gap: 8px; }
+body.mobile #spot .sp-card { width: 58px; flex: none; }
+body.mobile #spot .sp-cap { order: -1; max-width: 84px; font-size: 10px; line-height: 1.25; }
+body.mobile #spot .sp-sub { font-size: 13px; max-width: 140px; }
+body.pmode #hud #spot { top: calc(var(--ptop, 120px) + 4px); }
+
+/* the end-turn check */
+.end-left { margin: 4px 0 12px; padding-left: 20px; line-height: 1.5; }
+.m-endturn .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--mist); }
+
+/* the log by player: yours green, theirs orange, the game's own lines plain; turns as dividers */
+#log .l.me { border-left: 3px solid var(--ok); padding-left: 7px; }
+#log .l.them { border-left: 3px solid #ff9d4d; padding-left: 7px; }
+#log .l.me::before { content: none; }
+#log .l.me:not(.effect):not(.manual):not(.challenge):not(.quest):not(.banish):not(.warn):not(.turn) { color: #c9f3d8; }
+#log .l.them:not(.effect):not(.manual):not(.challenge):not(.quest):not(.banish):not(.warn):not(.turn) { color: #ffd8b8; }
+#log .l.turn { border-left: 0; padding-left: 0; text-align: center; font-size: 12px; letter-spacing: .04em; margin: 8px 0 4px; }
+#log .l.turn.me { color: var(--ok); } #log .l.turn.them { color: #ffb36b; }
+.help .keys kbd { margin: 0 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #turnCue.go { animation: turncue-fade 1.2s linear forwards; }
+  #endTurn .hg, #spot.in { animation: none; }
+}
+@keyframes turncue-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+/* lore gained, rising off the plate's dial (main.js loreGain) */
+#hud > .lore-gain { z-index: 6; transform: translate(-50%, -100%); pointer-events: none; font: 800 18px/1 var(--font-ui); color: var(--ok);
+  text-shadow: 0 2px 8px rgba(0,0,0,.8); animation: loregain 1.4s ease-out forwards; }
+@keyframes loregain { 0% { opacity: 0; transform: translate(-50%, -60%); } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -190%); } }
+@media (prefers-reduced-motion: reduce) { #hud > .lore-gain { animation: turncue-fade 1.4s linear forwards; } }

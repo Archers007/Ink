@@ -162,31 +162,110 @@ function canvasTex(key, w, h, draw) {
   return t;
 }
 
-// Red damage counter with a number.
-export function damageTex(n) {
-  return canvasTex(`dmg:${n}`, 128, 128, (g, w, h) => {
-    g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 10;
-    const grd = g.createRadialGradient(w * 0.4, h * 0.35, 6, w / 2, h / 2, w / 2);
-    grd.addColorStop(0, '#ff6b6b'); grd.addColorStop(1, '#a3101c');
-    g.fillStyle = grd;
-    g.beginPath(); g.arc(w / 2, h / 2, w / 2 - 8, 0, Math.PI * 2); g.fill();
-    g.shadowBlur = 0;
-    g.lineWidth = 6; g.strokeStyle = '#ffd6d6'; g.stroke();
-    g.fillStyle = '#fff'; g.font = `800 ${n >= 10 ? 56 : 68}px ${FONT}`;
-    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), w / 2, h / 2 + 4);
+// Damage token: a raised red rounded square reading "−N" (a smaller minus, condensed digits so 10+ fits). Severe (one
+// more point banishes it) turns it orange; the board pulses a halo behind it.
+export function damageTex(n, severe = false) {
+  return canvasTex(`dmg:${n}:${severe ? 1 : 0}`, 144, 144, (g, w, h) => {
+    const m = 12, r = 30;
+    g.shadowColor = 'rgba(0,0,0,0.65)'; g.shadowBlur = 12; g.shadowOffsetY = 4;
+    const grd = g.createLinearGradient(0, m, 0, h - m);
+    if (severe) { grd.addColorStop(0, '#ffab55'); grd.addColorStop(0.55, '#ff5a1f'); grd.addColorStop(1, '#e0361c'); }
+    else { grd.addColorStop(0, '#f2444a'); grd.addColorStop(0.5, '#dc2430'); grd.addColorStop(1, '#bb1523'); }
+    g.fillStyle = grd; roundRect(g, m, m, w - 2 * m, h - 2 * m, r); g.fill();
+    g.shadowColor = 'transparent';
+    g.lineWidth = 5; g.strokeStyle = 'rgba(40,0,0,0.55)'; roundRect(g, m + 3, m + 3, w - 2 * m - 6, h - 2 * m - 6, r - 3); g.stroke();
+    // top highlight
+    const hl = g.createLinearGradient(0, m, 0, h / 2);
+    hl.addColorStop(0, 'rgba(255,255,255,0.38)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = hl; roundRect(g, m + 6, m + 5, w - 2 * m - 12, h / 2 - m, r - 6); g.fill();
+    const num = String(n);
+    g.textBaseline = 'middle'; g.fillStyle = '#fff';
+    g.shadowColor = 'rgba(60,0,0,0.6)'; g.shadowBlur = 4;
+    const big = `900 ${num.length > 1 ? 70 : 82}px ${FONT}`, small = `800 ${num.length > 1 ? 52 : 60}px ${FONT}`;
+    g.font = small; const mw = g.measureText('−').width * 0.8;
+    g.font = big; const nw = g.measureText(num).width;
+    const total = mw + nw, room = w - 2 * m - 14;
+    const sx = total > room ? room / total : 1;             // condense rather than clip
+    g.save(); g.translate(w / 2, h / 2 + 4); g.scale(sx, 1);
+    let x = -total / 2;
+    g.font = small; g.globalAlpha = 0.92; g.textAlign = 'left'; g.fillText('−', x, -2); x += mw;
+    g.font = big; g.globalAlpha = 1; g.fillText(num, x, 0);
+    g.restore();
+  });
+}
+
+// A soft round halo (white, tinted by the material) for pulsing glows behind tokens.
+export function haloTex() {
+  return canvasTex('halo', 128, 128, (g, w, h) => {
+    const grd = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    grd.addColorStop(0, 'rgba(255,255,255,0.9)'); grd.addColorStop(0.45, 'rgba(255,255,255,0.45)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
+  });
+}
+
+// Keyword / buff chip for a card's bottom-left corner: "SINGER 5", "⚔+2". `ring` marks one granted by another card.
+export function chipTex(text, bg, ring = false) {
+  measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
+  measureCtx.font = `800 40px ${FONT}`;
+  const w = Math.ceil(measureCtx.measureText(text).width) + 30;
+  return canvasTex(`chip:${text}:${bg}:${ring ? 1 : 0}`, Math.max(64, w), 60, (g, cw, ch) => {
+    g.shadowColor = 'rgba(0,0,0,0.55)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+    g.fillStyle = bg; roundRect(g, 3, 3, cw - 6, ch - 6, 12); g.fill();
+    g.shadowColor = 'transparent';
+    g.lineWidth = ring ? 5 : 3; g.strokeStyle = ring ? '#b6ffcf' : 'rgba(0,0,0,0.35)'; g.stroke();
+    g.fillStyle = '#fff'; g.font = `800 40px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, cw / 2, ch / 2 + 2);
+  });
+}
+
+// Dashed, card-shaped placeholder for the inkwell slot a card can still go into this turn.
+export function ghostSlotTex() {
+  return canvasTex('ghost-slot', 252, 352, (g, w, h) => {
+    g.fillStyle = 'rgba(120,160,255,0.10)'; roundRect(g, 8, 8, w - 16, h - 16, 18); g.fill();
+    g.setLineDash([22, 14]); g.lineWidth = 7; g.strokeStyle = 'rgba(220,232,255,0.75)';
+    roundRect(g, 8, 8, w - 16, h - 16, 18); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = 'rgba(220,232,255,0.8)'; g.font = `800 56px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('INK', w / 2, h / 2);
+  });
+}
+
+// Label on a dark pill (the challenge outcome preview: "3 dmg", "BANISH").
+export function labelTex(text, color = '#fff', bg = 'rgba(0,0,0,0.78)') {
+  measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
+  measureCtx.font = `900 54px ${FONT}`;
+  const w = Math.ceil(measureCtx.measureText(text).width) + 48;
+  return canvasTex(`label:${text}:${color}:${bg}`, Math.max(96, w), 84, (g, cw, ch) => {
+    g.fillStyle = bg; roundRect(g, 3, 3, cw - 6, ch - 6, 20); g.fill();
+    g.lineWidth = 3; g.strokeStyle = color; g.globalAlpha = 0.7; g.stroke(); g.globalAlpha = 1;
+    g.font = `900 54px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = color; g.shadowBlur = color === '#fff' ? 0 : 14;
+    g.fillStyle = color; g.fillText(text, cw / 2, ch / 2 + 3);
   });
 }
 
 // Stat strip under a card: [{icon, value, base}] — value colored vs base. Tall cells and big numerals: the strip is
 // ~2 world units tall on the table, which is only 15–20px on screen (#91).
+// Each cell widens with its number, so a two-digit value (10+ strength, willpower or lore) stays inside the box
+// instead of clipping its edge (#106); a one-digit cell keeps the old 92px.
+let measureCtx = null;
+function valueWidth(text) {
+  measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
+  measureCtx.font = `900 58px ${FONT}`;
+  return measureCtx.measureText(text).width;
+}
 export function statsTex(items) {
   const key = 'st:' + items.map((i) => `${i.icon}${i.value}/${i.base}/${i.extra || ''}`).join('|');
-  const cellW = 92;
-  return canvasTex(key, cellW * items.length, 84, (g, w, h) => {
+  const BASE = 92;
+  const cells = items.map((it) => BASE + Math.max(0, Math.ceil(valueWidth(String(it.value) + (it.extra || ''))) - 38));
+  const total = cells.reduce((a, b) => a + b, 0);
+  const t = canvasTex(key, total, 84, (g, w, h) => {
     g.fillStyle = 'rgba(10,12,28,0.92)'; roundRect(g, 2, 2, w - 4, h - 4, 20); g.fill();
     g.strokeStyle = 'rgba(217,180,90,0.95)'; g.lineWidth = 4; g.stroke();
+    let x0 = 0;
     items.forEach((it, i) => {
-      const x = i * cellW + cellW / 2;
+      const x = x0 + BASE / 2;       // icon ends just left of here, the value starts here and takes the extra width
+      x0 += cells[i];
       const col = it.value > it.base ? '#6dff9a' : it.value < it.base ? '#ff7d7d' : '#ffffff';
       g.font = `700 32px ${FONT}`; g.textBaseline = 'middle'; g.textAlign = 'right';
       g.fillStyle = it.iconColor || '#f2dc9b'; g.fillText(it.icon, x - 6, h / 2 + 2);
@@ -194,6 +273,8 @@ export function statsTex(items) {
       g.fillText(String(it.value) + (it.extra || ''), x - 2, h / 2 + 4);
     });
   });
+  t.userData.cells = items.length * BASE / total;   // the share of the width a one-digit strip would take
+  return t;
 }
 
 // Small pill label (status chips: DRYING, +Evasive, ×2 under, counts).

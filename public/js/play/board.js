@@ -12,8 +12,11 @@
 import * as THREE from 'three';
 import {
   CARD_W, CARD_H, initTextures, faceTexture, faceTextureHi, backTexture, damageTex, statsTex, pillTex, numberTex, floatTex, tableTex, sweepTex,
+  haloTex, chipTex, ghostSlotTex,
 } from './textures.js';
-import { LORE_TO_WIN, KEYWORD_LABEL } from './rules.js';
+import { LORE_TO_WIN, KEYWORD_LABEL, modSum } from './rules.js';
+import { AURA, computeAuras, challengeTargets, challengeOutcome, myMove } from './signals.js';
+import { Arrow } from './arrow.js';
 
 const W = CARD_W, H = CARD_H;
 // Every card in a row gets an exerted-wide slot, so exerting or readying one turns it in place instead of shoving
@@ -23,11 +26,25 @@ const SPELL = new Set(['action', 'song']);
 const IMPACT_MS = 250;     // a challenge's hit lands this far into the lunge
 const LUNGE_MS = 560;
 const CAST_HOLD_MS = 900;  // how long a played action/song shows at the cast pose (#92)
+// the keywords a card in play wears as bottom-left chips (duels.ink style: violet Singer, red Challenger, …)
+const KW_CHIP = {
+  singer: { label: (n) => `SINGER ${n}`, bg: '#7c3aed' },
+  challenger: { label: (n) => `CHALL +${n}`, bg: '#dc2626' },
+  resist: { label: (n) => `RESIST ${n}`, bg: '#475569' },
+  evasive: { label: () => 'EVASIVE', bg: '#0e9488' },
+  ward: { label: () => 'WARD', bg: '#64748b' },
+  bodyguard: { label: () => 'GUARD', bg: '#9f1239' },
+  rush: { label: () => 'RUSH', bg: '#ea580c' },
+  reckless: { label: () => 'RECKLESS', bg: '#b91c1c' },
+  support: { label: () => 'SUPPORT', bg: '#15803d' },
+  alert: { label: () => 'ALERT', bg: '#0369a1' },
+  vanish: { label: () => 'VANISH', bg: '#6d28d9' },
+};
 
 // Table layout (z mirrored for the far player).
 const DESK = {
   charZ: 6.4, rowZ: 16.6, handZ: 35, oppHandZ: 26.5,
-  deckX: 31, discardX: 39.5, inkX: -40.5, inkStep: 1.15, inkW: 13,
+  deckX: 31, discardX: 39.5, inkX: -40.5, inkStep: 1.15, inkW: 16,
   // the lore dial sits in the corner between the character row and the inkwell, clear of both (#96)
   loreX: -41, loreZ: 5.4, loreS: 0.82,
   rowMinX: -20, rowMaxX: 25, charMinX: -35, charMaxX: 36,
@@ -216,8 +233,34 @@ class CardObj {
     this.outer.scale.setScalar(s);
     if (this.badges.children.length) {
       this.badges.position.set(c.x + ox, c.y + oy + 0.12, c.z + oz);
-      const half = ((Math.abs(Math.cos(c.yaw)) * H + Math.abs(Math.sin(c.yaw)) * W) / 2) * c.scale;   // footprint depth / 2
-      for (const b of this.badges.children) { const a = b.userData.anchor; if (a) b.position.y = a.edge * half + a.off; }
+      const yc = Math.abs(Math.cos(c.yaw)), ys = Math.abs(Math.sin(c.yaw));
+      const half = ((yc * H + ys * W) / 2) * c.scale;   // footprint depth / 2
+      const halfW = ((yc * W + ys * H) / 2) * c.scale;  // footprint width / 2
+      for (const b of this.badges.children) {
+        const a = b.userData.anchor;
+        if (!a) continue;
+        b.position.y = (a.edge + (a.frac || 0)) * half + a.off;
+        if (a.xedge != null) b.position.x = a.xedge * halfW + a.xoff;
+      }
+      this.animBadges(now);
+    }
+  }
+  // the damage token punches when damage lands and its halo pulses while it's one point from banishing the card
+  animBadges(now) {
+    for (const b of this.badges.children) {
+      const k = b.userData.anim;
+      if (!k) continue;
+      const base = b.userData.base;
+      if (k === 'dmg') {
+        const p = (now - (this.dmgPunch || 0)) / 350;
+        const s = p >= 0 && p < 1 ? 1 + 0.45 * Math.sin(Math.PI * p) : 1;
+        b.scale.set(base.x * s, base.y * s, 1);
+      } else if (k === 'halo') {
+        const w = 0.5 + 0.5 * Math.sin((now / 1600) * Math.PI * 2);
+        b.material.opacity = 0.35 + 0.5 * w;
+        const s = 1 + 0.18 * w;
+        b.scale.set(base.x * s, base.y * s, 1);
+      }
     }
   }
   tick(dt, now) {
@@ -266,11 +309,15 @@ class CardObj {
       this.hiOn = !!hi;
     }
     // glow
-    const want = this.glowColor ? 1 : 0;
+    // selection / targeting glows pulse at full strength; an action aura is a quiet rim that wakes up under the cursor
     if (this.glowColor) this.glowMat.color.set(this.glowColor);
-    const pulse = this.glowColor ? 0.75 + 0.25 * Math.sin(now / 180) : 0;
-    this.glowMat.opacity = damp(this.glowMat.opacity, want * pulse, 14, dt) * this.opacity;
+    let want = 0, wob = 1;
+    if (this.glowColor && this.glowMode === 'aura') want = 0.5 + 0.1 * Math.sin(now / 520);
+    else if (this.glowColor && this.glowMode === 'auraHover') { want = 0.78 + 0.18 * Math.sin(now / 110); wob = 1 + 0.025 * Math.sin(now / 75); }
+    else if (this.glowColor) want = 0.75 + 0.25 * Math.sin(now / 180);
+    this.glowMat.opacity = damp(this.glowMat.opacity, want, 14, dt) * this.opacity;
     this.glow.visible = this.glowMat.opacity > 0.01;
+    this.glow.scale.set(wob, 1 + (wob - 1) * 0.7, 1);
     const dimTarget = this.dimmed ? 0.45 : 1;
     const col = this.frontMat.color;
     col.setScalar(damp(col.r, dimTarget, 10, dt));
@@ -307,18 +354,19 @@ class CardObj {
     for (const ch of [...this.badges.children]) { this.badges.remove(ch); ch.material.dispose(); }
     build(this.badges);
   }
-  // Invisible pick area at a hand card's resting slot, so hover-lift doesn't
+  // Invisible pick area at a hand or play card's resting slot, so hover-lift doesn't
   // move the card out from under the cursor.
   setProxy(t) {
     if (!t) { if (this.proxy) this.proxy.visible = false; return; }
     if (!this.proxy) {
       this.proxy = new THREE.Mesh(GEO.card, this.board.proxyMat);
+      this.proxy.rotation.order = 'YXZ';   // yaw on the table, then the tilt: the same as outer + inner
       this.proxy.userData.card = this;
       this.board.cardLayer.add(this.proxy);
     }
     this.proxy.visible = true;
     this.proxy.position.set(t.x, t.y, t.z);
-    this.proxy.rotation.set(-Math.PI / 2 + t.tilt, 0, 0);
+    this.proxy.rotation.set(-Math.PI / 2 + t.tilt, t.yaw || 0, 0);
     this.proxy.scale.setScalar(t.scale);
   }
   dispose() {
@@ -395,7 +443,17 @@ export class Board {
     this.scene.add(this.zoneOutlines);
     this.floaters = [];
     this.timers = [];
-    this.ui = { selected: null, targets: new Set(), multi: new Set(), targetColor: 0x6fa8ff };
+    this.ui = { selected: null, targets: new Set(), multi: new Set(), targetColor: 0x6fa8ff, arrowFrom: null };
+    // board-state signals (duels.ink style): action auras, the targeting arrow with its outcome preview, the ink slot.
+    // setOptions({ auras: false }) turns them off; 'ink.signals' = 'off' in localStorage starts them off.
+    let stored = null;
+    try { stored = localStorage.getItem('ink.signals'); } catch { /* private window */ }
+    this.opts = { auras: stored !== 'off', arrows: stored !== 'off' };
+    this.auras = new Map();      // iid -> AURA key: what each of my cards can do right now
+    this.inkedNow = new Map();   // ink slot key -> { cardId, turn }: inked this turn, shown face up
+    this.loreSeen = [];
+    this.arrow = new Arrow(this.scene);
+    this.aim = null;             // { from, to, color, labels, noArrow }
     this.rowScroll = {};      // portrait lanes: how far each row is swiped (world units)
     this.rowMax = {};
     this.view = null;
@@ -667,6 +725,11 @@ export class Board {
     p.inkLabel = badgePlane(pillTex('INK 0/0'), 6, 0, 0);
     p.inkLabel.rotation.x = -Math.PI / 2;
     group.add(p.inkLabel);
+    p.ghost = new THREE.Mesh(GEO.unit, new THREE.MeshBasicMaterial({ map: ghostSlotTex(), transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false }));
+    p.ghost.rotation.x = -Math.PI / 2;
+    p.ghost.visible = false;
+    p.ghost.userData.zone = { zone: 'inkwell', seat };
+    group.add(p.ghost);
     // lore dial: 20 segments around a big number; the active player's halo hugs the ring (#96)
     p.lore = new THREE.Group();
     p.lore.position.set(L.loreX, 0.02, sign * L.loreZ);
@@ -724,11 +787,15 @@ export class Board {
     // lore dial
     if (p.shownLore !== pl.lore) {
       const up = pl.lore > p.shownLore && p.shownLore >= 0;
+      const gained = pl.lore - p.shownLore;
       p.shownLore = pl.lore;
       p.loreNum.material.map = numberTex(String(pl.lore), pl.lore >= 15 ? '#ffd34d' : '#f2dc9b', `/ ${LORE_TO_WIN}`);
       p.loreNum.material.needsUpdate = true;
       p.segs.forEach((m, i) => m.material.color.set(i < pl.lore ? (i >= 15 ? 0xffc93a : 0xd9b45a) : 0x2b2f52));
-      if (up) p.lorePulse = 1;
+      if (up) {
+        p.lorePulse = 1;
+        this.floatText(`+${gained}`, '#7dffa0', { x: L.loreX + 1.2, z: sign * L.loreZ - 1 }, 0.25);   // the transient green "+N"
+      }
     }
     if (p.lorePulse > 0) {
       p.lorePulse = Math.max(0, p.lorePulse - this.dt * 1.6);
@@ -744,8 +811,15 @@ export class Board {
   render(view, defs, events = []) {
     this.view = view;
     this.defs = defs;
-    if (!view) { for (const c of this.cards.values()) c.dispose(); this.cards.clear(); return; }
+    if (!view) { for (const c of this.cards.values()) c.dispose(); this.cards.clear(); this.auras = new Map(); this.aim = null; this.arrow.hide(); return; }
     const me = view.you >= 0 ? view.you : 0;
+    this.auras = this.opts.auras && !this.replaying() ? computeAuras(view, defs) : new Map();
+    for (const [k, v] of this.inkedNow) if (v.turn !== view.turn) this.inkedNow.delete(k);
+    view.players.forEach((pl, seat) => {
+      const was = this.loreSeen[seat];
+      if (was != null && pl.lore > was && events.length) this.cb.onLoreGain?.({ seat, n: pl.lore - was, mine: seat === view.you });
+      this.loreSeen[seat] = pl.lore;
+    });
     const now = performance.now();
     const off = this.offTable();
     const seen = new Set();
@@ -822,6 +896,7 @@ export class Board {
         o.info = { iid: c.iid, zone: 'play', seat, cardId: c.cardId };
         o.dimmed = false;
         o.setBadges('', () => {});
+        o.setProxy(null);                                             // no pick area left behind in the hand
         put(o, this.parkPose());
         if (!o.castShown) this.castAt(o, now);
       }
@@ -838,15 +913,45 @@ export class Board {
       });
 
       // ---- inkwell (facedown slots; ready ones first) ----
-      for (let i = 0; i < (off ? 0 : pl.inkTotal); i++) {
+      // One row while it fits; past that, two rows per column a third of a card apart (the front row over the back
+      // one, the cards a little smaller so both rows fit the zone's depth without reaching the character row's stat
+      // strips), and the columns close up as the well grows, so even 30+ cards stay inside the zone (#105)
+      const inkN = off ? 0 : pl.inkTotal;
+      // while I can still ink this turn, a dashed slot waits where the next card will land (laid out as one more card,
+      // so inking doesn't shuffle the rest)
+      const canInk = !off && mine && this.opts.auras && !this.replaying() && myMove(view) && (pl.inkedThisTurn ?? 0) < (pl.inkLimit ?? 1)
+        && (pl.hand || []).some((h) => defs[h.cardId]?.inkable || pl.rules?.handInkable);
+      const slots = inkN + (canInk ? 1 : 0);
+      const inkSpanAt = (s) => L.inkW - 1.5 - (H * s) / 2 - 0.3;      // first to last centre: an exerted card is H wide
+      const inkRows = slots > Math.floor(inkSpanAt(0.92) / L.inkStep) + 1 ? 2 : 1;
+      const inkScale = inkRows > 1 ? 0.85 : 0.92;
+      const inkCols = Math.ceil(slots / inkRows);
+      const inkStep = Math.min(L.inkStep, inkSpanAt(inkScale) / Math.max(1, inkCols - 1));
+      const inkSlot = (i) => ({ x: L.inkX + Math.floor(i / inkRows) * inkStep, z: sign * (L.rowZ + (inkRows > 1 ? (i % 2 ? 2 : -0.6) : 0)) });
+      for (let i = 0; i < inkN; i++) {
         const key = `ink:${seat}:${i}`;
         const o = get(key, anchor(seat, 'hand'));
-        o.setHidden();
-        o.info = { zone: 'inkwell', seat, slot: i };
+        // the card inked this turn stays face up (inking reveals it) until the turn passes, then turns over
+        const fresh = this.inkedNow.get(key);
+        const faceUp = fresh && fresh.turn === view.turn && view.status === 'playing';
+        if (faceUp) o.setFace(fresh.cardId); else o.setHidden();
+        o.info = { zone: 'inkwell', seat, slot: i, ...(faceUp ? { cardId: fresh.cardId } : {}) };
         o.dimmed = false;
         o.setBadges('', () => {});
         const exerted = i >= pl.inkReady - (pl.inkDrops || 0);
-        put(o, { x: L.inkX + i * L.inkStep, y: 0.05 + i * 0.03, z: sign * L.rowZ + (exerted ? 0.6 : 0), yaw: exerted ? -Math.PI / 2 : 0, tilt: 0, flip: Math.PI, scale: 0.92 });
+        const s = inkSlot(i);
+        put(o, { x: s.x, y: 0.05 + i * 0.03 + (faceUp ? 0.4 : 0), z: s.z + (exerted ? 0.6 : 0), yaw: exerted ? -Math.PI / 2 : 0, tilt: 0, flip: faceUp ? 0 : Math.PI, scale: inkScale });
+      }
+      const sp = this.sides[seat];
+      if (sp?.ghost) {
+        sp.ghost.visible = canInk;
+        if (canInk) {
+          // just past the last card, far enough out to read (the ready cards overlap closely), inside the zone
+          const s = inkSlot(inkN), w = W * inkScale;
+          const x = inkN ? Math.min(inkSlot(inkN - 1).x + w * 0.6, L.inkX + L.inkW - 1.5 - w / 2) : s.x;
+          sp.ghost.position.set(Math.max(s.x, x), 0.6 + inkN * 0.03, s.z);
+          sp.ghost.scale.set(w, H * inkScale, 1);
+        }
       }
 
       // ---- hand ----
@@ -945,6 +1050,8 @@ export class Board {
       if (to.zone === 'inkwell') dst = pool('inkIn', to.seat).shift() || null;
       else if (to.zone === 'hand' && to.seat !== view.you) dst = pool('handIn', to.seat).shift() || null;
       else if (e.iid && ['play', 'discard', 'hand', 'under'].includes(to.zone)) dst = e.iid;
+      // inking reveals the card: that slot shows it face up for the rest of the turn
+      if (to.zone === 'inkwell' && from.zone === 'hand' && dst && e.cardId) this.inkedNow.set(dst, { cardId: e.cardId, turn: view.turn });
       if (!src || !dst || src === dst || this.cards.has(dst)) continue;
       const c = this.cards.get(src);
       this.cards.delete(src);
@@ -972,7 +1079,11 @@ export class Board {
       squeeze = 1;
       x = total > span ? minX - sc : center - total / 2;
     }
-    for (const e of entries) {
+    // Squeezed rows overlap: each card sits a little above the one to its left (clear of that card's badges too), so
+    // the right card is always on top instead of the two z-fighting, and a hovered card rises over the whole row (#105)
+    const LAYER = 0.14;
+    const top = entries.length * LAYER + 0.8;
+    entries.forEach((e, i) => {
       const c = e.c;
       const under = c.under?.length ? 0.8 : 0;
       const cx = x + (under + H / 2) * squeeze;                       // centred in an H-wide box, stack peeking left
@@ -982,14 +1093,14 @@ export class Board {
       o.info = { iid: c.iid, zone: 'play', seat, cardId: c.cardId };
       o.dimmed = false;
       this.cardBadges(o, c);
-      if (this.drag?.obj === o) continue;
-      put(o, {
-        x: cx, y: 0.1 + (e.at ? 0.15 : 0), z: z + (e.at ? sign * 0.9 : 0),
-        yaw: side(c) ? -Math.PI / 2 : 0, tilt: 0, flip: 0, scale: 1,
-      });
+      if (this.drag?.obj === o) return;
+      const hovered = !this.mobile && this.hover === o && !this.drag;
+      const rest = { x: cx, y: 0.1 + i * LAYER + (e.at ? 0.07 : 0), z: z + (e.at ? sign * 0.9 : 0), yaw: side(c) ? -Math.PI / 2 : 0, tilt: 0, flip: 0, scale: 1 };
+      o.setProxy(rest);
+      put(o, { ...rest, y: hovered ? 0.1 + top : rest.y });
       // stack (shift / boost) underneath
       this.underCards(c, seat, cx, z, get);
-    }
+    });
   }
 
   underCards(c, seat, x, z, get) {
@@ -1001,8 +1112,12 @@ export class Board {
       o.info = { iid: u.iid, zone: 'under', seat, cardId: u.cardId, parent: c.iid };
       o.dimmed = false;
       o.setBadges('', () => {});
-      const off = (n - i) * 0.75;
-      o.place({ x: x - off, y: 0.02 + i * 0.01, z: z - off, yaw: c.exerted ? -Math.PI / 2 : 0, tilt: 0, flip: u.faceDown ? Math.PI : 0, scale: 1 });
+      // a slightly messy pile: the one just under the top card peeks out one way, the next the other way, anything
+      // deeper hides under those two (the corner chip carries the count)
+      const depth = Math.min(2, n - i);
+      const [dx, dz, dyaw] = depth === 1 ? [-0.55, 0.45, 0.06] : [0.5, 0.7, -0.075];
+      const base = c.exerted || this.defs[c.cardId]?.type === 'location' ? -Math.PI / 2 : 0;
+      o.place({ x: x + dx, y: 0.02 + i * 0.01, z: z + dz, yaw: base + dyaw, tilt: 0, flip: u.faceDown ? Math.PI : 0, scale: 1 });
     });
   }
 
@@ -1013,9 +1128,24 @@ export class Board {
     const chips = [];
     if (c.drying && d.type === 'character') chips.push(['DRYING', '#3a4a8a']);
     if (c.granted?.length) chips.push([`+${c.granted.length} ABILITY`, '#1d6b3a']);
-    for (const m of c.mods || []) if (m.stat === 'kw') chips.push([`${m.delta > 0 ? '+' : '−'}${KEYWORD_LABEL[m.kw] || m.kw}`, m.delta > 0 ? '#1d6b3a' : '#7a1d1d']);
-    if (c.under?.length) chips.push([`STACK ×${c.under.length + 1}`, '#5a2d82']);
+    // keywords the corner chips show (below) aren't repeated up here; other gained / lost rules still are
+    for (const m of c.mods || []) if (m.stat === 'kw' && !(KW_CHIP[m.kw] && m.delta > 0)) chips.push([`${m.delta > 0 ? '+' : '−'}${KEYWORD_LABEL[m.kw] || m.kw}`, m.delta > 0 ? '#1d6b3a' : '#7a1d1d']);
     if (c.atLocation) chips.push(['@ LOC', '#6b4d12']);
+    // bottom-left corner: stack count, keywords (ringed when another card granted it), stat buffs
+    const corner = [];
+    if (c.under?.length) corner.push([`×${c.under.length + 1}`, '#d97706', false]);
+    if (d.type === 'character' || d.type === 'location') {
+      const kw = c.kw || {};
+      for (const [k, spec] of Object.entries(KW_CHIP)) {
+        const v = kw[k] ?? (c.kw ? undefined : d.kw?.[k]);
+        if (!v) continue;
+        corner.push([spec.label(typeof v === 'number' ? v : 1), spec.bg, !d.kw?.[k]]);
+      }
+      for (const [stat, icon] of [['str', '⚔'], ['wp', '⛨'], ['lore', '◆']]) {
+        const n = modSum(c, stat);
+        if (n) corner.push([`${icon}${n > 0 ? '+' : '−'}${Math.abs(n)}`, n > 0 ? '#059669' : '#dc2626', false]);
+      }
+    }
     const stats = [];
     if (d.type === 'character') {
       stats.push({ icon: '⚔️', value: eff.str ?? d.str, base: d.str ?? 0 });
@@ -1026,16 +1156,47 @@ export class Board {
       stats.push({ icon: '◆', value: eff.lore ?? d.lore, base: d.lore ?? 0 });
       if (d.move != null) stats.push({ icon: '⇢', value: d.move, base: d.move });
     }
-    const key = JSON.stringify([c.damage, stats.map((s) => s.value), chips, d.type]);
+    const wp = eff.wp ?? d.wp ?? 0;
+    const severe = c.damage > 0 && (d.type === 'character' || d.type === 'location') && c.damage >= wp - 1;
+    const key = JSON.stringify([c.damage, severe, stats.map((s) => s.value), chips, corner, d.type]);
     o.setBadges(key, (g) => {
+      if (o.shownDamage !== undefined && c.damage > o.shownDamage) o.dmgPunch = performance.now();
+      o.shownDamage = c.damage;
       // the stat strip hangs off the bottom of the card's footprint, a little over the card (#91: ~2 units tall)
       if (stats.length) {
         const t = statsTex(stats);
-        const wdt = Math.min(W * 1.12, stats.length * 2.45);
+        const wdt = Math.min(W * 1.12, stats.length * 2.45) / (t.userData.cells || 1);   // wider for 10+ values (#106)
         const sh = wdt / t.userData.aspect;
         g.add(badgePlane(t, wdt, 0, 0, 0, { edge: -1, off: -sh / 2 + 0.85 }));
       }
-      if (c.damage > 0) g.add(badgePlane(damageTex(c.damage), 3.4, 0, 0.4, 0.02));
+      // damage token on the upper third of the art (clear of the stat strip and the rules text)
+      if (c.damage > 0) {
+        const at = { edge: 1, frac: -0.55, off: 0 };
+        if (severe) {
+          const halo = badgePlane(haloTex(), 4.6, 0, 0, 0.015, at);
+          halo.material.color.set(0xff6a2a);
+          halo.material.blending = THREE.AdditiveBlending;
+          halo.userData.anim = 'halo'; halo.userData.base = { x: halo.scale.x, y: halo.scale.y };
+          g.add(halo);
+        }
+        const tok = badgePlane(damageTex(c.damage, severe), 2.75, 0, 0, 0.03, at);
+        tok.renderOrder = 3;
+        tok.userData.anim = 'dmg'; tok.userData.base = { x: tok.scale.x, y: tok.scale.y };
+        g.add(tok);
+      }
+      // corner chips: rows from the bottom-left up, over the card just above the stat strip
+      if (corner.length) {
+        const CH = 1.2, GAP = 0.14, MAXW = W - 0.5;
+        const ts = corner.map(([label, bg, ring]) => chipTex(label, bg, ring));
+        const base = (stats.length ? 0.85 : 0.3) + 0.2 + CH / 2;
+        let x = 0, row = 0;
+        ts.forEach((t) => {
+          const cw = Math.min(MAXW, CH * t.userData.aspect);
+          if (x > 0 && x + cw > MAXW) { x = 0; row++; }
+          g.add(badgePlane(t, cw, 0, 0, 0.02, { edge: -1, off: base + row * (CH + GAP), xedge: -1, xoff: 0.3 + x + cw / 2 }));
+          x += cw + GAP;
+        });
+      }
       // status chips: one row along the top edge, ~1.9 units tall; a crowded row shrinks a little, then wraps upward
       if (chips.length) {
         const MAXW = W + 2, GAPX = 0.2;
@@ -1144,18 +1305,67 @@ export class Board {
     if ('selected' in ui && ui.selected !== was && this.view) this.render(this.view, this.defs, []);   // re-fan the hand (lift)
     else this.refreshGlow();
   }
+  // { auras, arrows }: the action auras + ink slot, and the targeting arrow with its outcome preview
+  setOptions(o) {
+    Object.assign(this.opts, o);
+    if (this.view) this.render(this.view, this.defs, []);
+  }
+  replaying() { return typeof document !== 'undefined' && document.body.classList.contains('replaying'); }
+  // the character that would challenge: the one being dragged, else the selected one of mine in play
+  attacker() {
+    const v = this.view;
+    if (!v || !myMove(v)) return null;
+    const mine = (o) => o?.info?.zone === 'play' && o.info.seat === v.you && this.defs[o.info.cardId]?.type === 'character';
+    if (this.drag?.active && mine(this.drag.obj)) return this.drag.obj.info.iid;
+    const s = this.ui.selected && this.cards.get(this.ui.selected);
+    return mine(s) ? this.ui.selected : null;
+  }
   refreshGlow() {
     const { selected, targets, multi, targetColor } = this.ui;
     const targeting = targets && targets.size > 0;
+    const att = !targeting && this.opts.auras ? this.attacker() : null;
+    const red = att ? challengeTargets(this.view, this.defs, att) : null;
     for (const o of this.cards.values()) {
       const iid = o.info?.iid;
-      let col = null;
+      let col = null, mode = 'ui';
       if (iid && multi?.has(iid)) col = 0xf1d68a;
       else if (iid && targets?.has(iid)) col = this.hover === o ? 0xffffff : targetColor;
       else if (iid && iid === selected) col = 0xf1d68a;
+      else if (iid && red?.has(iid)) { col = AURA.target; mode = this.hover === o ? 'auraHover' : 'aura'; }
+      else if (iid && !targeting && !red?.size && this.auras.has(iid) && o.info.zone !== 'under') { col = AURA[this.auras.get(iid)]; mode = this.hover === o ? 'auraHover' : 'aura'; }
       o.glowColor = col;
+      o.glowMode = mode;
       o.dimmed = targeting && o.info?.zone === 'play' && !targets.has(iid) && iid !== selected && !multi?.has(iid);
     }
+    this.refreshAim(red, att);
+  }
+  // the targeting arrow: from the attacker (or the card acting) to the hovered valid target, with what would happen
+  refreshAim(red, att) {
+    this.aim = null;
+    const v = this.view, h = this.hover?.info?.iid;
+    if (!v || !h || !this.opts.arrows) return;
+    const { targets, selected, targetColor, arrowFrom } = this.ui;
+    const onBoard = (iid) => { const o = iid && this.cards.get(iid); return o && !o.dying && o.cur ? iid : null; };
+    let from = null, to = h, color = AURA.target, outcome = null;
+    if (targets?.size) {
+      if (!targets.has(h)) return;
+      color = targetColor;
+      from = onBoard(arrowFrom) || (selected !== h && onBoard(selected)) || onBoard(v.pending?.src);
+      if (!from || from === h) return;
+      if (!v.pending) {                                         // a challenge picked from the card panel (either way round)
+        outcome = challengeOutcome(v, this.defs, from, h);
+        if (!outcome && challengeOutcome(v, this.defs, h, from)) { outcome = challengeOutcome(v, this.defs, h, from); [from, to] = [h, from]; }
+      }
+    } else if (att && red?.has(h)) {
+      from = att;
+      outcome = challengeOutcome(v, this.defs, att, h);
+    } else return;
+    const labels = [];
+    if (outcome) {
+      labels.push(outcome.banishT ? { text: `${outcome.toDefender} dmg · BANISH`, color: '#ff5a4f', at: 'to' } : { text: `${outcome.toDefender} dmg`, color: '#fff', at: 'to' });
+      if (outcome.toAttacker > 0 || outcome.banishA) labels.push({ text: outcome.banishA ? `takes ${outcome.toAttacker} · BANISHED` : `takes ${outcome.toAttacker}`, color: outcome.banishA ? '#ff9d4d' : '#ffd6a0', at: 'from' });
+    }
+    this.aim = { from, to, color, labels, noArrow: !!this.drag?.active };
   }
 
   // ---------- picking ----------
@@ -1167,7 +1377,7 @@ export class Board {
     for (const c of this.cards.values()) {
       if (c.dying || c.stops.length || c === this.drag?.obj) continue;   // mid-animation (cast, hit, readying): not a target
       objs.push(c.front, c.back);
-      if (c.proxy?.visible && c.info?.zone === 'hand') objs.push(c.proxy);
+      if (c.proxy?.visible && (c.info?.zone === 'hand' || c.info?.zone === 'play')) objs.push(c.proxy);
     }
     if (!this.offTable()) for (const s of this.sides) if (s) objs.push(s.deck, s.discardZone, s.inkZone, ...s.lore.children);
     const hits = this.raycaster.intersectObjects(objs, false);
@@ -1206,6 +1416,7 @@ export class Board {
           d.active = true;
           clearTimeout(this.pressTimer);                                  // moving means dragging, not holding
           this.cb.onDragStart?.(d.obj.info);
+          this.refreshGlow();                                             // a dragged character lights what it can challenge
         }
         if (d.active) {
           const p = this.planePoint(ev, 4);
@@ -1267,7 +1478,8 @@ export class Board {
 
   setHover(obj, hit) {
     if (this.hover === obj) return;
-    const prevHand = this.hover?.info?.zone === 'hand' || obj?.info?.zone === 'hand';
+    const lifts = (o) => o?.info?.zone === 'hand' || o?.info?.zone === 'play';   // a hovered card in hand or play rises
+    const prevHand = lifts(this.hover) || lifts(obj);
     this.hover = obj;
     this.cb.onHover?.(obj?.info || null, hit);
     if (prevHand && this.view) this.render(this.view, this.defs, []);
@@ -1315,6 +1527,10 @@ export class Board {
       s.deck.position.x = L.deckX + Math.sin(p * 27) * 0.5 * k;
     }
     if (this.view) for (const [seat, s] of this.sides.entries()) if (s && s.lorePulse > 0) this.updateSide(seat, s.sign, this.view.players[seat], this.view.active === seat);
+    for (const s of this.sides) if (s?.ghost?.visible) s.ghost.material.opacity = 0.55 + 0.3 * Math.sin(now / 420);   // the ink slot breathes
+    const aim = this.aim, A = aim && this.cards.get(aim.from), B = aim && this.cards.get(aim.to);
+    if (A?.cur && B?.cur && !A.dying && !B.dying) { this.arrow.show(A.cur, B.cur, aim.color, aim.labels, aim.noArrow); this.arrow.tick(now); }
+    else this.arrow.hide();
     this.renderer.render(this.scene, this.camera);
   }
 

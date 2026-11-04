@@ -6,6 +6,7 @@ import { install, installable } from '../pwa.js';
 import * as account from '../account.js';
 import { createCoach } from './coach.js';
 import { createReview } from './review.js';
+import { createOverlay } from './overlay.js';
 import {
   LORE_TO_WIN, KEYWORD_HELP, KEYWORD_LABEL, cardLabel, prettyText, effectiveKeywords,
   questBlocker, attackerBlocker, defenderBlocker, challengeDamage, singerBlocker, singValue,
@@ -85,6 +86,8 @@ const net = new Net({
         noteReveals(m.events || []);
         validateUi();
         renderAll();
+        noteSpotlight(m.events || []);
+        turnCues();
         coach?.onGame();
         renderLobby();
         break;
@@ -150,7 +153,10 @@ const board = new Board($('#board'), {
   onHover: (info) => hoverPreview(info),
   canDrag: (info) => canDrag(info),
   onDrop: (d) => dropCard(d),
+  onLoreGain: (g) => setTimeout(() => loreGain(g)),                      // after renderHud has redrawn the plates
 });
+
+const overlay = createOverlay({ $, esc, IMG, D: (id) => S.defs[id], cardLabel, isMobile, board });
 
 // ---------- view helpers ----------
 const V = () => S.view;
@@ -194,16 +200,17 @@ function openDetails(iid) {
   select(iid);
 }
 function startTargeting(t) {
-  S.targeting = { picked: new Set(), color: 0x6fa8ff, cardId: findCard(S.selected)?.c.cardId, ...t };   // the card acting heads the bar
+  S.targeting = { picked: new Set(), color: 0x6fa8ff, cardId: findCard(S.acting || S.selected)?.c.cardId, ...t };   // the card acting heads the bar (S.acting: one a key or the hover panel acted on)
   if (!S.targeting.valid.size) { toast('No valid targets.', 'err'); S.targeting = null; return; }
-  board.setUi({ targets: S.targeting.valid, multi: S.targeting.picked, targetColor: S.targeting.color });
+  // the arrow starts at the card that acts, also when a key or the hover panel started it (it isn't the selected one)
+  board.setUi({ targets: S.targeting.valid, multi: S.targeting.picked, targetColor: S.targeting.color, arrowFrom: S.acting || null });
   $('#inspector').hidden = true;
   $('#quick').hidden = true;                                          // the pills over the hand card would sit on the targets (#22)
   renderBanner();
 }
 function clearTargeting() {
   S.targeting = null;
-  board.setUi({ targets: new Set(), multi: new Set() });
+  board.setUi({ targets: new Set(), multi: new Set(), arrowFrom: null });
   renderBanner();
   renderInspector();
 }
@@ -360,6 +367,7 @@ function dropCard({ info, over, point }) {
 
 // ---------- actions for a card ----------
 function actionsFor(found) {
+  if (S.replay) return { primary: [], manual: [] };                     // a replay only shows the board
   const { c, def, zone, seat } = found;
   const mine = seat === you();
   const turn = myTurn();
@@ -375,7 +383,7 @@ function actionsFor(found) {
     const price = now === def.cost ? `${def.cost} ⬡` : `${now} ⬡ (was ${def.cost})`;
     const lacking = (n) => (ink < n ? `Needs ${n} ink — you have ${ink} ready.` : null);
     if (def.type === 'song' || def.type === 'action' || def.type === 'item' || def.type === 'location' || def.type === 'character') {
-      P(`Play  ·  ${price}`, () => act({ type: 'play', iid: c.iid, mode: 'ink' }), lacking(now), { hot: true });
+      P(`Play  ·  ${price}`, () => act({ type: 'play', iid: c.iid, mode: 'ink' }), lacking(now), { hot: true, key: 'p' });
     }
     const exertOpt = def.procs?.some((p) => p.kind === 'static' && p.effect?.fn === 'enterExertedOpt');   // "may enter play exerted [to …]"
     if (def.type === 'character' && (def.kw?.bodyguard || exertOpt)) {
@@ -390,14 +398,14 @@ function actionsFor(found) {
         : cost.inkDrops != null ? ((me().inkDrops || 0) < cost.inkDrops ? `Needs ${cost.inkDrops} ink drops — you have ${me().inkDrops || 0}.` : null)
         : cost.bottomFromDiscard != null ? (me().discard.filter((x) => !cost.type || D(x.cardId)?.type === cost.type).length < cost.bottomFromDiscard ? `Needs ${cost.bottomFromDiscard} ${cost.type || ''} cards in your discard.` : null)
         : me().hand.filter((h) => h.iid !== c.iid && shiftDiscardOk({ spec: { cost: { ...cost, discard: 1 } } }, [D(h.cardId)])).length < cost.discard ? `Needs ${opt.cost} in hand.` : null;
-      P(label, () => startShift(c.iid, def, opt), why);
+      P(label, () => startShift(c.iid, def, opt), why, { key: 'o' });
     }
     if (def.type === 'song') {
       const singers = new Set(myChars().filter((t) => !singerBlocker(t, D(t.cardId), def)).map((t) => t.iid));
       P('Sing with…  (free)', () => startTargeting({
         prompt: `Choose a character (cost ${def.cost}+) to exert and sing ${def.name}.`, valid: singers, color: 0xc7a2ff,
         onPick: (t) => act({ type: 'play', iid: c.iid, mode: 'sing', singers: [t] }),
-      }), !singers.size ? `No ready, dry character with cost/Singer ${def.cost}+.` : null);
+      }), !singers.size ? `No ready, dry character with cost/Singer ${def.cost}+.` : null, { key: 's' });
       if (def.kw?.singTogether) {
         const any = new Set(myChars().filter((t) => !singerBlocker(t, D(t.cardId), null)).map((t) => t.iid));
         P(`Sing Together ${def.kw.singTogether}…`, () => startTargeting({
@@ -405,7 +413,7 @@ function actionsFor(found) {
           doneLabel: 'Sing!',
           status: (picked) => `Total: ${[...picked].reduce((n, iid) => n + singValue(findCard(iid).c, findCard(iid).def), 0)} / ${def.kw.singTogether}`,
           onDone: (picked) => act({ type: 'play', iid: c.iid, mode: 'singTogether', singers: [...picked] }),
-        }), !any.size ? 'No ready, dry characters.' : null);
+        }), !any.size ? 'No ready, dry characters.' : null, { key: 't' });
       }
     }
     // "you may banish chosen item of yours to play this character for free" — the alternate cost
@@ -415,7 +423,7 @@ function actionsFor(found) {
     });
     const inked = me().inkedThisTurn >= me().inkLimit;
     const inkable = def.inkable || me().rules?.handInkable;              // "All cards in your hand count as having {inkable}"
-    P('Put into inkwell  ⬡', () => act({ type: 'ink', iid: c.iid }), !inkable ? 'No inkwell symbol — this card can\'t be inked.' : inked ? 'You already inked this turn.' : null);
+    P('Put into inkwell  ⬡', () => act({ type: 'ink', iid: c.iid }), !inkable ? 'No inkwell symbol — this card can\'t be inked.' : inked ? 'You already inked this turn.' : null, { key: 'i' });
     M('Play for free', () => act({ type: 'play', iid: c.iid, mode: 'free' }));
     M('Play with cost change…', () => {
       const n = prompt(`Cost adjustment for ${def.name} (e.g. -2 or 1):`, '-1');
@@ -432,7 +440,7 @@ function actionsFor(found) {
     const isChar = def.type === 'character';
     const isLoc = def.type === 'location';
     if (mine && isChar) {
-      P(`Quest  ·  +${c.eff?.lore ?? def.lore} ◆`, () => act({ type: 'quest', iid: c.iid }), questBlocker(c, def), { hot: true });
+      P(`Quest  ·  +${c.eff?.lore ?? def.lore} ◆`, () => act({ type: 'quest', iid: c.iid }), questBlocker(c, def), { hot: true, key: 'q' });
       const why = attackerBlocker(c, def);
       const targets = new Set();
       for (const p of V().players) if (p.seat !== you()) for (const t of p.play) if (!defenderBlocker(c, def, t, D(t.cardId), sideOf(p.seat))) targets.add(t.iid);
@@ -440,17 +448,17 @@ function actionsFor(found) {
         prompt: `Choose who ${def.name} challenges. (Damage preview on hover.)`, valid: targets, color: 0xff8f86,
         preview: (t) => { const f = findCard(t); const d = challengeDamage(c, def, f.c, f.def); return `${def.name} deals ${d.toDefender}, takes ${d.toAttacker}`; },
         onPick: (t) => act({ type: 'challenge', attacker: c.iid, target: t }),
-      }), why || (!targets.size ? 'No valid targets — only exerted characters (or locations) can be challenged.' : null));
+      }), why || (!targets.size ? 'No valid targets — only exerted characters (or locations) can be challenged.' : null), { key: 'c' });
       for (const l of me().play.filter((x) => D(x.cardId)?.type === 'location' && x.iid !== c.atLocation)) {
         const ld = D(l.cardId);
         // a "move here for free / pay less to move" static changes the cost — the server works it out
         const discounted = me().play.some((x) => D(x.cardId)?.procs?.some((p) => p.kind === 'static' && p.exec && p.effect?.fn === 'moveCost'));
-        P(`Move to ${ld.name}  ·  ${discounted ? '≤' : ''}${ld.move ?? 0} ⬡`, () => act({ type: 'move', iid: c.iid, location: l.iid }), !discounted && readyInk() < (ld.move ?? 0) ? `Needs ${ld.move} ink.` : null);
+        P(`Move to ${ld.name}  ·  ${discounted ? '≤' : ''}${ld.move ?? 0} ⬡`, () => act({ type: 'move', iid: c.iid, location: l.iid }), !discounted && readyInk() < (ld.move ?? 0) ? `Needs ${ld.move} ink.` : null, { key: 'm' });
       }
     }
     if (mine && typeof def.kw?.boost === 'number') {
       P(`Boost ${def.kw.boost}  ·  ${def.kw.boost} ⬡`, () => act({ type: 'boost', iid: c.iid }),
-        c.boostedTurn === V().turn ? 'Already boosted this turn.' : readyInk() < def.kw.boost ? `Needs ${def.kw.boost} ink.` : null);
+        c.boostedTurn === V().turn ? 'Already boosted this turn.' : readyInk() < def.kw.boost ? `Needs ${def.kw.boost} ink.` : null, { key: 'b' });
     }
     if (mine) {
       def.abilities.forEach((ab, i) => {
@@ -461,7 +469,7 @@ function actionsFor(found) {
         if (!cost && proc?.kind === 'activated' && proc.exec && proc.from !== 'hand') {
           const parts = [proc.cost.exert ? '⟳' : '', proc.cost.ink ? `${proc.cost.ink} ⬡` : '', proc.cost.banishSelf ? 'banish this' : ''].filter(Boolean).join(' + ');
           const reason = proc.cost.ink > readyInk() ? `Needs ${proc.cost.ink} ink.` : null;   // the server checks once-per-turn and conditions
-          P(`Use ${ab.name || 'ability'}${parts ? `  ·  ${parts}` : ''}`, () => act({ type: 'useAbility', iid: c.iid, index: i }), reason, { title: prettyText(ab.text) });
+          P(`Use ${ab.name || 'ability'}${parts ? `  ·  ${parts}` : ''}`, () => act({ type: 'useAbility', iid: c.iid, index: i }), reason, { title: prettyText(ab.text), ability: true });
           return;
         }
         if (!cost) return;
@@ -470,7 +478,7 @@ function actionsFor(found) {
         if (cost.exert && c.exerted) reason = 'Exerted.';
         else if (cost.exert && isChar && c.drying) reason = 'Still drying.';
         else if (cost.ink > readyInk()) reason = `Needs ${cost.ink} ink.`;
-        P(`Use ${ab.name || 'ability'}  ·  ${parts}`, () => act({ type: 'useAbility', iid: c.iid, index: i }), reason, { title: prettyText(ab.text) });
+        P(`Use ${ab.name || 'ability'}  ·  ${parts}`, () => act({ type: 'useAbility', iid: c.iid, index: i }), reason, { title: prettyText(ab.text), ability: true });
       });
       // abilities granted by other cards ("your characters gain \"{exert} — Draw a card\" this turn")
       for (const g of c.granted || []) {
@@ -481,7 +489,7 @@ function actionsFor(found) {
         if (cost.exert && c.exerted) reason = 'Exerted.';
         else if (cost.exert && isChar && c.drying) reason = 'Still drying.';
         else if (cost.ink > readyInk()) reason = `Needs ${cost.ink} ink.`;
-        P(`Use granted: ${prettyText(cost.effect).slice(0, 40)}  ·  ${parts}`, () => act({ type: 'useAbility', iid: c.iid, index: g.index }), reason, { title: `From ${g.src}: ${prettyText(g.text)}` });
+        P(`Use granted: ${prettyText(cost.effect).slice(0, 40)}  ·  ${parts}`, () => act({ type: 'useAbility', iid: c.iid, index: g.index }), reason, { title: `From ${g.src}: ${prettyText(g.text)}`, ability: true });
       }
     }
     if (!mine && turn) {
@@ -489,7 +497,7 @@ function actionsFor(found) {
       P('Challenge this with…  ⚔️', () => startTargeting({
         prompt: `Choose your character to challenge ${def.name}.`, valid: attackers, color: 0xff8f86,
         onPick: (a) => act({ type: 'challenge', attacker: a, target: c.iid }),
-      }), !attackers.size ? (defenderBlocker(myChars()[0] || c, def, c, def, sideOf(seat)) || 'None of your characters can challenge it right now.') : null);
+      }), !attackers.size ? (defenderBlocker(myChars()[0] || c, def, c, def, sideOf(seat)) || 'None of your characters can challenge it right now.') : null, { key: 'c' });
     }
     if (isChar || isLoc) {
       M('−1 damage', () => act({ type: 'damage', iid: c.iid, delta: -1 }), { small: true, disabled: !c.damage });
@@ -511,6 +519,14 @@ function actionsFor(found) {
     M('Top of deck', () => act({ type: 'moveCard', iid: c.iid, to: 'deckTop' }), { small: true });
     M('Bottom of deck', () => act({ type: 'moveCard', iid: c.iid, to: 'deckBottom' }), { small: true });
     M('Into inkwell', () => act({ type: 'moveCard', iid: c.iid, to: 'inkwell', exerted: true }), { small: true });
+  }
+  // the keys (duels.ink's set): one per kind of action, the first of a kind only; abilities 1–9 in card order
+  const used = new Set();
+  let n = 0;
+  for (const a of primary) {
+    if (a.ability) a.key = n < 9 ? String(++n) : null;
+    if (a.key && used.has(a.key)) a.key = null;
+    if (a.key) used.add(a.key);
   }
   return { primary, manual };
 }
@@ -535,6 +551,8 @@ function grantKeyword(c, def) {
 // ⬡ falls back to a font that draws it as a thin ring ("Play · 2 O"): a cost is a small hexagon chip with the number in it (#79)
 const inkChips = (html) => html.replace(/(\d+)\s*⬡/g, '<i class="hxn">$1</i>').replace(/⬡/g, '<i class="hxn" title="ink"></i>');
 const rich = (s) => inkChips(esc(s));
+// the shortcut for an action, on the button (keyboards only: play.css hides it on phones)
+const kbd = (a) => (a.key ? ` <kbd class="k">${a.key.toUpperCase()}</kbd>` : '');
 // the options beside a tapped hand card: what you can play it as, and ⓘ for the breakdown
 const shortLabel = (l) => l.replace(/\s+·\s+/g, ' · ').replace(/\s{2,}/g, ' ')
   .replace(/^Put into inkwell/, 'Ink').replace(/^Play exerted \(Bodyguard\)/, 'Play exerted').replace(/^Sing with…\s*\(free\)/, 'Sing…')
@@ -543,9 +561,9 @@ const shortLabel = (l) => l.replace(/\s+·\s+/g, ' · ').replace(/\s{2,}/g, ' ')
 function renderQuick(f) {
   const el = $('#quick');
   const { primary } = actionsFor(f);
-  el.innerHTML = `${primary.map((a, i) => `<button class="q ${a.hot && !a.reason ? 'hot' : ''}" data-q="${i}" ${a.reason ? 'disabled' : ''} title="${esc(a.title || '')}"><span>${rich(shortLabel(a.label))}</span>${a.reason ? `<small>${esc(a.reason)}</small>` : ''}</button>`).join('')}
+  el.innerHTML = `${primary.map((a, i) => `<button class="q ${a.hot && !a.reason ? 'hot' : ''}" data-q="${i}" ${a.reason ? 'disabled' : ''} title="${esc(a.title || '')}"><span>${rich(shortLabel(a.label))}${kbd(a)}</span>${a.reason ? `<small>${esc(a.reason)}</small>` : ''}</button>`).join('')}
     <button class="q info" data-info title="Full card breakdown (or hold the card)"><span>ⓘ Details</span></button>`;
-  el.querySelectorAll('[data-q]').forEach((b) => { b.onclick = () => primary[b.dataset.q].run(); });
+  el.querySelectorAll('[data-q]').forEach((b) => { b.onclick = () => runAction(primary[b.dataset.q], f.c.iid); });
   el.querySelector('[data-info]').onclick = () => openDetails(f.c.iid);
   el.hidden = false;
   positionQuick(f.c.iid);
@@ -597,14 +615,8 @@ function positionQuick(iid) {
   el.style.left = `${Math.round(best.x)}px`;
   el.style.top = `${Math.round(best.y)}px`;
 }
-function renderInspector() {
-  const el = $('#inspector');
-  const q = $('#quick');
-  const f = findCard(S.selected);
-  if (!f || !f.def || S.targeting) { el.hidden = true; q.hidden = true; return; }
-  if (S.quick && f.zone === 'hand' && f.seat === you()) { el.hidden = true; renderQuick(f); return; }
-  q.hidden = true;
-  const { c, def, zone, seat } = f;
+// a card's live numbers and state: stats against the printed ones, exerted / drying / damage, what it gained
+function cardFacts({ c, def, zone }) {
   const kws = zone === 'play' ? effectiveKeywords(c, def) : def.kw;
   const eff = c.eff || {};
   const stat = (icon, v, base) => v == null ? '' : `<span class="st ${v > base ? 'up' : v < base ? 'down' : ''}">${icon} ${v}</span>`;
@@ -619,6 +631,18 @@ function renderInspector() {
     ...(c.granted || []).map((g) => `<span class="chip mod" title="${esc(g.src || '')}">+“${rich(prettyText(g.text))}”${g.until === 'eot' ? ' (turn)' : ''}</span>`),
     ...(c.mods || []).map((m) => `<span class="chip mod">${m.stat === 'kw' ? `${m.delta > 0 ? '+' : '−'}${KEYWORD_LABEL[m.kw]}` : `${m.delta > 0 ? '+' : ''}${m.delta} ${{ str: '⚔️', wp: '🛡️', lore: '◆', sing: '♪' }[m.stat]}`}${m.until === 'eot' ? ' (turn)' : ''}</span>`),
   ].join('') : '';
+  return { kws, stats, status };
+}
+const kwChips = (kws) => Object.entries(kws || {}).map(([k, v]) => `<span class="kw" title="${esc(KEYWORD_HELP[k] || '')}">${KEYWORD_LABEL[k] || k}${typeof v === 'number' && !['evasive', 'rush', 'ward', 'support', 'bodyguard', 'reckless', 'alert', 'vanish'].includes(k) ? ` ${['challenger', 'resist'].includes(k) ? '+' : ''}${v}` : ''}</span>`).join('');
+function renderInspector() {
+  const el = $('#inspector');
+  const q = $('#quick');
+  const f = findCard(S.selected);
+  if (!f || !f.def || S.targeting) { el.hidden = true; q.hidden = true; return; }
+  if (S.quick && f.zone === 'hand' && f.seat === you()) { el.hidden = true; renderQuick(f); return; }
+  q.hidden = true;
+  const { c, def, zone, seat } = f;
+  const { kws, stats, status } = cardFacts(f);
   const { primary, manual } = actionsFor(f);
   const owner = V().players[seat].name;
   const classes = (def.classes || []).filter((x) => x.toLowerCase() !== String(def.type).toLowerCase());   // an action is classed "Action" again (#86)
@@ -637,9 +661,9 @@ function renderInspector() {
         <span class="inks">${def.inks.map((i) => `<i class="ink ${i}" title="${i}"></i>`).join('')}</span>
         ${stats ? `<span class="insp-stats">${stats}</span>` : ''}
       </div>
-      ${primary.length ? `<div class="acts">${primary.map((a, i) => `<button class="act ${a.hot && !a.reason ? 'hot' : ''}" data-p="${i}" ${a.reason ? 'disabled' : ''} title="${esc(a.title || '')}"><span>${rich(a.label)}</span>${a.reason ? `<small>${esc(a.reason)}</small>` : ''}</button>`).join('')}</div>` : ''}
+      ${primary.length ? `<div class="acts">${primary.map((a, i) => `<button class="act ${a.hot && !a.reason ? 'hot' : ''}" data-p="${i}" ${a.reason ? 'disabled' : ''} title="${esc(a.title || '')}"><span>${rich(a.label)}${kbd(a)}</span>${a.reason ? `<small>${esc(a.reason)}</small>` : ''}</button>`).join('')}</div>` : ''}
       ${status ? `<div class="insp-status">${status}</div>` : ''}
-      ${Object.keys(kws || {}).length ? `<div class="insp-kw">${Object.entries(kws).map(([k, v]) => `<span class="kw" title="${esc(KEYWORD_HELP[k] || '')}">${KEYWORD_LABEL[k] || k}${typeof v === 'number' && !['evasive', 'rush', 'ward', 'support', 'bodyguard', 'reckless', 'alert', 'vanish'].includes(k) ? ` ${['challenger', 'resist'].includes(k) ? '+' : ''}${v}` : ''}</span>`).join('')}</div>` : ''}
+      ${Object.keys(kws || {}).length ? `<div class="insp-kw">${kwChips(kws)}</div>` : ''}
       ${def.abilities.length ? `<details class="insp-text" ${textOpen ? 'open' : ''}><summary>Card text${autos.length ? ` <i class="auto-tag" title="Resolved automatically by the game">⚡ auto</i><span class="auto-names">${esc(autos.join(' · '))}</span>` : ''}</summary>
         ${def.abilities.map((a, i) => `<p${def.auto?.[i] ? ' class="auto" title="Resolved automatically by the game"' : ''}>${def.auto?.[i] ? '<i class="auto-tag">⚡ auto</i> ' : ''}${a.name ? `<b>${esc(a.name)}</b> ` : ''}${rich(prettyText(a.text))}</p>`).join('')}</details>` : ''}
       <div class="insp-foot"><span class="insp-owner">${esc(zone)} · ${esc(owner)}</span>${def.abilities.length ? `<a class="insp-proc" href="/rules?card=${encodeURIComponent(def.full)}" target="_blank" rel="noopener" title="This card's rules, keywords and official FAQ">📖 Rules</a>` : ''}</div>
@@ -647,7 +671,7 @@ function renderInspector() {
     </div>`;
   el.hidden = false;
   el.querySelector('[data-close-insp]').onclick = () => select(null);
-  el.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => primary[b.dataset.p].run());
+  el.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => runAction(primary[b.dataset.p], c.iid));
   el.querySelectorAll('[data-m]').forEach((b) => b.onclick = () => manual[b.dataset.m].run());
   const det = el.querySelector('details.manual');
   if (det) det.ontoggle = () => { S.manualOpen = det.open; };
@@ -659,28 +683,74 @@ function renderInspector() {
 // One place for every hover (#77, #83): the full-size card image, about half the window tall, docked in the right column
 // where the card panel lives (just left of the panel while it's open), so it never covers the board or the hand. Your
 // own hand cards get it too: their 3D lift alone leaves the text a few pixels tall.
-let hoverTimer = null;
+// A card on the table also lists what it can do right now under the picture (duels.ink's hover panel): its live stats
+// and state, and a button per action with its key. The buttons run the same actions as the card panel; the keys work
+// on whatever card the pointer is over (see the keydown handler). Leaving the card for the panel keeps it open.
+let hoverTimer = null, hideTimer = null, overPreview = false;
 function hoverPreview(info) {
   clearTimeout(hoverTimer);
+  S.hover = info?.iid ? info : null;                                       // the card the keys act on
   if (S.targeting?.preview && info?.iid && S.targeting.valid.has(info.iid)) {
     $('#bannerPreview').textContent = S.targeting.preview(info.iid);
   } else if ($('#bannerPreview')) $('#bannerPreview').textContent = '';
-  if (!info?.cardId) { hidePreview(); return; }
+  if (!info?.cardId) {
+    clearTimeout(hideTimer);
+    if ($('#preview').classList.contains('acts')) hideTimer = setTimeout(() => { if (!overPreview) hidePreview(); }, 280);   // time to reach its buttons
+    else hidePreview();
+    return;
+  }
   hoverTimer = setTimeout(() => showPreview(info.cardId, info.iid), 120);
 }
 function showPreview(cardId, iid = null) {
   const el = $('#preview');
   const insp = $('#inspector');
+  clearTimeout(hideTimer);
   // nothing hovers on a touch screen; the open panel already shows its own card (#81)
   if (isMobile() || !cardId || (iid && iid === S.selected && !insp.hidden)) { hidePreview(); return; }
   if (el.dataset.card !== cardId) {
-    el.innerHTML = `<div class="pv-card ${D(cardId)?.type === 'location' ? 'land' : ''}"><img src="${IMG(cardId)}" alt=""></div>`;
+    el.innerHTML = `<div class="pv-card ${D(cardId)?.type === 'location' ? 'land' : ''}"><img src="${IMG(cardId)}" alt=""></div><div class="pv-info"></div>`;
     el.dataset.card = cardId;
   }
+  el.dataset.iid = iid || '';
+  previewInfo(el, iid);
   el.style.right = insp.hidden ? '' : `${Math.round(innerWidth - insp.getBoundingClientRect().left + 10)}px`;
   el.hidden = false;
 }
-function hidePreview() { clearTimeout(hoverTimer); $('#preview').hidden = true; }
+// the live part of the hover panel: stats, state, and the actions with their keys
+function previewInfo(el, iid) {
+  const box = el.querySelector('.pv-info');
+  const f = iid ? findCard(iid) : null;
+  if (!box) return;
+  if (!f?.def || !['play', 'hand'].includes(f.zone)) { box.innerHTML = ''; el.classList.remove('acts'); return; }
+  const { kws, stats, status } = cardFacts(f);
+  const live = V()?.status === 'playing' && you() >= 0 && !S.replay && !S.targeting;
+  // a hand card whose options are already open beside it doesn't list them twice
+  const quickOpen = iid === S.selected && !$('#quick').hidden;
+  const primary = live && !quickOpen ? actionsFor(f).primary : [];
+  const kw = f.zone === 'play' ? kwChips(kws) : '';
+  box.innerHTML = `${stats || status || kw ? `<div class="pv-facts">${stats ? `<span class="insp-stats">${stats}</span>` : ''}${status}${kw}</div>` : ''}
+    ${primary.length ? `<div class="pv-acts">${primary.map((a, i) => `<button class="act ${a.hot && !a.reason ? 'hot' : ''}" data-pv="${i}" ${a.reason ? 'disabled' : ''} title="${esc(a.reason || a.title || '')}"><span>${rich(shortLabel(a.label))}</span>${a.key ? `<kbd class="k">${a.key.toUpperCase()}</kbd>` : ''}</button>`).join('')}</div>` : ''}`;
+  box.querySelectorAll('[data-pv]').forEach((b) => { b.onclick = () => { runAction(primary[b.dataset.pv], iid); hidePreview(); }; });
+  el.classList.toggle('acts', primary.length > 0);
+}
+// the panel follows the game: a hovered card's numbers and options change as things happen
+function refreshPreview() {
+  const el = $('#preview');
+  if (el.hidden || !el.dataset.iid) return;
+  if (!findCard(el.dataset.iid)) { hidePreview(); return; }
+  previewInfo(el, el.dataset.iid);
+}
+function hidePreview() { clearTimeout(hoverTimer); clearTimeout(hideTimer); overPreview = false; $('#preview').hidden = true; $('#preview').classList.remove('acts'); }
+$('#preview').addEventListener('pointerenter', () => { overPreview = true; clearTimeout(hideTimer); });
+$('#preview').addEventListener('pointerleave', () => { overPreview = false; if (!S.hover) hidePreview(); });
+// one way to act, whichever button or key started it: the card's own action from actionsFor; S.acting names the card
+// for a target prompt it opens (a hovered card isn't the selected one)
+function runAction(a, iid) {
+  if (!a) return;
+  if (a.reason) { toast(a.reason, 'err'); return; }
+  S.acting = iid;
+  try { a.run(); } finally { S.acting = null; }
+}
 // cards drawn in the DOM (the revealed strip, a prompt's cards) preview like the ones on the table
 document.addEventListener('mouseover', (e) => {
   const c = e.target.closest?.('#hud [data-card]');
@@ -757,8 +827,14 @@ function renderHud() {
   document.querySelectorAll('[data-discard]').forEach((b) => b.onclick = () => openDiscard(Number(b.dataset.discard)));
   const endBtn = $('#endTurn');
   endBtn.disabled = v.status === 'over' ? false : !myTurn();
-  endBtn.textContent = v.status === 'over' ? 'Game over · result' : myTurn() ? 'End turn ⏎' : v.status === 'mulligan' ? 'Mulligan…' : v.pending ? 'Waiting…' : `${v.players[v.active].name}'s turn`;
-  endBtn.title = v.status === 'over' ? 'Show the result again' : '';
+  // their turn (or a choice they're making): an hourglass, so it reads as waiting rather than a dead button
+  const waiting = v.status === 'playing' && !myTurn() && !S.replay;
+  endBtn.classList.toggle('waiting', waiting);
+  const glass = '<span class="hg" aria-hidden="true">⏳</span> ';
+  endBtn.innerHTML = v.status === 'over' ? 'Game over · result' : myTurn() ? 'End turn <kbd class="k">Space</kbd>' : v.status === 'mulligan' ? 'Mulligan…'
+    : v.pending ? `${waiting ? glass : ''}Waiting…` : `${waiting ? glass : ''}${v.active === you() ? 'Your turn' : you() >= 0 ? "Opponent's turn" : `${esc(v.players[v.active].name)}'s turn`}`;
+  endBtn.title = v.status === 'over' ? 'Show the result again' : myTurn() ? 'End your turn (Space or Enter)' : '';
+  overlay.title(myTurn() || (v.status === 'playing' && !S.replay && v.pending?.seat === you() && you() >= 0));
   $('#toolsBtn').disabled = v.status !== 'playing' || you() < 0 || !!S.replay;
   const myChoice = !S.replay && v.status === 'playing' && (v.pending ? v.pending.seat === you() : v.active === you());
   $('#hintBtn').hidden = !(S.room?.seats?.some((x) => x?.bot) && you() >= 0 && !S.replay);
@@ -822,6 +898,8 @@ function renderBanner() {
   const el = $('#banner');
   const t = S.targeting;
   const v = V();
+  // the card you're choosing for, large at the right edge (duels.ink's targeting panel); the bar keeps the question
+  overlay.source(t?.cardId, t?.pendKey ? 'Its ability asks' : 'Choosing for', t ? (t.head || (D(t.cardId) ? cardLabel(D(t.cardId)) : '')) : '');
   const show = (mode, html) => {
     el.className = mode;
     el.innerHTML = html;
@@ -990,6 +1068,81 @@ function renderRevealed(fresh = false) {
   el.querySelector('[data-close-rv]').onclick = () => { S.revealed = null; renderRevealed(); placeBanner(); };
   placeBanner();
 }
+// ---------- turn cues + the opponent's spotlight ----------
+// A big "Your turn" across the middle of the table as a turn starts (and a quieter one for theirs); the tab title says
+// so too (overlay.title, from renderHud). Only on a change seen live: not when the page opens mid-game.
+function turnCues() {
+  const v = V();
+  if (!v || S.replay) { S.turnKey = undefined; return; }
+  const key = v.status === 'playing' ? `${v.turn}:${v.active}` : v.status;
+  if (S.turnKey !== undefined && key !== S.turnKey && v.status === 'playing') {
+    const mine = v.active === you();
+    overlay.turnCue(mine ? 'Your turn' : you() >= 0 ? "Opponent's turn" : `${v.players[v.active].name}'s turn`, mine);
+  }
+  S.turnKey = key;
+}
+// what the other player just played or used, large at the side for a moment (the log says it in words)
+function noteSpotlight(events) {
+  const v = V();
+  if (!v || v.status !== 'playing') return;
+  const zoneOf = (z) => (typeof z === 'string' ? z : z?.zone);
+  let last = null;
+  for (const e of events) {
+    if (e.k === 'move' && e.cardId && zoneOf(e.to) === 'play' && ['hand', 'discard', 'deck', 'inkwell'].includes(zoneOf(e.from)) && e.to?.seat != null) {
+      last = { seat: e.to.seat, cardId: e.cardId, verb: /^(action|song)$/.test(D(e.cardId)?.type || '') ? 'cast' : 'played', sub: '' };
+    } else if (e.k === 'ability' && e.iid) {
+      const f = findCard(e.iid);
+      if (f?.def) last = { seat: f.seat, cardId: f.c.cardId, verb: 'used', sub: f.def.abilities?.[e.index]?.name || 'an ability' };
+    }
+    if (last && last.seat === you()) last = null;                       // your own moves need no spotlight
+  }
+  if (last && D(last.cardId)) overlay.spotlight(last.cardId, `${v.players[last.seat]?.name || 'Opponent'} ${last.verb}`, last.sub || cardLabel(D(last.cardId)));
+}
+
+// "+N" rising off a player's lore dial as they gain lore (the board shows it on the table too; on phones the plates
+// are where you look)
+function loreGain({ n, mine }) {
+  const dial = $(`${mine ? '#plateMe' : '#plateOpp'} .dial`);
+  const r = dial?.getBoundingClientRect();
+  if (!r?.width || !n) return;
+  const el = document.createElement('div');
+  el.className = 'lore-gain';
+  el.textContent = `+${n} ◆`;
+  el.style.left = `${Math.round(r.left + r.width / 2)}px`;
+  el.style.top = `${Math.round(r.top)}px`;
+  $('#hud').append(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// ---------- ending the turn ----------
+// The commonest slip against the bot is ending the turn with a character that could still quest: ask first when
+// something is left (a quest, or the ink for the turn), unless the player turned the question off.
+const ENDASK_KEY = 'ink.play.endAsk';
+const endAskOn = () => { try { return localStorage.getItem(ENDASK_KEY) !== 'off'; } catch { return true; } };
+function endTurnLeft() {
+  const m = me();
+  if (!m) return [];
+  const left = [];
+  const q = questable();
+  if (q.length) left.push(`${q.length === 1 ? `${cardLabel(D(q[0].cardId))} can` : `${q.length} characters can`} still quest (${q.reduce((n, c) => n + (c.eff?.lore ?? D(c.cardId)?.lore ?? 0), 0)} ◆).`);
+  if (m.inkedThisTurn < m.inkLimit && m.hand?.some((h) => D(h.cardId)?.inkable || m.rules?.handInkable)) left.push("You haven't put a card into your inkwell this turn.");
+  return left;
+}
+function requestEndTurn() {
+  if (!myTurn()) return;
+  const left = endAskOn() ? endTurnLeft() : [];
+  if (!left.length) { act({ type: 'endTurn' }); return; }
+  openModal(`<h3>End your turn?</h3>
+    <ul class="end-left">${left.map((l) => `<li>${rich(l)}</li>`).join('')}</ul>
+    <label class="check"><input type="checkbox" id="endAskOff"> Don't ask again on this device</label>
+    <div class="modal-actions"><button data-close>Keep playing <kbd class="k">Esc</kbd></button>${questable().length ? '<button id="endQuest">◆ Quest all first</button>' : ''}<button class="hot" id="endGo">End turn <kbd class="k">Space</kbd></button></div>`, (el) => {
+    const off = () => { if ($('#endAskOff', el).checked) { try { localStorage.setItem(ENDASK_KEY, 'off'); } catch { /* private mode */ } } };
+    $('#endGo', el).onclick = () => { off(); closeModal(); act({ type: 'endTurn' }); };
+    $('#endQuest', el)?.addEventListener('click', () => { off(); closeModal(); questAll(); });
+    $('#endGo', el).focus();
+  }, 'endturn');
+}
+
 function cancelTargeting() {
   const t = S.targeting;
   if (t?.mandatory) { toast('You have to choose one — pick a glowing card.'); return; }
@@ -1172,11 +1325,17 @@ function openTools() {
       </fieldset>
       <fieldset class="wide"><legend>Table</legend>
         <label class="check"><input type="checkbox" id="flipsChk" ${flipsOn() ? 'checked' : ''}><span>Show looked-at and revealed cards turning over <span class="note">(off: only what you must choose from)</span></span></label>
+        <label class="check"><input type="checkbox" id="signalsChk" ${board.opts?.auras !== false ? 'checked' : ''}><span>Glows and arrows on the table <span class="note">(what each card can do now, and the targeting arrow)</span></span></label>
       </fieldset>
     </div>
     <div class="modal-actions"><button data-close>Close</button></div>`, (el) => {
     el.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => act(JSON.parse(b.dataset.a)));
     $('#peekBtn', el).onclick = () => { act({ type: 'peek', n: Number($('#peekN', el).value) || 1 }); closeModal(); };
+    $('#signalsChk', el).onchange = (e) => {
+      const on = e.target.checked;
+      try { localStorage.setItem('ink.signals', on ? 'on' : 'off'); } catch { /* private window */ }
+      board.setOptions({ auras: on, arrows: on });
+    };
     $('#flipsChk', el).onchange = (e) => { localStorage.setItem(FLIPS_KEY, e.target.checked ? 'on' : 'off'); if (!e.target.checked && S.revealed?.kind === 'look') { S.revealed = null; renderRevealed(); } };
   }, 'tools');
 }
@@ -1187,7 +1346,8 @@ function openHelp() {
       <li><b>Tap</b> a card in your hand for its play options (play, ink, shift, sing); <b>hold</b> it, or tap ⓘ, for the full breakdown. Click any other card to inspect it. Disabled buttons tell you <i>why</i>.</li>
       <li><b>Drag</b> a hand card onto the table to play it, onto your inkwell (left) to ink it, or onto a same-name character to Shift.</li>
       <li><b>Drag</b> one of your ready characters onto an exerted opposing character to challenge.</li>
-      <li><b>Esc</b> cancels targeting / closes panels · <b>Enter</b> ends your turn · click your <b>deck</b> for draw/look/shuffle tools.</li>
+      <li><b>Esc</b> cancels targeting / closes panels · <b>Space</b> or <b>Enter</b> ends your turn (it asks first if a character could still quest) · click your <b>deck</b> for draw/look/shuffle tools.</li>
+      <li class="keys"><b>Keys on the card under the pointer:</b> <kbd>I</kbd> ink · <kbd>P</kbd> play · <kbd>S</kbd> sing · <kbd>T</kbd> sing together · <kbd>O</kbd> shift · <kbd>Q</kbd> quest · <kbd>C</kbd> challenge · <kbd>B</kbd> boost · <kbd>M</kbd> move to a location · <kbd>1</kbd>–<kbd>9</kbd> its abilities · <kbd>Shift</kbd>+<kbd>Q</kbd> quest with all. Hovering a card lists what it can do, with its keys.</li>
       <li>The engine enforces the turn structure, ink, drying, questing, challenges and all keywords (Evasive, Bodyguard, Rush, Resist, Challenger, Support, Shift, Singer, Sing Together, Reckless, Ward, Alert, Boost).</li>
       <li>Other card text shows up in the log as a <span class="l effect">↳ reminder</span>; resolve it with the <i>Effects &amp; manual tools</i> in the card panel or the deck tools — your opponent sees everything in the log.</li>
       <li>First to <b>${LORE_TO_WIN} lore</b> wins. Ending your turn with an empty deck loses.</li>
@@ -1569,7 +1729,7 @@ async function loadReplay(id, seat = null) {
     S.replay = { id, data: j, i: 0, timer: null, speed: 1 };
     Object.assign(S.defs, j.defs || {});
     const u = new URL(location.href); u.searchParams.set('replay', id); u.searchParams.delete('room'); history.replaceState(null, '', u);
-    clearTargeting(); S.selected = null; closeModal();
+    clearTargeting(); S.selected = null; closeModal(); overlay.clear(); S.turnKey = undefined;
     showFrame(0);
     review.open(S.replay);                                            // starts the engine if the game isn't reviewed yet
     if (j.error) toast(j.error, 'err');
@@ -1583,6 +1743,7 @@ function showFrame(i, step = false) {
   S.view = f.view;
   board.render(S.view, S.defs, step ? f.events : []);
   renderAll();
+  if (step) noteSpotlight(f.events || []);
   renderReplayBar();
 }
 function stopReplay() { if (S.replay?.timer) { clearInterval(S.replay.timer); S.replay.timer = null; } }
@@ -1604,7 +1765,7 @@ function turnJump(dir) {
 }
 function exitReplay() {
   stopReplay();
-  S.replay = null; S.view = null;
+  S.replay = null; S.view = null; S.turnKey = undefined; overlay.clear();
   board.render(null, {});
   const u = new URL(location.href); u.searchParams.delete('replay'); history.replaceState(null, '', u);
   $('#replayBar').hidden = true;
@@ -1678,8 +1839,9 @@ function renderAll() {
   renderLog();
   renderPhaseModals();
   renderRevealed();
+  refreshPreview();
 }
-$('#endTurn').onclick = () => { if (V()?.status === 'over') { S.overDismissed = false; renderPhaseModals(); } else act({ type: 'endTurn' }); };
+$('#endTurn').onclick = () => { if (V()?.status === 'over') { S.overDismissed = false; renderPhaseModals(); } else requestEndTurn(); };
 $('#questAllBtn').onclick = () => { if (S.questAll) S.questAll.stop = true; else questAll(); };
 coach = createCoach({ net, board, view: V, you, esc, isAdmin: () => account.user()?.role === 'admin' });
 coach.button($('#coachBtn'));
@@ -1731,7 +1893,7 @@ $('#drawerConcede').onclick = () => { drawer(false); if (confirm('Concede this g
 window.addEventListener('ink:installable', () => { if (!S.view) renderLobby(); });
 bindChat($('#gameChat'));
 window.addEventListener('keydown', (e) => {
-  if (e.target.matches('input, textarea, select')) return;
+  if (e.target.matches?.('input, textarea, select')) return;
   if (S.replay) {
     if (e.key === 'ArrowRight') showFrame(S.replay.i + 1, true);
     else if (e.key === 'ArrowLeft') showFrame(S.replay.i - 1);
@@ -1745,10 +1907,36 @@ window.addEventListener('keydown', (e) => {
     else if (S.targeting) cancelTargeting();
     else if (!$('#modal').hidden && modalFor !== 'mulligan' && modalFor !== 'peek') closeModal();
     else select(null);
-  } else if (e.key === 'Enter' && myTurn() && $('#modal').hidden) {
-    act({ type: 'endTurn' });
+  } else if ((e.key === 'Enter' || e.key === ' ') && modalFor === 'endturn') {
+    e.preventDefault();
+    $('#endGo')?.click();                                                // the confirm: Space (or Enter) again ends it
+  } else if ((e.key === 'Enter' || e.key === ' ') && myTurn() && $('#modal').hidden && !S.targeting) {
+    if (e.key === ' ' && e.target.closest?.('button, a, summary')) return;   // Space on a focused button presses it
+    e.preventDefault();
+    requestEndTurn();
+  } else if (!e.ctrlKey && !e.metaKey && !e.altKey && $('#modal').hidden && $('#zoom').hidden && !S.targeting) {
+    cardKey(e);
   }
 });
+// the keys on the card under the pointer (or the open one on a touch screen): I ink · P play · S sing · T sing together
+// · O shift · Q quest · C challenge · B boost · M move · 1–9 an ability · Shift+Q quest all. Each runs that card's own
+// action, exactly as its button does.
+function cardKey(e) {
+  const k = e.key.toLowerCase();
+  if (e.shiftKey && k === 'q') {
+    if (!$('#questAllBtn').hidden) { e.preventDefault(); $('#questAllBtn').click(); }
+    return;
+  }
+  if (!/^[ipstoqcbm1-9]$/.test(k) || e.shiftKey || you() < 0 || V()?.status !== 'playing') return;
+  const iid = S.hover?.iid || S.selected;
+  const f = iid && findCard(iid);
+  if (!f?.def) return;
+  const all = actionsFor(f).primary.filter((a) => a.key === k);
+  if (!all.length) return;
+  e.preventDefault();
+  hidePreview();
+  runAction(all.find((a) => !a.reason) || all[0], iid);
+}
 function updateInsets() {
   const hud = !$('#hud').hidden;
   document.body.classList.toggle('ingame', hud);
