@@ -25,6 +25,8 @@ const S = {
   view: null,
   defs: {},
   demoDecks: [],
+  metaDecks: [],                                              // the top dreamborn decks, for the bot to play (#111)
+  botDeck: localStorage.getItem('ink.play.botDeck') || 'random',   // 'random' | 'meta:…' | 'demo:…' | 'saved:…' | 'mirror'
   chat: [],
   selected: null,       // iid of inspected card
   targeting: null,      // { prompt, valid:Set, multi, picked:Set, onPick, onDone, color }
@@ -53,6 +55,7 @@ const net = new Net({
         S.welcome = true;
         coach?.resume();                                      // a reconnect: the server has forgotten the coach was on
         S.demoDecks = m.demoDecks || [];
+        S.metaDecks = m.metaDecks || [];
         if (!S.name && m.name && m.name !== 'Player') S.name = m.name;
         maybeAutoJoin();
         refreshDecks();
@@ -841,7 +844,7 @@ function renderHud() {
   $('#hintBtn').disabled = !myChoice || S.hintWait;
   $('#hintBtn').textContent = S.hintWait ? '💡 Thinking…' : '💡 Hint';
   const questers = myTurn() ? questable().length : 0;
-  $('#questAllBtn').hidden = !S.questAll && questers < 2;
+  $('#questAllBtn').hidden = !S.questAll && questers < 1;   // one click instead of two, even for one character (#109)
   $('#questAllBtn').textContent = S.questAll ? '■ Stop questing' : `◆ Quest all (${questers})`;
   renderTopbar();
   renderBanner();
@@ -1507,6 +1510,7 @@ function startPanel(pick, pickOk) {
     <div class="seg" role="radiogroup" aria-label="Bot level"><span class="seg-lbl">Bot</span>
       <label class="seg-opt"><input type="radio" name="botLevel" value="hard" ${S.botLevel !== 'easy' ? 'checked' : ''}><span>Hard <small>plans ahead</small></span></label>
       <label class="seg-opt"><input type="radio" name="botLevel" value="easy" ${S.botLevel === 'easy' ? 'checked' : ''}><span>Easy</span></label></div>
+    ${botDeckPickHtml()}
     <div class="or"><span>or play a friend</span></div>
     <div class="lob-row2 create-row"><button class="btn" id="createBtn" ${named ? '' : 'disabled'}>Create room</button>
       <label class="check"><input type="checkbox" id="publicChk"> List it publicly</label></div>
@@ -1580,8 +1584,9 @@ function drawLobby(el) {
   $('#nameInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('#botBtn').disabled) $('#botBtn').click(); });
   bindDeckPick(el, chosen, (id) => { localStorage.setItem(DECK_KEY, id); renderLobby(); });
   el.querySelectorAll('[name=botLevel]').forEach((r) => r.onchange = () => { S.botLevel = r.value; localStorage.setItem('ink.play.bot', r.value); });
+  bindBotDeckPick(el);
   $('#flipsLobby')?.addEventListener('change', (e) => localStorage.setItem(FLIPS_KEY, e.target.checked ? 'on' : 'off'));
-  $('#botBtn').onclick = () => { if (!nameOk()) return; S.quickBot = true; net.send({ t: 'create', name: S.name, vsBot: true, botLevel: S.botLevel === 'easy' ? 'easy' : 'hard' }); };
+  $('#botBtn').onclick = () => { if (!nameOk()) return; S.quickBot = true; net.send({ t: 'create', name: S.name, vsBot: true, botLevel: S.botLevel === 'easy' ? 'easy' : 'hard', botDeck: botDeckSpec() }); };
   $('#createBtn').onclick = () => nameOk() && net.send({ t: 'create', name: S.name, public: $('#publicChk').checked });
   $('#joinBtn').onclick = () => nameOk() && net.send({ t: 'join', code: $('#joinCode').value.trim(), name: S.name });
   $('#joinCode').onkeydown = (e) => { if (e.key === 'Enter') $('#joinBtn').click(); };
@@ -1647,6 +1652,7 @@ function drawRoom(el) {
       ${meSeat ? `<section class="deckpick">
         <div class="sec-head"><span class="lbl">Your deck</span><a class="link" href="/" target="_blank" rel="noopener">+ New deck</a></div>
         ${deckPickHtml(chosen, { room: true })}
+        ${vsBot && r.isHost ? botDeckPickHtml() : ''}
         ${chosen === 'paste' ? `<textarea id="pasteDeck" class="field-in" aria-label="Decklist" placeholder="4 Mickey Mouse - Brave Little Tailor&#10;4 Let It Go&#10;…">${esc(localStorage.getItem('ink.play.paste') || '')}</textarea>` : ''}
         <div class="lob-row room-acts">
           ${chosen === 'paste' ? `<button class="btn ${pasteWaiting ? 'btn-gold' : ''}" id="useDeck">${pasteWaiting ? 'Use this list' : '✓ Using this list'}</button>` : ''}
@@ -1674,6 +1680,7 @@ function drawRoom(el) {
     if (!S.pasteDirty) { S.pasteDirty = true; renderLobby(); }       // an edited list has to be used again
   });
   $('#useDeck')?.addEventListener('click', () => { S.pasteDirty = false; sendDeck(); });
+  bindBotDeckPick(el);
   $('#readyBtn')?.addEventListener('click', () => net.send({ t: 'ready', ready: !meSeat.ready }));
   $('#startBtn')?.addEventListener('click', () => {
     if (vsBot && !meSeat.ready) net.send({ t: 'ready', ready: true });
@@ -1681,6 +1688,39 @@ function drawRoom(el) {
   });
   // auto-submit the remembered deck the first time we sit down
   if (!meSeat.deck && r.status !== 'playing' && S.autoDeckFor !== r.code) { S.autoDeckFor = r.code; if (chosen !== 'paste') sendDeck(); }
+}
+// the bot's deck choice as the server takes it; 'mirror' plays your own current deck against you
+function botDeckSpec(v = S.botDeck) {
+  if (v === 'mirror') {
+    const mine = chosenDeck({ paste: false });
+    const d = deckChoice(mine);
+    return d ? { name: `Mirror: ${d.name}`.slice(0, 60), cards: d.cards } : { id: 'random' };
+  }
+  if (v.startsWith('saved:')) { const d = deckChoice(v); return d ? { name: d.name, cards: d.cards } : { id: 'random' }; }
+  if (v.startsWith('meta:') ? S.metaDecks.some((d) => d.id === v) : v.startsWith('demo:') ? S.demoDecks.some((d) => 'demo:' + d.id === v) : false) return { id: v };
+  return { id: 'random' };
+}
+function botDeckPickHtml() {
+  const opt = (v, label) => `<option value="${esc(v)}" ${S.botDeck === v ? 'selected' : ''}>${esc(label)}</option>`;
+  const meta = S.metaDecks.map((d) => opt(d.id, d.name.replace(/^Meta:\s*/, '')));
+  const demo = S.demoDecks.map((d) => opt('demo:' + d.id, d.name.replace(/^Demo:\s*/, '')));
+  const mine = S.myDecks.map((d) => opt('saved:' + d.id, d.name));
+  return `<label class="botdeck"><span class="lbl">Bot's deck</span>
+    <select id="botDeckSel" class="field-in" aria-label="The bot's deck">
+      ${opt('random', 'Random (a meta or demo deck)')}${opt('mirror', 'Mirror: the same deck as mine')}
+      ${meta.length ? `<optgroup label="Top meta decks">${meta.join('')}</optgroup>` : ''}
+      ${demo.length ? `<optgroup label="Demo decks">${demo.join('')}</optgroup>` : ''}
+      ${mine.length ? `<optgroup label="My decks">${mine.join('')}</optgroup>` : ''}
+    </select></label>`;
+}
+function sendBotDeck() { net.send({ t: 'botDeck', deck: botDeckSpec() }); }
+// remembered for the next bot game; in a bot room between games it changes the bot's deck right away
+function bindBotDeckPick(el) {
+  el.querySelector('#botDeckSel')?.addEventListener('change', (e) => {
+    S.botDeck = e.target.value;
+    localStorage.setItem('ink.play.botDeck', S.botDeck);
+    if (S.room?.isHost && S.room.seats.some((s) => s?.bot) && S.room.status !== 'playing') sendBotDeck();
+  });
 }
 function sendDeck() {
   const v = chosenDeck();
@@ -1692,6 +1732,7 @@ function sendDeck() {
   }
   const d = deckChoice(v);
   if (d) net.send({ t: 'setDeck', deck: { name: d.name, cards: d.cards } });
+  if (d && S.botDeck === 'mirror' && S.room?.isHost && S.room.seats.some((s) => s?.bot) && S.room.status !== 'playing') sendBotDeck();
 }
 function inviteUrl() {
   const u = new URL('/play', location.origin);
