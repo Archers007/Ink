@@ -2,6 +2,9 @@
 //   import { installable, install } from '/js/pwa.js';
 //   window.addEventListener('ink:installable', () => showInstallButton());
 // Nothing here is needed for the game to work; it only makes "Add to home screen" and offline shell loads possible.
+// It also starts the silent front-end updater (version.js), loaded on the side so a failure there can't break the page.
+
+import('./version.js').catch((e) => console.warn('[pwa] updater failed:', e.message));
 
 let deferred = null;
 
