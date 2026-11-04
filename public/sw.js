@@ -2,13 +2,16 @@
 // installable and quick to open: the shell (HTML, CSS, JS, three.js) is precached and served from the network when it's
 // reachable (so a deploy shows up on the next load), card images and fonts are cached as they're seen. /api and /ws are
 // never touched.
+// The server appends the front-end build id to VERSION when it serves this file (server.js, /sw.js), so every deploy
+// installs a new worker: it precaches a fresh shell and the old shell cache is dropped on activate. The page-side
+// updater (js/version.js) also deletes ink-shell-* when it sees a new build, before it reloads.
 const VERSION = 'v3';
 const SHELL_CACHE = `ink-shell-${VERSION}`;
 const CARDS_CACHE = 'ink-cards-v2';                        // v2: every entry is a readable (cors) response, see cardImage()
 const FONTS_CACHE = 'ink-fonts-v1';
 const KEEP = new Set([SHELL_CACHE, CARDS_CACHE, FONTS_CACHE]);
 const SHELL = [
-  '/play', '/css/ink.css', '/css/play.css', '/js/pwa.js', '/js/account.js', '/js/play/main.js', '/js/play/board.js', '/js/play/net.js', '/js/play/rules.js', '/js/play/textures.js',
+  '/play', '/css/ink.css', '/css/play.css', '/js/pwa.js', '/js/version.js', '/js/build.js', '/js/account.js', '/js/play/main.js', '/js/play/board.js', '/js/play/net.js', '/js/play/rules.js', '/js/play/textures.js',
   '/vendor/three/build/three.module.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png',
 ];
 const CARDS_MAX = 600;                                     // card images kept (oldest dropped first)

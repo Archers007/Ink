@@ -16,6 +16,7 @@ import fsSync from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
 import { loadCardIndex, resolveDeck } from './game/cards.js';
@@ -433,6 +434,45 @@ app.get('/api/decks/:id', async (req, res) => {
   }
 });
 
+// ----- front-end build id (silent updates, public/js/version.js) -----
+// A hash of everything the browser loads from this checkout (public/ and the shared rulebook modules), taken at start,
+// so it changes on every deploy that changes a front-end file — no git needed inside Docker. INK_BUILD overrides it.
+function frontendBuildId() {
+  const h = createHash('sha256');
+  const walk = (dir, rel) => {
+    let entries = [];
+    try { entries = fsSync.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+      const p = path.join(dir, e.name), r = `${rel}/${e.name}`;
+      if (e.isDirectory()) walk(p, r);
+      else if (e.isFile()) { h.update(r); h.update('\0'); h.update(fsSync.readFileSync(p)); h.update('\0'); }
+    }
+  };
+  walk(PUBLIC_DIR, 'public');
+  walk(path.join(__dirname, 'game', 'rulebook'), 'rulebook');
+  return h.digest('hex').slice(0, 16);
+}
+const FRONTEND_BUILD = String(process.env.INK_BUILD || '').trim() || frontendBuildId();
+app.get('/api/version', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ version: FRONTEND_BUILD });
+});
+// the build the page's own files came with (the SW caches it alongside the rest of the shell, so an old cached shell
+// reports its old build and the updater notices)
+app.get('/js/build.js', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.type('text/javascript').send(`export const BUILD = ${JSON.stringify(FRONTEND_BUILD)};\n`);
+});
+// the service worker carries the build in its cache name, so every deploy installs a new worker that precaches a
+// fresh shell and drops the old one
+app.get('/sw.js', async (req, res, next) => {
+  try {
+    const src = await fs.readFile(path.join(PUBLIC_DIR, 'sw.js'), 'utf8');
+    res.set('Cache-Control', 'no-cache');
+    res.type('text/javascript').send(src.replace(/const VERSION = '([^']*)';/, (m, v) => `const VERSION = '${v}-${FRONTEND_BUILD}';`));
+  } catch (e) { next(); }
+});
+
 // ----- static -----
 app.use(express.static(PUBLIC_DIR, {
   extensions: ['html'],
@@ -516,7 +556,7 @@ const replays = attachReplays(app, { db: statsDb, dbFile: path.join(DATA_DIR, 'i
 attachSim(app, { db: statsDb, getIndex: () => cardIndex, accounts });
 
 // the Deck Lab: a live AI deck builder (lib/lab.js)
-attachLab(app, { getIndex: () => cardIndex, accounts, dbFile: path.join(CACHE_DIR, 'sanitized.db') });
+attachLab(app, { db: statsDb, getIndex: () => cardIndex, accounts, dbFile: path.join(CACHE_DIR, 'sanitized.db') });
 
 const server = app.listen(PORT, () => {
   console.log(`\n  Ink ▸ http://localhost:${PORT}\n`);

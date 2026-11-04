@@ -11,6 +11,8 @@
 //   assemble(index, { core, inks, synergies, locks, base })   → { name, cards: [[id, qty]], thoughts }
 //   cardImpact(records, defs)                                  → [{ id, full, drawn, played, inked, stuck, … dead, note }]
 //   proposeSwaps(index, cards, { impact, report, synergies, inks, locks, tried, max }) → [{ out, in, why, kind }]
+//   inkOptions(index, core, { format, inks, pivot, max })    → [{ inks, score, why, dropped }] best colour pairs first
+//   proposePivots(index, cards, { impact, report, inks, locks, tried, format, mode, core, max }) → [{ cards, inks, why, kind, changed }]
 //
 // A thought is { text, cards?: [id] }: one or two plain sentences naming cards by their full name.
 import { isFullyAutomated, resolveDeck, nameKey, INK_ORDER } from '../cards.js';
@@ -419,7 +421,8 @@ function makeList() {
 const lockSet = (locks) => new Set((locks || []).map((s) => String(s).toLowerCase()));
 const isLocked = (set, d) => set.has(String(d.id).toLowerCase()) || set.has(d.full.toLowerCase());
 
-export function assemble(index, { core = [], inks = null, synergies = null, locks = [], base = null, format = null } = {}) {
+// `keep` (internal, used by proposePivots): [[id, n]] already decided, added as they are before the list is filled out
+export function assemble(index, { core = [], inks = null, synergies = null, locks = [], base = null, format = null, keep = null } = {}) {
   const thoughts = [];
   const say = (text, defs = []) => thoughts.push(defs.length ? { text, cards: defs.map((d) => d.id) } : { text });
   const { defs: coreDefs } = defsOfIds(index, core);
@@ -443,6 +446,10 @@ export function assemble(index, { core = [], inks = null, synergies = null, lock
     // the core and the locks at full copies
     for (const d of [...coreDefs, ...lockDefs]) L.add(d, maxCopies(d), { force: true });
     if (coreDefs.length) say(`I start with 4 of each core card: ${listNames(coreDefs.map((d) => d.full))}. That's ${L.total()} cards.`, coreDefs);
+    if (keep?.length) {
+      for (const [id, n] of keep) { const d = index.byId.get(String(id)); if (d && d.inks.every((i) => deckInks.includes(i))) L.add(d, n, { force: true }); }
+      say(`I keep ${L.total()} cards from the old list and build the rest around them.`);
+    }
 
     // follow the chains: cheap versions of the characters the core names
     const ctx = coreContext(coreDefs);
@@ -715,4 +722,385 @@ export function proposeSwaps(index, cards, { impact = null, report = null, syner
     });
   }
   return out.slice(0, max);
+}
+
+// ---------- colour options: never locked to one pair ----------
+
+const PAIRS = INK_ORDER.flatMap((a, i) => INK_ORDER.slice(i + 1).map((b) => [a, b]));
+const OFFER = { defense: 'more Bodyguards', payoff: 'payoffs', enabler: 'cheap enablers', chain: 'more of the characters my cards name',
+  removal: 'removal', draw: 'card draw', fallback: 'solid cheap characters' };
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const numWord = (n) => WORDS[n] || String(n);
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const normInks = (inks) => [...new Set((inks || []).map((i) => String(i).toLowerCase()).filter((i) => INK_ORDER.includes(i)))].sort(byInkOrder).slice(0, MAX_INKS);
+const sameInks = (a, b) => a.length === b.length && a.every((i) => b.includes(i));
+
+// the meta decks' ink pairs ("Amber/Steel" → how many of the decks I test against run it)
+function metaPairs(index) {
+  const c = cacheOf(index);
+  if (!c.metaPairs) {
+    c.metaPairs = new Map();
+    for (const m of index.metaDecks || []) {
+      const k = resolveDeck(index, m).inks.join('/');
+      c.metaPairs.set(k, (c.metaPairs.get(k) || 0) + 1);
+    }
+  }
+  return c.metaPairs;
+}
+
+// seed cards the plan hangs on: the first one (the card the player started from), versions of that character, and
+// cards tied to another seed card by name (Pudge wants Lilo) or by shift
+function essentialSeed(defs) {
+  const ess = new Set();
+  if (!defs.length) return ess;
+  ess.add(defs[0].id);
+  for (const d of defs) {
+    if (nameKey(d.name) === nameKey(defs[0].name)) ess.add(d.id);
+    const f = features(d);
+    for (const o of defs) {
+      if (o === d) continue;
+      const named = f.names.some((n) => nameKey(n) === nameKey(o.name));
+      const shift = f.shiftOnto && nameKey(o.name) === nameKey(d.name);
+      if (named || shift) { ess.add(d.id); ess.add(o.id); }
+    }
+  }
+  return ess;
+}
+
+// what a pair offers a set of kept cards: the best synergies overall and from the ink(s) the kept cards don't bring
+function pairSupport(index, keptDefs, pair, fmt) {
+  const syn = findSynergies(index, keptDefs.map((d) => d.id), { inks: pair, format: fmt }).map((s) => ({ ...s, d: index.byId.get(s.id) })).filter((s) => s.d);
+  const own = new Set(keptDefs.flatMap((d) => d.inks));
+  const fresh = pair.filter((i) => !own.has(i));
+  const sum = (xs) => xs.reduce((s, x) => s + x.score, 0);
+  const top = syn.slice(0, 14);
+  const side = fresh.length ? syn.filter((s) => s.d.inks.some((i) => fresh.includes(i))).slice(0, 8) : [];
+  const roles = {};
+  for (const s of side) roles[s.role] = (roles[s.role] || 0) + s.score;
+  const main = Object.entries(roles).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || null;
+  return {
+    syn, fresh, side, main,
+    base: sum(top), sideScore: sum(side),
+    removal: syn.filter((s) => features(s.d).removal && s.d.cost <= 5).length,
+    draw: syn.filter((s) => features(s.d).draw).length,
+    bodyguards: syn.filter((s) => features(s.d).bodyguard && s.d.cost <= 3).length,
+  };
+}
+
+// inkOptions(index, core, { format, inks, pivot, max }) → [{ inks: [a, b], score, why, dropped: [id] }] best first.
+// Every pair that keeps the seed's plan is scored by what it offers: the best synergies, what the second ink adds,
+// removal and draw to pick from, and whether the meta runs it. With `pivot`, pairs may leave out a seed card that isn't
+// essential (not the first card, not tied to another seed card), at a cost. Fixed `inks`: just that pair (one fixed
+// ink: the pairs with it).
+export function inkOptions(index, core = [], opts = {}) {
+  return rankPairs(index, core, opts).map(({ inks, score, parts, dropped }) => ({ inks, score, why: parts.join(' '), dropped }));
+}
+// inkOptions with the narration still in pieces: [what the pair keeps, what it adds]. `must` (internal): the only cards
+// that can't be left out, instead of the essential-seed and keep-half rules
+function rankPairs(index, core = [], { format = null, inks = null, pivot = true, max = 4, must = null } = {}) {
+  const { defs } = defsOfIds(index, core);
+  const fmt = pickFormat(index, defs, format);
+  const fixed = normInks(inks);
+  const ess = must ? new Set(defsOfIds(index, must).defs.map((d) => d.id)) : essentialSeed(defs);
+  const meta = metaPairs(index);
+  let pairs = fixed.length === MAX_INKS ? [fixed] : fixed.length === 1 ? PAIRS.filter((p) => p.includes(fixed[0])) : PAIRS;
+  const split = (p) => ({ kept: defs.filter((d) => d.inks.every((i) => p.includes(i))), dropped: defs.filter((d) => !d.inks.every((i) => p.includes(i))) });
+  if (fixed.length !== MAX_INKS && defs.length) {
+    // a pair must keep the plan: something of the seed, every essential card, at least half of it
+    const ok = (p) => { const { kept, dropped } = split(p); return kept.length > 0 && (!pivot ? !dropped.length : !dropped.some((d) => ess.has(d.id)) && (must || kept.length * 2 >= defs.length)); };
+    let keepers = pairs.filter(ok);
+    if (!keepers.length) {
+      // the seed spans 3+ inks (or nothing fits): the pairs that leave out the fewest seed cards
+      const least = Math.min(...pairs.map((p) => split(p).dropped.length));
+      keepers = pairs.filter((p) => split(p).dropped.length === least && split(p).kept.length);
+    }
+    pairs = keepers;
+  }
+  const out = pairs.map((p) => {
+    const { kept, dropped } = split(p);
+    const s = pairSupport(index, kept, p, fmt);
+    const runs = meta.get(p.join('/')) || 0;
+    const score = r1(s.base * 0.5 + s.sideScore * 0.5 + Math.min(6, s.removal) + Math.min(4, s.draw) * 0.5 + Math.min(3, s.bodyguards) * 0.3
+      + Math.min(3, runs) - dropped.length * 6);
+    const parts = [];
+    const keptNames = kept.map((d) => d.full);
+    if (fixed.length === MAX_INKS) parts.push(`You picked ${inkList(p)}, so that's the colour pair${dropped.length ? `, which leaves out ${listNames(dropped.map((d) => d.full))}` : ''}.`);
+    else if (keptNames.length) {
+      const shown = keptNames.length > 2 ? `${keptNames.slice(0, 2).join(', ')} and ${plural(keptNames.length - 2, 'more seed card')}` : listNames(keptNames);
+      parts.push(`${inkList(p)} keeps ${shown}${dropped.length ? ` but leaves out ${listNames(dropped.map((d) => d.full))}, which the plan can live without` : ''}.`);
+    } else parts.push(`${inkList(p)} has plenty of good cards to build from.`);
+    if (s.fresh.length && s.side.length) parts.push(`${s.fresh.map(cap).join(' and ')} adds ${OFFER[s.main] || 'support'} (${listNames(s.side.slice(0, 2).map((x) => x.d.full))}), with ${plural(s.removal, 'removal card')} to pick from${runs ? ` and ${runs} of the meta decks running the same colours` : ''}.`);
+    else parts.push(`It has ${plural(s.removal, 'removal card')} and ${plural(s.draw, 'draw card')} to pick from${runs ? `, and ${runs} of the meta decks run the same colours` : ''}.`);
+    return { inks: p, score, parts, dropped: dropped.map((d) => d.id) };
+  }).sort((a, b) => b.score - a.score || byInkOrder(a.inks[0], b.inks[0]) || byInkOrder(a.inks[1], b.inks[1]));
+  const res = out.slice(0, Math.max(1, max));
+  // the best pair that keeps every seed card always gets a look
+  const whole = out.find((o) => !o.dropped.length);
+  if (whole && !res.includes(whole)) res[res.length - 1] = whole;
+  return res.sort((a, b) => b.score - a.score);
+}
+
+// ---------- pivots: whole new lists when small swaps stop helping ----------
+
+export const listKey = (cards) => (cards || []).filter((p) => Array.isArray(p) && p[1] > 0).map(([id, n]) => `${id}:${Math.floor(n)}`).sort().join(',');
+
+// proposePivots(index, cards, { impact, report, synergies, inks, locks, tried, format, mode, core, max, rate, stuck })
+//   → [{ cards: [[id, qty]] (a legal 60), inks, why, kind: 'pivot-ink'|'pivot-plan'|'rebuild', changed }]
+// mode 'pivot': keep the stronger ink's best cards (and the locks and seed), swap the weaker ink for another and rebuild
+// that half. mode 'free' adds 'pivot-plan' (keep the ~30 cards that pulled their weight, rebuild the rest around a
+// different package: going wide, control, songs, ramp, questing) and 'rebuild' (start over around the best 2–3 cards in
+// whichever pair suits them). `core`: the seed cards, kept when their ink stays but never forced. `tried`: earlier
+// lists (arrays of [id, n] or objects with .cards); none is repeated, nor anything within a few cards of one in the same
+// colours. Optional `rate` (this list's win rate, else report.overall) and `stuck` (rounds nothing was kept) go into
+// the narration.
+export function proposePivots(index, cards, { impact = null, report = null, synergies = null, inks = null, locks = [], tried = [], format = null,
+  mode = 'pivot', core = null, max = 3, rate = null, stuck = 0 } = {}) {
+  const deck = (cards || []).map(([id, n]) => ({ id: String(id), n: Math.floor(n), d: index.byId.get(String(id)) })).filter((x) => x.d && x.n > 0);
+  if (!deck.length || max <= 0) return [];
+  const before = resolveDeck(index, { cards: deck.map((x) => [x.id, x.n]) });
+  const curInks = normInks(inks?.length ? inks : before.inks);
+  const fmt = pickFormat(index, deck.map((x) => x.d), format);
+  const locked = lockSet(locks);
+  const lockDefs = defsOfIds(index, locks).defs;
+  const lockIds = lockDefs.map((d) => d.id);
+  const coreDefs = core ? defsOfIds(index, core).defs : lockDefs;
+  const coreKeys = new Set(coreDefs.map((d) => nameKey(d.full)));
+  const ess = essentialSeed(coreDefs);
+  const winRate = rate ?? report?.overall?.p ?? null;
+  void synergies;   // pivots look for their own: the old list's synergies are for the old colours and plan
+
+  // how each card did: 1 - dead from the sim, else how well it fits the plan
+  const imp = new Map((impact || []).map((c) => [nameKey(c.full || index.byId.get(c.id)?.full || ''), c]));
+  const hasImpact = (impact || []).some((c) => c.drawn > 0);
+  const ctx = coreContext(deck.filter((x) => x.n >= 3).map((x) => x.d));
+  const impOf = (x) => imp.get(nameKey(x.d.full));
+  const perf = (x) => {
+    const c = impOf(x);
+    if (hasImpact) return c?.drawn ? 1 - c.dead : 0.5;
+    return clamp01((scoreCard(x.d, ctx)?.score || 0) / 12);
+  };
+  const isLock = (d) => isLocked(locked, d) || lockDefs.some((l) => nameKey(l.full) === nameKey(d.full));
+  const isCore = (d) => coreKeys.has(nameKey(d.full));
+  const rank = (xs) => xs.map((x) => ({ x, p: perf(x), must: isLock(x.d), soft: isCore(x.d) }))
+    .sort((a, b) => b.must - a.must || b.soft - a.soft || b.p - a.p || a.x.d.full.localeCompare(b.x.d.full));
+
+  // per ink: how its cards did in the games
+  const inkStats = (ink) => {
+    const xs = deck.filter((x) => x.d.inks.includes(ink));
+    const s = { ink, copies: 0, drawn: 0, played: 0, stuck: 0, inked: 0, dead: 0 };
+    for (const x of xs) {
+      s.copies += x.n;
+      const c = impOf(x);
+      if (!c) continue;
+      s.drawn += c.drawn; s.played += c.played; s.stuck += c.stuck; s.inked += c.inked; s.dead += c.dead * c.drawn;
+    }
+    s.dead = s.drawn ? s.dead / s.drawn : 0.5;
+    s.playRate = s.drawn ? s.played / s.drawn : null;
+    return s;
+  };
+  // the evidence: what sat in hand, what never got played
+  const stuckList = (xs) => xs.map((x) => ({ x, c: impOf(x) })).filter(({ c }) => c?.stuck >= 2).sort((a, b) => b.c.stuck - a.c.stuck || a.x.d.full.localeCompare(b.x.d.full));
+  const neverList = (xs) => xs.map((x) => ({ x, c: impOf(x) })).filter(({ c }) => c?.drawn >= 2 && !c.played).sort((a, b) => b.c.drawn - a.c.drawn || a.x.d.full.localeCompare(b.x.d.full));
+  const evidence = (xs) => {
+    const never = neverList(xs).slice(0, 2);
+    const st = stuckList(xs).filter((s) => !never.some((n) => n.x === s.x)).slice(0, 1);
+    const bits = [];
+    if (st.length) bits.push(`${st[0].x.d.full} sat in hand at the end ${plural(st[0].c.stuck, 'time')}`);
+    if (never.length) bits.push(`${listNames(never.map((n) => n.x.d.full))} never got played (drawn ${never.map((n) => n.c.drawn).join(' and ')} times)`);
+    return { text: listNames(bits), cards: [...st, ...never].map((s) => s.x.d.id) };
+  };
+  const opener = () => {
+    const now = inkList(curInks);
+    const won = winRate != null ? `${now} has won ${pct(winRate)}%` : `${now} isn't getting anywhere`;
+    return `${won}${stuck >= 2 ? ` for ${numWord(stuck)} rounds` : ''}${stuck >= 1 ? ' and nothing I swap helps' : ''}.`;
+  };
+  const worstMatch = () => {
+    const m = (report?.matchups || []).filter((x) => x.games >= 2).sort((a, b) => a.win.p - b.win.p || b.games - a.games)[0];
+    return m && m.win.p <= 0.25 ? `It won ${m.win.k} of ${m.games} against ${m.name}.` : '';
+  };
+
+  // checking and keying a candidate
+  const fullMap = (pairs) => { const m = new Map(); for (const [id, n] of pairs) { const d = index.byId.get(String(id)); if (d) m.set(nameKey(d.full), (m.get(nameKey(d.full)) || 0) + n); } return m; };
+  const oldMap = fullMap(deck.map((x) => [x.id, x.n]));
+  const changedFrom = (from, to) => { let k = 0; for (const [f, n] of from) k += Math.max(0, n - (to.get(f) || 0)); return k; };
+  const triedLists = [];
+  for (const t of tried || []) {
+    const list = Array.isArray(t) && Array.isArray(t[0]) ? t : Array.isArray(t?.cards) ? t.cards : null;
+    if (list) triedLists.push({ key: listKey(list), map: fullMap(list), inks: resolveDeck(index, { cards: list }).inks });
+  }
+  const seen = new Set([listKey(deck.map((x) => [x.id, x.n]))]);
+  const accept = (built, wantChange) => {
+    const r = resolveDeck(index, { cards: built.cards });
+    if (!r.legal || r.size !== SIZE || r.inks.length > MAX_INKS) return null;
+    const m = fullMap(r.counts);
+    if (lockDefs.some((d) => !m.get(nameKey(d.full)))) return null;
+    const key = listKey(r.counts);
+    if (seen.has(key)) return null;
+    // a list I've tried, or one only a few cards off it in the same colours, isn't a new escape
+    if (triedLists.some((t) => t.key === key || (sameInks(t.inks, r.inks) && changedFrom(t.map, m) < 10))) return null;
+    const changed = changedFrom(oldMap, m);
+    const newInk = !sameInks(r.inks, curInks);
+    if (!newInk && changed < 16) return null;
+    if (wantChange === 'ink' && !newInk) return null;
+    seen.add(key);
+    proposed.push(r.inks);
+    return { cards: r.counts, inks: r.inks, changed };
+  };
+  const proposed = [];   // ink pairs of the pivots made so far in this call
+  const nameOf = (pair, lead) => `Lab: ${lead || inkList(pair)}${lead ? ` (${inkList(pair)})` : ''}`;
+  const leadName = coreDefs[0]?.name || lockDefs[0]?.name || null;
+
+  // ---- pivot-ink: keep the stronger ink's best cards, swap the weaker ink for another ----
+  const pivotInk = () => {
+    const out = [];
+    const need = new Set(lockDefs.flatMap((d) => d.inks));
+    const must = curInks.filter((i) => need.has(i));
+    if (must.length >= MAX_INKS || [...need].some((i) => !curInks.includes(i) && curInks.length === MAX_INKS)) return out;
+    const stats = curInks.map(inkStats);
+    let keepInk;
+    if (curInks.length === 1) keepInk = curInks[0];
+    else if (must.length === 1) keepInk = must[0];
+    else {
+      const worth = (s) => (1 - s.dead) + coreDefs.filter((d) => d.inks.includes(s.ink)).length * 0.08 + (coreDefs.some((d) => ess.has(d.id) && d.inks.includes(s.ink)) ? 0.2 : 0);
+      keepInk = [...stats].sort((a, b) => worth(b) - worth(a) || b.copies - a.copies || byInkOrder(a.ink, b.ink))[0].ink;
+    }
+    const weak = curInks.find((i) => i !== keepInk) || null;
+    const ks = stats.find((s) => s.ink === keepInk), ws = weak ? stats.find((s) => s.ink === weak) : null;
+    // the kept half: locks, seed cards and the stronger ink's cards that pulled their weight
+    const capN = weak ? 34 : 40;
+    const keep = [];
+    let total = 0;
+    for (const r of rank(deck.filter((x) => x.d.inks.every((i) => i === keepInk)))) {
+      if (!r.must && !r.soft && (r.p < 0.4 || total + r.x.n > capN)) continue;
+      keep.push(r.x);
+      total += r.x.n;
+    }
+    const cut = deck.filter((x) => !keep.includes(x));
+    const keepCore = keep.filter((x) => isLock(x.d) || isCore(x.d));
+    const synCore = (keepCore.length ? keepCore : rank(keep).slice(0, 3).map((r) => r.x)).map((x) => x.d);
+    const options = INK_ORDER.filter((i) => !curInks.includes(i)).map((X) => {
+      const pair = [keepInk, X].sort(byInkOrder);
+      const s = pairSupport(index, synCore, pair, fmt);
+      return { X, pair, s, support: s.sideScore + Math.min(6, s.removal) * 0.5 + Math.min(3, metaPairs(index).get(pair.join('/')) || 0) };
+    }).sort((a, b) => b.support - a.support || byInkOrder(a.X, b.X));
+    for (const o of options) {
+      if (out.length >= max) break;
+      const syn = o.s.syn.map((s) => (s.d.inks.includes(o.X) ? { ...s, score: r1(s.score * 1.15) } : s)).sort((a, b) => b.score - a.score || a.full.localeCompare(b.full));
+      const built = assemble(index, { core: synCore.map((d) => d.id), inks: o.pair, synergies: syn, locks: lockIds, keep: keep.map((x) => [x.id, x.n]), format: fmt });
+      const ok = accept(built, 'ink');
+      if (!ok) continue;
+      // why: the numbers behind dropping the weaker ink, then what stays and what the new ink brings
+      const parts = [opener()];
+      if (ws && ws.drawn && ks.drawn) {
+        const worse = ws.dead > ks.dead;
+        const lockedBy = must.length ? lockDefs.find((d) => d.inks.includes(keepInk)) : null;
+        parts.push(`${worse ? `${cap(weak)}'s cards are the ones letting me down` : lockedBy ? `${lockedBy.full} needs ${cap(keepInk)}, so ${cap(weak)} is the half to change` : `${cap(weak)} is the half doing less`}: I played them ${pct(ws.playRate)}% of the times I drew them${ws.stuck ? ` and they were left in hand at the end of a game ${plural(ws.stuck, 'time')}` : ''}, against ${pct(ks.playRate)}% for ${cap(keepInk)}.`);
+      } else if (ws) parts.push(`${cap(weak)} adds the least to the plan.`);
+      else parts.push(`Everything is ${cap(keepInk)}, so a second colour could fix what's missing.`);
+      const ev = evidence(cut);
+      if (ev.text) parts.push(`${ev.text.charAt(0).toUpperCase()}${ev.text.slice(1)}.`);
+      const keepNames = rank(keepCore.length ? keepCore : keep).slice(0, 2).map((r) => r.x.d.full);
+      const oneDrops = keep.filter((x) => x.d.type === 'character' && x.d.cost === 1).length >= 2;
+      const added = o.s.side.filter((s) => !oldMap.has(nameKey(s.d.full)) && ok.cards.some(([id]) => index.byId.get(id)?.full === s.d.full)).slice(0, 2).map((s) => s.d.full);
+      parts.push(`So I'm trying ${inkList(ok.inks)} instead, keeping ${listNames(oneDrops ? [...keepNames, 'the 1-drops'] : keepNames)}${added.length ? `, with ${listNames(added)} from ${cap(o.X)}${o.s.main && OFFER[o.s.main] ? ` for ${OFFER[o.s.main]}` : ''}` : ''}.`);
+      out.push({ ...ok, name: nameOf(ok.inks, leadName), kind: 'pivot-ink', why: parts.join(' ') });
+    }
+    return out;
+  };
+
+  // ---- pivot-plan: keep what worked, rebuild the rest around another package ----
+  const PACKAGES = [
+    { key: 'wide', label: 'going wide with cheap characters', test: (s, f) => ['enabler', 'payoff', 'chain'].includes(s?.role) || f.wide || f.playsFree || f.lowTrigger || f.cheap },
+    { key: 'control', label: 'control: removal, Bodyguards and card draw', test: (s, f) => f.removal || f.draw || f.bodyguard },
+    { key: 'songs', label: 'songs and the characters that sing them', test: (s, f) => f.song || f.singer > 0 },
+    { key: 'ramp', label: 'ramping into big characters with high lore', test: (s, f, d) => f.ramp || (f.char && d.cost >= 5 && f.lore >= 3) },
+    { key: 'quest', label: 'efficient characters that quest hard', test: (s, f, d) => f.char && d.cost <= 4 && f.lore >= 2 },
+  ];
+  const pivotPlan = () => {
+    const out = [];
+    if (curInks.length < 1) return out;
+    const keep = [];
+    let total = 0;
+    for (const r of rank(deck)) {
+      if (!r.must && total >= 30) break;
+      if (!r.must && !r.soft && r.p < 0.35) continue;
+      keep.push(r.x);
+      total += r.x.n;
+    }
+    const cut = deck.filter((x) => !keep.includes(x));
+    if (!cut.length) return out;
+    const share = (xs, p) => xs.reduce((s, x) => s + (p.test(null, features(x.d), x.d) ? x.n : 0), 0);
+    const nowPkg = [...PACKAGES].sort((a, b) => share(deck, b) - share(deck, a))[0];
+    const best = rank(keep).slice(0, 4).map((r) => r.x.d);
+    const syn0 = findSynergies(index, best.map((d) => d.id), { inks: curInks, format: fmt, exclude: cut.map((x) => x.id) })
+      .map((s) => ({ ...s, d: index.byId.get(s.id) })).filter((s) => s.d);
+    const pkgs = PACKAGES.filter((p) => p !== nowPkg).map((p) => {
+      const hits = syn0.filter((s) => p.test(s, features(s.d), s.d));
+      return { p, hits, support: hits.slice(0, 10).reduce((s, x) => s + x.score, 0) };
+    }).filter((o) => o.hits.length >= 4).sort((a, b) => b.support - a.support || a.p.key.localeCompare(b.p.key));
+    for (const o of pkgs) {
+      if (out.length >= max) break;
+      const syn = syn0.map((s) => ({ ...s, score: r1(s.score * (o.p.test(s, features(s.d), s.d) ? 1.6 : 0.6)) })).sort((a, b) => b.score - a.score || a.full.localeCompare(b.full));
+      const keepCore = keep.filter((x) => isLock(x.d) || isCore(x.d)).map((x) => x.id);
+      const built = assemble(index, { core: keepCore, inks: curInks, synergies: syn, locks: lockIds, keep: keep.map((x) => [x.id, x.n]), format: fmt });
+      const ok = accept(built);
+      if (!ok) continue;
+      const ev = evidence(cut);
+      const keptN = keep.reduce((s, x) => s + x.n, 0);
+      const added = o.hits.filter((s) => !oldMap.has(nameKey(s.d.full)) && ok.cards.some(([id]) => index.byId.get(id)?.full === s.d.full)).slice(0, 2).map((s) => s.d.full);
+      const parts = [stuck >= 1 ? `Small swaps aren't moving ${inkList(curInks)}${winRate != null ? ` off ${pct(winRate)}%` : ''}.` : opener()];
+      parts.push(`The list plays like ${nowPkg.label}${ev.text ? `, but ${ev.text}` : ''}.`);
+      const wm = worstMatch();
+      if (wm) parts.push(wm);
+      parts.push(`I'm keeping the ${keptN} cards that pulled their weight, like ${listNames(best.slice(0, 2).map((d) => d.full))}, and rebuilding the other ${SIZE - keptN} around ${o.p.label}${added.length ? ` (${listNames(added)})` : ''}.`);
+      out.push({ ...ok, name: nameOf(ok.inks, leadName), kind: 'pivot-plan', why: parts.join(' ') });
+    }
+    return out;
+  };
+
+  // ---- rebuild: start over around the 2-3 cards that did the most, in whichever pair suits them ----
+  const rebuild = () => {
+    const out = [];
+    // by how they did, not by whether they were in the seed: this is a fresh start
+    const ranked = rank(deck).sort((a, b) => b.must - a.must || b.p - a.p || a.x.d.full.localeCompare(b.x.d.full))
+      .filter((r) => r.must || !hasImpact || (impOf(r.x)?.played > 0 && impOf(r.x)?.drawn >= 2));
+    const top = [];
+    for (const r of ranked) {
+      if (top.length >= Math.max(3, lockDefs.length)) break;
+      if (!r.must && top.length >= 3) continue;
+      if (!top.some((x) => nameKey(x.d.full) === nameKey(r.x.d.full))) top.push(r.x);
+    }
+    if (!top.length) return out;
+    const seedIds = [...lockIds, ...top.filter((x) => !isLock(x.d)).map((x) => x.id)];
+    const opts = rankPairs(index, seedIds, { format: fmt, pivot: true, max: 6, must: lockIds }).filter((o) => !o.dropped.some((id) => lockIds.includes(id)));
+    // keep the best cards if a pair can; then colours that neither this list nor another pivot here already uses
+    const taken = (p) => sameInks(p, curInks) || proposed.some((x) => sameInks(x, p));
+    opts.sort((a, b) => a.dropped.length - b.dropped.length || taken(a.inks) - taken(b.inks) || b.score - a.score);
+    for (const o of opts) {
+      if (out.length >= max) break;
+      const keptTop = top.filter((x) => !o.dropped.includes(x.id));
+      const ids = keptTop.map((x) => x.id);
+      const syn = findSynergies(index, ids, { inks: o.inks, format: fmt });
+      const built = assemble(index, { core: ids, inks: o.inks, synergies: syn, locks: lockIds, format: fmt });
+      if (!sameInks(resolveDeck(index, built).inks, o.inks)) continue;   // came out one colour: not the pair I'd describe
+      const ok = accept(built);
+      if (!ok) continue;
+      const parts = [opener()];
+      const lead = keptTop.map((x) => ({ x, c: impOf(x) }))[0];
+      const ev = evidence(deck.filter((x) => !keptTop.includes(x)));
+      parts.push(hasImpact && lead?.c?.drawn
+        ? `Only ${listNames(keptTop.map((x) => x.d.full))} really pulled ${keptTop.length === 1 ? 'its' : 'their'} weight (${lead.x.d.full} got played ${pct(lead.c.playRate)}% of the times I drew it${lead.c.winWhenPlayed != null ? `, and I won ${pct(lead.c.winWhenPlayed)}% of the games it was played` : ''})${ev.text ? `, while ${ev.text}` : ''}.`
+        : `${listNames(keptTop.map((x) => x.d.full))} ${keptTop.length === 1 ? 'is the card' : 'are the cards'} worth building around.`);
+      parts.push(`Starting over might beat patching, so I'm rebuilding from scratch around ${keptTop.length === 1 ? 'it' : 'them'} in ${inkList(ok.inks)}. ${o.parts.slice(1).join(' ')}`.trim());
+      out.push({ ...ok, name: nameOf(ok.inks, keptTop[0]?.d.name), kind: 'rebuild', why: parts.join(' ') });
+    }
+    return out;
+  };
+
+  if (mode !== 'free') return pivotInk().slice(0, max);
+  // free rein: one of each kind first, then the runners-up
+  const lists = [pivotInk(), pivotPlan(), rebuild()];
+  const out = [];
+  for (let i = 0; out.length < max && lists.some((l) => l.length > i); i++) for (const l of lists) if (l[i] && out.length < max) out.push(l[i]);
+  return out;
 }

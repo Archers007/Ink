@@ -169,6 +169,16 @@ const opp = () => V()?.players.find((p) => p.seat !== you()) || null;
 const D = (cardId) => S.defs[cardId];
 const myTurn = () => !S.replay && V()?.status === 'playing' && V().active === you() && !V().pending;
 const readyInk = () => me()?.inkReady ?? 0;
+// the silent front-end updater (js/version.js) reloads the page only when this says so: never in a live game (the
+// mulligan counts) or with typed-but-unused input (a pasted list, a half-written chat line or form); fine in the
+// lobby, a finished game or a replay
+window.inkReloadSafe = () => {
+  if (!S.replay && ['playing', 'mulligan'].includes(V()?.status)) return false;
+  if (S.pasteDirty) return false;
+  const typing = [...document.querySelectorAll('textarea, input[type="text"], input[type="search"], input:not([type])')]
+    .some((f) => !f.disabled && f.offsetParent !== null && f.value.trim() && f.defaultValue !== f.value);
+  return !typing;
+};
 
 function findCard(iid) {
   const v = V();

@@ -36,15 +36,21 @@ if (mode === 'game') {
   }
 
   const defsOf = (cards) => resolveDeck(index, { cards }).defs;
+  const reportOf = (a) => (a.records?.length ? buildReport({ records: a.records, defs: defsOf(a.cards), opponents: a.opponents, settings: {} }) : null);
+  const need = (fn) => { if (typeof brain[fn] !== 'function') throw new Error(`the deck brain has no ${fn} yet`); return brain[fn]; };
   const FNS = {
     readSeed: (a) => brain.readSeed(index, a),
     findSynergies: (a) => brain.findSynergies(index, a.core, a.opts || {}),
     assemble: (a) => brain.assemble(index, a),
     cardImpact: (a) => brain.cardImpact(a.records, defsOf(a.cards)),
-    proposeSwaps: (a) => {
-      const report = buildReport({ records: a.records, defs: defsOf(a.cards), opponents: a.opponents, settings: {} });
-      return brain.proposeSwaps(index, a.cards, { impact: a.impact, report, synergies: a.synergies, inks: a.inks, locks: a.locks, tried: a.tried, max: a.max, format: a.format });
-    },
+    proposeSwaps: (a) => brain.proposeSwaps(index, a.cards, { impact: a.impact, report: reportOf(a), synergies: a.synergies, inks: a.inks, locks: a.locks, tried: a.tried, max: a.max, format: a.format }),
+    // the seed's colour pairs to try, best first
+    inkOptions: (a) => need('inkOptions')(index, a.core, a.opts || {}),
+    // whole-list candidates: another ink, another plan, or a rebuild around the best cards
+    proposePivots: (a) => need('proposePivots')(index, a.cards, {
+      impact: a.impact, report: reportOf(a), synergies: a.synergies, inks: a.inks, locks: a.locks, tried: a.tried,
+      format: a.format, mode: a.mode, core: a.core, max: a.max, rate: a.rate, stuck: a.stuck,
+    }),
   };
 
   parentPort.on('message', async ({ id, fn, args, mtime }) => {
