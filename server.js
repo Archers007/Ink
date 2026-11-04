@@ -24,6 +24,7 @@ import { rolesForIndex } from './game/procs/roles.js';
 import { attachLobby } from './game/lobby.js';
 import { attachAccounts } from './lib/accounts.js';
 import { attachSim } from './lib/sim.js';
+import { attachLab } from './lib/lab.js';
 import { attachReplays } from './lib/replays.js';
 import { attachReports } from './lib/reports.js';
 import { DREAMBORN_DECKS, DREAMBORN_DECK_PAGE, parseDreambornDeckHTML } from './lib/dreamborn.js';
@@ -513,6 +514,9 @@ const replays = attachReplays(app, { db: statsDb, dbFile: path.join(DATA_DIR, 'i
 
 // deck simulations (lib/sim.js)
 attachSim(app, { db: statsDb, getIndex: () => cardIndex, accounts });
+
+// the Deck Lab: a live AI deck builder (lib/lab.js)
+attachLab(app, { getIndex: () => cardIndex, accounts, dbFile: path.join(CACHE_DIR, 'sanitized.db') });
 
 const server = app.listen(PORT, () => {
   console.log(`\n  Ink ▸ http://localhost:${PORT}\n`);

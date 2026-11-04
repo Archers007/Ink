@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ink · Deck Lab</title>
+<meta name="description" content="Give the Deck Lab a few cards and watch it build a Lorcana deck out loud: it finds synergies, plays test games and keeps the swaps that win more.">
+<meta name="theme-color" content="#080b1f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ink.css">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5' fill='%23d9b45a'/></svg>">
+<link rel="stylesheet" href="/css/lab.css">
+</head>
+<body>
+<header class="top">
+  <a class="brandmark" href="/">Ink</a>
+  <nav class="tabs" aria-label="Sections"><a href="/play">Play</a><a href="/">Decks</a><a href="/lab" aria-current="page">Deck Lab</a><a href="/rules" title="Every card's rules text, keywords and official FAQ">Card rules</a></nav>
+  <span class="grow"></span>
+  <span id="acct" class="acct"></span>
+</header>
+<dialog id="signIn" class="signin-dlg" aria-labelledby="signInTitle">
+  <div class="sd-head"><h2 id="signInTitle">Sign in</h2><button class="x" aria-label="Close" data-close-dlg>✕</button></div>
+  <p class="hint">Sign in to run the Deck Lab and keep what it builds.</p>
+  <div id="signInBody"></div>
+</dialog>
+<main id="app" class="lab"><p class="note">Loading…</p></main>
+<div id="peek" class="peek" aria-hidden="true"><img alt=""></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script type="module" src="/js/lab.js"></script>
+</body>
+</html>

@@ -1545,7 +1545,7 @@ function drawLobby(el) {
     <aside class="lob-side"><a class="brandmark" href="/">Ink</a>${accountSide()}${startPanel(pick, pickOk)}${accountFoot()}</aside>
     <main class="lob-main">
       <div class="lob-top">
-        <nav class="tabs"><a class="on" href="/play">Play</a><a href="/">Decks</a><a href="/rules" title="Every card's rules text, keywords and official FAQ">Card rules</a></nav>
+        <nav class="tabs"><a class="on" href="/play">Play</a><a href="/">Decks</a><a href="/lab" title="Watch the AI build a deck around your cards">Deck Lab</a><a href="/rules" title="Every card's rules text, keywords and official FAQ">Card rules</a></nav>
         ${u ? `<span class="chip-user">${u.avatar ? `<img class="avatar" src="${esc(u.avatar)}" alt="">` : `<span class="avatar">${esc(u.name.slice(0, 1).toUpperCase())}</span>`}${esc(u.name)}</span>` : ''}
       </div>
       <section class="deck-sec">
