@@ -66,6 +66,20 @@
   table.users th, table.users td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   table.users th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
   table.users select { background: var(--ink-panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font: inherit; }
+  tr.udecks > td { background: var(--ink-panel-2); padding: 10px 12px; }
+  .udeck-list { display: flex; flex-direction: column; gap: 6px; }
+  .udeck { border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.15); }
+  .udeck-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; cursor: pointer; }
+  .udeck-head .spacer { flex: 1; }
+  .udeck .inks { display: inline-flex; gap: 3px; }
+  .inkdot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,.3); }
+  .inkdot.ink-amber { background: #f3b72f; } .inkdot.ink-amethyst { background: #8b4fa8; } .inkdot.ink-emerald { background: #2f9e5a; }
+  .inkdot.ink-ruby { background: #d0343f; } .inkdot.ink-sapphire { background: #2d7fc4; } .inkdot.ink-steel { background: #9aa4ae; }
+  .vis { font-size: 11px; padding: 1px 8px; border-radius: 8px; border: 1px solid; }
+  .vis.private { color: #f0c27a; border-color: rgba(240,194,122,.5); } .vis.shared { color: #9fe3a8; border-color: rgba(120,220,140,.5); }
+  .udeck-cards { list-style: none; margin: 0; padding: 4px 12px 10px 12px; columns: 2 260px; column-gap: 24px; font-size: 13px; }
+  .udeck-cards li { padding: 2px 0; break-inside: avoid; }
+  .udeck-cards .q { display: inline-block; min-width: 2.2em; color: var(--gilt-hi, #f2dc9b); font-weight: 700; }
   .invite { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
   .invite select, .invite input[type=text] { background: var(--ink-panel-2); border: 1px solid var(--line); color: var(--fg); border-radius: 10px; padding: 8px 10px; font: inherit; }
   .invite input[type=text] { flex: 1; min-width: 160px; }

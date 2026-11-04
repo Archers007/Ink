@@ -194,6 +194,8 @@ app.set('trust proxy', 'loopback, linklocal, uniquelocal');   // cloudflared / a
 const accounts = attachAccounts(app, {
   db: statsDb,
   summarize: (cards) => { if (!cardIndex) return {}; const r = resolveDeck(cardIndex, { cards }); return { size: r.size, inks: r.inks, legal: r.legal }; },
+  // a deck's cards by name, for the admin page's look at a player's decks
+  describe: (cards) => cards.map(([id, qty]) => { const c = cardIndex?.byId.get(String(id)); return { id: String(id), qty, name: c?.full || `unknown card ${id}`, cost: c?.cost ?? null, inks: c?.inks || [], type: c?.type || '' }; }),
 });
 // the /admin issue board: reports that become GitHub issues, fixed by Claude on the maintainer's machine (lib/reports.js)
 attachReports(app, { db: statsDb, accounts, dataDir: DATA_DIR });
