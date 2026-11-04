@@ -147,6 +147,8 @@ i.ink.ruby { background: var(--ruby); } i.ink.sapphire { background: var(--sapph
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555; margin-left: 4px; vertical-align: 2px; }
 .dot.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
 .bad { color: var(--ember); font-size: 12px; margin-left: 4px; cursor: help; }
+.botdeck { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
+.botdeck select { flex: 1; min-width: 220px; max-width: 420px; }
 .deckpick textarea { width: 100%; min-height: 120px; margin-top: 10px; font-family: ui-monospace, monospace; font-size: 12px; }
 .chatbox { border-top: 1px solid var(--line); padding-top: 12px; }
 .chat-msgs { max-height: 110px; overflow: auto; font-size: 13px; margin-bottom: 8px; }

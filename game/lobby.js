@@ -11,7 +11,8 @@
 //
 // Messages client → server:
 //   hello {token?}                     — first message; resumes an existing seat if token matches
-//   create {name, public?, vsBot?, botLevel?: 'easy'|'hard'}   — make a room, become host (hard = the search bot)
+//   create {name, public?, vsBot?, botLevel?: 'easy'|'hard', botDeck?}   — make a room, become host (hard = the search bot)
+//   botDeck {deck: {id: 'random' | 'meta:…' | 'demo:…'} | {name, cards}}   — host only: the bot's deck (#111)
 //   join {code, name}                  — take a free seat (or spectate if full)
 //   leave
 //   setDeck {deck: {name, cards:[[id,qty]]} | {name, text}}
@@ -23,7 +24,7 @@
 //   rematch                            — back to the room after a game ends
 //   rooms                              — list public open rooms
 // Messages server → client:
-//   welcome {token, demoDecks}  room {room}  game {view, defs, events, rid?}  err {msg, rid?}
+//   welcome {token, demoDecks, metaDecks}  room {room}  game {view, defs, events, rid?}  err {msg, rid?}
 //   chat {from, text, ts}  rooms {rooms}  coach {seq, eval, moves:[{label, score, pm, action}]}  coachState {on}
 
 import crypto from 'node:crypto';
@@ -97,6 +98,21 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
   }
   function seatOf(room, token) {
     return room.seats.findIndex((s) => s && s.token === token);
+  }
+  // the bot's deck from a client's choice: {id:'random'} (or nothing) picks from the meta and demo decks
+  function botDeckFor(spec) {
+    const idx = getIndex();
+    const pool = [...(idx.metaDecks || []), ...idx.demoDecks];
+    const id = typeof spec?.id === 'string' ? spec.id : spec?.cards ? null : 'random';
+    if (id === 'random') return resolveDeck(idx, pool[Math.floor(Math.random() * pool.length)]);
+    if (id) {
+      const named = (idx.metaDecks || []).find((d) => d.id === id) || idx.demoDecks.find((d) => `demo:${d.id}` === id || d.id === id);
+      if (!named) throw new Error('That deck is no longer on the list. Pick another.');
+      return resolveDeck(idx, named);
+    }
+    const deck = resolveDeck(idx, { name: String(spec.name || 'Your deck').slice(0, 60), cards: spec.cards });
+    if (!deck.size) throw new Error(deck.errors[0] || 'That deck is empty.');
+    return deck;
   }
   function roomSummary(room) {
     return {
@@ -272,10 +288,9 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
         botTimer: null,
       };
       if (m.vsBot) {
-        const demo = getIndex().demoDecks;
-        const pick = demo[Math.floor(Math.random() * demo.length)];
         const level = m.botLevel === 'easy' ? 'easy' : 'hard';
-        room.seats[1] = { token: `bot:${room.code}`, bot: true, level, name: level === 'easy' ? 'Practice Bot' : 'Ink Bot', ready: true, deck: resolveDeck(getIndex(), pick) };
+        let deck; try { deck = botDeckFor(m.botDeck); } catch { deck = botDeckFor(null); }   // a stale choice falls back to random
+        room.seats[1] = { token: `bot:${room.code}`, bot: true, level, name: level === 'easy' ? 'Practice Bot' : 'Ink Bot', ready: true, deck };
       }
       rooms.set(room.code, room);
       cl.room = room.code;
@@ -301,6 +316,20 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
     },
 
     leave(cl) { leaveRoom(cl); sendClient(cl, { t: 'room', room: null }); },
+
+    // the host picks what the bot plays (#111): a named meta or demo deck, one of their own lists, or random. It stays
+    // on the bot's seat for Play again, so a deck can be tested against the same opponent game after game.
+    botDeck(cl, ws, m) {
+      const room = rooms.get(cl.room);
+      if (!room) throw new Error('Not in a room.');
+      if (room.host !== cl.token) throw new Error('Only the host picks the bot\'s deck.');
+      const seat = room.seats.findIndex((s) => s?.bot);
+      if (seat < 0) throw new Error('There is no bot in this room.');
+      if (room.game && room.game.status !== 'over') throw new Error("You can't change the bot's deck mid-game.");
+      room.seats[seat].deck = botDeckFor(m.deck);
+      touch(room);
+      broadcastRoom(room);
+    },
 
     setDeck(cl, ws, m) {
       const room = rooms.get(cl.room);
@@ -429,7 +458,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
           cl.ws.add(ws);
           if (m.name) cl.name = cleanName(m.name);
           if (userId != null) { cl.userId = userId; cl.role = role; }
-          send(ws, { t: 'welcome', token: cl.token, name: cl.name, demoDecks: getIndex()?.demoDecks || [] });
+          send(ws, { t: 'welcome', token: cl.token, name: cl.name, demoDecks: getIndex()?.demoDecks || [], metaDecks: (getIndex()?.metaDecks || []).map(({ id, name, inks }) => ({ id, name, inks })) });
           const room = cl.room && rooms.get(cl.room);
           if (room) {
             broadcastRoom(room);

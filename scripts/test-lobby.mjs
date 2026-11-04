@@ -10,7 +10,7 @@ function client(name) {
   ws.on('message', (b) => {
     const m = JSON.parse(b);
     c.msgs.push(m);
-    if (m.t === 'welcome') { c.token = m.token; c.demo = m.demoDecks; }
+    if (m.t === 'welcome') { c.token = m.token; c.demo = m.demoDecks; c.meta = m.metaDecks || []; }
     if (m.t === 'room') c.room = m.room;
     if (m.t === 'game') { c.view = m.view; Object.assign(c.defs, m.defs || {}); }
     if (m.t === 'err') c.errors.push(m.msg);
@@ -111,5 +111,35 @@ await sleep(200);
 solo.send({ t: 'act', a: { type: 'mulligan', iids: [] } });
 await sleep(3000);
 assert(solo.view.players[1].mulliganDone && solo.view.status === 'playing', `bot mulliganed; turn ${solo.view.turn}, active ${solo.view.active}`);
+
+// the bot's deck (#111): chosen when the room is made, changed by the host before a game, refused to anyone else
+const pickA = client('Picker');
+await pickA.open;
+pickA.send({ t: 'hello', name: 'Picker' });
+await sleep(100);
+const named = pickA.meta[0] || { id: 'demo:' + pickA.demo[1].id, name: pickA.demo[1].name };
+pickA.send({ t: 'create', name: 'Picker', vsBot: true, botDeck: { id: named.id } });
+await sleep(150);
+const botSeat = () => pickA.room.seats.find((x) => x?.bot);
+assert(botSeat().deck?.name === named.name, `bot plays the chosen deck at creation: ${botSeat().deck?.name}`);
+pickA.send({ t: 'botDeck', deck: { name: 'Mirror: Test', cards: pickA.demo[0].cards } });
+await sleep(150);
+assert(botSeat().deck?.name === 'Mirror: Test' && botSeat().deck.size === 60, 'host gives the bot their own list');
+pickA.send({ t: 'botDeck', deck: { id: 'meta:no-such-deck' } });
+await sleep(150);
+assert(pickA.errors.some((e) => /no longer on the list/.test(e)) && botSeat().deck?.name === 'Mirror: Test', 'an unknown deck id is refused and changes nothing');
+pickA.send({ t: 'create', name: 'Picker', vsBot: true, botDeck: { id: 'meta:no-such-deck' } });
+await sleep(150);
+assert(botSeat()?.deck?.size > 0, `a stale choice at creation falls back to random: ${botSeat()?.deck?.name}`);
+const intruder = client('Intruder');
+await intruder.open;
+intruder.send({ t: 'hello', name: 'Intruder' });
+await sleep(100);
+intruder.send({ t: 'join', code: pickA.room.code, name: 'Intruder' });
+await sleep(150);
+const before = botSeat().deck.name;
+intruder.send({ t: 'botDeck', deck: { id: 'random' } });
+await sleep(150);
+assert(intruder.errors.some((e) => /Only the host/.test(e)) && botSeat().deck.name === before, 'a spectator cannot change the bot deck');
 console.log('ALL OK');
 process.exit(0);
