@@ -1,15 +1,17 @@
 // The coach — admins only. With it on, the server runs the hard bot's analysis (game/searchbot.js, the same search the
 // "Ink Bot" plays with) for your seat every time it's your turn or your choice, and this shows the result: the top
 // moves with their scores, and a gold marker on the cards the best one uses. It only suggests — nothing is played for
-// you; hover another move to see its cards marked instead.
+// you; hover another move to see its cards marked instead. On the opening hand it advises what to put on the bottom
+// (game/analysis/mulligan.js); the mulligan dialog in main.js shows that through coach.mulligan().
 //
 //   const coach = createCoach({ net, board, view: () => S.view, you, esc, isAdmin: () => account.user()?.role === 'admin' });
 //   coach.onMessage(m) for 'coach' / 'coachState' · coach.onGame() after each game update · coach.button(el)
+//   coach.mulligan() → null (not an admin) or { on, advice } · coach.toggle(on?) · onMull() is called when that changes
 
 const MAX_MOVES = 4;
 
-export function createCoach({ net, board, view, you, esc, isAdmin }) {
-  const S = { on: false, data: null, error: null, hover: 0, raf: 0 };
+export function createCoach({ net, board, view, you, esc, isAdmin, onMull = () => {} }) {
+  const S = { on: false, data: null, error: null, hover: 0, raf: 0, mull: null };
   const box = document.createElement('div');
   box.id = 'coachBox'; box.hidden = true; box.setAttribute('aria-live', 'polite');
   const marks = document.createElement('div');
@@ -76,20 +78,25 @@ export function createCoach({ net, board, view, you, esc, isAdmin }) {
   }
 
   function toggle(on = !S.on) {
-    S.on = on; S.data = null; S.error = null; S.hover = 0;
+    S.on = on; S.data = null; S.error = null; S.hover = 0; S.mull = null;
     net.send({ t: 'coach', on });
     render();
+    onMull();
   }
 
   return {
     button(el) { btn = el; el.onclick = () => toggle(); render(); },
     onMessage(m) {
-      if (m.t === 'coachState') { S.on = !!m.on; if (!S.on) { S.data = null; S.error = null; } render(); return true; }
-      if (m.t === 'coach') { S.error = m.error || null; S.data = m.error ? null : m; S.hover = 0; render(); return true; }
+      if (m.t === 'coachState') { S.on = !!m.on; if (!S.on) { S.data = null; S.error = null; S.mull = null; } render(); onMull(); return true; }
+      if (m.t === 'coach' && m.mulligan) { S.mull = m.mulligan; onMull(); return true; }
+      if (m.t === 'coach') { S.error = m.error || null; S.data = m.error ? null : m; S.hover = 0; render(); if (m.error) onMull(); return true; }
       return false;
     },
     // a new position: the old suggestions no longer apply; the server sends fresh ones
-    onGame() { if (S.on) { S.data = null; S.error = null; S.hover = 0; } render(); },
+    onGame() { if (S.on) { S.data = null; S.error = null; S.hover = 0; } if (view()?.status !== 'mulligan') S.mull = null; render(); },
+    // the opening-hand advice for the mulligan dialog; advice is null while the engine thinks
+    mulligan() { return isAdmin() ? { on: S.on, advice: S.mull, error: S.mull ? null : S.error } : null; },
+    toggle,
     // after a reconnect the server has forgotten; ask again
     resume() { if (S.on) net.send({ t: 'coach', on: true }); },
     render,

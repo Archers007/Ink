@@ -25,7 +25,7 @@
 //   rooms                              — list public open rooms
 // Messages server → client:
 //   welcome {token, demoDecks, metaDecks}  room {room}  game {view, defs, events, rid?}  err {msg, rid?}
-//   chat {from, text, ts}  rooms {rooms}  coach {seq, eval, moves:[{label, score, pm, action}]}  coachState {on}
+//   chat {from, text, ts}  rooms {rooms}  coach {seq, eval, moves:[{label, score, pm, action}]} | coach {seq, mulligan}  coachState {on}
 
 import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
@@ -53,11 +53,11 @@ function searchWorker() {
   worker.unref();
   return worker;
 }
-function askSearchBot(state, seat, seen, { analyze = false, budgetMs = HARD_BUDGET_MS } = {}) {
+function askSearchBot(state, seat, seen, { analyze = false, mulligan = false, budgetMs = HARD_BUDGET_MS } = {}) {
   return new Promise((resolve) => {
     const id = ++workerSeq;
     waiting.set(id, resolve);
-    searchWorker().postMessage({ id, state, seat, seen, budgetMs, analyze });
+    searchWorker().postMessage({ id, state, seat, seen, budgetMs, analyze, mulligan });
   });
 }
 const HINT_BUDGET_MS = 1200;
@@ -167,18 +167,24 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
   // The hard bot's analysis, run for an admin's own seat whenever it's their turn or their choice, and sent back as
   // suggestions — never played. It sees only what that player could know (searchbot.js re-deals hidden cards), and
   // runs on the same worker as the bot. One request per player at a time; a newer position replaces a queued one.
+  // Before the game, while they choose their opening hand, it sends mulligan advice instead (analysis/mulligan.js).
   function coachTick(room, cl) {
     const g = room.game;
     const seat = seatOf(room, cl.token);
-    if (!g || seat < 0 || g.status !== 'playing' || (g.pending ? g.pending.seat !== seat : g.active !== seat)) return;
+    if (!g || seat < 0) return;
+    const mull = g.status === 'mulligan' && !g.players[seat].mulligan.done;
+    if (!mull && (g.status !== 'playing' || (g.pending ? g.pending.seat !== seat : g.active !== seat))) return;
+    if (mull && cl.coachMull?.g === g && cl.coachMull.hand === g.players[seat].hand.join(',')) return;   // this hand's advice was sent
     if (cl.coachBusy) { cl.coachAgain = true; return; }
     cl.coachBusy = true;
     const seq = g.seq;
-    askSearchBot(g, seat, [], { analyze: true, budgetMs: COACH_BUDGET_MS }).then((m) => {
+    const hand = mull ? g.players[seat].hand.join(',') : null;
+    askSearchBot(g, seat, [], { analyze: !mull, mulligan: mull, budgetMs: COACH_BUDGET_MS }).then((m) => {
       cl.coachBusy = false;
       const again = cl.coachAgain; cl.coachAgain = false;
       if (!cl.coach) return;
       if (m.error) sendClient(cl, { t: 'coach', seq, error: m.error });
+      else if (mull) { if (room.game === g && g.status === 'mulligan') { cl.coachMull = { g, hand }; sendClient(cl, { t: 'coach', seq, mulligan: m.mulligan }); } }
       else if (room.game === g && g.seq === seq) sendClient(cl, { t: 'coach', seq, ...m.analysis });
       if (again || room.game !== g || g.seq !== seq) coachTick(room, cl);   // the position moved on while thinking
     });
@@ -419,6 +425,7 @@ export function attachLobby(server, { getIndex, path = '/ws/play', userFromReq =
     coach(cl, ws, m) {
       if (cl.role !== 'admin') throw new Error('The coach is for admins.');
       cl.coach = !!m.on;
+      cl.coachMull = null;
       sendClient(cl, { t: 'coachState', on: cl.coach });
       const room = cl.coach && rooms.get(cl.room);
       if (room) coachTick(room, cl);

@@ -1,11 +1,12 @@
 // Scenario tests for automated card abilities (compiled procs + engine effect queue).
 //   node scripts/test-effects.mjs
 import assert from 'node:assert/strict';
-import { applyAction, checkInvariants, viewFor, eventsFor } from '../game/engine.js';
+import { applyAction, checkInvariants, viewFor, eventsFor, newGame } from '../game/engine.js';
 import { all, byName, test, done, ok, setup, FILLER } from './lib/game.mjs';
 import { effStr, effLore } from '../public/js/play/rules.js';
 import { handEvaluate, BASELINE } from '../game/searchbot.js';
 import { botDecide } from '../game/bot.js';
+import { adviseMulligan } from '../game/analysis/mulligan.js';
 
 
 const DMG3 = byName('Vincenzo Santorini - The Explosives Expert');        // you may deal 3 damage to chosen character
@@ -221,6 +222,28 @@ test('rollout policy: a lone bomb is kept, not inked, once the inkwell is deep',
   const b = botDecide(s, 0, { keep: false });
   assert.equal(b?.type, 'ink', 'the old policy inked it');
   checkInvariants(s);
+});
+
+test('coach mulligan: ships a top-heavy hand, keeps early plays, and never reads the hidden deck order', () => {
+  const vanilla = (c) => all.find((d) => d.type === 'character' && d.cost === c && d.inkable && !d.kw?.shift && !(d.shifts || []).length);
+  const hand = [vanilla(2), vanilla(6), vanilla(6), vanilla(7), vanilla(7), vanilla(8), vanilla(8)];   // one early play, six bricks
+  const s = newGame({ seed: 3, starting: 0, players: [0, 1].map((n) => ({ name: `P${n}`, deck: [...hand, ...Array.from({ length: 53 }, (_, i) => vanilla(2 + (i % 4)))] })) });   // a deck of 2- to 5-drops
+  const p = s.players[0];                                        // still at the mulligan: give seat 0 exactly this hand
+  const pool = [...p.hand, ...p.deck];
+  const hand0 = hand.map((d) => { const iid = pool.find((id) => s.cards[id].cardId === d.id); pool.splice(pool.indexOf(iid), 1); return iid; });
+  p.hand = hand0; p.deck = pool;
+  for (const id of hand0) s.cards[id].zone = 'hand';
+  for (const id of pool) s.cards[id].zone = 'deck';
+  const ids = { hand0 };
+  const a = adviseMulligan(s, 0, { samples: 120 });
+  const verdict = (i) => a.cards.find((c) => c.iid === ids.hand0[i]).verdict;
+  assert.equal(verdict(0), 'keep', 'the 2-drop stays');
+  assert.ok([1, 2, 3, 4, 5, 6].filter((i) => verdict(i) === 'bottom').length >= 3, `at least half the bricks go: ${a.cards.map((c) => c.verdict)}`);
+  assert.ok(verdict(5) === 'bottom' || verdict(6) === 'bottom', 'an 8 goes before anything cheaper is kept');
+  assert.ok(a.options.some((o) => o.keepAll), 'keeping all is always shown for comparison');
+  assert.ok(a.options.every((o) => o.bottom.every((iid) => ids.hand0.includes(iid))), 'options only name cards in hand');
+  s.players[0].deck.reverse();                                  // the same deck in another order: the same advice
+  assert.deepEqual(adviseMulligan(s, 0, { samples: 120 }), a);
 });
 
 done();

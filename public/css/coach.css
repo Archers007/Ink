@@ -41,3 +41,30 @@ body.mobile #coachBox .cb-sub { display: none; }
 body.mobile.coaching #ticker { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { #coachMarks .cm { transition: none; } #coachBox .cb-think::after { animation: none; } }
 @media (max-width: 1100px) { #coachBox { width: 230px; } }
+
+/* the coach on the opening hand (main.js mulligan dialog): a toggle by the title, a verdict under each card, ranked options */
+.mull-title { display: flex; align-items: center; gap: 12px; }
+.mull-coach-btn { font: 600 13px/1 var(--font-ui, system-ui); padding: 6px 10px; }
+.mull-coach-btn.on { border-color: var(--gilt, #d9b45a); color: var(--gilt, #d9b45a); }
+.mull.coached .mc { --w: min(210px, calc((min(1560px, 96vw) - 52px - 72px) / 7), calc((92vh - 430px) / 1.395)); }
+.mc-why { margin: 6px 2px 0; font-size: 12px; line-height: 1.3; color: var(--mist, #b8bedf); }
+.mc-why b { display: inline-block; margin-right: 4px; padding: 1px 6px; border-radius: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.mc-why.keep b { background: rgba(127, 217, 154, .18); color: var(--ok, #7fd99a); }
+.mc-why.bottom b { background: rgba(255, 138, 107, .18); color: var(--ember, #ff8a6b); }
+.mull-coach { margin: 12px auto 0; max-width: 760px; text-align: left; }
+.mull-coach .mc-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 13px; margin-bottom: 6px; }
+.mull-coach .mc-head b { color: var(--gilt, #d9b45a); }
+.mull-coach ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mco { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; text-align: left; font-size: 14px; background: rgba(255, 255, 255, .04); border: 1px solid transparent; }
+.mco:hover { border-color: var(--line-2, #3a4380); }
+.mco.on { border-color: var(--gilt, #d9b45a); background: rgba(217, 180, 90, .1); }
+.mco .cb-rank { flex: none; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #2a3270; font: 800 11px/1 var(--font-ui, system-ui); }
+.mull-coach li:first-child .cb-rank { background: var(--gilt, #d9b45a); color: #241a05; }
+.mco-label { flex: 1; min-width: 0; }
+.mco-stats { flex: none; color: var(--mist, #b8bedf); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.mco .cb-score { flex: none; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+.mco .up { color: var(--ok, #7fd99a); } .mco .down { color: var(--ember, #ff8a6b); }
+.mull-coach .cb-note { margin: 4px 0; color: var(--mist, #b8bedf); font-size: 13px; text-align: center; }
+.mull-coach .cb-think::after { content: ''; display: inline-block; width: 10px; height: 10px; margin-left: 8px; border: 2px solid var(--gilt, #d9b45a); border-right-color: transparent; border-radius: 50%; animation: cbspin .8s linear infinite; vertical-align: -1px; }
+body.mobile .mco-stats { display: none; }
+body.mobile .mc-why { font-size: 11px; }
