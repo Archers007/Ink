@@ -10,11 +10,12 @@
 // 3. tools/compile-procs.mjs  rulings → proc.db, proc_id filled in
 // Deterministic: same inputs → same rows. tools/card-scan/scan.py can still check the result against card images.
 
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { dreamborn } from '../lib/dreamborn.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const C = (f) => path.join(ROOT, 'cache', f);
@@ -27,9 +28,9 @@ const run = (args) => {
 
 if (!existsSync(C('dreamborn.db'))) {
   console.error(`build-cards: downloading ${DREAMBORN_DB_URL}…`);
-  const res = await fetch(DREAMBORN_DB_URL, { headers: { referer: 'https://dreamborn.ink/builder' } }).catch((e) => ({ ok: false, statusText: e.message }));
-  if (!res.ok) { console.error(`build-cards: dreamborn download failed (${res.statusText})`); process.exit(1); }
-  writeFileSync(C('dreamborn.db'), Buffer.from(await res.arrayBuffer()));
+  // through the Dreamborn client, so the download is logged in data/extcalls.db like the server's
+  mkdirSync(C(''), { recursive: true });
+  try { await dreamborn.downloadCardsDb(C('dreamborn.db'), { caller: 'script:build-cards' }); } catch (e) { console.error(`build-cards: dreamborn download failed (${e.message})`); process.exit(1); }
 }
 run(['tools/import-cards.mjs', ...(process.argv.includes('--refresh') ? ['--refresh'] : [])]);
 run(['tools/compile-procs.mjs']);
