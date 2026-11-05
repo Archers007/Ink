@@ -12,7 +12,7 @@
 //   const bot = createSearchBot({ budgetMs: 400 });
 //   const action = bot.decide(state, seat, memory);   // memory: {} kept per game and seat (what it has seen)
 
-import { applyAction, D, readyInk } from './engine.js';
+import { applyAction, D, readyInk, mustQuestBlockers } from './engine.js';
 import { botDecide, shiftPlan, chooseMulligan } from './bot.js';
 import { learnedValue } from './learn/model.js';
 import { questBlocker, attackerBlocker, singerBlocker, effLore, effStr, effWp, shiftOptions } from '../public/js/play/rules.js';
@@ -102,7 +102,8 @@ function mainMoves(s, seat) {   // (concede is never a candidate)
     if (typeof d.kw?.boost === 'number' && c.boostedTurn !== s.turn) out.push({ type: 'boost', iid: c.iid });
     if (d.type === 'character') for (const L of mine) if (D(s, L).type === 'location' && c.atLocation !== L.iid) out.push({ type: 'move', iid: c.iid, location: L.iid });
   }
-  out.push({ type: 'endTurn', force: true });
+  // Adventurous / must quest (CR 8.16.3): no ending the turn while one of them can still quest (force would skip that)
+  if (!mustQuestBlockers(s, seat).length) out.push({ type: 'endTurn', force: true });
   return out;
 }
 

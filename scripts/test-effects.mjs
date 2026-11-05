@@ -224,6 +224,20 @@ test('rollout policy: a lone bomb is kept, not inked, once the inkwell is deep',
   checkInvariants(s);
 });
 
+test("Adventurous (CR 8.16): the card loader keeps it, so it must quest before the turn ends and can't challenge", () => {
+  const mickey = byName('Mickey Mouse - Best in Town');
+  assert.equal(mickey.kw.adventurous, true, 'Adventurous comes through from the card data');
+  const { s, ids } = setup({ play0: [mickey], play1: [FILLER] });
+  const m = ids.play0[0];
+  s.cards[m].drying = false;
+  s.cards[ids.play1[0]].exerted = true;
+  assert.equal(applyAction(s, 0, { type: 'challenge', attacker: m, target: ids.play1[0] }).ok, false, "Adventurous can't challenge");
+  assert.equal(applyAction(s, 0, { type: 'endTurn' }).ok, false, 'no ending the turn while it can quest');
+  ok(applyAction(s, 0, { type: 'quest', iid: m }));
+  ok(applyAction(s, 0, { type: 'endTurn' }));
+  checkInvariants(s);
+});
+
 test('coach mulligan: ships a top-heavy hand, keeps early plays, and never reads the hidden deck order', () => {
   const vanilla = (c) => all.find((d) => d.type === 'character' && d.cost === c && d.inkable && !d.kw?.shift && !(d.shifts || []).length);
   const hand = [vanilla(2), vanilla(6), vanilla(6), vanilla(7), vanilla(7), vanilla(8), vanilla(8)];   // one early play, six bricks
