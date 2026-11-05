@@ -1214,15 +1214,26 @@ function renderPhaseModals() {
     if (modalFor !== 'mulligan') mullSel = new Set();
     const goFirst = v.starting === you();
     const scrolled = modalFor === 'mulligan' ? $('#modal .mull')?.scrollLeft || 0 : 0;   // a phone's row keeps its place as you pick
+    // admins with the coach on: what to put on the bottom, per card and as ranked options (coach.js, analysis/mulligan.js)
+    const cm = coach?.mulligan();
+    const adv = cm?.on && cm.advice && cm.advice.cards.every((c) => m.hand.some((h) => h.iid === c.iid)) ? cm.advice : null;
+    const tip = (iid) => adv?.cards.find((c) => c.iid === iid);
+    const same = (o) => o.bottom.length === mullSel.size && o.bottom.every((i) => mullSel.has(i));
+    const coachHtml = !cm ? '' : !cm.on ? '' : adv ? `<div class="mull-coach"><div class="mc-head"><b>🧭 Coach</b><span class="muted">Your first four turns, played alone ${adv.samples} times with random draws. Pick one to select it.</span></div>
+        <ol>${adv.options.map((o, i) => `<li><button class="mco ${same(o) ? 'on' : ''}" data-opt="${i}"><span class="cb-rank">${i + 1}</span><span class="mco-label">${esc(o.label)}</span><span class="mco-stats" title="Average lore by the end of turn 4 · how often you make every ink drop · how often you have a play by turn 2">${o.lore} lore by turn 4 · ${o.drops}% every ink drop · ${o.early}% a play by turn 2</span><b class="cb-score ${o.score >= 0 ? 'up' : 'down'}">${i ? o.score.toFixed(1) : 'best'}</b></button></li>`).join('')}</ol></div>`
+      : `<div class="mull-coach"><p class="cb-note ${cm.error ? '' : 'cb-think'}">${cm.error ? `The coach couldn't look at this hand: ${esc(cm.error)}` : 'The coach is looking at your hand…'}</p></div>`;
     // cards sized to the screen (#50), and one short line of instructions so they get the height
-    openModal(`<h3>Opening hand</h3>
+    openModal(`<h3 class="mull-title">Opening hand${cm ? `<button class="sm mull-coach-btn ${cm.on ? 'on' : ''}" id="mullCoach" aria-pressed="${cm.on}">🧭 ${cm.on ? 'Coach on' : 'Coach'}</button>` : ''}</h3>
       <p class="muted mull-note">${goFirst ? 'You go first (no draw on turn 1).' : `${esc(v.players[v.starting].name)} goes first — you're on the draw.`}
         Choose any to put on the bottom and draw that many. <span class="nowrap">⤢ or hold to enlarge.</span></p>
-      <div class="mull">${m.hand.map((c) => { const d = D(c.cardId); return `<div class="mc ${mullSel.has(c.iid) ? 'sel' : ''}"><button class="mc-pick" data-i="${c.iid}" data-hold="${c.cardId}" title="${esc(cardLabel(d))}" aria-pressed="${mullSel.has(c.iid)}"><img src="${IMG(c.cardId)}" alt="${esc(cardLabel(d))}"><span>${mullSel.has(c.iid) ? '↓ bottom' : ''}</span></button><button class="mc-zoom" data-zoom="${c.cardId}" title="Enlarge" aria-label="Enlarge ${esc(cardLabel(d))}">⤢</button></div>`; }).join('')}</div>
+      <div class="mull ${adv ? 'coached' : ''}">${m.hand.map((c) => { const d = D(c.cardId); const t = tip(c.iid); return `<div class="mc ${mullSel.has(c.iid) ? 'sel' : ''}"><button class="mc-pick" data-i="${c.iid}" data-hold="${c.cardId}" title="${esc(cardLabel(d))}" aria-pressed="${mullSel.has(c.iid)}"><img src="${IMG(c.cardId)}" alt="${esc(cardLabel(d))}"><span>${mullSel.has(c.iid) ? '↓ bottom' : ''}</span></button><button class="mc-zoom" data-zoom="${c.cardId}" title="Enlarge" aria-label="Enlarge ${esc(cardLabel(d))}">⤢</button>${t ? `<p class="mc-why ${t.verdict}"><b>${t.verdict === 'bottom' ? 'Bottom' : 'Keep'}</b> ${esc(t.why)}</p>` : ''}</div>`; }).join('')}</div>
+      ${coachHtml}
       <div class="modal-actions"><button class="hot" id="mullGo">${mullSel.size ? `Put ${mullSel.size} on bottom &amp; redraw` : 'Keep all 7'}</button></div>`, (el) => {
       el.querySelector('.mull').scrollLeft = scrolled;
       el.querySelectorAll('.mc-pick').forEach((b) => b.onclick = () => { const i = b.dataset.i; mullSel.has(i) ? mullSel.delete(i) : mullSel.add(i); renderPhaseModals(); });
       $('#mullGo', el).onclick = () => { act({ type: 'mulligan', iids: [...mullSel] }); closeModal(); };
+      $('#mullCoach', el)?.addEventListener('click', () => coach.toggle());
+      el.querySelectorAll('[data-opt]').forEach((b) => b.onclick = () => { mullSel = new Set(adv.options[Number(b.dataset.opt)].bottom); renderPhaseModals(); });
     }, 'mulligan');
     return;
   }
@@ -1894,7 +1905,7 @@ function renderAll() {
 }
 $('#endTurn').onclick = () => { if (V()?.status === 'over') { S.overDismissed = false; renderPhaseModals(); } else requestEndTurn(); };
 $('#questAllBtn').onclick = () => { if (S.questAll) S.questAll.stop = true; else questAll(); };
-coach = createCoach({ net, board, view: V, you, esc, isAdmin: () => account.user()?.role === 'admin' });
+coach = createCoach({ net, board, view: V, you, esc, isAdmin: () => account.user()?.role === 'admin', onMull: () => { if (V()?.status === 'mulligan') renderPhaseModals(); } });
 coach.button($('#coachBtn'));
 account.onChange(() => coach.render());
 

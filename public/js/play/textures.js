@@ -262,15 +262,20 @@ export function statsTex(items) {
   const t = canvasTex(key, total, 84, (g, w, h) => {
     g.fillStyle = 'rgba(10,12,28,0.92)'; roundRect(g, 2, 2, w - 4, h - 4, 20); g.fill();
     g.strokeStyle = 'rgba(217,180,90,0.95)'; g.lineWidth = 4; g.stroke();
+    // each icon + value pair is measured and centred in its cell, so the strip reads evenly from edge to edge
+    // (the icon used to sit at a fixed spot, crowding the left edge and leaving a gap on the right)
+    const GAP = 5;
     let x0 = 0;
+    g.textBaseline = 'middle'; g.textAlign = 'left';
     items.forEach((it, i) => {
-      const x = x0 + BASE / 2;       // icon ends just left of here, the value starts here and takes the extra width
+      const text = String(it.value) + (it.extra || '');
+      g.font = `700 32px ${FONT}`; const iw = g.measureText(it.icon).width;
+      g.font = `900 58px ${FONT}`; const vw = g.measureText(text).width;
+      const x = x0 + (cells[i] - (iw + GAP + vw)) / 2;
       x0 += cells[i];
       const col = it.value > it.base ? '#6dff9a' : it.value < it.base ? '#ff7d7d' : '#ffffff';
-      g.font = `700 32px ${FONT}`; g.textBaseline = 'middle'; g.textAlign = 'right';
-      g.fillStyle = it.iconColor || '#f2dc9b'; g.fillText(it.icon, x - 6, h / 2 + 2);
-      g.textAlign = 'left'; g.fillStyle = col; g.font = `900 58px ${FONT}`;
-      g.fillText(String(it.value) + (it.extra || ''), x - 2, h / 2 + 4);
+      g.font = `700 32px ${FONT}`; g.fillStyle = it.iconColor || '#f2dc9b'; g.fillText(it.icon, x, h / 2 + 2);
+      g.font = `900 58px ${FONT}`; g.fillStyle = col; g.fillText(text, x + iw + GAP, h / 2 + 4);
     });
   });
   t.userData.cells = items.length * BASE / total;   // the share of the width a one-digit strip would take
