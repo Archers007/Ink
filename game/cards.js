@@ -28,6 +28,7 @@ const KW_KEYS = {
   vanish: 'vanish', boost: 'boost', rush: 'rush', reckless: 'reckless', alert: 'alert', resist: 'resist',
   bodyguard: 'bodyguard', shift: 'shift', 'puppy shift': 'puppyShift', 'universal shift': 'universalShift',
   'sing together': 'singTogether',
+  adventurous: 'adventurous',   // was missing, so Adventurous cards never had to quest and could still challenge
 };
 const NUMERIC_KW = new Set(['singer', 'challenger', 'boost', 'resist', 'shift', 'puppyShift', 'universalShift', 'singTogether']);
 // Keywords that are effectively never granted by other cards — always trust the DB.
@@ -37,6 +38,7 @@ const KW_RX = {
   support: /\bsupport\b/i, ward: /\bward\b/i, singer: /\bsinger\b/i, evasive: /\bevasive\b/i,
   challenger: /\bchallenger\b/i, vanish: /\bvanish\b/i, boost: /\bboost\b/i, rush: /\brush\b/i,
   reckless: /\breckless\b/i, alert: /\balert\b/i, resist: /\bresist\b/i, bodyguard: /\bbodyguard\b/i,
+  adventurous: /\badventurous\b/i,
 };
 const KW_NUM_RX = {
   singer: /\bsinger\s*\+?(\d+)/i,

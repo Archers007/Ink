@@ -1132,25 +1132,40 @@ function loreGain({ n, mine }) {
 // something is left (a quest, or the ink for the turn), unless the player turned the question off.
 const ENDASK_KEY = 'ink.play.endAsk';
 const endAskOn = () => { try { return localStorage.getItem(ENDASK_KEY) !== 'off'; } catch { return true; } };
+// characters that must quest if able (Adventurous, "must quest" effects): CR 8.16.3 doesn't let you end the turn while
+// one is ready and can quest, so ending the turn quests with them first instead of asking or being refused
+const mustQuest = () => questable().filter((c) => { const d = D(c.cardId); return hasKw(c, d, 'adventurous') || hasKw(c, d, 'mustQuest'); });
 function endTurnLeft() {
   const m = me();
   if (!m) return [];
   const left = [];
-  const q = questable();
+  const must = new Set(mustQuest().map((c) => c.iid));
+  const q = questable().filter((c) => !must.has(c.iid));
   if (q.length) left.push(`${q.length === 1 ? `${cardLabel(D(q[0].cardId))} can` : `${q.length} characters can`} still quest (${q.reduce((n, c) => n + (c.eff?.lore ?? D(c.cardId)?.lore ?? 0), 0)} ◆).`);
   if (m.inkedThisTurn < m.inkLimit && m.hand?.some((h) => D(h.cardId)?.inkable || m.rules?.handInkable)) left.push("You haven't put a card into your inkwell this turn.");
   return left;
 }
+// quest with the ones that must, then end the turn (a quest that asks something waits for the answer, as in Quest all)
+async function endTurn() {
+  const must = mustQuest();
+  if (must.length) {
+    await questAll({ only: new Set(must.map((c) => c.iid)), why: 'they must quest' });
+    if (!myTurn() || V()?.pending) return;
+  }
+  act({ type: 'endTurn' });
+}
 function requestEndTurn() {
   if (!myTurn()) return;
   const left = endAskOn() ? endTurnLeft() : [];
-  if (!left.length) { act({ type: 'endTurn' }); return; }
+  if (!left.length) { endTurn(); return; }
+  const must = mustQuest();
+  const mustLine = must.length ? `<p class="muted end-must">${esc(must.map((c) => cardLabel(D(c.cardId))).join(', '))} must quest, so ${must.length === 1 ? 'it quests' : 'they quest'} as your turn ends.</p>` : '';
   openModal(`<h3>End your turn?</h3>
-    <ul class="end-left">${left.map((l) => `<li>${rich(l)}</li>`).join('')}</ul>
+    <ul class="end-left">${left.map((l) => `<li>${rich(l)}</li>`).join('')}</ul>${mustLine}
     <label class="check"><input type="checkbox" id="endAskOff"> Don't ask again on this device</label>
     <div class="modal-actions"><button data-close>Keep playing <kbd class="k">Esc</kbd></button>${questable().length ? '<button id="endQuest">◆ Quest all first</button>' : ''}<button class="hot" id="endGo">End turn <kbd class="k">Space</kbd></button></div>`, (el) => {
     const off = () => { if ($('#endAskOff', el).checked) { try { localStorage.setItem(ENDASK_KEY, 'off'); } catch { /* private mode */ } } };
-    $('#endGo', el).onclick = () => { off(); closeModal(); act({ type: 'endTurn' }); };
+    $('#endGo', el).onclick = () => { off(); closeModal(); endTurn(); };
     $('#endQuest', el)?.addEventListener('click', () => { off(); closeModal(); questAll(); });
     $('#endGo', el).focus();
   }, 'endturn');
@@ -1917,7 +1932,8 @@ function questable(skip = new Set()) {
 }
 // quest with each of them in turn; when an ability asks something (a "may", a target), wait for the player to answer
 // it on the board as usual, then carry on. Clicking the button again stops after the current one.
-async function questAll() {
+// only: just these characters (ending the turn quests the ones that must)
+async function questAll({ only = null, why = '' } = {}) {
   const run = (S.questAll = { stop: false });
   const skip = new Set();
   let n = 0;
@@ -1930,7 +1946,7 @@ async function questAll() {
       await settled();
       const v = V();
       if (run.stop || !v || v.status !== 'playing' || v.active !== you() || v.pending) break;
-      const next = questable(skip)[0];
+      const next = questable(skip).find((c) => !only || only.has(c.iid));
       if (!next) break;
       const r = await act({ type: 'quest', iid: next.iid }, { quiet: true });
       if (r.ok) n++; else skip.add(next.iid);                      // one the server won't let quest: leave it, try the rest
@@ -1938,7 +1954,7 @@ async function questAll() {
   } finally {
     if (S.questAll === run) S.questAll = null;
     renderHud();
-    if (n) toast(`Quested with ${n} character${n > 1 ? 's' : ''}.`);
+    if (n) toast(`Quested with ${n} character${n > 1 ? 's' : ''}${why ? ` (${why})` : ''}.`);
   }
 }
 $('#toolsBtn').onclick = openTools;
