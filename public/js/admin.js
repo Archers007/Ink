@@ -7,6 +7,7 @@
 // so a report being written keeps its text, screenshot and focus.
 
 import * as account from './account.js';
+import { initExt, showExt, hideExt } from './admin-ext.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -15,6 +16,11 @@ const STATUS_LABEL = { queued: 'Queued for the worker', creating: 'Filing on Git
 const KIND_LABEL = { filed: 'Filed', issue: 'Issue', agent: 'Claude', pr: 'Pull request', done: 'Done', failed: 'Failed', cancelled: 'Cancelled', queued: 'Queued', switch: 'Switch' };
 
 const S = { user: null, data: null, tab: 'issues', users: null, invites: null, newLink: null, activity: null, showClosed: false, open: new Set(), image: null, timer: null, formMsg: null, sending: false, userDecks: {}, openUsers: new Set(), openDecks: new Set() };
+
+// ?mock=1 on a local dev server: the External calls tab runs on generated sample data (admin-ext-mock.js), and the
+// role gate is skipped so the tab can be looked at without a moderator account. Only on localhost, and only that tab
+// has anything to show; the other tabs' requests still need a real moderator or admin and fail without one.
+const MOCK = new URLSearchParams(location.search).get('mock') === '1' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
@@ -28,7 +34,14 @@ async function boot() {
   await account.load();
   S.user = account.user();
   const role = S.user?.role;
-  if (role !== 'moderator' && role !== 'admin') return gate();
+  if (MOCK) S.tab = 'ext';
+  if (role !== 'moderator' && role !== 'admin') {
+    if (!MOCK) return gate();
+    S.user = { id: 0, name: 'Mock admin', role: 'admin' };
+    S.data = { repo: '', issues: [], closed: [], prsByIssue: {}, reports: [], switches: {}, workerConfigured: true, githubError: 'mock mode without a moderator sign-in' };
+    build();
+    return;
+  }
   try { S.data = await api('/api/admin/issues'); } catch (e) { S.data = { repo: '', issues: [], closed: [], prsByIssue: {}, reports: [], switches: {}, githubError: e.message }; }
   build();
   S.timer = setInterval(tick, 15000);
@@ -72,7 +85,7 @@ function build() {
   $('#app').innerHTML = `
     <div class="adm-top"><h1>Admin</h1><span class="note">${esc(S.user.name)} · ${esc(S.user.role)}</span><span class="sp"></span>
       <a class="btn btn-quiet btn-sm" id="ghLink" href="https://github.com/${esc(S.data.repo)}/issues" target="_blank" rel="noopener">GitHub ↗</a><a class="btn btn-quiet btn-sm" href="/">Builder</a><a class="btn btn-quiet btn-sm" href="/play">Play</a></div>
-    <div class="tabs">${tab('issues', 'Issues')}${tab('history', 'History')}${tab('users', 'Users')}${tab('settings', 'Settings')}</div>
+    <div class="tabs">${tab('issues', 'Issues')}${tab('history', 'History')}${tab('users', 'Users')}${tab('settings', 'Settings')}${tab('ext', 'External calls')}</div>
     <section class="pane" data-pane="issues">
       <div id="issWarn"></div>
       <div class="grid">
@@ -92,7 +105,9 @@ function build() {
     </section>
     <section class="pane" data-pane="history"><div class="box" id="histBox"></div></section>
     <section class="pane" data-pane="users"><div id="usersPane"><div class="box"><p class="note">Loading…</p></div></div></section>
-    <section class="pane" data-pane="settings"><div class="box" id="settingsBox"></div></section>`;
+    <section class="pane" data-pane="settings"><div class="box" id="settingsBox"></div></section>
+    <section class="pane" data-pane="ext"><div id="extPane"></div></section>`;
+  initExt({ root: $('#extPane'), api, esc, role: S.user.role, mock: MOCK });
   bindForm();
   showTab(S.tab);
   fillIssues(); fillHistory(); fillSettings(); fillForm();
@@ -102,6 +117,7 @@ function showTab(t) {
   S.tab = t;
   document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== t; });
+  if (t === 'ext') showExt(); else hideExt();
 }
 
 // ---------- lists ----------

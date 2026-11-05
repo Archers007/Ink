@@ -13,7 +13,7 @@
   .adm-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
   .adm-top h1 { margin: 0; font-size: 26px; }
   .adm-top .sp { flex: 1; }
-  .tabs { display: flex; gap: 6px; margin: 10px 0 16px; }
+  .tabs { display: flex; gap: 6px; margin: 10px 0 16px; flex-wrap: wrap; }
   .tabs button { background: none; border: 1px solid var(--line); color: var(--fg); padding: 7px 14px; border-radius: 10px; cursor: pointer; font: inherit; }
   .tabs button.on { border-color: var(--gilt); color: var(--gilt-hi); background: rgba(217,180,90,.08); }
   .pane[hidden] { display: none; }
@@ -95,6 +95,88 @@
   .gate h1 { font-size: 30px; margin: 0 0 6px; }
   .gate .gate-form { text-align: left; max-width: 380px; margin: 18px auto; }
   .gate-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  /* External calls (admin-ext.js) */
+  [data-pane="ext"] .box + .box, [data-pane="ext"] .box + .xc-kinds, [data-pane="ext"] .xc-kinds + .box { margin-top: 14px; }
+  [data-pane="ext"] .warn code { color: var(--gilt-hi); }
+  [data-pane="ext"] button.btn-sm { padding: 6px 10px; font-size: 12.5px; border-radius: 8px; }   /* button.btn outranks .btn-sm in ink.css */
+  .xc-ctl { display: flex; gap: 8px 10px; align-items: center; flex-wrap: wrap; }
+  .xc-ctl .sp { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--line-cool); border-radius: 10px; overflow: hidden; }
+  .seg button { background: none; border: 0; border-left: 1px solid var(--line-cool); color: var(--fg); padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  .seg button:first-child { border-left: 0; }
+  .seg button:hover { background: rgba(255,255,255,.05); }
+  .seg button.on { color: var(--gilt-hi); background: rgba(217,180,90,.12); }
+  .xc-gauge { display: flex; gap: 4px 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; font-size: 13.5px; }
+  .xc-bar { width: 160px; height: 8px; border-radius: 4px; background: var(--ink-panel-2); border: 1px solid var(--line); overflow: hidden; }
+  .xc-bar i { display: block; height: 100%; background: var(--gilt); }
+  .xc-bar.hot i { background: var(--ember); }
+  .xc-gauge .note { flex-basis: 100%; }
+  .xc-chart { position: relative; min-height: 60px; touch-action: pan-y; }
+  .xc-chart svg { display: block; max-width: 100%; }
+  .xc-chart .gl { stroke: var(--line); stroke-dasharray: 2 3; }
+  .xc-chart .base { stroke: var(--line-cool); }
+  .xc-chart .yl, .xc-chart .xl { fill: var(--muted); font-size: 10.5px; font-family: var(--font-ui); }
+  .xc-chart .em { fill: var(--ember); stroke: var(--ink-panel); stroke-width: 1.5; }
+  .xc-chart .hit { fill: transparent; cursor: crosshair; }
+  .xc-chart .hlr { fill: rgba(255,255,255,.06); }
+  .xc-tip { position: absolute; top: 0; z-index: 2; pointer-events: none; min-width: 150px; max-width: 240px; background: var(--ink-raise); border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 1.5; box-shadow: var(--shadow); }
+  .xc-tip[hidden] { display: none; }
+  .xc-tip .tt { color: var(--muted); font-size: 11.5px; }
+  .xc-tip .tk { display: flex; align-items: center; gap: 6px; } .xc-tip .tk span:nth-child(2) { flex: 1; }
+  .xc-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 12.5px; color: var(--mist); }
+  .xc-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+  .xsw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; margin-right: 6px; vertical-align: -1px; }
+  .xc-legend .xsw, .xc-tip .xsw { margin-right: 0; }
+  .xsw.hatch { background: repeating-linear-gradient(45deg, var(--c) 0 2.4px, rgba(8,11,31,.55) 2.4px 3.6px); }
+  .xem { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ember); }
+  .xc-state { padding: 18px 4px; } .xc-state p { margin: 0 0 6px; }
+  .xc-state.err b { color: var(--ember); }
+  .bad { color: var(--ember); }
+  .xc-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, calc(50% - 5px)), 1fr)); gap: 10px; }
+  .xc-kinds[hidden] { display: none; }
+  .xc-kind { text-align: left; font: inherit; color: var(--fg); background: var(--ink-panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .xc-kind:hover { border-color: rgba(217,180,90,.35); }
+  .xc-kind.on { border-color: var(--gilt); background: rgba(217,180,90,.08); }
+  .xk-top { display: flex; align-items: center; gap: 8px; } .xk-top .xsw { margin-right: 0; } .xk-top b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xk-n { font-size: 20px; font-weight: 700; }
+  .xk-row { display: flex; justify-content: space-between; gap: 2px 8px; font-size: 12.5px; flex-wrap: wrap; }
+  .xc-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .xc-filters select, .xc-filters input { background: var(--ink-panel-2); border: 1px solid var(--line); color: var(--fg); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13.5px; min-width: 0; box-sizing: border-box; }
+  .xc-filters #xfCaller { width: 170px; } .xc-filters #xfQ { flex: 1; min-width: 200px; }
+  .xc-tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table.xc-calls { font-size: 13px; min-width: 700px; }
+  table.xc-calls th, table.xc-calls td { padding: 7px 9px; vertical-align: top; }
+  table.xc-calls tbody tr:last-child td { border-bottom: 0; }
+  table.xc-calls tbody tr { cursor: pointer; }
+  table.xc-calls tbody tr:hover { background: rgba(255,255,255,.03); }
+  table.xc-calls tbody tr.sel { background: rgba(217,180,90,.1); }
+  table.xc-calls tbody tr:focus-visible { outline: 1px solid var(--gilt); outline-offset: -1px; }
+  table.xc-calls .r { text-align: right; } table.xc-calls .nw { white-space: nowrap; }
+  table.xc-calls .req { width: 100%; max-width: 0; min-width: 200px; }   /* takes what's left and cuts long paths short */
+  table.xc-calls .req code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; background: none; border: 0; padding: 0; }
+  table.xc-calls .req .bad { font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m { color: var(--gilt-hi); font-weight: 700; } .qy { color: var(--muted); }
+  .xs { font-size: 11px; padding: 1px 7px; border-radius: 7px; border: 1px solid; white-space: nowrap; }
+  .xs.ok { color: var(--ok); border-color: rgba(111,220,154,.45); } .xs.bad { color: var(--ember); border-color: rgba(255,143,134,.5); }
+  .xs.cache { color: var(--glimmer); border-color: rgba(111,168,255,.45); } .xs.body { color: var(--mist); border-color: var(--line-cool); }
+  .xc-more { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-top: 10px; }
+  .xc-detail { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); box-sizing: border-box; z-index: 50; overflow-y: auto; background: var(--ink-panel); border-left: 1px solid var(--line-2); box-shadow: var(--shadow); padding: 0 16px 30px; }
+  .xc-detail[hidden] { display: none; }
+  .xd-head { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: var(--ink-panel); padding: 14px 0 10px; z-index: 1; }
+  .xd-head h2 { margin: 0; font-size: 17px; } .xd-head .sp { flex: 1; }
+  .xd-url code { display: block; font-size: 12.5px; overflow-wrap: anywhere; background: var(--ink-panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .xd-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 12px 0; font-size: 13px; }
+  .xd-fields dt { color: var(--muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; padding-top: 1px; }
+  .xd-fields dd { margin: 0; overflow-wrap: anywhere; }
+  .xc-detail h3 { font-size: 14px; margin: 16px 0 6px; }
+  .xd-bodyhead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; } .xd-bodyhead .sp { flex: 1; }
+  .xd-body { margin: 0; max-height: 60vh; overflow: auto; background: var(--ink-deep); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--mist); }
+  @media (max-width: 600px) {
+    .adm { padding: 14px 12px 60px; }
+    .xc-filters #xfCaller, .xc-filters #xfQ { flex: 1 1 100%; width: auto; min-width: 0; }
+    .xc-filters select { flex: 1 1 40%; }
+    .xc-bar { width: 100%; }
+  }
 </style>
 </head>
 <body>

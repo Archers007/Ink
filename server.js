@@ -28,7 +28,8 @@ import { attachSim } from './lib/sim.js';
 import { attachLab } from './lib/lab.js';
 import { attachReplays } from './lib/replays.js';
 import { attachReports } from './lib/reports.js';
-import { DREAMBORN_DECKS, DREAMBORN_DECK_PAGE, parseDreambornDeckHTML } from './lib/dreamborn.js';
+import { dreamborn as dreambornClient } from './lib/dreamborn.js';
+import { attachExtCallsAdmin } from './lib/extcalls/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -38,23 +39,8 @@ const CACHE_DIR = path.join(__dirname, 'cache');
 const DATA_DIR = path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// dreamborn endpoints
-const FIREBASE_KEY = 'AIzaSyBKtYUafFcgqlYmUTz6HTRKuJhJsHHRPsU'; // public anon key, same as their web app
-const FIREBASE_SIGNIN = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_KEY}`;
-const DREAMBORN_LOGIN = 'https://dreamborn.ink/api/auth/login';
-const DREAMBORN_USER  = 'https://dreamborn.ink/api/user';
-const DREAMBORN_OWNED = (uid) => `https://dreamborn.ink/api/users/${encodeURIComponent(uid)}/owned-cards`;
-const DREAMBORN_DB_URL = 'https://dreamborn.ink/cache/en/cards.db';
-
-const COMMON_HEADERS = {
-  'accept': '*/*',
-  'accept-language': 'en-US,en;q=0.9',
-  'origin': 'https://dreamborn.ink',
-  'referer': 'https://dreamborn.ink/sign-in',
-  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-  'x-client-version': 'Chrome/JsCore/12.14.0/FirebaseCore-web',
-  'x-firebase-gmpid': '1:289000561792:web:5938b5d208e6d79f2d5a65',
-};
+// Every call to dreamborn.ink (and to Firebase for Dreamborn sign-in) goes through lib/dreamborn.js, which records it
+// in data/extcalls.db for /admin → External calls (lib/extcalls).
 
 await fs.mkdir(CACHE_DIR, { recursive: true });
 await fs.mkdir(DATA_DIR, { recursive: true });
@@ -113,23 +99,16 @@ function readStats() {
 }
 
 // ---------- DB cache ----------
-async function ensureCached(filename, url, maxAgeMs = 60 * 60 * 1000) {
-  const target = path.join(CACHE_DIR, filename);
+// cache/dreamborn.db: dreamborn's cards.db, downloaded again once it's an hour old
+async function ensureCardsDb(maxAgeMs = 60 * 60 * 1000) {
+  const target = path.join(CACHE_DIR, 'dreamborn.db');
   try {
     const stat = await fs.stat(target);
     if (Date.now() - stat.mtimeMs < maxAgeMs) return target;
   } catch { /* not cached yet */ }
-  console.log(`[cache] fetching ${url}`);
-  const res = await fetch(url, {
-    headers: {
-      'Referer': 'https://dreamborn.ink/builder',
-      'User-Agent': COMMON_HEADERS['user-agent'],
-    },
-  });
-  if (!res.ok) throw new Error(`fetch ${url} -> HTTP ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  await fs.writeFile(target, buf);
-  console.log(`[cache] wrote ${target} (${buf.length} bytes)`);
+  console.log('[cache] fetching dreamborn cards.db');
+  const { bytes } = await dreambornClient.downloadCardsDb(target, { caller: 'cards' });
+  console.log(`[cache] wrote ${target} (${bytes} bytes)`);
   return target;
 }
 
@@ -138,7 +117,7 @@ async function ensureCached(filename, url, maxAgeMs = 60 * 60 * 1000) {
 const OFFICIAL_MAX_AGE = 24 * 60 * 60 * 1000;
 let building = null;
 async function ensureCards() {
-  const dreamborn = await ensureCached('dreamborn.db', DREAMBORN_DB_URL);
+  const dreamborn = await ensureCardsDb();
   const target = path.join(CACHE_DIR, 'sanitized.db');
   const mtime = (f) => fs.stat(f).then((x) => x.mtimeMs).catch(() => 0);
   const built = await mtime(target);
@@ -201,6 +180,8 @@ const accounts = attachAccounts(app, {
 });
 // the /admin issue board: reports that become GitHub issues, fixed by Claude on the maintainer's machine (lib/reports.js)
 attachReports(app, { db: statsDb, accounts, dataDir: DATA_DIR });
+// /admin → External calls: every call Ink makes to Dreamborn (and later duels.ink), from data/extcalls.db (lib/extcalls)
+attachExtCallsAdmin(app, { accounts });
 
 // Count one visit per top-level HTML page load (real navigations only — not API
 // calls, the .db downloads, or static assets like /css, /js, the favicon).
@@ -243,40 +224,9 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email + password required' });
   try {
-    // 1) Firebase
-    const fb = await fetch(FIREBASE_SIGNIN, {
-      method: 'POST',
-      headers: { ...COMMON_HEADERS, 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password, returnSecureToken: true, clientType: 'CLIENT_TYPE_WEB' }),
-    });
-    const fbJson = await fb.json();
-    if (!fb.ok) return res.status(fb.status).json({ error: fbJson?.error?.message || 'firebase auth failed', detail: fbJson });
-
-    const { idToken, refreshToken, localId, expiresIn } = fbJson;
-
-    // 2) Exchange for dreamborn session cookie
-    const dr = await fetch(DREAMBORN_LOGIN, {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'content-type': 'application/json',
-        'origin': 'https://dreamborn.ink',
-        'referer': 'https://dreamborn.ink/sign-in',
-        'user-agent': COMMON_HEADERS['user-agent'],
-      },
-      body: JSON.stringify({ token: idToken }),
-    });
-    const setCookie = dr.headers.get('set-cookie') || '';
-    const drJson = await dr.json().catch(() => ({}));
-    if (!dr.ok || !drJson.success) {
-      return res.status(dr.status || 502).json({ error: 'dreamborn login failed', detail: drJson });
-    }
-
-    // Pull __session cookie (we only need that one for follow-up calls)
-    const sessionCookie = setCookie
-      .split(/,(?=\s*[A-Za-z0-9_-]+=)/)
-      .map((c) => c.trim())
-      .find((c) => c.startsWith('__session='));
+    // Firebase password sign-in, exchanged for the dreamborn __session cookie (lib/dreamborn.js)
+    const { uid: localId, cookie: sessionCookie, user: drJson, idToken, refreshToken, expiresIn } =
+      await dreambornClient.signIn(email, password, { caller: 'route:/api/login', userId: accounts.userFromReq?.(req)?.id });
 
     const sid = newSessionId();
     sessions.set(sid, {
@@ -301,6 +251,9 @@ app.post('/api/login', async (req, res) => {
       settings: drJson.settings || {},
     });
   } catch (e) {
+    // Firebase or dreamborn said no: pass their answer on, as before
+    if (e.step === 'firebase') return res.status(e.status).json({ error: e.message, detail: e.detail });
+    if (e.step === 'login') return res.status(e.status || 502).json({ error: 'dreamborn login failed', detail: e.detail });
     console.error('[login]', e);
     res.status(500).json({ error: e.message });
   }
@@ -338,16 +291,8 @@ app.get('/api/me', (req, res) => {
 app.get('/api/collection', async (req, res) => {
   const s = requireSession(req, res); if (!s) return;
   try {
-    const r = await fetch(DREAMBORN_OWNED(s.uid), {
-      headers: {
-        'accept': '*/*',
-        'cookie': s.cookie,
-        'user-agent': COMMON_HEADERS['user-agent'],
-        'referer': 'https://dreamborn.ink/collection',
-      },
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) return res.status(r.status).json({ error: 'collection fetch failed', detail: j });
+    const { ok, status, data: j } = await dreambornClient.ownedCards(s.uid, s.cookie, { caller: 'route:/api/collection', userId: accounts.userFromReq?.(req)?.id });
+    if (!ok) return res.status(status).json({ error: 'collection fetch failed', detail: j });
     res.json({ ok: true, owned: j });
   } catch (e) {
     res.status(502).json({ error: e.message });
@@ -370,20 +315,12 @@ app.get('/api/decks', async (req, res) => {
     // Note: dreamborn's /api/v2/decks does NOT accept ?q= or ?color= and 400s when
     // they're present.  We filter those client-side on our side after the fetch.
 
-    const url = `${DREAMBORN_DECKS}?${params}`;
     // If the user is signed in, forward their dreamborn session cookie so
     // paginated / source=following / favorites lookups work.
     const sid = parseSid(req);
     const sess = sid && sessions.get(sid);
-    const r = await fetch(url, {
-      headers: {
-        'accept': 'application/json',
-        'user-agent': COMMON_HEADERS['user-agent'],
-        'referer': 'https://dreamborn.ink/decks',
-        ...(sess?.cookie ? { 'cookie': sess.cookie } : {}),
-      },
-    });
-    const j = await r.json().catch(() => ({ error: 'non-json' }));
+    const r = await dreambornClient.listDecks(params, { cookie: sess?.cookie || undefined, caller: 'route:/api/decks', userId: accounts.userFromReq?.(req)?.id });
+    const j = r.data;
     if (!r.ok) return res.status(r.status).json({ error: 'dreamborn decks failed', detail: j });
 
     // dreamborn returns an array. Client-side filter for color/q if asked,
@@ -415,16 +352,9 @@ app.get('/api/decks/:id', async (req, res) => {
   const id = (req.params.id || '').replace(/[^A-Za-z0-9_-]/g, '');
   if (!id) return res.status(400).json({ error: 'bad deck id' });
   try {
-    const r = await fetch(DREAMBORN_DECK_PAGE(id), {
-      headers: {
-        'accept': 'text/html',
-        'user-agent': COMMON_HEADERS['user-agent'],
-        'referer': 'https://dreamborn.ink/decks',
-      },
-    });
+    const r = await dreambornClient.deck(id, { caller: 'route:/api/decks/:id', userId: accounts.userFromReq?.(req)?.id });
     if (!r.ok) return res.status(r.status).json({ error: 'dreamborn deck page failed', status: r.status });
-    const html = await r.text();
-    const parsed = parseDreambornDeckHTML(html, id);
+    const parsed = r.deck;
     if (!parsed) return res.status(502).json({ error: 'could not parse deck payload' });
     res.set('Cache-Control', 'public, max-age=300');
     res.json({ ok: true, deck: parsed });

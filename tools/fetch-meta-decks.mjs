@@ -7,27 +7,31 @@
 // card the engine runs by itself (a bot can't use an ability it has to resolve by hand, so such a deck would play
 // below its strength). --allow-manual keeps decks with up to 4 such cards. One deck per ink pair and creator, so the
 // set is varied.
+//
+// Dreamborn is reached through lib/dreamborn.js with caller 'tool:fetch-meta-decks'. This runs on the host, so its calls
+// are recorded in this checkout's data/extcalls.db, not the container's; a server run from this checkout shows them
+// on /admin → External calls.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadCardIndex, resolveDeck, isFullyAutomated } from '../game/cards.js';
-import { DREAMBORN_DECKS, DREAMBORN_DECK_PAGE, parseDreambornDeckHTML } from '../lib/dreamborn.js';
+import { dreamborn } from '../lib/dreamborn.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (k, def) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : def; };
 const PAGES = Number(arg('--pages', 3)), KEEP = Number(arg('--keep', 12)), MANUAL_OK = process.argv.includes('--allow-manual') ? 4 : 0;
 const OUT = path.join(root, 'game', 'decks', 'meta.json');
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
+const CALLER = 'tool:fetch-meta-decks';
 
 const index = await loadCardIndex(path.join(root, 'cache', 'sanitized.db'));
 // dreamborn serves page 1 of each sort without a login (later pages answer 401); popular first, then trending
 const list = [], ids = new Set();
 for (const sort of ['popular', 'trending']) {
   for (let page = 1; page <= PAGES; page++) {
-    const r = await fetch(`${DREAMBORN_DECKS}?currency=USD&sort=${sort}&archetype=&format=&page=${page}`, { headers: { accept: 'application/json', 'user-agent': UA, referer: 'https://dreamborn.ink/decks' } });
+    const r = await dreamborn.listDecks({ currency: 'USD', sort, archetype: '', format: '', page }, { caller: CALLER });
     if (!r.ok) { if (page === 1) console.warn(`  ${sort} decks: ${r.status}`); break; }
-    const j = await r.json();
+    const j = r.data;
     for (const d of (Array.isArray(j) ? j : j.data || j.items || [])) if (!ids.has(d.id)) { ids.add(d.id); list.push(d); }
   }
 }
@@ -38,9 +42,9 @@ const skipped = { size: 0, illegal: 0, manual: 0, dup: 0, unknown: 0 };
 for (const d of list) {
   if (kept.length >= KEEP) break;
   if (Number(d.size) !== 60) { skipped.size++; continue; }
-  const r = await fetch(DREAMBORN_DECK_PAGE(d.id), { headers: { accept: 'text/html', 'user-agent': UA, referer: 'https://dreamborn.ink/decks' } });
+  const r = await dreamborn.deck(d.id, { caller: CALLER });
   if (!r.ok) { console.warn(`  ${d.name}: page ${r.status}`); continue; }
-  const deck = parseDreambornDeckHTML(await r.text(), d.id);
+  const deck = r.deck;
   if (!deck) { console.warn(`  ${d.name}: could not parse`); continue; }
   const cards = deck.cardIds.filter((c) => index.byId.has(c.id)).map((c) => [c.id, c.qty]);
   if (cards.length !== deck.cardIds.length) { skipped.unknown++; console.warn(`  ${d.name}: ${deck.cardIds.length - cards.length} unknown cards`); continue; }
