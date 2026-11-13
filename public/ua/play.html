@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ink · Union Arena table</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080b1f">
+<meta name="description" content="Play Union Arena in your browser: against a friend or the bot, with the rules enforced.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ink.css">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/ua.css">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5' fill='%23d9b45a'/></svg>">
+</head>
+<body class="ua">
+<header class="topbar">
+  <a class="brandmark" href="/ua">Ink<small>Union Arena</small></a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="/ua">Decks</a>
+    <a href="/ua/play" aria-current="page">Play</a>
+    <span class="sep">|</span>
+    <a href="/play" title="Ink's Disney Lorcana table">Lorcana</a>
+  </nav>
+  <span class="grow"></span>
+  <span id="conn" class="ua-note"></span>
+</header>
+<div id="notice" class="notice" hidden></div>
+<div id="app"></div>
+<img id="peek" class="peek" alt="">
+<dialog id="pileModal" class="modal wide"><div class="modal-head"><h2 id="pileTitle"></h2><button class="x" data-close aria-label="Close">✕</button></div><div class="body"><div id="pileBody" class="ua-grid"></div></div></dialog>
+<script type="module" src="/ua/js/play.js"></script>
+</body>
+</html>

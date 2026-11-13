@@ -1,7 +1,7 @@
 {
   "name": "ink",
   "version": "0.1.0",
-  "description": "Disney Lorcana deck builder and online table with a full rules engine.",
+  "description": "Disney Lorcana and Union Arena deck builders and online tables with full rules engines.",
   "type": "module",
   "private": true,
   "scripts": {
@@ -13,7 +13,7 @@
     "test:effects": "node scripts/test-effects.mjs",
     "test:procs": "node scripts/test-procs.mjs",
     "test:chaos": "node scripts/sim-games.mjs 200 1 --chaos",
-    "test": "node scripts/test-procs.mjs && node scripts/test-effects.mjs && pnpm -s verify && node scripts/sim-games.mjs 60 && node scripts/sim-games.mjs 100 1 --chaos",
+    "test": "node scripts/test-procs.mjs && node scripts/test-effects.mjs && pnpm -s verify && node scripts/sim-games.mjs 60 && node scripts/sim-games.mjs 100 1 --chaos && pnpm -s test:ua",
     "verify": "node scripts/verify/schema.mjs && node scripts/verify/gates.mjs && node scripts/verify/probe.mjs && node scripts/verify/readback.mjs && node scripts/verify/explore.mjs && node scripts/verify/scenarios.mjs && node scripts/oracles/run.mjs && node scripts/verify/ledger.mjs && node scripts/verify/trace.mjs",
     "scan:cards": "uv run tools/card-scan/scan.py --jobs 12",
     "build:cards": "node scripts/build-cards.mjs",
@@ -21,7 +21,10 @@
     "build:procs": "node tools/compile-procs.mjs",
     "gaps": "node scripts/gaps.mjs",
     "meta-decks": "node tools/fetch-meta-decks.mjs",
-    "arena": "node scripts/bot-arena.mjs --ab"
+    "arena": "node scripts/bot-arena.mjs --ab",
+    "test:ua": "node scripts/test-ua.mjs && node scripts/ua-sim.mjs 60 && node scripts/ua-sim.mjs 60 1 --chaos && node scripts/ua-sim.mjs 60 1 --bot",
+    "build:ua": "node tools/ua/import-cards.mjs",
+    "ua:coverage": "node scripts/ua-coverage.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

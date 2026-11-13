@@ -30,6 +30,8 @@ import { attachReplays } from './lib/replays.js';
 import { attachReports } from './lib/reports.js';
 import { dreamborn as dreambornClient } from './lib/dreamborn.js';
 import { attachExtCallsAdmin } from './lib/extcalls/admin.js';
+import { attachUaDecks } from './lib/ua/decks.js';
+import { attachUaLobby } from './game/ua/lobby.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -166,6 +168,26 @@ async function refreshCardIndex() {
 }
 setInterval(refreshCardIndex, 60 * 60 * 1000).unref();
 
+// ---------- Union Arena: cards from the official card list (tools/ua/import-cards.mjs → cache/ua-cards.json) ----------
+// Imported on boot when missing, then re-read daily; a run only fetches detail pages for card numbers it hasn't seen.
+const UA_MAX_AGE = 24 * 60 * 60 * 1000;
+let uaImporting = null;
+async function ensureUaCards() {
+  const file = path.join(CACHE_DIR, 'ua-cards.json');
+  const built = await fs.stat(file).then((x) => x.mtimeMs).catch(() => 0);
+  if (built && Date.now() - built < UA_MAX_AGE) return;
+  uaImporting ||= (async () => {
+    console.log('[ua] importing cards from unionarena-tcg.com…');
+    await promisify(execFile)(process.execPath, ['tools/ua/import-cards.mjs', '--quiet'], { cwd: __dirname, timeout: 3 * 60 * 60 * 1000 });
+    console.log('[ua] cache/ua-cards.json rebuilt');
+  })().catch((e) => console.error('[ua] import failed:', e.message)).finally(() => { uaImporting = null; });
+  await uaImporting;
+}
+if (process.env.INK_UA_IMPORT !== '0') {
+  ensureUaCards();
+  setInterval(ensureUaCards, 60 * 60 * 1000).unref();
+}
+
 // ---------- app ----------
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -182,6 +204,8 @@ const accounts = attachAccounts(app, {
 attachReports(app, { db: statsDb, accounts, dataDir: DATA_DIR });
 // /admin → External calls: every call Ink makes to Dreamborn (and later duels.ink), from data/extcalls.db (lib/extcalls)
 attachExtCallsAdmin(app, { accounts });
+// Union Arena: cards, deck checks and UA decks on the same accounts (lib/ua/decks.js)
+const uaDecks = attachUaDecks(app, { db: statsDb, accounts });
 
 // Count one visit per top-level HTML page load (real navigations only — not API
 // calls, the .db downloads, or static assets like /css, /js, the favicon).
@@ -403,6 +427,10 @@ app.get('/sw.js', async (req, res, next) => {
   } catch (e) { next(); }
 });
 
+// ----- Union Arena pages: /ua (deck builder) and /ua/play (table) -----
+app.get(['/ua', '/ua/'], (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'ua', 'index.html')));
+app.get('/ua/play', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'ua', 'play.html')));
+
 // ----- static -----
 app.use(express.static(PUBLIC_DIR, {
   extensions: ['html'],
@@ -491,6 +519,7 @@ attachLab(app, { db: statsDb, getIndex: () => cardIndex, accounts, dbFile: path.
 const server = app.listen(PORT, () => {
   console.log(`\n  Ink ▸ http://localhost:${PORT}\n`);
 });
+attachUaLobby(server, { userFromReq: accounts.userFromReq, uaDecks });
 attachLobby(server, {
   getIndex: () => cardIndex,
   userFromReq: accounts.userFromReq,

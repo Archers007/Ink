@@ -39,6 +39,16 @@ node scripts/sim-games.mjs 100 1 --chaos
 pnpm run verify
 ```
 
+Union Arena (`game/ua/`, `lib/ua/`, `public/ua/`, served at `/ua`) has its own suites, also required when it changes:
+
+```
+pnpm run test:ua            # scripts/test-ua.mjs rules tests + ua-sim soak games (random, chaos, bot)
+```
+
+Its cards come from the official card list (`node tools/ua/import-cards.mjs` → `cache/ua-cards.json`; the server
+imports on boot and re-reads daily). `node scripts/ua-coverage.mjs` shows how much card text the UA compiler automates
+and the most common sentences still resolved by hand. Rules: `docs/rules/ua/rule_manual.md`.
+
 Add a regression test to `scripts/test-effects.mjs` for an engine bug, and check it fails without the fix.
 `pnpm run verify` rewrites `scripts/verify/cr-trace.md`; revert that file rather than committing it unless the
 change is meant to move the trace. UI changes get checked in the browser preview (`.claude/launch.json`, port 3000).
