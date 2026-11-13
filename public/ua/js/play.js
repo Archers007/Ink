@@ -28,7 +28,7 @@ function connect() {
       render();
     }
     if (m.t === 'room') { st.room = m.room; if (!m.room.started) st.view = null; render(); }
-    if (m.t === 'game') { if (m.defs) st.defs = m.defs; st.view = m.view; st.picks.clear(); closeMenu(); render(); }
+    if (m.t === 'game') { if (m.defs) st.defs = m.defs; st.view = m.view; st.picks.clear(); st.costPick = null; closeMenu(); render(); }
     if (m.t === 'err') notice(m.msg, true);
     if (m.t === 'chat') { st.chat.push(m); render(); }
     if (m.t === 'rooms') { st.openRooms = m.rooms; render(); }
@@ -96,7 +96,7 @@ function cardEl(c, { cls = '', back = false } = {}) {
 function classFor(c) {
   const v = st.view;
   const out = [];
-  if (st.picks.has(c.iid)) out.push('sel');
+  if (st.picks.has(c.iid) || st.costPick?.picks.has(c.iid)) out.push('sel');
   if (v?.pending?.options?.includes(c.iid) && v.pending.seat === v.you) out.push('can');
   if (v?.battle && (v.battle.att === c.iid || v.battle.blocker === c.iid || v.battle.target === c.iid)) out.push('att');
   if (v?.legal?.some((a) => a.iid === c.iid && ['play', 'move', 'attack', 'activate'].includes(a.type))) out.push('can');
@@ -125,6 +125,12 @@ function promptHtml() {
       <div class="acts"><button class="btn btn-gold" data-do="rematch">Back to the table</button><a class="btn btn-quiet" href="/ua">Decks</a></div></div>`;
   }
   if (!p) return '<div class="prompt"><div class="msg">…</div></div>';
+  if (st.costPick && p.seat === v.you) {
+    const cp = st.costPick;
+    return `<div class="prompt"><div class="msg">Cost: choose ${cp.n} card${cp.n > 1 ? 's' : ''} from your hand to place into your sideline.</div>
+      <div class="ua-note">${fmt(cp.a.label || '')}</div>
+      <div class="acts"><button class="btn btn-gold" data-do="payCost" ${cp.picks.size === cp.n ? '' : 'disabled'}>Pay and activate</button><button class="btn btn-quiet" data-do="cancelCost">Cancel</button></div></div>`;
+  }
   if (p.seat !== v.you) return `<div class="prompt"><div class="msg">Waiting for ${esc(v.players[p.seat].name)}…</div><div class="ua-note">${esc(p.prompt || '')}</div></div>`;
   const legal = v.legal || [];
   let body = '';
@@ -235,6 +241,12 @@ function clickCard(el, ev) {
   const p = v.pending;
   const legal = v.legal || [];
   const d = D(no);
+  // paying a "place n cards from hand into sideline" cost: toggle hand cards
+  if (st.costPick) {
+    const inHandNow = v.players[v.you].hand.some((c) => c.iid === iid);
+    if (inHandNow) { const cp = st.costPick; if (cp.picks.has(iid)) cp.picks.delete(iid); else if (cp.picks.size < cp.n) cp.picks.add(iid); render(); }
+    return;
+  }
   // replacing a card on a full line
   if (st.pendingReplace) {
     const a = { ...st.pendingReplace, remove: iid };
@@ -278,12 +290,8 @@ function clickCard(el, ev) {
     if (a.type === 'attack') items.push({ label: a.target ? `Snipe ${nm(a.target)}` : 'Attack', run: () => act(a) });
     if (a.type === 'activate') {
       items.push({ label: `Activate: ${String(a.label || '').replace(/\[[^\]]+\]\s*/g, '').slice(0, 70)}…`, run: () => {
-        if (a.needDiscard) {
-          const hand = v.players[v.you].hand;
-          const pick = hand.slice(0, a.needDiscard).map((c) => c.iid);
-          if (!confirm(`This costs ${a.needDiscard} card(s) from your hand. Discard ${hand.slice(0, a.needDiscard).map((c) => D(c.no).name).join(', ')}?`)) return;
-          act({ ...a, discard: pick });
-        } else act(a);
+        if (a.needDiscard) { st.costPick = { a, n: a.needDiscard, picks: new Set() }; render(); }
+        else act(a);
       } });
     }
   }
@@ -330,10 +338,12 @@ document.addEventListener('click', (e) => {
   if (w === 'rematch') send({ t: 'rematch' });
   if (w === 'concede' && confirm('Concede this game?')) act({ type: 'concede' });
   if (w === 'confirm') act({ type: 'choose', picks: [...st.picks] });
+  if (w === 'payCost') { const cp = st.costPick; st.costPick = null; act({ ...cp.a, discard: [...cp.picks] }); }
+  if (w === 'cancelCost') { st.costPick = null; render(); }
   if (w === 'none') act({ type: 'choose', picks: [] });
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeMenu(); st.pendingReplace = null; }
+  if (e.key === 'Escape') { closeMenu(); st.pendingReplace = null; if (st.costPick) { st.costPick = null; render(); } }
   if (e.key === 'Enter' && e.target.id === 'chatIn' && e.target.value.trim()) { send({ t: 'chat', text: e.target.value }); e.target.value = ''; }
 });
 // big card on hover

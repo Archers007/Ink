@@ -19,7 +19,9 @@ body.ua { margin: 0; min-height: 100vh; background: var(--page-bg); color: var(-
 .ua-filters select, .ua-filters input[type=search], .ua-deck input[type=text], .ua textarea {
   background: var(--ink-panel); color: var(--fg); border: 1px solid var(--line-cool); border-radius: 10px; padding: 9px 12px; font: inherit;
 }
-.ua-filters input[type=search] { flex: 1 1 220px; min-width: 160px; }
+.ua-filters input[type=search] { flex: 1 1 220px; min-width: 0; }
+.ua-filters select { max-width: 100%; min-width: 0; }
+#title { max-width: min(320px, 100%); text-overflow: ellipsis; }
 .ua-filters .chips { display: flex; gap: 4px; }
 .chip { background: transparent; border: 1px solid var(--line-cool); color: var(--mist); border-radius: 999px; padding: 5px 10px; font: 600 12.5px/1 var(--font-ui); cursor: pointer; }
 .chip[aria-pressed="true"] { border-color: var(--gilt); color: var(--gilt-hi); background: rgba(217,180,90,.1); }
