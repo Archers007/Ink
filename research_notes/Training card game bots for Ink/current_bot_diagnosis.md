@@ -84,4 +84,45 @@ card advantage, lore race, or the opponent's deck.
 6. Cost per sample is dominated by `structuredClone` of an ~88 KB state (measured below), limiting samples per move.
 
 ## Measurements taken in this session (container: 4 vCPU, Node 22, 12 meta decks)
-(Section filled in below when the baseline matches finish.)
+All matches: full games on the 12 meta decks, seats and decks alternated, paired seeds, run with ad-hoc scripts
+that call the repo's own `createSearchBot` / `botDecide` (scripts were in the session scratchpad, not committed).
+Four matches ran at once on 4 vCPUs while other benchmarks were also running, so time-budgeted bots got somewhat
+fewer samples than they would on an idle machine. Every interval below is a 95% normal-approximation interval on a
+small sample; read them as "could not detect a difference", never as "no difference exists".
+
+### Raw speed
+- Scripted bot vs itself: 79.5 games/s on one core, 7,560 engine actions/s, 95 actions per game, 20.1 turns per
+  game; the seat going first won 23 of 60.
+- `structuredClone` of a turn-10 state: 0.67 ms (state is 88 KB as JSON). The search clones once per sample and
+  once per candidate legality check.
+- Search bot in play: about 42 decisions per game, 5.5 legal root moves on average, about 650 samples per second,
+  so about 240 samples per decision at 450 ms = **about 44 samples per candidate move**.
+
+### Matches
+| A | B | Games | A wins | A rate (95% interval) | What it tests |
+|---|---|---|---|---|---|
+| search 450 ms | scripted bot | 30 | 24 | 80% ± 14 | Does the search help at all? Yes, clearly. |
+| search 480 ms | search 60 ms | 30 | 19 | 63% ± 17 | 8× thinking time. Small gain, borderline at this sample. |
+| search 1800 ms | search 450 ms | 20 | 12 | 60% ± 21 | 4× thinking time (about 880 vs 240 samples). Not distinguishable from even. |
+| search 450 ms that **sees all hidden cards** (no re-deal: true opponent hand, true deck orders) | stock search 450 ms | 30 | 15 | 50% ± 18 | Is hidden information the limit? No measurable edge from perfect information. |
+| search 450 ms with rollouts **one full turn cycle longer** | stock search 450 ms | 30 | 15 | 50% ± 18 | Is the short horizon the limit? No measurable gain from longer scripted rollouts (this match stood at 0–6 after six games and finished 15–15, a reminder of how noisy 30 games are). |
+
+Seat split in the same matches (A going first / second): 13/15 and 11/15; 10/15 and 9/15; 8/15 and 7/15; 6/15
+and 9/15. No consistent first-player effect is visible at this sample size.
+
+### What the measurements say
+- The search is a real improvement over the script (80%), so the search framework is worth keeping.
+- More samples buy little: 8× the time gives roughly 63%, 4× more on top is not detectable. The bot is not
+  sample-starved; it converges quickly to the answer its rollout policy and evaluation give, and that answer is
+  the limit.
+- Giving the search the true hidden cards did not help in 30 games. So better hand inference / belief modelling is
+  not the first thing to fix: the bot cannot exploit perfect information even when handed it, because one scripted
+  turn of look-ahead and an identity-blind evaluation do not use it.
+- Lengthening the scripted rollout did not help either. Deeper look-ahead through a weak scripted policy adds
+  noise as fast as it adds information; the look-ahead needs a better policy and a better evaluation, not more
+  plies of the script.
+- Together these point at the same two things the code reading does: (1) the quality of what is searched (whole
+  turns rather than single first actions; a better policy for the rest of the turn and for the opponent) and
+  (2) the quality of the evaluation at the horizon (card-aware, trained on games played by strong players).
+- Sample sizes here (20–30 games) can only detect differences of roughly 18+ points. The repo's own gate (80
+  games, pass at 60%) has the same weakness: a real 55% improvement would usually fail it.
