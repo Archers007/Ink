@@ -176,7 +176,7 @@ Published end-to-end RL budgets are 10^8–10^11 decisions on hundreds to thousa
 ### Cited Findings
 | System | Budget | Hardware | Source |
 |---|---|---|---|
-| ByteRL LOCM 1.5 | ~72 h at ~500K frames/s | 24 V100 + 14,400 CPU cores | [Xi 2023](https://arxiv.org/abs/2303.04096) |
+| ByteRL LOCM 1.5 | ~72 h at ~500K frames/s | 24 "units", each 1 V100 + 600 CPU cores | [Xi 2023](https://arxiv.org/abs/2303.04096) |
 | ByteRL Hearthstone b4 | 23 days | 24 V100 + 5,856 CPU cores | [Xiao 2023](https://arxiv.org/abs/2303.05197) |
 | DouZero | 5×10^8 steps to beat SL; 5×10^9 to beat DeltaDou; trained 30 days | 48 cores + 4× 1080 Ti | [Zha 2021](https://arxiv.org/abs/2106.06135) |
 | PerfectDou | 2.5×10^9 steps | 880 cores + 8 GPUs | [Yang 2022](https://arxiv.org/abs/2203.16406) |
@@ -189,7 +189,7 @@ Published end-to-end RL budgets are 10^8–10^11 decisions on hundreds to thousa
 | AAU Scripts of Tribute BC | 6,400 games, 673,619 decisions | not stated | [Loós 2026](https://projekter.aau.dk/learning-based-decision-making-in-a-competitive-card-game-ca046171.html) |
 | KataGo | 19 days, ≤28 V100 (~1.4 GPU-years) vs ELF's ~74 GPU-years | — | [Wu 2019](https://arxiv.org/abs/1902.10565) |
 
-- KataGo efficiency methods (about 50× less compute than ELF OpenGo to surpass it): **playout cap randomisation** — a random 25% of moves get a full search (N = 600, later 1,000 playouts) and the rest a fast one (n = 100, later 200), so games finish quickly (more value samples) while policy targets come from good searches; it "clearly outperforms" every fixed playout count tried (100–600). **Auxiliary targets** — predicting board ownership and final score difference, and the opponent's next move; removing ownership/score caused "a noticeable drop in learning efficiency". Forced playouts with policy-target pruning gave smaller gains. The author notes strong amateur level is reachable "on even single GPUs in mere days". [pre; KataGo paper, widely replicated] — [Wu 2019](https://arxiv.org/abs/1902.10565)
+- KataGo efficiency methods (about 50× less compute than ELF OpenGo to surpass it): **playout cap randomisation** — a random 25% of moves get a full search (N = 600, later 1,000 playouts) and the rest a fast one (n = 100, later 200), so games finish quickly (more value samples) while policy targets come from good searches; it "clearly outperforms" every fixed playout count tried (100–600). **Auxiliary targets** — predicting board ownership and final score difference, and the opponent's next move; removing ownership/score caused "a noticeable drop in learning efficiency". Forced playouts with policy-target pruning gave smaller gains. The author notes strong amateur level is reachable "on even single GPUs in mere days". [pre] — [Wu 2019](https://arxiv.org/abs/1902.10565)
 - AlphaZero.jl Connect Four: about one hour per training iteration on an i5-9600K + RTX 2070; the net alone ends "significantly stronger" than a depth-5 minimax baseline. [repo] — [AlphaZero.jl](https://github.com/jonathan-laurent/AlphaZero.jl)
 - ByteRL noted that with a capacity-limited net, doubling or tripling batch size/GPUs/CPUs did not improve results. [PR] — [Xiao et al. 2023](https://arxiv.org/abs/2303.05197)
 - DouZero: more actors speed wall-clock learning but sample efficiency is unchanged; Monte Carlo targets tolerate high variance because the simulator produces samples cheaply. [PR] — [Zha et al. 2021](https://arxiv.org/abs/2106.06135)
@@ -217,7 +217,7 @@ Human data has been used successfully only at the scale of millions of expert de
 - Suphx pretrains five models on 4M–15M state–action pairs from top human players (test accuracy 76.7% for discard) and also trains its global reward predictor on human logs; RL then improves on the supervised agent. [pre] — [Li et al. 2020](https://arxiv.org/abs/2003.13590)
 - DouZero trained without human data and beat a supervised agent trained on 49,990,075 human samples within two days; its agreement with human moves rose during the first five days of training and then fell sharply while strength kept rising. [PR] — [Zha et al. 2021](https://arxiv.org/abs/2106.06135)
 - Metamon (competitive Pokémon battles): reconstructs first-person views from third-person spectator logs of a decade-plus of human battles, trains transformers by imitation → offline RL → fine-tuning on self-play data; reached the top 10% of active ladder players with no search. [PR, RLC 2025] — [Grigsby et al. 2025](https://arxiv.org/abs/2504.04395)
-- BC pretraining improves subsequent RL, more so as the task gets broader (LOCM: +9 to +20 points at 32–512 deck pools vs random init, except one tie at 128), with the value head still trained from scratch. [PR workshop] — [Haluška & Schmid 2024](https://arxiv.org/abs/2404.16689)
+- BC pretraining improves subsequent RL, more so as the task gets broader (LOCM: +4 to +20 points vs random init at 32, 64, 256, 512 and 1,024 deck pools; 1 point worse at 128), with the value head still trained from scratch. [PR workshop] — [Haluška & Schmid 2024](https://arxiv.org/abs/2404.16689)
 - BC alone compounds errors: 36.9% overall and 12–15% vs strong MCTS bots after cloning the best MCTS bot from 673,619 decisions; DAgger did not lift the plateau. In the Gin Rummy study imitation learning and DAgger were among the components that did *not* help. [thesis / pre] — [Loós 2026](https://projekter.aau.dk/learning-based-decision-making-in-a-competitive-card-game-ca046171.html); [Kelidari et al. 2026](https://arxiv.org/abs/2607.06854)
 - Slay the Spire card-pick models that were better at predicting human picks performed worse when actually guiding play. [blog; snippet only] — [dev.to "Good models finish last"](https://dev.to/doronsinger/part-3-good-models-finish-last-2n6a)
 
@@ -249,7 +249,7 @@ The recurring failures are measurement failures (weak yardsticks, uncontrolled s
 - **Engineering order**: the Oracle team used supervised training on known-good data first to find architecture limits and bugs in the self-play loop. [blog; snippet only] — [Oracle "Lessons from AlphaZero: Connect Four"](https://medium.com/oracledevs/lessons-from-alphazero-connect-four-e4a0ae82af68)
 
 ### Inferences
-- An Ink arena should fix a gauntlet (scripted bot, current search bot, earlier checkpoints), mirror every game with seats swapped on the same seed/deck pair, cover the full deck matrix, and run enough games for the margin being claimed (ByteRL used 45,000 per comparison; a 2-point edge needs on the order of 10^4 mirrored games).
+- An Ink arena should fix a gauntlet (scripted bot, current search bot, earlier checkpoints), mirror every game with seats swapped on the same seed/deck pair, cover the full deck matrix, and run enough games for the margin being claimed (ByteRL used 45,000 per comparison; by the binomial standard error 0.5/√n, resolving a 2-point edge at two standard errors needs about 2,500 games and at four about 10,000).
 - Because the engine is deterministic and seeded, mirrored-seed evaluation and StS2-style restarts from stored positions are both available at no extra engineering cost.
 
 ### Gaps
